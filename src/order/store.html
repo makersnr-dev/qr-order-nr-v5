@@ -29,24 +29,66 @@ document.getElementById('call-btn').onclick=()=>{
 };
 
 document.getElementById('pay-btn').onclick=async()=>{
-  const table=document.getElementById('tableNo').value.trim(); const code=document.getElementById('paycode').value.trim(); const pc=get(['admin','paymentCode'])||{code:'7111'};
-  if(!table){ alert('테이블 번호를 입력하세요'); return; } if(code!==pc.code){ alert('결제 코드가 올바르지 않습니다'); return; } if(!cart.items.length){ alert('장바구니가 비어 있습니다'); return; }
-  const total=cart.items.reduce((s,i)=>s+i.price*i.qty,0);
-  // Save pending order to sessionStorage then request payment widget (client key from env via /api/config style)
-  const clientKey = (window.TOSS_CLIENT_KEY || (typeof process!=='undefined' && process.env && process.env.TOSS_CLIENT_KEY)) || '';
-  if(!clientKey){ alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
-  const payments = await 
-  const orderId = 'S'+Date.now();
-  const orderName = cart.items.map(i=>i.name+'x'+i.qty).join(', ').slice(0,48) || '매장주문';
-  sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({kind:'store', payload:{type:'STORE', time:new Date().toISOString(), table, items:cart.items, total, status:'대기'}}));
+  // ✅ 클릭 핸들러 내부(이미 async 함수 안) 전체 교체용
+const table = document.getElementById('tableNo')?.value.trim() || '';
+const code  = document.getElementById('paycode')?.value.trim() || '';
+const pc    = (typeof get === 'function' ? (get(['admin','paymentCode']) || { code: '7111' }) : { code: '7111' });
+
+if (!table) { alert('테이블 번호를 입력하세요'); return; }
+if (code !== pc.code) { alert('결제 코드가 올바르지 않습니다'); return; }
+if (!cart?.items?.length) { alert('장바구니가 비어 있습니다'); return; }
+
+const total = cart.items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 1), 0);
+const orderId   = 'S' + Date.now();
+const orderName = (cart.items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48)) || '매장주문';
+
+// 🧾 성공 페이지에서 저장용 데이터
+sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({
+  kind: 'store',
+  payload: {
+    type: 'STORE',
+    time: new Date().toISOString(),
+    table,
+    items: cart.items,
+    total,
+    status: '대기'
+  }
+}));
+
+// 1) 클라이언트키 가져오기
+const { tossClientKey } = await fetch('/api/config', { cache: 'no-store' }).then(r => r.json());
+if (!tossClientKey) { alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
+
+// 2) SDK 로드 (중복 로드 방지)
+if (!window.TossPayments) {
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://js.tosspayments.com/v1/payment';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// 3) 인스턴스 생성
+const payments = window.TossPayments(tossClientKey);
+
+// 4) 결제 시작
+try {
   await payments.requestPayment({
     method: 'CARD',
-    amount: total,
+    amount: Number(total),
     orderId,
     orderName,
-    successUrl: location.origin + '/src/public/toss-success.html?amount='+total,
-    failUrl: location.origin + '/src/public/toss-fail.html'
+    // vercel.json 라우팅을 썼다면 /toss/success /toss/fail 권장
+    successUrl: `${location.origin}/toss/success?orderId=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(total)}`,
+    failUrl:    `${location.origin}/toss/fail?orderId=${encodeURIComponent(orderId)}`
   });
+} catch (err) {
+  console.error(err);
+  alert('결제를 시작할 수 없습니다.\n' + (err?.message || ''));
+}
+
 };
 </script>
     <script type="module">
