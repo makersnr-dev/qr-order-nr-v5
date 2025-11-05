@@ -2,6 +2,10 @@
   "version": 2,
   "routes": [
     {
+      "src": "/admin/login",
+      "dest": "/src/admin/login.html"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1.js"
     },
