@@ -1,16 +1,19 @@
-// Tiny helper to mount Toss Payments Payment Widget
-export async function loadPaymentWidget(clientKey, customerKey='guest'){
-  // load script once
-  if(!window.__tossPromise){
-    window.__tossPromise = new Promise((resolve, reject)=>{
+// shared toss client loader
+export async function getTossClientKey(){
+  const r = await fetch('/api/config', {cache:'no-store'});
+  const c = await r.json();
+  if(!c || !c.tossClientKey) throw new Error('Missing TOSS client key');
+  return c.tossClientKey;
+}
+export async function loadPaymentWidget(){
+  if(!document.getElementById('tosspayments-script')){
+    await new Promise((res,rej)=>{
       const s=document.createElement('script');
+      s.id='tosspayments-script';
       s.src='https://js.tosspayments.com/v1/payment-widget';
-      s.onload=()=>resolve();
-      s.onerror=reject;
-      document.head.appendChild(s);
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
     });
   }
-  await window.__tossPromise;
-  // @ts-ignore
-  return TossPayments(clientKey).payments; // v1 unified
+  const key = await getTossClientKey();
+  return window.PaymentWidget ? new window.PaymentWidget(key, PaymentWidget.ANONYMOUS) : null;
 }
