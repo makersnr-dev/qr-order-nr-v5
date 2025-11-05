@@ -1,19 +1,131 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>QR 생성기</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net"/><style>:root{color-scheme:dark}body{margin:0;font-family:system-ui,Segoe UI,Roboto,Noto Sans KR,Malgun Gothic,sans-serif;background:#0b0c10;color:#fff}header{position:sticky;top:0;z-index:5;background:#0f1115;border-bottom:1px solid #222;padding:12px 16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}label{font-size:12px;color:#bbb;display:block;margin-bottom:6px}input,button{background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px}main{padding:16px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.card{background:#0f1117;border:1px solid #1f2430;border-radius:14px;padding:12px}.qwrap{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1}.meta{font-size:12px;color:#b6c0d8;word-break:break-all}.actions{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}</style></head>
-<body><header>
-<div><label>기본 URL</label><input id="baseUrl"/></div>
-<div><label>사이즈</label><input id="qrSize" type="number" value="240" min="120" max="1024" step="4"/></div>
-<div><label>여백</label><input id="qrMargin" type="number" value="1" min="0" max="8" step="1"/></div>
-<div><label>테이블</label><input id="tables" placeholder="예: 1,2,5-12,21"/></div>
-<div><button id="gen">QR 생성</button></div>
-<div><button id="dlAll">모두 PNG로 저장</button></div>
-</header><main><div id="grid" class="grid"></div></main>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script>
-const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-$('#baseUrl').value=location.origin.replace(/\/$/,'')+'/order/store';
-function parseTables(s){const out=new Set();(s||'').split(',').map(t=>t.trim()).filter(Boolean).forEach(tok=>{const m=/^([0-9]+)\s*-\s*([0-9]+)$/.exec(tok);if(m){let a=+m[1],b=+m[2];for(let i=Math.min(a,b);i<=Math.max(a,b);i++) out.add(i);}else{const n=+tok; if(!Number.isNaN(n)) out.add(n);}}); return Array.from(out).sort((a,b)=>a-b);}
-function makeCard({url,label,size,margin}){const card=document.createElement('div'); card.className='card'; const qwrap=document.createElement('div'); qwrap.className='qwrap'; const cv=document.createElement('canvas'); cv.width=cv.height=size; qwrap.appendChild(cv); const meta=document.createElement('div'); meta.className='meta'; meta.textContent=label+' — '+url; const actions=document.createElement('div'); actions.className='actions'; const b1=document.createElement('button'); b1.textContent='URL 복사'; b1.onclick=async()=>{try{await navigator.clipboard.writeText(url); b1.textContent='복사됨!'; setTimeout(()=>b1.textContent='URL 복사',1200);}catch(e){alert('복사 실패:'+e)}}; const b2=document.createElement('button'); b2.textContent='PNG 저장'; b2.onclick=()=>{const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=label+'.png'; a.click();}; actions.append(b1,b2); card.append(qwrap,meta,actions); QRCode.toCanvas(cv,url,{width:size,margin:margin},(err)=>{ if(err){console.error(err); meta.textContent='생성 오류:'+err; }}); return card;}
-$('#dlAll').addEventListener('click',()=>{$$('#grid canvas').forEach(cv=>{const label=cv.closest('.card').querySelector('.meta').textContent.split(' — ')[0]; const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=label+'.png'; a.click();});});
-$('#gen').addEventListener('click',()=>{const base=$('#baseUrl').value.replace(/\/$/,''); const size=Math.max(120,Math.min(1024,parseInt($('#qrSize').value,10)||240)); const margin=Math.max(0,Math.min(8,parseInt($('#qrMargin').value,10)||1)); const list=parseTables($('#tables').value); const grid=$('#grid'); grid.innerHTML=''; if(!base){alert('기본 URL을 입력해주세요.'); return;} if(!list.length){alert('테이블 번호를 입력해주세요. 예: 1,2,3-10'); return;} list.forEach(n=>{const url=base+'?table='+encodeURIComponent(n); grid.appendChild(makeCard({url,label:'table-'+n,size,margin}));});});
-</script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>QR 생성</title>
+  <style>
+    :root{color-scheme:dark}
+    body{margin:0;background:#0b0c10;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    h1{font-size:22px;margin:0 0 16px}
+    .toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+    label{font-size:12px;color:#bfc7d5;display:block;margin-bottom:6px}
+    input{background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;min-width:220px}
+    .hint{font-size:12px;color:#9aa3b2;margin-top:4px}
+    button{cursor:pointer;background:#1b2a4b;border:1px solid #2d3c61;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px}
+    button.secondary{background:#12141a;border-color:#2b2f3a}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+    .card{background:#0f1117;border:1px solid #1f2430;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .qwrap{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1}
+    .meta{display:flex;justify-content:space-between;font-size:12px;color:#c2c9d6}
+    .actions{display:flex;gap:8px}
+    .actions button{padding:8px 10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>QR 생성</h1>
+    <div class="toolbar">
+      <div>
+        <label for="tableNo">테이블 번호</label>
+        <input id="tableNo" type="number" min="1" step="1" placeholder="예: 5"/>
+        <div class="hint">힌트: 테이블번호 입력</div>
+      </div>
+      <div>
+        <button id="btnGen">QR 생성</button>
+      </div>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    const KEY = 'qrnr.qrSaved';
+    const $ = (s, el=document)=>el.querySelector(s);
+    const grid = $('#grid');
+    const tableInp = $('#tableNo');
+
+    function loadSaved(){
+      try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ return []; }
+    }
+    function saveAll(arr){
+      localStorage.setItem(KEY, JSON.stringify(arr));
+    }
+    function baseUrl(){
+      return location.origin.replace(/\/$/,'') + '/order/store';
+    }
+    function makeUrl(table){
+      return baseUrl() + '?table=' + encodeURIComponent(table);
+    }
+
+    function render(){
+      const list = loadSaved().sort((a,b)=>a.table-b.table);
+      grid.innerHTML = '';
+      list.forEach(item=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        const qwrap = document.createElement('div');
+        qwrap.className = 'qwrap';
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 240;
+        qwrap.appendChild(canvas);
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const left = document.createElement('div');
+        left.textContent = '테이블 ' + item.table;
+        const right = document.createElement('div');
+        const d = new Date(item.createdAt);
+        right.textContent = d.getFullYear()+'. '+(d.getMonth()+1)+'. '+d.getDate()+'.';
+        meta.append(left,right);
+        const actions = document.createElement('div');
+        actions.className='actions';
+        const bDown = document.createElement('button');
+        bDown.textContent='다운받기';
+        bDown.onclick = ()=>{
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = 'table-' + item.table + '.png';
+          a.click();
+        };
+        const bDel = document.createElement('button');
+        bDel.className='secondary';
+        bDel.textContent='삭제하기';
+        bDel.onclick = ()=>{
+          const arr = loadSaved().filter(x=>x.table!==item.table);
+          saveAll(arr); render();
+        };
+        actions.append(bDown,bDel);
+        card.append(qwrap, meta, actions);
+        grid.appendChild(card);
+
+        // draw QR for item.url
+        QRCode.toCanvas(canvas, item.url, { width: 240, margin: 1 }, (err)=>{
+          if(err){ console.error(err); left.textContent='오류'; }
+        });
+      });
+    }
+
+    async function addOne(){
+      const n = parseInt(tableInp.value, 10);
+      if(!n || n < 1){ alert('테이블 번호를 올바르게 입력하세요.'); tableInp.focus(); return; }
+      const url = makeUrl(n);
+      const arr = loadSaved();
+      // if duplicate table, replace
+      const existingIdx = arr.findIndex(x=>x.table===n);
+      const item = { table:n, url, createdAt: Date.now() };
+      if(existingIdx>=0) arr[existingIdx]=item; else arr.push(item);
+      saveAll(arr);
+      tableInp.value='';
+      render();
+    }
+
+    document.getElementById('btnGen').addEventListener('click', addOne);
+    // enter key
+    tableInp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') addOne(); });
+
+    // first render
+    render();
+  </script>
+</body>
+</html>
