@@ -10,4 +10,4 @@ async function sign(payload){
 
 export default async function handler(req){ if(req.method!=='POST') return json({error:'Method'},405);
   const {uid,pwd}=await req.json(); const raw=process.env.ADMIN_USERS_JSON||'[{"id":"admin","pw":"1234"}]'; let users; try{users=JSON.parse(raw);}catch(_){return json({error:'bad ADMIN_USERS_JSON'},500);}
-  const ok=users.some(u=>u.id===uid && u.pw===pwd); if(!ok) return json({ok:false},401); const token=await sign({uid,realm:'admin',iat:Math.floor(Date.now()/1000)}); return json({ok:true,token}); }
+  const ok=users.some(u=>u.id===uid && u.pw===pwd); if(!ok) return json({ok:false},401); const token=await sign({uid, realm:'admin', tenant:'default', iat:Math.floor(Date.now()/1000)}); return json({ok:true,token}); }
