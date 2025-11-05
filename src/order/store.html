@@ -1,0 +1,51 @@
+
+<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/><title>매장 주문</title></head><body>
+<div class="container">
+  <h1>QR Order - 주문</h1>
+  <div class="card vstack">
+    <div class="hstack" style="gap:12px;flex-wrap:wrap">
+      <div class="vstack" style="min-width:220px;flex:1"><label class="small">테이블</label><input id="tableNo" class="input" placeholder="예: 12"></div>
+      <div class="vstack" style="min-width:220px;flex:1"><label class="small">오늘의 결제 코드</label><input id="paycode" class="input" placeholder="관리자에게 받은 4자리"></div>
+    </div>
+  </div>
+  <div class="card vstack"><h3>직원 호출</h3>
+    <div class="hstack" style="gap:8px;flex-wrap:wrap"><select id="call-reason" class="input" style="max-width:240px"><option>선택 없음</option><option>물/수저 요청</option><option>테이블 정리</option><option>주문 문의</option></select><button id="call-btn" class="btn">직원 호출</button></div>
+    <div id="call-msg" class="small"></div>
+  </div>
+  <div class="card vstack"><h3>메뉴</h3><div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div></div>
+  <div class="card vstack"><h3>장바구니</h3><div id="cart-box" class="vstack"></div></div>
+  <div class="card hstack" style="justify-content:space-between"><div>합계: <b id="total">0</b>원</div><button id="pay-btn" class="btn primary">결제하기</button></div>
+</div>
+<script type="module">
+import {renderMenu, makeCart} from '/src/order/assets/js/modules/menu-cart.js';
+import {get, patch} from '/src/order/assets/js/modules/cust-store.js';
+const url=new URL(location.href); const t=url.searchParams.get('table'); if(t) document.getElementById('tableNo').value=t;
+const cart=makeCart('cart-box','total'); cart.render(); renderMenu('menu-grid', cart);
+document.getElementById('call-btn').onclick=()=>{
+  const reason=document.getElementById('call-reason').value; const table=document.getElementById('tableNo').value.trim()||'-';
+  patch(['admin','ordersStore'], arr=>{ arr=[...(arr||[])]; arr.push({type:'CALL', time:new Date().toISOString(), table, items:[], total:0, status:'대기', note:reason}); return arr; });
+  document.getElementById('call-msg').textContent='호출 전송됨 (관리자 페이지에 알림)';
+};
+import {loadPaymentWidget} from '/src/shared/toss-client.js';
+document.getElementById('pay-btn').onclick=async()=>{
+  const table=document.getElementById('tableNo').value.trim(); const code=document.getElementById('paycode').value.trim(); const pc=get(['admin','paymentCode'])||{code:'7111'};
+  if(!table){ alert('테이블 번호를 입력하세요'); return; } if(code!==pc.code){ alert('결제 코드가 올바르지 않습니다'); return; } if(!cart.items.length){ alert('장바구니가 비어 있습니다'); return; }
+  const total=cart.items.reduce((s,i)=>s+i.price*i.qty,0);
+  // Save pending order to sessionStorage then request payment widget (client key from env via /api/config style)
+  const clientKey = (window.TOSS_CLIENT_KEY || (typeof process!=='undefined' && process.env && process.env.TOSS_CLIENT_KEY)) || '';
+  if(!clientKey){ alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
+  const payments = await loadPaymentWidget(clientKey, 'guest');
+  const orderId = 'S'+Date.now();
+  const orderName = cart.items.map(i=>i.name+'x'+i.qty).join(', ').slice(0,48) || '매장주문';
+  sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({kind:'store', payload:{type:'STORE', time:new Date().toISOString(), table, items:cart.items, total, status:'대기'}}));
+  await payments.requestPayment({
+    method: 'CARD',
+    amount: total,
+    orderId,
+    orderName,
+    successUrl: location.origin + '/src/public/toss-success.html?amount='+total,
+    failUrl: location.origin + '/src/public/toss-fail.html'
+  });
+};
+</script></body></html>

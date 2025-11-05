@@ -1,0 +1,32 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+<title>결제 완료</title></head><body>
+<div class="container"><div class="card vstack" style="max-width:680px;margin:40px auto">
+<h2>결제 확인 중...</h2>
+<div id="msg" class="small">잠시만 기다려주세요.</div>
+</div></div>
+<script type="module">
+import {patch} from '/src/order/assets/js/modules/cust-store.js';
+const q=new URLSearchParams(location.search);
+const paymentKey=q.get('paymentKey'); const orderId=q.get('orderId'); const amount=Number(q.get('amount')||'0');
+if(!paymentKey||!orderId){ document.getElementById('msg').textContent='잘못된 접근입니다.'; throw new Error('bad params'); }
+const r=await fetch('/api/toss/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({paymentKey,orderId,amount})});
+if(!r.ok){ const t=await r.text(); document.getElementById('msg').textContent='결제 확인 실패: '+t; }
+else{
+  const info=JSON.parse(sessionStorage.getItem('qrnr.lastOrder')||'{}');
+  if(info && info.kind==='store'){
+    patch(['admin','ordersStore'], arr=>{ arr=[...(arr||[])]; arr.push(info.payload); return arr; });
+    sessionStorage.removeItem('qrnr.lastOrder');
+    document.getElementById('msg').textContent='매장 주문이 완료되었습니다. 잠시 후 페이지로 돌아갑니다.';
+    setTimeout(()=>location.href='/src/order/store.html',1200);
+  }else if(info && info.kind==='delivery'){
+    patch(['admin','ordersDelivery'], arr=>{ arr=[...(arr||[])]; arr.push(info.payload); return arr; });
+    sessionStorage.removeItem('qrnr.lastOrder');
+    document.getElementById('msg').textContent='배달 주문이 완료되었습니다. 잠시 후 페이지로 돌아갑니다.';
+    setTimeout(()=>location.href='/src/order/delivery.html',1200);
+  }else{
+    document.getElementById('msg').textContent='결제는 확인되었으나 주문정보가 없습니다.';
+  }
+}
+</script></body></html>
