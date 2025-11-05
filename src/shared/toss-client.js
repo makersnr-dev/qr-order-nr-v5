@@ -1,5 +1,4 @@
-
-// src/shared/toss-client.js
+// unified toss-client.js
 export async function getTossClientKey(){
   const r = await fetch('/api/config',{cache:'no-store'});
   const c = await r.json();
@@ -13,7 +12,7 @@ async function loadScript(src,id){
 export async function ensureToss(){
   await loadScript('https://js.tosspayments.com/v1/payment','tosspayments-script');
   const key = await getTossClientKey();
-  if(!window.TossPayments) throw new Error('TossPayments global missing');
+  if(!window.TossPayments) throw new Error('TossPayments not loaded');
   return window.TossPayments(key);
 }
 export function setPendingOrder(data){

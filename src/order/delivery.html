@@ -78,7 +78,7 @@ function updateTab(){
 ['tab-deliv','tab-resv'].forEach(id=>document.getElementById(id).addEventListener('change',updateTab)); updateTab();
 document.getElementById('bank-copy').onclick=()=>{ const txt=document.getElementById('bank-text').textContent; navigator.clipboard.writeText(txt); };
 
-import {loadPaymentWidget} from '/src/shared/toss-client.js';
+
 document.getElementById('action-btn').onclick=async()=>{
   const addr=document.getElementById('addr').value.trim();
   const cust=document.getElementById('cust').value.trim();
@@ -103,7 +103,7 @@ document.getElementById('action-btn').onclick=async()=>{
   } else {
     const clientKey = (window.TOSS_CLIENT_KEY || (typeof process!=='undefined' && process.env && process.env.TOSS_CLIENT_KEY)) || '';
     if(!clientKey){ alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
-    const payments = await loadPaymentWidget(clientKey, 'guest');
+    const payments = await 
     const orderId='D'+Date.now(); const orderName=(order.items||[]).map(i=>i.name+'x'+i.qty).join(', ').slice(0,48)||'배달주문';
     sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({kind:'delivery', payload:order}));
     await payments.requestPayment({method:'CARD', amount: order.total, orderId, orderName, successUrl: location.origin + '/src/public/toss-success.html?amount='+order.total, failUrl: location.origin + '/src/public/toss-fail.html'});
