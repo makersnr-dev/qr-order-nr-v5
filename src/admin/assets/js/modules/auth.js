@@ -28,11 +28,7 @@ export async function requireAuth(realm) {
   }
 
   // 2️⃣ 토큰 검증 API 호출
-  const r = await fetch('/api/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }, // 누락된 헤더 추가
-    body: JSON.stringify({ token: t }), // body는 문자열 형태로 보내야 함
-  });
+ const r = await fetch('/api/verify',{method:'POST',body:t});
 
   // 3️⃣ 검증 실패 시 토큰 삭제 및 로그인 페이지 이동
   if (!r.ok) {
