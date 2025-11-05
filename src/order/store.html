@@ -29,8 +29,7 @@ document.getElementById('call-btn').onclick=()=>{
 };
 
 document.getElementById('pay-btn').onclick=async()=>{
-  // ✅ 클릭 핸들러 내부(이미 async 함수 안) 전체 교체용
-// ✅ 카드 결제 바로 진입 (신용/체크카드)
+// ✅ 카드 결제 바로 진입 강제 버전
 const table = document.getElementById('tableNo')?.value.trim() || '';
 const code  = document.getElementById('paycode')?.value.trim() || '';
 const pc    = (typeof get === 'function' ? (get(['admin','paymentCode']) || { code: '7111' }) : { code: '7111' });
@@ -49,11 +48,19 @@ sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({
   payload: { type:'STORE', time:new Date().toISOString(), table, items:cart.items, total, status:'대기' }
 }));
 
+// 🔒 혹시 남아있는 위젯 UI/코드가 결제수단 선택 화면을 띄우는 걸 막기
+try {
+  // 1) 위젯이 렌더되는 컨테이너 제거 (있을 경우)
+  document.querySelectorAll('#payment-widget, #paymentMethods').forEach(el => el.remove());
+  // 2) 위젯 스크립트가 로드되어 있어도 사용하지 않도록 보장
+  //    (PaymentWidget 전역은 무시하고 TossPayments만 사용)
+} catch(_) {}
+
 // 1) 클라이언트 키
 const { tossClientKey } = await fetch('/api/config', { cache: 'no-store' }).then(r => r.json());
 if (!tossClientKey) { alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
 
-// 2) SDK 로드(중복 방지)
+// 2) v1/payment SDK 로드(중복 방지) — 위젯 아님!
 if (!window.TossPayments) {
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -64,18 +71,19 @@ if (!window.TossPayments) {
   });
 }
 
-// 3) 인스턴스 생성
+// 3) 인스턴스 생성 (위젯 대신 v1/payment)
 const payments = window.TossPayments(tossClientKey);
 
-// 4) 🚀 카드 결제 화면으로 바로 진입
+// 4) 🚀 카드 결제 화면으로 바로 진입 (결제수단 선택 단계 스킵)
 await payments.requestPayment({
-  method: 'CARD',                 // ← 이 값으로 카드 결제창 직행
+  method: 'CARD', // 카드 직행
   amount: Number(total),
   orderId,
   orderName,
   successUrl: `${location.origin}/toss/success?orderId=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(total)}`,
   failUrl:    `${location.origin}/toss/fail?orderId=${encodeURIComponent(orderId)}`
 });
+
 
 };
 </script>
