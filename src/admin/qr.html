@@ -1,29 +1,19 @@
-<!doctype html><html lang="ko"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-<title>QR 생성</title>
-</head><body>
-<div class="container">
-  <h1>QR 생성 (브라우저 로컬)</h1>
-  <div><label>테이블번호</label><input id="table" placeholder="12"/></div>
-  <div><label>기본 URL</label><input id="base"/></div>
-  <div style="margin:8px 0">
-    <button id="gen">QR 생성</button>
-    <button id="dl">PNG 다운로드</button>
-  </div>
-  <canvas id="c" width="240" height="240" style="background:#fff;border-radius:8px"></canvas>
-</div>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>QR 생성기</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/><style>:root{color-scheme:dark}body{margin:0;font-family:system-ui,Segoe UI,Roboto,Noto Sans KR,Malgun Gothic,sans-serif;background:#0b0c10;color:#fff}header{position:sticky;top:0;z-index:5;background:#0f1115;border-bottom:1px solid #222;padding:12px 16px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}label{font-size:12px;color:#bbb;display:block;margin-bottom:6px}input,button{background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px}main{padding:16px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.card{background:#0f1117;border:1px solid #1f2430;border-radius:14px;padding:12px}.qwrap{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1}.meta{font-size:12px;color:#b6c0d8;word-break:break-all}.actions{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}</style></head>
+<body><header>
+<div><label>기본 URL</label><input id="baseUrl"/></div>
+<div><label>사이즈</label><input id="qrSize" type="number" value="240" min="120" max="1024" step="4"/></div>
+<div><label>여백</label><input id="qrMargin" type="number" value="1" min="0" max="8" step="1"/></div>
+<div><label>테이블</label><input id="tables" placeholder="예: 1,2,5-12,21"/></div>
+<div><button id="gen">QR 생성</button></div>
+<div><button id="dlAll">모두 PNG로 저장</button></div>
+</header><main><div id="grid" class="grid"></div></main>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
-const c=document.getElementById('c');
-const base=document.getElementById('base');
-base.value = location.origin + '/order/store';
-document.getElementById('gen').onclick = ()=>{
-  const url = (base.value||'').replace(/\/$/,'') + '?table=' + encodeURIComponent(document.getElementById('table').value||'');
-  QRCode.toCanvas(c, url, {width:240, margin:1});
-};
-document.getElementById('dl').onclick = ()=>{
-  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='qr.png'; a.click();
-};
-</script>
-</body></html>
+const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+$('#baseUrl').value=location.origin.replace(/\/$/,'')+'/order/store';
+function parseTables(s){const out=new Set();(s||'').split(',').map(t=>t.trim()).filter(Boolean).forEach(tok=>{const m=/^([0-9]+)\s*-\s*([0-9]+)$/.exec(tok);if(m){let a=+m[1],b=+m[2];for(let i=Math.min(a,b);i<=Math.max(a,b);i++) out.add(i);}else{const n=+tok; if(!Number.isNaN(n)) out.add(n);}}); return Array.from(out).sort((a,b)=>a-b);}
+function makeCard({url,label,size,margin}){const card=document.createElement('div'); card.className='card'; const qwrap=document.createElement('div'); qwrap.className='qwrap'; const cv=document.createElement('canvas'); cv.width=cv.height=size; qwrap.appendChild(cv); const meta=document.createElement('div'); meta.className='meta'; meta.textContent=label+' — '+url; const actions=document.createElement('div'); actions.className='actions'; const b1=document.createElement('button'); b1.textContent='URL 복사'; b1.onclick=async()=>{try{await navigator.clipboard.writeText(url); b1.textContent='복사됨!'; setTimeout(()=>b1.textContent='URL 복사',1200);}catch(e){alert('복사 실패:'+e)}}; const b2=document.createElement('button'); b2.textContent='PNG 저장'; b2.onclick=()=>{const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=label+'.png'; a.click();}; actions.append(b1,b2); card.append(qwrap,meta,actions); QRCode.toCanvas(cv,url,{width:size,margin:margin},(err)=>{ if(err){console.error(err); meta.textContent='생성 오류:'+err; }}); return card;}
+$('#dlAll').addEventListener('click',()=>{$$('#grid canvas').forEach(cv=>{const label=cv.closest('.card').querySelector('.meta').textContent.split(' — ')[0]; const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=label+'.png'; a.click();});});
+$('#gen').addEventListener('click',()=>{const base=$('#baseUrl').value.replace(/\/$/,''); const size=Math.max(120,Math.min(1024,parseInt($('#qrSize').value,10)||240)); const margin=Math.max(0,Math.min(8,parseInt($('#qrMargin').value,10)||1)); const list=parseTables($('#tables').value); const grid=$('#grid'); grid.innerHTML=''; if(!base){alert('기본 URL을 입력해주세요.'); return;} if(!list.length){alert('테이블 번호를 입력해주세요. 예: 1,2,3-10'); return;} list.forEach(n=>{const url=base+'?table='+encodeURIComponent(n); grid.appendChild(makeCard({url,label:'table-'+n,size,margin}));});});
+</script></body></html>
