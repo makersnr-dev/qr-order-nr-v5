@@ -1,177 +1,29 @@
 <!doctype html><html lang="ko"><head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-<title>QR 생성 (로컬) - Admin</title>
-<style>
-  .qr-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
-  .qr-card{border:1px solid #333;border-radius:12px;padding:16px;background:#0b0b0b}
-  .ctrls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
-  .item{border:1px solid #333;border-radius:10px;padding:10px;background:#151515}
-  .item .meta{font-size:12px;opacity:0.85;margin-top:6px}
-  .btn{padding:8px 10px;border-radius:8px;border:1px solid #444;background:#1e1e1e;color:#fff;cursor:pointer}
-  .btn.primary{border-color:#4b7bec;background:#3867d6}
-  .input, .select{padding:8px 10px;border-radius:8px;border:1px solid #444;background:#121212;color:#fff;width:100%}
-  label{font-size:12px;opacity:0.9;margin-top:6px;display:block}
-  canvas{background:#fff;border-radius:10px}
-</style>
-</head>
-<body>
+<title>QR 생성</title>
+</head><body>
 <div class="container">
-  <h1>QR 생성 (로컬, 가짜 아님)</h1>
-  <p class="small">브라우저에서 바로 QR을 만들어 저장/다운로드합니다. DB 없이도 사용 가능.</p>
-  <div class="qr-wrap">
-    <div class="qr-card">
-      <div class="ctrls">
-        <div>
-          <label>라벨(메모)</label>
-          <input id="label" class="input" placeholder="예: 3번 테이블">
-        </div>
-        <div>
-          <label>테이블 번호</label>
-          <input id="tableNo" class="input" placeholder="예: 3">
-        </div>
-        <div>
-          <label>기본 URL</label>
-          <input id="baseUrl" class="input" placeholder="https://example.com/order/store">
-        </div>
-        <div>
-          <label>완성 URL(자동)</label>
-          <input id="fullUrl" class="input" readonly>
-        </div>
-      </div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button id="btnGen" class="btn primary">QR 생성</button>
-        <button id="btnSave" class="btn">목록에 저장</button>
-        <button id="btnDl" class="btn">PNG 다운로드</button>
-        <button id="btnCopy" class="btn">URL 복사</button>
-      </div>
-      <div style="margin-top:16px">
-        <canvas id="qrCanvas" width="240" height="240"></canvas>
-      </div>
-    </div>
-    <div class="qr-card">
-      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <h3 style="margin:0">저장된 QR 목록</h3>
-        <div>
-          <button id="btnExport" class="btn">JSON 내보내기</button>
-          <button id="btnClear" class="btn" title="모든 목록 삭제">전체삭제</button>
-        </div>
-      </div>
-      <div id="grid" class="grid" style="margin-top:10px"></div>
-    </div>
+  <h1>QR 생성 (브라우저 로컬)</h1>
+  <div><label>테이블번호</label><input id="table" placeholder="12"/></div>
+  <div><label>기본 URL</label><input id="base"/></div>
+  <div style="margin:8px 0">
+    <button id="gen">QR 생성</button>
+    <button id="dl">PNG 다운로드</button>
   </div>
+  <canvas id="c" width="240" height="240" style="background:#fff;border-radius:8px"></canvas>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script type="module">
-const STORE_KEY='qrnr.qrs';
-const $ = (s)=>document.querySelector(s);
-const label=$('#label');
-const tableNo=$('#tableNo');
-const baseUrl=$('#baseUrl');
-const fullUrl=$('#fullUrl');
-const grid=$('#grid');
-const canvas=document.getElementById('qrCanvas');
-
-function makeFullUrl(){
-  const base = (baseUrl.value || '').trim().replace(/\/$/, '');
-  const t = (tableNo.value || '').trim();
-  if(!base) return '';
-  if(!t) return base;
-  const url = base + '?table=' + encodeURIComponent(t);
-  return url;
-}
-function setFullUrl(){ fullUrl.value = makeFullUrl(); }
-baseUrl.addEventListener('input', setFullUrl);
-tableNo.addEventListener('input', setFullUrl);
-
-(function initDefaults(){
-  try{
-    const origin = location.origin || '';
-    baseUrl.value = origin + '/order/store';
-    setFullUrl();
-  }catch(e){}
-})();
-
-async function generateQR(text){
-  if(!text){ alert('완성 URL이 비어있습니다.'); return; }
-  await new Promise((res,rej)=>{
-    QRCode.toCanvas(canvas, text, {width:240, margin:1}, (err)=>{
-      if(err) rej(err); else res();
-    });
-  });
-}
-function dataURLFromCanvas(){ return canvas.toDataURL('image/png'); }
-function downloadPNG(filename='qr.png'){
-  const a=document.createElement('a');
-  a.href=dataURLFromCanvas();
-  a.download=filename;
-  a.click();
-}
-function loadList(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)||'[]'); }catch(e){ return []; } }
-function saveList(list){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(list)); }catch(e){} }
-function addItem(item){ const list=loadList(); list.unshift(item); saveList(list); renderGrid(); }
-function delItem(idx){ const list=loadList(); list.splice(idx,1); saveList(list); renderGrid(); }
-
-function renderGrid(){
-  const list=loadList();
-  grid.innerHTML='';
-  list.forEach((it, idx)=>{
-    const div=document.createElement('div');
-    div.className='item';
-    div.innerHTML = \`
-      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between">
-        <strong>\${it.label || '(라벨없음)'}</strong>
-        <button class="btn" data-del="\${idx}">삭제</button>
-      </div>
-      <div class="meta">테이블: \${it.tableNo || '-'} | \${new Date(it.createdAt).toLocaleString()}</div>
-      <div class="meta" style="word-break:break-all">URL: \${it.url}</div>
-      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn" data-dl="\${idx}">PNG</button>
-        <button class="btn" data-copy="\${idx}">URL복사</button>
-        <button class="btn" data-preview="\${idx}">미리보기</button>
-      </div>
-    \`;
-    grid.appendChild(div);
-  });
-}
-grid.addEventListener('click', (e)=>{
-  const t=e.target;
-  const list=loadList();
-  if(t.dataset.del){
-    delItem(Number(t.dataset.del));
-  }else if(t.dataset.dl){
-    const i=list[Number(t.dataset.dl)];
-    if(i && i.dataUrl){ const a=document.createElement('a'); a.href=i.dataUrl; a.download=(i.label||'qr')+'.png'; a.click(); }
-  }else if(t.dataset.copy){
-    const i=list[Number(t.dataset.copy)]; if(i){ navigator.clipboard.writeText(i.url).then(()=>alert('복사됨')); }
-  }else if(t.dataset.preview){
-    const i=list[Number(t.dataset.preview)];
-    if(i && i.dataUrl){ const w=window.open(); w.document.write('<img src="'+i.dataUrl+'" style="max-width:90vw">'); }
-  }
-});
-
-document.getElementById('btnGen').onclick = async ()=>{
-  const url = makeFullUrl(); fullUrl.value = url; await generateQR(url);
+<script>
+const c=document.getElementById('c');
+const base=document.getElementById('base');
+base.value = location.origin + '/order/store';
+document.getElementById('gen').onclick = ()=>{
+  const url = (base.value||'').replace(/\/$/,'') + '?table=' + encodeURIComponent(document.getElementById('table').value||'');
+  QRCode.toCanvas(c, url, {width:240, margin:1});
 };
-document.getElementById('btnSave').onclick = async ()=>{
-  const url = makeFullUrl(); if(!url){ alert('완성 URL이 비어있습니다.'); return; }
-  await generateQR(url);
-  addItem({ label: label.value.trim(), tableNo: tableNo.value.trim(), url, dataUrl: canvas.toDataURL('image/png'), createdAt: Date.now() });
-  alert('목록에 저장되었습니다.');
+document.getElementById('dl').onclick = ()=>{
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='qr.png'; a.click();
 };
-document.getElementById('btnDl').onclick = ()=>{ const name=(label.value.trim()||'qr')+'.png'; downloadPNG(name); };
-document.getElementById('btnCopy').onclick = ()=>{
-  const url=makeFullUrl(); if(!url){ alert('완성 URL이 비어있습니다.'); return; }
-  navigator.clipboard.writeText(url).then(()=>alert('복사됨'));
-};
-document.getElementById('btnExport').onclick = ()=>{
-  const blob = new Blob([JSON.stringify(loadList(), null, 2)], {type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='qr-list.json'; a.click();
-};
-document.getElementById('btnClear').onclick = ()=>{ if(confirm('정말 모두 삭제하시겠습니까?')){ localStorage.removeItem(STORE_KEY); renderGrid(); } };
-renderGrid();
 </script>
 </body></html>

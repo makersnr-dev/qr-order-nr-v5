@@ -110,4 +110,60 @@ document.getElementById('action-btn').onclick=async()=>{
   }
 };
 </script>
-</body></html>
+
+    <script type="module">
+      import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+      function totalAmount(){
+        const el = document.querySelector('[data-total]') || document.getElementById('total');
+        const v = el ? (el.getAttribute('data-total') || el.textContent || '0') : '0';
+        return Number(String(v).replace(/[^0-9.-]/g,'')) || 0;
+      }
+      function buildCart(){
+        const items = [];
+        document.querySelectorAll('[data-cart-item]').forEach(row=>{
+          const name = row.getAttribute('data-name') || row.querySelector('.name')?.textContent || '메뉴';
+          const qty = Number(row.getAttribute('data-qty') || row.querySelector('.qty')?.textContent || 1);
+          const price = Number(row.getAttribute('data-price') || row.querySelector('.price')?.textContent || 0);
+          items.push({ name, qty, price });
+        });
+        return items;
+      }
+      function customerInfo(){
+        const info={};
+        // common fields if exist
+        const fields={ 
+          name: '#custName,#name', 
+          phone: '#custPhone,#phone', 
+          addr: '#custAddr,#address', 
+          req: '#custNote,#request'
+        };
+        Object.entries(fields).forEach(([k,sel])=>{
+          const el=document.querySelector(sel);
+          if(el) info[k]=el.value||el.textContent||'';
+        });
+        return info;
+      }
+      function currentTable(){
+        const url = new URL(location.href);
+        return url.searchParams.get('table');
+      }
+      function bindPay(){
+        const btn = document.getElementById('payBtn') || document.querySelector('[data-action="pay"]') || document.querySelector('.btn-pay, button.pay');
+        if(!btn) return;
+        btn.addEventListener('click', async (e)=>{
+          e.preventDefault();
+          const orderId = 'ORD-' + Date.now();
+          const amount = totalAmount();
+          const orderName = document.title || '주문';
+          const payload = {
+            type: 'delivery', amount, orderName, cart: buildCart(), 
+            customer: customerInfo(), table: currentTable()
+          };
+          setPendingOrder(payload);
+          try { await startPayment({orderId, amount, orderName}); }
+          catch(err){ console.error('payment start error', err); alert('결제를 시작할 수 없습니다.'); }
+        });
+      }
+      bindPay();
+    </script>
+    </body></html>
