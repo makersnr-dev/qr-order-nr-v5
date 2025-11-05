@@ -11,7 +11,7 @@ import {renderNotify, bindNotify} from './modules/notify.js';
 async function main(){
   await requireAuth('admin');
   initTabs();
-  document.getElementById('logoutBtn').onclick=()=>{ clearToken(); location.href='/login.html?realm=admin'; };
+  document.getElementById('logoutBtn').onclick=()=>{ clearToken(); location.href='/admin'; };
   bindFilters(); renderStore(); renderDeliv(); attachGlobalHandlers();
   document.getElementById('store-export').onclick=()=>exportOrders('ordersStore');
   document.getElementById('deliv-export').onclick=()=>exportOrders('ordersDelivery');
