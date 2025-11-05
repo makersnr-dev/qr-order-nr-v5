@@ -30,6 +30,7 @@ document.getElementById('call-btn').onclick=()=>{
 
 document.getElementById('pay-btn').onclick=async()=>{
   // ✅ 클릭 핸들러 내부(이미 async 함수 안) 전체 교체용
+// ✅ 카드 결제 바로 진입 (신용/체크카드)
 const table = document.getElementById('tableNo')?.value.trim() || '';
 const code  = document.getElementById('paycode')?.value.trim() || '';
 const pc    = (typeof get === 'function' ? (get(['admin','paymentCode']) || { code: '7111' }) : { code: '7111' });
@@ -40,26 +41,19 @@ if (!cart?.items?.length) { alert('장바구니가 비어 있습니다'); return
 
 const total = cart.items.reduce((s, i) => s + Number(i.price || 0) * Number(i.qty || 1), 0);
 const orderId   = 'S' + Date.now();
-const orderName = (cart.items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48)) || '매장주문';
+const orderName = (cart.items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0,48)) || '매장주문';
 
-// 🧾 성공 페이지에서 저장용 데이터
+// 성공 페이지에서 저장용(관리자페이지 적재용)
 sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({
   kind: 'store',
-  payload: {
-    type: 'STORE',
-    time: new Date().toISOString(),
-    table,
-    items: cart.items,
-    total,
-    status: '대기'
-  }
+  payload: { type:'STORE', time:new Date().toISOString(), table, items:cart.items, total, status:'대기' }
 }));
 
-// 1) 클라이언트키 가져오기
+// 1) 클라이언트 키
 const { tossClientKey } = await fetch('/api/config', { cache: 'no-store' }).then(r => r.json());
 if (!tossClientKey) { alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
 
-// 2) SDK 로드 (중복 로드 방지)
+// 2) SDK 로드(중복 방지)
 if (!window.TossPayments) {
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -73,21 +67,15 @@ if (!window.TossPayments) {
 // 3) 인스턴스 생성
 const payments = window.TossPayments(tossClientKey);
 
-// 4) 결제 시작
-try {
-  await payments.requestPayment({
-    method: 'CARD',
-    amount: Number(total),
-    orderId,
-    orderName,
-    // vercel.json 라우팅을 썼다면 /toss/success /toss/fail 권장
-    successUrl: `${location.origin}/toss/success?orderId=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(total)}`,
-    failUrl:    `${location.origin}/toss/fail?orderId=${encodeURIComponent(orderId)}`
-  });
-} catch (err) {
-  console.error(err);
-  alert('결제를 시작할 수 없습니다.\n' + (err?.message || ''));
-}
+// 4) 🚀 카드 결제 화면으로 바로 진입
+await payments.requestPayment({
+  method: 'CARD',                 // ← 이 값으로 카드 결제창 직행
+  amount: Number(total),
+  orderId,
+  orderName,
+  successUrl: `${location.origin}/toss/success?orderId=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(total)}`,
+  failUrl:    `${location.origin}/toss/fail?orderId=${encodeURIComponent(orderId)}`
+});
 
 };
 </script>
