@@ -2,6 +2,26 @@
   "version": 2,
   "routes": [
     {
+      "src": "^/(.*)$",
+      "dest": "/src/$1"
+    },
+    {
+      "src": "^/order/(.*)$",
+      "dest": "/src/order/$1"
+    },
+    {
+      "src": "^/order$",
+      "dest": "/src/order/index.html"
+    },
+    {
+      "src": "^/admin/(.*)$",
+      "dest": "/src/admin/$1"
+    },
+    {
+      "src": "^/admin$",
+      "dest": "/src/admin/index.html"
+    },
+    {
       "src": "/admin/orders",
       "dest": "/src/admin/orders.html"
     },
