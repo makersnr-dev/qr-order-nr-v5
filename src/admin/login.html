@@ -1,0 +1,49 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+<title>관리자 로그인</title>  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
+</head><body>
+<div class="container">
+  <h1>관리자 로그인</h1>
+  <div class="card vstack" style="max-width:520px;margin:0 auto">
+    <input id="uid" class="input" placeholder="아이디">
+    <input id="pwd" class="input" type="password" placeholder="비밀번호">
+    <button id="login" class="btn primary">로그인</button>
+  </div>
+  <div class="small" style="text-align:center;margin-top:10px">
+    고객 로그인은 <a href="/order/login">/order/login</a>
+  </div>
+</div>
+<script type="module">
+import {saveToken} from '/src/admin/assets/js/modules/auth.js';
+document.getElementById('login').onclick=async()=>{
+  const uid=document.getElementById('uid').value.trim();
+  const pwd=document.getElementById('pwd').value.trim();
+  const r=await fetch('/api/login-admin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,pwd})});
+  if(!r.ok){ alert('로그인 실패'); return; }
+  const {token}=await r.json();
+  saveToken(token);
+  localStorage.setItem('tenant','default');
+  location.href='/admin';
+};
+</script>
+
+<!-- QR 탭 (cleaned & replaced) -->
+<div id="tab-qr" class="tab-content" style="display:none">
+  <h2>QR 생성</h2>
+  <div class="qr-inputrow" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:10px 0 16px">
+    <div>
+      <label for="qr-table-input" style="font-size:12px;color:#bfc7d5;display:block;margin-bottom:6px">테이블 번호</label>
+      <input id="qr-table-input" type="number" min="1" step="1" placeholder="테이블번호 입력"
+             style="background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;min-width:200px">
+    </div>
+    <button id="qr-generate-btn"
+            style="cursor:pointer;background:#1b2a4b;border:1px solid #2d3c61;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px">
+      QR 생성
+    </button>
+  </div>
+  <div id="qr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="assets/js/admin-qr.js"></script>
+</body></html>
