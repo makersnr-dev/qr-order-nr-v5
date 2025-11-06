@@ -1,131 +1,29 @@
-<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>QR 생성</title>
-  <style>
-    :root{color-scheme:dark}
-    body{margin:0;background:#0b0c10;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px}
-    h1{font-size:22px;margin:0 0 16px}
-    .toolbar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
-    label{font-size:12px;color:#bfc7d5;display:block;margin-bottom:6px}
-    input{background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;min-width:220px}
-    .hint{font-size:12px;color:#9aa3b2;margin-top:4px}
-    button{cursor:pointer;background:#1b2a4b;border:1px solid #2d3c61;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px}
-    button.secondary{background:#12141a;border-color:#2b2f3a}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-    .card{background:#0f1117;border:1px solid #1f2430;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
-    .qwrap{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;aspect-ratio:1/1}
-    .meta{display:flex;justify-content:space-between;font-size:12px;color:#c2c9d6}
-    .actions{display:flex;gap:8px}
-    .actions button{padding:8px 10px}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>QR 생성</h1>
-    <div class="toolbar">
-      <div>
-        <label for="tableNo">테이블 번호</label>
-        <input id="tableNo" type="number" min="1" step="1" placeholder="예: 5"/>
-        <div class="hint">힌트: 테이블번호 입력</div>
-      </div>
-      <div>
-        <button id="btnGen">QR 생성</button>
-      </div>
-    </div>
-    <div id="grid" class="grid"></div>
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+<title>QR 생성</title>
+</head><body>
+<div class="container">
+  <h1>QR 생성 (브라우저 로컬)</h1>
+  <div><label>테이블번호</label><input id="table" placeholder="12"/></div>
+  <div><label>기본 URL</label><input id="base"/></div>
+  <div style="margin:8px 0">
+    <button id="gen">QR 생성</button>
+    <button id="dl">PNG 다운로드</button>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script>
-    const KEY = 'qrnr.qrSaved';
-    const $ = (s, el=document)=>el.querySelector(s);
-    const grid = $('#grid');
-    const tableInp = $('#tableNo');
-
-    function loadSaved(){
-      try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ return []; }
-    }
-    function saveAll(arr){
-      localStorage.setItem(KEY, JSON.stringify(arr));
-    }
-    function baseUrl(){
-      return location.origin.replace(/\/$/,'') + '/order/store';
-    }
-    function makeUrl(table){
-      return baseUrl() + '?table=' + encodeURIComponent(table);
-    }
-
-    function render(){
-      const list = loadSaved().sort((a,b)=>a.table-b.table);
-      grid.innerHTML = '';
-      list.forEach(item=>{
-        const card = document.createElement('div');
-        card.className = 'card';
-        const qwrap = document.createElement('div');
-        qwrap.className = 'qwrap';
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 240;
-        qwrap.appendChild(canvas);
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        const left = document.createElement('div');
-        left.textContent = '테이블 ' + item.table;
-        const right = document.createElement('div');
-        const d = new Date(item.createdAt);
-        right.textContent = d.getFullYear()+'. '+(d.getMonth()+1)+'. '+d.getDate()+'.';
-        meta.append(left,right);
-        const actions = document.createElement('div');
-        actions.className='actions';
-        const bDown = document.createElement('button');
-        bDown.textContent='다운받기';
-        bDown.onclick = ()=>{
-          const a = document.createElement('a');
-          a.href = canvas.toDataURL('image/png');
-          a.download = 'table-' + item.table + '.png';
-          a.click();
-        };
-        const bDel = document.createElement('button');
-        bDel.className='secondary';
-        bDel.textContent='삭제하기';
-        bDel.onclick = ()=>{
-          const arr = loadSaved().filter(x=>x.table!==item.table);
-          saveAll(arr); render();
-        };
-        actions.append(bDown,bDel);
-        card.append(qwrap, meta, actions);
-        grid.appendChild(card);
-
-        // draw QR for item.url
-        QRCode.toCanvas(canvas, item.url, { width: 240, margin: 1 }, (err)=>{
-          if(err){ console.error(err); left.textContent='오류'; }
-        });
-      });
-    }
-
-    async function addOne(){
-      const n = parseInt(tableInp.value, 10);
-      if(!n || n < 1){ alert('테이블 번호를 올바르게 입력하세요.'); tableInp.focus(); return; }
-      const url = makeUrl(n);
-      const arr = loadSaved();
-      // if duplicate table, replace
-      const existingIdx = arr.findIndex(x=>x.table===n);
-      const item = { table:n, url, createdAt: Date.now() };
-      if(existingIdx>=0) arr[existingIdx]=item; else arr.push(item);
-      saveAll(arr);
-      tableInp.value='';
-      render();
-    }
-
-    document.getElementById('btnGen').addEventListener('click', addOne);
-    // enter key
-    tableInp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') addOne(); });
-
-    // first render
-    render();
-  </script>
-</body>
-</html>
+  <canvas id="c" width="240" height="240" style="background:#fff;border-radius:8px"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const c=document.getElementById('c');
+const base=document.getElementById('base');
+base.value = location.origin + '/order/store';
+document.getElementById('gen').onclick = ()=>{
+  const url = (base.value||'').replace(/\/$/,'') + '?table=' + encodeURIComponent(document.getElementById('table').value||'');
+  QRCode.toCanvas(c, url, {width:240, margin:1});
+};
+document.getElementById('dl').onclick = ()=>{
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='qr.png'; a.click();
+};
+</script>
+</body></html>
