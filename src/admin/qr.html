@@ -28,14 +28,17 @@ document.getElementById('dl').onclick = ()=>{
 </script>
 
 <!-- QR 탭 (cleaned & replaced) -->
-<div id="tab-qr" class="tab-content" style="display:none">
-  <h2>QR 생성</h2>
-  <div class="qr-inputrow" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:10px 0 16px">
-    <div>
-      <label for="qr-table-input" style="font-size:12px;color:#bfc7d5;display:block;margin-bottom:6px">테이블 번호</label>
-      <input id="qr-table-input" type="number" min="1" step="1" placeholder="테이블번호 입력"
-             style="background:#12141a;border:1px solid #2b2f3a;color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;min-width:200px">
-    </div>
+
+<!-- QR 탭 (clean) -->
+
+    <button id="qr-generate-btn"
+            style="cursor:pointer;background:#1b2a4b;border:1px solid #2d3c61;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px">
+      QR 생성
+    </button>
+  </div>
+  <div id="qr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px"></div>
+</div>
+
     <button id="qr-generate-btn"
             style="cursor:pointer;background:#1b2a4b;border:1px solid #2d3c61;color:#fff;border-radius:10px;padding:10px 14px;font-size:14px">
       QR 생성
