@@ -1,6 +1,0 @@
-{
-  "add_this_route_in_vercel.json": {
-    "src": "/admin/qr",
-    "dest": "/src/admin/qr.html"
-  }
-}
