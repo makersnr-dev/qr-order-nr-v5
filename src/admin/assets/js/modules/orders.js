@@ -110,23 +110,47 @@ export function renderDeliv(){
     tbody.appendChild(tr);
   });
 }
-export function attachGlobalHandlers(){
-  document.body.addEventListener('click',e=>{
-    if(e.target && e.target.id==='modal-close') document.getElementById('order-modal').style.display='none';
-    if(e.target && e.target.id==='order-modal') document.getElementById('order-modal').style.display='none';
-    if(e.target && e.target.dataset && e.target.dataset.detail){
-      const [i,t]=e.target.dataset.detail.split(','); const arr=get(['admin', t==='store'?'ordersStore':'ordersDelivery']); const o=arr[Number(i)]||{};
-      showModal(JSON.stringify(o,null,2));
+export function attachGlobalHandlers() {
+  // ── 주문 상세 모달 / 닫기 ─────────────────────
+  document.body.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!target) return;
+
+    // 모달 닫기 (X 버튼 또는 배경 클릭)
+    if (target.id === 'modal-close' || target.id === 'order-modal') {
+      const modal = document.getElementById('order-modal');
+      if (modal) modal.style.display = 'none';
+      return;
     }
+
+    // "보기" 버튼: data-detail="주문ID,store" 또는 "주문ID,deliv"
+    const detailBtn = target.closest('[data-detail]');
+    if (!detailBtn) return;
+
+    const [id, type] = (detailBtn.dataset.detail || '').split(',');
+    const key = type === 'store' ? 'ordersStore' : 'ordersDelivery';
+    const list = get(['admin', key]) || [];
+    const order = list.find(o => String(o.id) === String(id)) || {};
+
+    showModal(JSON.stringify(order, null, 2));
   });
-  document.body.addEventListener('change',e=>{
-    if(e.target && e.target.tagName==='SELECT' && e.target.dataset.idx!==undefined){
-      const idx=Number(e.target.dataset.idx); const t=e.target.dataset.type;
-      const key=t==='store'?'ordersStore':'ordersDelivery';
-      const arr=get(['admin',key])||[]; if(!arr[idx]) return;
-      arr[idx]={...arr[idx], status:e.target.value}; // local update
-      import('./store.js').then(m=>m.save({admin:{...get(['admin']), [key]:arr}})); // ensure save
-      t==='store'?renderStore():renderDeliv();
-    }
-  });
-}
+
+  // ── 상태 드롭다운 변경 ────────────────────────
+  document.body.addEventListener('change', async (e) => {
+    const target = e.target;
+    if (!target || target.tagName !== 'SELECT') return;
+
+    const id = target.dataset.id;
+    const type = target.dataset.type; // 'store' or 'deliv'
+    if (!id || !type) return;
+
+    const key = type === 'store' ? 'ordersStore' : 'ordersDelivery';
+    const list = get(['admin', key]) || [];
+    const idx = list.findIndex(o => String(o.id) === String(id));
+    if (idx === -1) return;
+
+    const uiStatus = target.value; // '대기' | '조리중' | '완료'
+
+    // 1) 로컬(admin 스토어) 상태 업데이트 - 항상 UI용 한글 상태로 저장
+    const updated = [...list];
+    updated[idx] = { ...updated[idx], status: uiStatus }
