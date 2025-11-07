@@ -4,7 +4,7 @@ const def=()=> ({
   admin:{
     ordersStore:[],
     ordersDelivery:[],
-   
+    qrList: [],
     menu:[{id:"A1",name:"아메리카노",price:3000,active:true},{id:"A2",name:"라떼",price:4000,active:true},{id:"B1",name:"크로와상",price:3500,active:true}],
     paymentCode:{date:new Date().toISOString().slice(0,10), code:"7111"},
     notify:{useBeep:true, beepVolume:0.7, desktop:true, webhookUrl:""},
