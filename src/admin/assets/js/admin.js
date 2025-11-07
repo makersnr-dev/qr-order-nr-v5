@@ -1,7 +1,7 @@
 
 import {requireAuth, clearToken} from './modules/auth.js';
 import {initTabs} from './modules/ui.js';
-import {renderStore, renderDeliv, bindFilters, exportOrders, attachGlobalHandlers} from './modules/orders.js';
+import {renderStore, renderDeliv, bindFilters, exportOrders, attachGlobalHandlers,syncStoreFromServer} from './modules/orders.js';
 import {initQR} from './modules/qr.js';
 import {renderMenu, bindMenu} from './modules/menu.js';
 import {renderCode, bindCode} from './modules/code.js';
@@ -10,6 +10,7 @@ import {renderNotify, bindNotify} from './modules/notify.js';
 
 async function main(){
   await requireAuth('admin');
+  await syncStoreFromServer();
   initTabs();
   document.getElementById('logoutBtn').onclick=()=>{ clearToken(); location.href='/admin'; };
   bindFilters(); renderStore(); renderDeliv(); attachGlobalHandlers();
