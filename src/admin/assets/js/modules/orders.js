@@ -87,13 +87,13 @@ export function exportOrders(type){
 export function renderStore(){
   const all=get(['admin','ordersStore']); const f=filters.store; const rows=(all||[]).filter(o=>matchOrder(o,f.from,f.to,f.status,f.search));
   const tbody=$('#tbody-store'); tbody.innerHTML=""; if(!rows.length){ tbody.innerHTML=EMPTY_ROW.replace('8','5'); return; }
-  rows.forEach((o,idx)=>{
+  rows.forEach((o)=>{
     const items=(o.items||[]).map(i=>i.name+'x'+i.qty).join(', ');
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${o.time||'-'}</td><td>${o.table||'-'}</td><td>${items}</td><td>${fmt(o.total)}</td>
       <td><span class="badge-dot ${o.status==='완료'?'badge-done':(o.status==='조리중'?'badge-cook':'badge-wait')}"></span>
-      <select data-idx="${idx}" data-type="store" class="input" style="width:100px"><option ${o.status==='대기'?'selected':''}>대기</option><option ${o.status==='조리중'?'selected':''}>조리중</option><option ${o.status==='완료'?'selected':''}>완료</option></select>
-      <button class="btn small" data-detail="${idx},store">보기</button></td>`;
+      <select data-id="${o.id}" data-type="store" class="input" style="width:100px"><option ${o.status==='대기'?'selected':''}>대기</option><option ${o.status==='조리중'?'selected':''}>조리중</option><option ${o.status==='완료'?'selected':''}>완료</option></select>
+      <button class="btn small" data-detail="${o.id},store">보기</button></td>`;
     tbody.appendChild(tr);
   });
 }
