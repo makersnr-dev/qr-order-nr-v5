@@ -2,7 +2,7 @@
 import {requireAuth, clearToken} from './modules/auth.js';
 import {initTabs} from './modules/ui.js';
 import {renderStore, renderDeliv, bindFilters, exportOrders, attachGlobalHandlers} from './modules/orders.js';
-
+import {initQR} from './modules/qr.js';
 import {renderMenu, bindMenu} from './modules/menu.js';
 import {renderCode, bindCode} from './modules/code.js';
 import {renderMyBank, bindMyBank} from './modules/mybank.js';
