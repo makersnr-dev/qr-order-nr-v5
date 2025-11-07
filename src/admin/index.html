@@ -43,6 +43,22 @@
     <table class="table"><thead><tr><th>시간</th><th>주문자</th><th>연락처</th><th>주소</th><th>예약</th><th>금액</th><th>상태</th><th>내역</th></tr></thead><tbody id="tbody-deliv"><tr><td colspan="8" class="small">주문 없음</td></tr></tbody></table>
   </div>
 
+  <div class="card" data-panel="qr" style="display:none">
+    <h3>QR 배포</h3>
+    <p class="small">
+      테이블 번호별 매장 주문용 QR을 생성하고 저장/다운로드할 수 있습니다.
+      QR을 스캔하면 해당 테이블 번호가 자동 입력된 매장 주문 페이지로 이동합니다.
+    </p>
+
+    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <input id="qr-table" class="input" placeholder="테이블 번호 (예: 1, 2, A1)" style="max-width:140px">
+      <input id="qr-label" class="input" placeholder="라벨 (선택, 출력시 표시될 이름)" style="max-width:260px">
+      <button id="qr-generate" class="btn primary">QR 생성 & 저장</button>
+      <button id="qr-clear" class="btn">전체 삭제</button>
+    </div>
+
+    <div id="qr-grid" class="grid" style="gap:12px"></div>
+  </div>
 
   
   <div class="card" data-panel="menu" style="display:none"><h3>메뉴 관리</h3>
