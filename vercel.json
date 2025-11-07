@@ -6,10 +6,6 @@
       "dest": "/src/admin/orders.html"
     },
     {
-      "src": "/admin/qr",
-      "dest": "/src/admin/qr.html"
-    },
-    {
       "src": "/admin/login",
       "dest": "/src/admin/login.html"
     },
