@@ -1,0 +1,29 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+<title>QR 생성</title>
+</head><body>
+<div class="container">
+  <h1>QR 생성 (브라우저 로컬)</h1>
+  <div><label>테이블번호</label><input id="table" placeholder="12"/></div>
+  <div><label>기본 URL</label><input id="base"/></div>
+  <div style="margin:8px 0">
+    <button id="gen">QR 생성</button>
+    <button id="dl">PNG 다운로드</button>
+  </div>
+  <canvas id="c" width="240" height="240" style="background:#fff;border-radius:8px"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+const c=document.getElementById('c');
+const base=document.getElementById('base');
+base.value = location.origin + '/order/store';
+document.getElementById('gen').onclick = ()=>{
+  const url = (base.value||'').replace(/\/$/,'') + '?table=' + encodeURIComponent(document.getElementById('table').value||'');
+  QRCode.toCanvas(c, url, {width:240, margin:1});
+};
+document.getElementById('dl').onclick = ()=>{
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='qr.png'; a.click();
+};
+</script>
+</body></html>

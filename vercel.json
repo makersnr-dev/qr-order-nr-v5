@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/admin/orders",
+      "dest": "/src/admin/orders.html"
+    },
+    {
+      "src": "/admin/qr",
+      "dest": "/src/admin/qr.html"
+    },
+    {
+      "src": "/admin/login",
+      "dest": "/src/admin/login.html"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.js"
+    },
+    {
+      "src": "/",
+      "dest": "/src/public/index.html"
+    },
+    {
+      "src": "/login",
+      "dest": "/src/public/login.html"
+    },
+    {
+      "src": "/order/select",
+      "dest": "/src/order/select.html"
+    },
+    {
+      "src": "/order/store",
+      "dest": "/src/order/store.html"
+    },
+    {
+      "src": "/order/delivery",
+      "dest": "/src/order/delivery.html"
+    },
+    {
+      "src": "/admin",
+      "dest": "/src/admin/index.html"
+    },
+    {
+      "src": "/order/login",
+      "dest": "/src/order/login.html"
+    },
+    {
+      "src": "/order/mypage",
+      "dest": "/src/order/mypage.html"
+    },
+    {
+      "src": "/toss/success",
+      "dest": "/src/public/toss-success.html"
+    },
+    {
+      "src": "/toss/fail",
+      "dest": "/src/public/toss-fail.html"
+    }
+  ]
+}

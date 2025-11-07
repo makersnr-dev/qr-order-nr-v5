@@ -1,0 +1,33 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>결제 성공</title></head>
+<body><h2>결제 성공</h2><div id="s"></div>
+<script type="module">
+import { getPendingOrder } from '/src/shared/toss-client.js';
+(async()=>{
+  const qs = new URLSearchParams(location.search);
+  const paymentKey = qs.get('paymentKey');
+  const orderId = qs.get('orderId');
+  const amount = Number(qs.get('amount')||0);
+  document.getElementById('s').textContent = 'orderId=' + orderId + ' amount=' + amount;
+
+  // 1) confirm on server
+  try{
+    await fetch('/api/toss-confirm',{
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ paymentKey, orderId, amount })
+    });
+  }catch(e){ console.error('confirm err', e); }
+
+  // 2) post order to /api/orders (local tmp store)
+  const pending = getPendingOrder();
+  if(pending){
+    try{
+      await fetch('/api/orders',{
+        method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ ...pending, orderId, amount, status:'paid' })
+      });
+    }catch(e){ console.error('save order err', e); }
+  }
+
+  setTimeout(()=>{ location.replace('/order/store'); }, 800);
+})();
+</script></body></html>
