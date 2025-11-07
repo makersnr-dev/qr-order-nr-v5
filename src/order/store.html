@@ -142,4 +142,20 @@ await payments.requestPayment({
       }
       bindPay();
     </script>
+  <script>
+  (function () {
+    try {
+      const params = new URLSearchParams(location.search);
+      const t = params.get('table');
+      if (!t) return;
+      const input = document.getElementById('tableNo');
+      if (!input) return;
+      input.value = t;
+      // input.readOnly = true; // 원하면 잠금
+    } catch (e) {
+      console.error(e);
+    }
+  })();
+</script>
+
     </body></html>
