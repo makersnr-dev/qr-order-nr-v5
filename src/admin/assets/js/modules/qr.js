@@ -8,6 +8,47 @@ function ensureList() {
   return patch(PATH, () => []);
 }
 
+// qrcodejs 사용해서 QR PNG DataURL 생성
+function makeQRDataUrl(text) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!window.QRCode) {
+        return reject(new Error('QRCode 전역 객체가 없습니다.'));
+      }
+
+      const wrap = document.createElement('div');
+      wrap.style.position = 'fixed';
+      wrap.style.left = '-9999px';
+      wrap.style.top = '-9999px';
+      document.body.appendChild(wrap);
+
+      const qr = new QRCode(wrap, {
+        text,
+        width: 256,
+        height: 256,
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+
+      setTimeout(() => {
+        try {
+          const canvas = wrap.querySelector('canvas');
+          if (!canvas) {
+            throw new Error('QR 캔버스를 찾을 수 없습니다.');
+          }
+          const dataUrl = canvas.toDataURL('image/png');
+          document.body.removeChild(wrap);
+          resolve(dataUrl);
+        } catch (e) {
+          document.body.removeChild(wrap);
+          reject(e);
+        }
+      }, 0);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 export function initQR() {
   const tableInput = document.getElementById('qr-table');
   const labelInput = document.getElementById('qr-label');
@@ -20,7 +61,6 @@ export function initQR() {
   ensureList();
   renderList();
 
-  // QR 생성 & 저장
   genBtn.addEventListener('click', async () => {
     const table = (tableInput.value || '').trim();
     const label = (labelInput.value || '').trim() || `${table}번 테이블`;
@@ -34,16 +74,7 @@ export function initQR() {
     const url = `${location.origin}/order/store?table=${encodeURIComponent(table)}`;
 
     try {
-      if (!window.QRCode || !QRCode.toDataURL) {
-        throw new Error('QR코드 라이브러리가 로드되지 않았습니다.');
-      }
-
-      const dataUrl = await new Promise((resolve, reject) => {
-        QRCode.toDataURL(url, { width: 256, margin: 2 }, (err, res) => {
-          if (err) reject(err);
-          else resolve(res);
-        });
-      });
+      const dataUrl = await makeQRDataUrl(url);
 
       const item = {
         id: `${Date.now()}-${table}`,
@@ -53,10 +84,9 @@ export function initQR() {
         dataUrl,
       };
 
-      // 같은 테이블 번호가 있으면 덮어쓰기
       patch(PATH, (list) => {
         list = Array.isArray(list) ? list : [];
-        const filtered = list.filter(x => x.table !== table);
+        const filtered = list.filter((x) => x.table !== table);
         return [...filtered, item];
       });
 
@@ -67,7 +97,6 @@ export function initQR() {
     }
   });
 
-  // 전체 삭제
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       if (!confirm('저장된 QR을 모두 삭제할까요?')) return;
@@ -76,7 +105,6 @@ export function initQR() {
     });
   }
 
-  // 리스트 렌더링
   function renderList() {
     const list = get(PATH) || [];
     if (!list.length) {
@@ -113,19 +141,17 @@ export function initQR() {
       btnRow.className = 'hstack';
       btnRow.style.gap = '4px';
 
-      // 개별 PNG 다운로드
       const down = document.createElement('a');
       down.textContent = '다운로드';
       down.href = q.dataUrl;
       down.download = `table-${q.table}.png`;
       down.className = 'btn small';
 
-      // 개별 삭제
       const del = document.createElement('button');
       del.textContent = '삭제';
       del.className = 'btn small';
       del.onclick = () => {
-        patch(PATH, (list) => (list || []).filter(x => x.id !== q.id));
+        patch(PATH, (list) => (list || []).filter((x) => x.id !== q.id));
         renderList();
       };
 
