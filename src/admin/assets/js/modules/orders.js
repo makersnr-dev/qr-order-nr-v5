@@ -1,6 +1,46 @@
 
 import {get, patch, fmt} from './store.js';
 import {showModal} from './ui.js';
+
+export async function syncStoreFromServer() {
+  try {
+    const res = await fetch('/api/orders?type=store', { cache: 'no-store' });
+    const data = await res.json();
+    if (!data.ok) return;
+
+    const rows = (data.orders || []).map(o => {
+      const d = o.ts ? new Date(o.ts) : new Date();
+
+      // 표시용 시간 문자열: MM/DD HH:MM
+      const time =
+        String(d.getMonth() + 1).padStart(2, '0') + '/' +
+        String(d.getDate()).padStart(2, '0') + ' ' +
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+
+      const items = (o.cart || []).map(i => ({
+        name: i.name ?? i.menuName ?? '메뉴',
+        qty: i.qty ?? i.quantity ?? 1
+      }));
+
+      return {
+        id: o.id,
+        time,                         // 주문시간
+        table: o.table || '-',        // 테이블
+        items,                        // 내역
+        total: o.amount || 0,         // 금액
+        status: o.status || 'paid'    // 상태
+      };
+    });
+
+    // admin.ordersStore 에 덮어쓰기
+    patch(['admin', 'ordersStore'], () => rows);
+  } catch (e) {
+    console.error('syncStoreFromServer error', e);
+  }
+}
+
+
 const $=(s,r=document)=>r.querySelector(s);
 const EMPTY_ROW = '<tr><td colspan="8" class="small">주문 없음</td></tr>';
 const filters = { store:{from:'',to:'',status:'',search:''}, deliv:{from:'',to:'',status:'',search:''} };
