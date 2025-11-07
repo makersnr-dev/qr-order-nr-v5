@@ -1,4 +1,8 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>주문 완료</title>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>결제 성공</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     :root {
@@ -73,7 +77,7 @@
       box-shadow: 0 0 18px rgba(37, 99, 235, 0.4);
     }
 
-    /* 디버그용: 기존 s div (화면에는 안 보이게) */
+    /* 디버그용: 주문 정보 텍스트 (화면에는 숨김) */
     #s {
       display: none;
       font-size: 11px;
@@ -89,39 +93,62 @@
     <div class="success-text">
       결제가 정상적으로 확인되었어요. 잠시 후 주문 페이지로 돌아갑니다.
     </div>
+    <!-- 기존 s div: 로직 유지 & 필요시 디버그 확인용 -->
     <div id="s"></div>
     <div class="success-actions">
       <button class="success-btn" onclick="goBack()">확인</button>
     </div>
   </div>
-<script type="module">
-import { getPendingOrder } from '/src/shared/toss-client.js';
-(async()=>{
-  const qs = new URLSearchParams(location.search);
-  const paymentKey = qs.get('paymentKey');
-  const orderId = qs.get('orderId');
-  const amount = Number(qs.get('amount')||0);
-  document.getElementById('s').textContent = 'orderId=' + orderId + ' amount=' + amount;
 
-  // 1) confirm on server
-  try{
-    await fetch('/api/toss-confirm',{
-      method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ paymentKey, orderId, amount })
-    });
-  }catch(e){ console.error('confirm err', e); }
+  <script type="module">
+    import { getPendingOrder } from '/src/shared/toss-client.js';
 
-  // 2) post order to /api/orders (local tmp store)
-  const pending = getPendingOrder();
-  if(pending){
-    try{
-      await fetch('/api/orders',{
-        method:'POST', headers:{'content-type':'application/json'},
-        body: JSON.stringify({ ...pending, orderId, amount, status:'paid' })
-      });
-    }catch(e){ console.error('save order err', e); }
-  }
+    // 버튼에서 쓸 수 있도록 먼저 window에 심어둔다.
+    window.goBack = () => {
+      // 필요하면 /order/store 말고 실제 매장 주문 URL로 수정
+      location.replace('/order/store');
+    };
 
-  setTimeout(()=>{ location.replace('/order/store'); }, 800);
-})();
-</script></body></html>
+    (async () => {
+      const qs = new URLSearchParams(location.search);
+      const paymentKey = qs.get('paymentKey');
+      const orderId = qs.get('orderId');
+      const amount = Number(qs.get('amount') || 0);
+
+      const s = document.getElementById('s');
+      if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
+
+      // 1) Toss 서버에 결제 확인 요청
+      try {
+        await fetch('/api/toss-confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ paymentKey, orderId, amount })
+        });
+      } catch (e) {
+        console.error('confirm err', e);
+        // 실패해도 아래 로직은 계속 시도
+      }
+
+      // 2) 로컬에 저장해둔 pending 주문을 /api/orders로 저장
+      try {
+        const pending = getPendingOrder && getPendingOrder();
+        if (pending) {
+          await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
+          });
+        } else {
+          console.warn('no pending order found');
+        }
+      } catch (e) {
+        console.error('save order err', e);
+      }
+
+      // 3) 자동 복귀 (주문 페이지에서 관리자에 표시되는 흐름 유지)
+      setTimeout(window.goBack, 800);
+    })();
+  </script>
+</body>
+</html>
