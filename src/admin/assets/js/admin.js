@@ -15,6 +15,6 @@ async function main(){
   bindFilters(); renderStore(); renderDeliv(); attachGlobalHandlers();
   document.getElementById('store-export').onclick=()=>exportOrders('ordersStore');
   document.getElementById('deliv-export').onclick=()=>exportOrders('ordersDelivery');
-  renderMenu(); bindMenu(); renderCode(); bindCode(); renderMyBank(); bindMyBank(); renderNotify(); bindNotify();
+  renderMenu(); bindMenu(); renderCode(); bindCode(); renderMyBank(); bindMyBank(); renderNotify(); bindNotify();initQR();
 }
 main();
