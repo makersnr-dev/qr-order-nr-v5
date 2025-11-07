@@ -23,6 +23,11 @@ export async function syncStoreFromServer() {
         qty: i.qty ?? i.quantity ?? 1
       }));
 
+ // 서버 status → 화면 status 매핑
+      let status = '대기';
+      if (o.status === '조리중' || o.status === 'cook') status = '조리중';
+      else if (o.status === '완료' || o.status === 'done') status = '완료';
+      
       return {
         id: o.id,
         time,                         // 주문시간
