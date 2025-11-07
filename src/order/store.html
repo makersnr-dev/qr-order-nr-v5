@@ -18,90 +18,189 @@
   <div class="card hstack" style="justify-content:space-between"><div>합계: <b id="total">0</b>원</div><button id="pay-btn" class="btn primary">결제하기</button></div>
 </div>
 
-    <script type="module">
-      import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
-      function totalAmount(){
-        const el = document.querySelector('[data-total]') || document.getElementById('total');
-        const v = el ? (el.getAttribute('data-total') || el.textContent || '0') : '0';
-        return Number(String(v).replace(/[^0-9.-]/g,'')) || 0;
-      }
-      function buildCart(){
-        const items = [];
-        document.querySelectorAll('[data-cart-item]').forEach(row=>{
-          const name = row.getAttribute('data-name') || row.querySelector('.name')?.textContent || '메뉴';
-          const qty = Number(row.getAttribute('data-qty') || row.querySelector('.qty')?.textContent || 1);
-          const price = Number(row.getAttribute('data-price') || row.querySelector('.price')?.textContent || 0);
-          items.push({ name, qty, price });
-        });
-        return items;
-      }
-      function customerInfo(){
-        const info={};
-        // common fields if exist
-        const fields={ 
-          name: '#custName,#name', 
-          phone: '#custPhone,#phone', 
-          addr: '#custAddr,#address', 
-          req: '#custNote,#request'
-        };
-        Object.entries(fields).forEach(([k,sel])=>{
-          const el=document.querySelector(sel);
-          if(el) info[k]=el.value||el.textContent||'';
-        });
-        return info;
-      }
-      function currentTable(){
-        const url = new URL(location.href);
-        return url.searchParams.get('table');
-      }
-      function bindPay(){
-  const btn =
-    document.getElementById('pay-btn') ||    // 🔴 실제 버튼 id
-    document.getElementById('payBtn')  ||    // 예비 호환
-    document.querySelector('[data-action="pay"]') ||
-    document.querySelector('.btn-pay, button.pay');
+ <script type="module">
+  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+  import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
+  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-  if (!btn) return;
+  // ── 테이블 번호 초기 세팅 (QR ?table= 파라미터)
+  const url = new URL(location.href);
+  const tableParam = url.searchParams.get('table');
+  const tableInput = document.getElementById('tableNo');
+  if (tableParam && tableInput) {
+    tableInput.value = tableParam;
+  }
 
-  btn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const orderId = 'ORD-' + Date.now();
-    const amount = totalAmount();
-    const orderName = document.title || '주문';
-    const payload = {
-      type: 'store',
-      amount,
-      orderName,
-      cart: buildCart(),
-      customer: customerInfo(),
-      table: currentTable()
+  // ── 장바구니 & 메뉴 초기화 (기존 로직 유지)
+  //    cart-box, total 요소를 사용하는 기존 구조 그대로 활용
+  const cart = makeCart('cart-box', 'total');   // cart.items, cart.render() 등 제공
+  cart.render();
+  renderMenu('menu-grid', cart);
+
+  // ── 호출 버튼 (기존 기능 그대로 유지)
+  const callBtn = document.getElementById('call-btn');
+  if (callBtn) {
+    callBtn.onclick = () => {
+      const reasonEl = document.getElementById('call-reason');
+      const msgEl = document.getElementById('call-msg');
+      const tableVal =
+        (document.getElementById('tableNo')?.value || tableParam || '-')
+          .toString()
+          .trim() || '-';
+
+      const reason = (reasonEl?.value || '').trim();
+
+      patch(['admin', 'ordersStore'], (arr) => {
+        arr = Array.isArray(arr) ? [...arr] : [];
+        arr.push({
+          type: 'CALL',
+          time: new Date().toISOString(),
+          table: tableVal,
+          items: [],
+          total: 0,
+          status: '대기',
+          note: reason,
+        });
+        return arr;
+      });
+
+      if (msgEl) {
+        msgEl.textContent = '호출 전송됨 (관리자 페이지에 알림)';
+      }
     };
-    setPendingOrder(payload);                          // ✅ 여기서 pending 저장
-    try {
-      await startPayment({ orderId, amount, orderName });  // ✅ toss-client 공통 로직
-    } catch (err) {
-      console.error('payment start error', err);
-      alert('결제를 시작할 수 없습니다.');
-    }
-  });
-}
+  }
 
-      bindPay();
-    </script>
-  <script>
-  (function () {
-    try {
-      const params = new URLSearchParams(location.search);
-      const t = params.get('table');
-      if (!t) return;
-      const input = document.getElementById('tableNo');
-      if (!input) return;
-      input.value = t;
-      // input.readOnly = true; // 원하면 잠금
-    } catch (e) {
-      console.error(e);
+  // ── 유틸 함수들 ─────────────────────────────
+
+  function totalAmountFromCart() {
+    if (cart?.items?.length) {
+      return cart.items.reduce(
+        (sum, i) => sum + Number(i.price || 0) * Number(i.qty || 1),
+        0
+      );
     }
-  })();
+    const el =
+      document.querySelector('[data-total]') || document.getElementById('total');
+    const v = el
+      ? el.getAttribute('data-total') || el.textContent || '0'
+      : '0';
+    return Number(String(v).replace(/[^0-9.-]/g, '')) || 0;
+  }
+
+  function buildCart() {
+    if (cart?.items?.length) {
+      // menu-cart.js에서 관리하는 cart 객체 사용
+      return cart.items.map((i) => ({
+        name: i.name,
+        qty: i.qty,
+        price: i.price,
+      }));
+    }
+
+    // 혹시 cart 객체가 없다면 data-cart-item 기반 fallback
+    const items = [];
+    document.querySelectorAll('[data-cart-item]').forEach((row) => {
+      const name =
+        row.getAttribute('data-name') ||
+        row.querySelector('.name')?.textContent ||
+        '메뉴';
+      const qty = Number(
+        row.getAttribute('data-qty') ||
+          row.querySelector('.qty')?.textContent ||
+          1
+      );
+      const price = Number(
+        row.getAttribute('data-price') ||
+          row.querySelector('.price')?.textContent ||
+          0
+      );
+      items.push({ name, qty, price });
+    });
+    return items;
+  }
+
+  function currentTable() {
+    const v = document.getElementById('tableNo')?.value || tableParam || '';
+    return v.toString().trim() || null;
+  }
+
+  function getPayCode() {
+    // admin 설정에서 paymentCode.code 읽기, 없으면 7111 fallback
+    try {
+      const conf = get(['admin', 'paymentCode']) || {};
+      return conf.code || '7111';
+    } catch {
+      return '7111';
+    }
+  }
+
+  // ── 결제 버튼 바인딩 (setPendingOrder + startPayment 사용) ──
+
+  function bindPay() {
+    const btn =
+      document.getElementById('pay-btn') || // 기존 코드의 실제 버튼 ID
+      document.getElementById('payBtn') ||
+      document.querySelector('[data-action="pay"]') ||
+      document.querySelector('.btn-pay, button.pay');
+
+    if (!btn) {
+      console.warn('pay button not found');
+      return;
+    }
+
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      const table = currentTable();
+      const codeInput = document.getElementById('paycode');
+      const inputCode = (codeInput?.value || '').trim();
+      const expectedCode = getPayCode();
+
+      const items = buildCart();
+      const amount = totalAmountFromCart();
+
+      if (!table) {
+        alert('테이블 번호를 입력하세요');
+        return;
+      }
+      if (inputCode !== expectedCode) {
+        alert('결제 코드가 올바르지 않습니다');
+        return;
+      }
+      if (!items.length || !amount) {
+        alert('장바구니가 비어 있습니다');
+        return;
+      }
+
+      const orderId = 'S' + Date.now();
+      const orderName =
+        items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) ||
+        '매장주문';
+
+      // ✅ toss-success.html 에서 getPendingOrder()로 읽어서 /api/orders 로 저장할 데이터
+      const payload = {
+        type: 'store',          // /api/orders?type=store 와 맞춤
+        table,
+        amount,
+        orderId,
+        orderName,
+        cart: items,
+        status: '대기',
+      };
+
+      setPendingOrder(payload);
+
+      try {
+        await startPayment({ orderId, amount, orderName });
+      } catch (err) {
+        console.error('payment start error', err);
+        alert('결제를 시작할 수 없습니다.');
+      }
+    });
+  }
+
+  bindPay();
 </script>
+
 
     </body></html>
