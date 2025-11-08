@@ -18,6 +18,23 @@ export async function syncStoreFromServer() {
         String(d.getHours()).padStart(2, '0') + ':' +
         String(d.getMinutes()).padStart(2, '0');
 
+     const isCall =
+        o.meta?.kind === 'CALL' ||
+        o.orderName === '직원 호출';
+
+      if (isCall) {
+        // ✅ 직원 호출 행 포맷
+        return {
+          id: o.id,
+          time,
+          table: o.table || '-',
+          items: [{ name: `직원 호출: ${o.meta?.note || ''}`, qty: '' }],
+          total: 0,
+          status: o.status || '대기'
+        };
+      }
+
+      
       const items = (o.cart || []).map(i => ({
         name: i.name ?? i.menuName ?? '메뉴',
         qty: i.qty ?? i.quantity ?? 1
