@@ -97,19 +97,51 @@ export function renderStore(){
     tbody.appendChild(tr);
   });
 }
+
 export function renderDeliv(){
-  const all=get(['admin','ordersDelivery']); const f=filters.deliv; const rows=(all||[]).filter(o=>matchOrder(o,f.from,f.to,f.status,f.search));
-  const tbody=$('#tbody-deliv'); tbody.innerHTML=""; if(!rows.length){ tbody.innerHTML=EMPTY_ROW; return; }
-  rows.forEach((o,idx)=>{
-    const items=(o.items||[]).map(i=>i.name+'x'+i.qty).join(', ');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${o.time||'-'}</td><td>${o.customer||'-'}</td><td>${o.phone||'-'}</td><td>${o.addr||'-'}</td><td>${o.reserve||'-'}</td><td>${fmt(o.total)}</td>
-      <td><span class="badge-dot ${o.status==='완료'?'badge-done':(o.status==='조리중'?'badge-cook':'badge-wait')}"></span>
-      <select data-idx="${idx}" data-type="deliv" class="input" style="width:100px"><option ${o.status==='대기'?'selected':''}>대기</option><option ${o.status==='조리중'?'selected':''}>조리중</option><option ${o.status==='완료'?'selected':''}>완료</option></select>
-      <button class="btn small" data-detail="${idx},deliv">보기</button></td><td>${items}</td>`;
+  const all = get(['admin','ordersDelivery']);
+  const f = filters.deliv;
+  const rows = (all||[]).filter(o=>matchOrder(o, f.from, f.to, f.status, f.search));
+  const tbody = $('#tbody-deliv');
+  tbody.innerHTML = "";
+  if (!rows.length) {
+    tbody.innerHTML = EMPTY_ROW;
+    return;
+  }
+
+  rows.forEach((o) => {
+    const items = (o.items || []).map(i => i.name + 'x' + i.qty).join(', ');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${o.time || '-'}</td>
+      <td>${o.name || '-'}</td>
+      <td>${o.addr || '-'}</td>
+      <td>${items}</td>
+      <td>${fmt(o.total)}</td>
+      <td>
+        <span class="badge-dot ${
+          o.status === '완료'
+            ? 'badge-done'
+            : (o.status === '조리중'
+              ? 'badge-cook'
+              : 'badge-wait')
+        }"></span>
+        <select
+          data-id="${o.id}"
+          data-type="deliv"
+          class="input"
+          style="width:100px"
+        >
+          <option ${o.status === '대기' ? 'selected' : ''}>대기</option>
+          <option ${o.status === '조리중' ? 'selected' : ''}>조리중</option>
+          <option ${o.status === '완료' ? 'selected' : ''}>완료</option>
+        </select>
+        <button class="btn small" data-detail="${o.id},deliv">보기</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
+
 export function attachGlobalHandlers() {
   // ── 주문 상세 모달 / 닫기 ─────────────────────
   document.body.addEventListener('click', (e) => {
