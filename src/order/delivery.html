@@ -1,8 +1,12 @@
-<!doctype html><html lang="ko"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-<title>배달/예약</title>
-</head><body>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <title>배달/예약</title>
+</head>
+<body>
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
     <h1>배달/예약</h1>
@@ -23,20 +27,23 @@
       <input id="addr" class="input" placeholder="배송지 주소 *">
       <input id="cust" class="input" placeholder="주문자 이름 *">
       <input id="phone" class="input" placeholder="연락처 (숫자만) *">
+
       <div class="hstack" style="gap:8px;flex-wrap:wrap">
+        <!-- 🔹 달력으로 날짜 선택 -->
         <input id="date" type="date" class="input" style="max-width:200px">
         <div class="hstack" style="gap:6px">
           <span class="small">예약시간</span>
-          <select id="time-ap" class="input" style="width:120px"></select>
+          <select id="time-ap" class="input" style="width:90px"></select>
           <select id="time-hh" class="input" style="width:90px"></select>
           <select id="time-mm" class="input" style="width:90px"></select>
         </div>
       </div>
+
       <textarea id="memo" class="input" rows="5" placeholder="요청사항"></textarea>
 
       <div id="bank-box" class="small" style="display:none">
         <b>입금 계좌:</b> <span id="bank-text"></span>
-        <button class="btn" id="bank-copy">복사</button>
+        <button class="btn" id="bank-copy" type="button">복사</button>
       </div>
     </div>
   </div>
@@ -66,18 +73,18 @@ import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
 await requireCust();
 
-// 예약시간 선택 셀렉터 채우기
+// 예약 시간 선택 셋업
 fillTimeSelectors('time');
 
-// 장바구니 / 메뉴 렌더
+// 장바구니 / 메뉴
 const cart = makeCart('cart-box', 'total');
 cart.render();
 renderMenu('menu-grid', cart);
 
-// 탭 전환에 따라 UI 변경
+// 탭 전환 UI
 function updateTab() {
   const isResv = document.getElementById('tab-resv').checked;
-  const bank = get(['admin', 'ownerBank']) || { bank: '', number: '', holder: '' };
+  const bank = get(['admin','ownerBank']) || { bank:'', number:'', holder:'' };
 
   document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
   document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
@@ -87,7 +94,7 @@ function updateTab() {
       ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
       : '(관리자에 계좌 정보가 없습니다)';
 }
-['tab-deliv', 'tab-resv'].forEach(id => {
+['tab-deliv','tab-resv'].forEach(id => {
   document.getElementById(id).addEventListener('change', updateTab);
 });
 updateTab();
@@ -98,27 +105,24 @@ document.getElementById('bank-copy').onclick = () => {
   if (txt) navigator.clipboard.writeText(txt);
 };
 
-// 합계 계산 (배달 결제용)
+// 합계 계산
 function totalAmount() {
   if (typeof cart.total === 'function') return cart.total();
   if (Array.isArray(cart.items)) {
-    return cart.items.reduce((sum, i) =>
-      sum + Number(i.price || 0) * Number(i.qty || 1), 0);
+    return cart.items.reduce((s,i)=>s + Number(i.price||0)*Number(i.qty||1),0);
   }
   return 0;
 }
 
 // 메인 버튼 동작
-const actionBtn = document.getElementById('action-btn');
-
-actionBtn.onclick = async (e) => {
+document.getElementById('action-btn').onclick = async (e) => {
   e.preventDefault();
 
-  const addr = document.getElementById('addr').value.trim();
-  const cust = document.getElementById('cust').value.trim();
+  const addr  = document.getElementById('addr').value.trim();
+  const cust  = document.getElementById('cust').value.trim();
   const phone = document.getElementById('phone').value.trim();
-  const date = document.getElementById('date').value;        // 🔹 달력에서 선택한 날짜
-  const memo = document.getElementById('memo').value.trim();
+  const date  = document.getElementById('date').value;        // 🔹 달력값
+  const memo  = document.getElementById('memo').value.trim();
 
   const items = cart.items || [];
   if (!items.length) {
@@ -130,12 +134,13 @@ actionBtn.onclick = async (e) => {
     return;
   }
 
+  const { ap, hh, mm } = getTimeValue('time');
+  const timeStr = `${ap} ${hh}:${mm}`;
+
   const isResv = document.getElementById('tab-resv').checked;
-  const t = getTimeValue('time'); // { ap, hh, mm }
-  const timeStr = `${t.ap} ${t.hh}:${t.mm}`;
 
   if (isResv) {
-    // ✅ 예약(무결제) 처리
+    // ✅ 예약(무결제)
     if (!date) {
       alert('예약 날짜를 선택해주세요.');
       return;
@@ -145,7 +150,7 @@ actionBtn.onclick = async (e) => {
     const total = totalAmount();
 
     // 관리자 배달/예약 목록에 로컬 저장 (API 호출 없음)
-    patch(['admin', 'ordersDelivery'], (list) => {
+    patch(['admin','ordersDelivery'], (list) => {
       const arr = Array.isArray(list) ? [...list] : [];
       arr.push({
         id: 'RESV-' + Date.now(),
@@ -166,7 +171,7 @@ actionBtn.onclick = async (e) => {
     return;
   }
 
-  // ✅ 배달(결제) 처리
+  // ✅ 배달(결제)
   const amount = totalAmount();
   if (!amount) {
     alert('결제 금액이 올바르지 않습니다.');
@@ -186,7 +191,6 @@ actionBtn.onclick = async (e) => {
     time: timeStr
   };
 
-  // toss-success.html에서 읽어서 /api/orders 저장하도록
   setPendingOrder(payload);
 
   try {
@@ -197,7 +201,5 @@ actionBtn.onclick = async (e) => {
   }
 };
 </script>
-
-
-  
-    </body></html>
+</body>
+</html>
