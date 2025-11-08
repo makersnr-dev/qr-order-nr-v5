@@ -139,28 +139,41 @@ document.getElementById('bank-copy').onclick = () => {
 };
 
 // 배송지 주소 찾기 (Daum 우편번호)
-const btnFindAddr = document.getElementById('btn-find-addr');
-if (btnFindAddr) {
-  btnFindAddr.onclick = () => {
-    if (!window.daum || !window.daum.Postcode) {
-      alert('주소 검색 서비스를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
-      return;
-    }
-    new window.daum.Postcode({
-      oncomplete: function (data) {
-        const addrInput = document.getElementById('addr');
-        if (!addrInput) return;
-        const addr =
-          data.roadAddress ||
-          data.jibunAddress ||
-          data.address ||
-          '';
-        addrInput.value = addr;
-        addrInput.focus();
-      },
-    }).open();
-  };
+function openAddrSearch() {
+  if (!window.daum || !window.daum.Postcode) {
+    alert('주소 검색 서비스를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+    return;
+  }
+  new window.daum.Postcode({
+    oncomplete: function (data) {
+      const addrInput = document.getElementById('addr');
+      if (!addrInput) return;
+      const addr =
+        data.roadAddress ||
+        data.jibunAddress ||
+        data.address ||
+        '';
+      addrInput.value = addr;
+      addrInput.focus();
+    },
+  }).open();
 }
+
+// "배송지" 라벨 클릭 시 주소검색 열기
+const addrLabel = document.querySelector('.addr-label');
+if (addrLabel) {
+  addrLabel.addEventListener('click', openAddrSearch);
+  addrLabel.classList.add('clickable-label');
+}
+
+// 인풋 클릭으로도 열고 싶으면 (원하면 유지)
+const addrInput = document.getElementById('addr');
+if (addrInput) {
+  addrInput.addEventListener('click', (e) => {
+    if (!addrInput.value) openAddrSearch();
+  });
+}
+
 
 // 합계 계산
 function totalAmount() {
