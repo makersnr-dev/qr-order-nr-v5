@@ -114,12 +114,18 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 .addr-wrap{
   display:flex;
   align-items:center;
+  gap:6px;
   width:100%;
 }
 
-.addr-wrap .input{
-  flex:1;
+.addr-wrap #addr{
+  flex:2; /* 기본 주소가 더 넓게 */
 }
+
+.addr-wrap #addr-detail{
+  flex:1.5; /* 상세주소도 충분히 */
+}
+
 
 .clickable-label{
   cursor:pointer;
