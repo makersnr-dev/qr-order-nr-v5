@@ -58,128 +58,147 @@
 </div>
 
 <script type="module">
-import {requireCust} from '/src/order/assets/js/modules/cust-auth.js';
-import {renderMenu, makeCart} from '/src/order/assets/js/modules/menu-cart.js';
-import {get, patch, fmt} from '/src/order/assets/js/modules/cust-store.js';
-import {fillTimeSelectors, getTimeValue} from '/src/order/assets/js/modules/time.js';
+<script type="module">
+import { requireCust } from '/src/order/assets/js/modules/cust-auth.js';
+import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
+import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
+import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
 await requireCust();
+
+// 예약시간 선택 셀렉터 채우기
 fillTimeSelectors('time');
 
-const cart=makeCart('cart-box','total'); cart.render(); renderMenu('menu-grid', cart);
+// 장바구니 / 메뉴 렌더
+const cart = makeCart('cart-box', 'total');
+cart.render();
+renderMenu('menu-grid', cart);
 
-function updateTab(){
+// 탭 전환에 따라 UI 변경
+function updateTab() {
   const isResv = document.getElementById('tab-resv').checked;
-  const bank = get(['admin','ownerBank']) || {bank:'',number:'',holder:''};
+  const bank = get(['admin', 'ownerBank']) || { bank: '', number: '', holder: '' };
+
   document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
   document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
-  document.getElementById('bank-text').textContent = bank.bank && bank.number ? `${bank.bank} ${bank.number} (${bank.holder||''})` : '(관리자에 계좌 정보가 없습니다)';
+
+  document.getElementById('bank-text').textContent =
+    bank.bank && bank.number
+      ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
+      : '(관리자에 계좌 정보가 없습니다)';
 }
-['tab-deliv','tab-resv'].forEach(id=>document.getElementById(id).addEventListener('change',updateTab)); updateTab();
-document.getElementById('bank-copy').onclick=()=>{ const txt=document.getElementById('bank-text').textContent; navigator.clipboard.writeText(txt); };
+['tab-deliv', 'tab-resv'].forEach(id => {
+  document.getElementById(id).addEventListener('change', updateTab);
+});
+updateTab();
 
+// 계좌 복사
+document.getElementById('bank-copy').onclick = () => {
+  const txt = document.getElementById('bank-text').textContent;
+  if (txt) navigator.clipboard.writeText(txt);
+};
 
-document.getElementById('action-btn').onclick=async()=>{
-  const addr=document.getElementById('addr').value.trim();
-  const cust=document.getElementById('cust').value.trim();
-  const phone=document.getElementById('phone').value.trim();
-  const date=document.getElementById('date').value;
-  const memo=document.getElementById('memo').value.trim();
-  const t = getTimeValue('time'); const reserve=`${t.ap} ${t.hh}:${t.mm}`;
+// 합계 계산 (배달 결제용)
+function totalAmount() {
+  if (typeof cart.total === 'function') return cart.total();
+  if (Array.isArray(cart.items)) {
+    return cart.items.reduce((sum, i) =>
+      sum + Number(i.price || 0) * Number(i.qty || 1), 0);
+  }
+  return 0;
+}
 
- 
+// 메인 버튼 동작
+const actionBtn = document.getElementById('action-btn');
+
+actionBtn.onclick = async (e) => {
+  e.preventDefault();
+
+  const addr = document.getElementById('addr').value.trim();
+  const cust = document.getElementById('cust').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const date = document.getElementById('date').value;        // 🔹 달력에서 선택한 날짜
+  const memo = document.getElementById('memo').value.trim();
+
+  const items = cart.items || [];
+  if (!items.length) {
+    alert('장바구니가 비어 있습니다.');
+    return;
+  }
+  if (!addr || !cust || !phone) {
+    alert('주소 / 주문자 / 연락처를 입력해주세요.');
+    return;
+  }
+
+  const isResv = document.getElementById('tab-resv').checked;
+  const t = getTimeValue('time'); // { ap, hh, mm }
+  const timeStr = `${t.ap} ${t.hh}:${t.mm}`;
+
+  if (isResv) {
+    // ✅ 예약(무결제) 처리
+    if (!date) {
+      alert('예약 날짜를 선택해주세요.');
+      return;
+    }
+
+    const reserveAt = `${date} ${timeStr}`;
+    const total = totalAmount();
+
+    // 관리자 배달/예약 목록에 로컬 저장 (API 호출 없음)
+    patch(['admin', 'ordersDelivery'], (list) => {
+      const arr = Array.isArray(list) ? [...list] : [];
+      arr.push({
+        id: 'RESV-' + Date.now(),
+        type: 'reserve',
+        time: new Date().toISOString(),
+        reserveAt,
+        addr,
+        customer: { name: cust, phone },
+        items,
+        total,
+        status: '대기',
+        memo
+      });
+      return arr;
+    });
+
+    alert('예약이 등록되었습니다. (관리자 페이지에서 확인 가능합니다)');
+    return;
+  }
+
+  // ✅ 배달(결제) 처리
+  const amount = totalAmount();
+  if (!amount) {
+    alert('결제 금액이 올바르지 않습니다.');
+    return;
+  }
+
+  const orderId = 'DELIV-' + Date.now();
+  const orderName = '배달 주문';
+
+  const payload = {
+    type: 'delivery',
+    amount,
+    orderName,
+    cart: items,
+    customer: { name: cust, phone, addr, req: memo },
+    reserveDate: date || null,
+    time: timeStr
+  };
+
+  // toss-success.html에서 읽어서 /api/orders 저장하도록
+  setPendingOrder(payload);
+
+  try {
+    await startPayment({ orderId, amount, orderName });
+  } catch (err) {
+    console.error('payment start error', err);
+    alert('결제를 시작할 수 없습니다.');
+  }
 };
 </script>
-<script type="module">
-  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-  function totalAmount(){
-    const el = document.querySelector('[data-total]') || document.getElementById('total');
-    const v = el ? (el.getAttribute('data-total') || el.textContent || '0') : '0';
-    return Number(String(v).replace(/[^0-9.-]/g,'')) || 0;
-  }
-
-  function buildCart(){
-    const items = [];
-    document.querySelectorAll('[data-cart-item]').forEach(row=>{
-      const name = row.getAttribute('data-name') || row.querySelector('.name')?.textContent || '메뉴';
-      const qty = Number(row.getAttribute('data-qty') || row.querySelector('.qty')?.textContent || 1);
-      const price = Number(row.getAttribute('data-price') || row.querySelector('.price')?.textContent || 0);
-      items.push({ name, qty, price });
-    });
-    return items;
-  }
-
-  function customerInfo(){
-    const info={};
-    const fields={
-      name:'#custName,#name',
-      phone:'#custPhone,#phone',
-      addr:'#custAddr,#address',
-      req:'#custNote,#request'
-    };
-    Object.entries(fields).forEach(([k,sel])=>{
-      const el=document.querySelector(sel);
-      if(el) info[k]=el.value||el.textContent||'';
-    });
-    return info;
-  }
-
-  function currentTable(){
-    const url = new URL(location.href);
-    return url.searchParams.get('table');
-  }
-
-  function bindPay(){
-    const btn =
-      document.getElementById('pay-btn') ||
-      document.querySelector('[data-action="pay"]') ||
-      document.querySelector('.btn-pay, button.pay');
-
-    if (!btn) return;
-
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-
-      const cart = { items: buildCart() };
-      if (!cart.items.length) {
-        alert('장바구니가 비어 있습니다');
-        return;
-      }
-
-      const customer = customerInfo();
-      if (!customer.addr || !customer.name || !customer.phone) {
-        alert('주소/이름/연락처를 입력하세요');
-        return;
-      }
-
-      const orderId = 'ORD-' + Date.now();
-      const amount = totalAmount();
-      const orderName = document.title || '배달/예약 주문';
-
-      const type = document.getElementById('tab-resv')?.checked ? 'reserve' : 'delivery';
-
-      const payload = {
-        type,
-        amount,
-        orderName,
-        cart: cart.items,
-        customer,
-        table: currentTable()
-      };
-
-      setPendingOrder(payload);
-
-      try {
-        await startPayment({ orderId, amount, orderName });
-      } catch (err) {
-        console.error('payment start error', err);
-        alert('결제를 시작할 수 없습니다.');
-      }
-    });
-  }
-
-  bindPay();
 </script>
 
 
