@@ -38,37 +38,52 @@
   renderMenu('menu-grid', cart);
 
   // ── 호출 버튼 (기존 기능 그대로 유지)
-  const callBtn = document.getElementById('call-btn');
-  if (callBtn) {
-    callBtn.onclick = () => {
-      const reasonEl = document.getElementById('call-reason');
-      const msgEl = document.getElementById('call-msg');
-      const tableVal =
-        (document.getElementById('tableNo')?.value || tableParam || '-')
-          .toString()
-          .trim() || '-';
+const callBtn = document.getElementById('call-btn');
 
-      const reason = (reasonEl?.value || '').trim();
+if (callBtn) {
+  callBtn.onclick = async () => {
+    const reasonEl = document.getElementById('call-reason');
+    const msgEl = document.getElementById('call-msg');
+    const tableVal = (document.getElementById('tableNo')?.value || '').trim();
 
-      patch(['admin', 'ordersStore'], (arr) => {
-        arr = Array.isArray(arr) ? [...arr] : [];
-        arr.push({
-          type: 'CALL',
-          time: new Date().toISOString(),
+    if (!tableVal) {
+      alert('테이블 번호를 입력하세요.');
+      return;
+    }
+
+    const note = (reasonEl?.value || '').trim();
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'store',          // 매장 호출이니까 store로 통일
+          orderName: '직원 호출',  // 구분용
           table: tableVal,
-          items: [],
-          total: 0,
+          amount: 0,
+          cart: [],
           status: '대기',
-          note: reason,
-        });
-        return arr;
+          meta: {
+            kind: 'CALL',
+            note
+          }
+        })
       });
 
+      const data = await res.json();
+      if (!data.ok) throw new Error('save failed');
+
       if (msgEl) {
-        msgEl.textContent = '호출 전송됨 (관리자 페이지에 알림)';
+        msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
       }
-    };
-  }
+    } catch (err) {
+      console.error('call send failed', err);
+      alert('호출 전송에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+}
+
 
   // ── 유틸 함수들 ─────────────────────────────
 
