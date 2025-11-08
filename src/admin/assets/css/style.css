@@ -111,3 +111,12 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   flex-shrink:0;
 }
 
+/* 배송지 + 주소찾기 버튼 정렬 */
+.addr-wrap{
+  gap:6px;
+  width:100%;
+}
+.addr-wrap .input{
+  flex:1;          /* 인풋이 남는 공간 꽉 채우게 */
+}
+
