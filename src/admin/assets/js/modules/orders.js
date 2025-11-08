@@ -101,127 +101,183 @@ export function exportOrders(type){
   const a=document.createElement('a'); const today=new Date().toISOString().slice(0,10);
   a.href=URL.createObjectURL(blob); a.download=(type==='ordersStore'?`store_${today}.xlsx`:`delivery_${today}.xlsx`); a.click(); URL.revokeObjectURL(a.href);
 }
-export function renderStore(){
-  const all=get(['admin','ordersStore']); const f=filters.store; const rows=(all||[]).filter(o=>matchOrder(o,f.from,f.to,f.status,f.search));
-  const tbody=$('#tbody-store'); tbody.innerHTML=""; if(!rows.length){ tbody.innerHTML=EMPTY_ROW.replace('8','5'); return; }
-  rows.forEach((o)=>{
-    const items=(o.items||[]).map(i=>i.name+'x'+i.qty).join(', ');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${o.time||'-'}</td><td>${o.table||'-'}</td><td>${items}</td><td>${fmt(o.total)}</td>
-      <td><span class="badge-dot ${o.status==='완료'?'badge-done':(o.status==='조리중'?'badge-cook':'badge-wait')}"></span>
-      <select data-id="${o.id}" data-type="store" class="input" style="width:100px"><option ${o.status==='대기'?'selected':''}>대기</option><option ${o.status==='조리중'?'selected':''}>조리중</option><option ${o.status==='완료'?'selected':''}>완료</option></select>
-      <button class="btn small" data-detail="${o.id},store">보기</button></td>`;
-    tbody.appendChild(tr);
-  });
-}
+export async function renderStore() {
+  const tbody = $('#tbody-store');
+  if (!tbody) return;
 
-export function renderDeliv(){
-  const all = get(['admin','ordersDelivery']);
-  const f = filters.deliv;
-  const rows = (all||[]).filter(o=>matchOrder(o, f.from, f.to, f.status, f.search));
-  const tbody = $('#tbody-deliv');
-  tbody.innerHTML = "";
-  if (!rows.length) {
-    tbody.innerHTML = EMPTY_ROW;
-    return;
-  }
+  try {
+    const res = await fetch('/api/orders?type=store', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({ orders: [] }));
+    const rows = (data.orders || []).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-  rows.forEach((o) => {
-    const items = (o.items || []).map(i => i.name + 'x' + i.qty).join(', ');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${o.time || '-'}</td>
-      <td>${o.name || '-'}</td>
-      <td>${o.addr || '-'}</td>
-      <td>${items}</td>
-      <td>${fmt(o.total)}</td>
-      <td>
-        <span class="badge-dot ${
-          o.status === '완료'
-            ? 'badge-done'
-            : (o.status === '조리중'
-              ? 'badge-cook'
-              : 'badge-wait')
-        }"></span>
-        <select
-          data-id="${o.id}"
-          data-type="deliv"
-          class="input"
-          style="width:100px"
-        >
-          <option ${o.status === '대기' ? 'selected' : ''}>대기</option>
-          <option ${o.status === '조리중' ? 'selected' : ''}>조리중</option>
-          <option ${o.status === '완료' ? 'selected' : ''}>완료</option>
-        </select>
-        <button class="btn small" data-detail="${o.id},deliv">보기</button>
-      </td>`;
-    tbody.appendChild(tr);
-  });
-}
+    tbody.innerHTML = '';
 
-export function attachGlobalHandlers() {
-  // ── 주문 상세 모달 / 닫기 ─────────────────────
-  document.body.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!target) return;
-
-    // 모달 닫기 (X 버튼 또는 배경 클릭)
-    if (target.id === 'modal-close' || target.id === 'order-modal') {
-      const modal = document.getElementById('order-modal');
-      if (modal) modal.style.display = 'none';
+    if (!rows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="small">매장 주문이 없습니다.</td>
+        </tr>`;
       return;
     }
 
-    // "보기" 버튼: data-detail="주문ID,store" 또는 "주문ID,deliv"
-    const detailBtn = target.closest('[data-detail]');
-    if (!detailBtn) return;
+    rows.forEach(o => {
+      const d = o.ts ? new Date(o.ts) : null;
+      const time = d
+        ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        : '-';
 
-    const [id, type] = (detailBtn.dataset.detail || '').split(',');
-    const key = type === 'store' ? 'ordersStore' : 'ordersDelivery';
-    const list = get(['admin', key]) || [];
-    const order = list.find(o => String(o.id) === String(id)) || {};
+      const items = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
+      const table = o.table || '-';
+      const amount = Number(o.amount || 0);
+      const status = o.status || '대기';
 
-    showModal(JSON.stringify(order, null, 2));
-  });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${time}</td>
+        <td>${table}</td>
+        <td>${items || '-'}</td>
+        <td>${fmt(amount)}</td>
+        <td>
+          <span class="badge-dot ${
+            status === '완료'
+              ? 'badge-done'
+              : status === '조리중'
+              ? 'badge-cook'
+              : 'badge-wait'
+          }"></span>
+          <select
+            class="input"
+            style="width:100px"
+            data-type="store"
+            data-id="${o.id || o.orderId || ''}"
+          >
+            <option ${status === '대기' ? 'selected' : ''}>대기</option>
+            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
+            <option ${status === '완료' ? 'selected' : ''}>완료</option>
+          </select>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('renderStore err', e);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="small">매장 주문을 불러오지 못했습니다.</td>
+      </tr>`;
+  }
+}
 
-  // ── 상태 드롭다운 변경 ────────────────────────
+export async function renderDeliv() {
+  const tbody = $('#tbody-deliv');
+  if (!tbody) return;
+
+  try {
+    const r1 = await fetch('/api/orders?type=delivery', { cache: 'no-store' });
+    const d1 = await r1.json().catch(() => ({ orders: [] }));
+
+    const r2 = await fetch('/api/orders?type=reserve', { cache: 'no-store' });
+    const d2 = await r2.json().catch(() => ({ orders: [] }));
+
+    const rows = [...(d1.orders || []), ...(d2.orders || [])]
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+    tbody.innerHTML = '';
+
+    if (!rows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="small">배달/예약 주문이 없습니다.</td>
+        </tr>`;
+      return;
+    }
+
+    rows.forEach(o => {
+      const d = o.ts ? new Date(o.ts) : null;
+      const time = d
+        ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        : '-';
+
+      const items = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
+      const addr =
+        (o.customer && (o.customer.addr || o.customer.address)) ||
+        o.addr ||
+        '-';
+      const amount = Number(o.amount || 0);
+      const status = o.status || '대기';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${time}</td>
+        <td>${addr}</td>
+        <td>${items || '-'}</td>
+        <td>${fmt(amount)}</td>
+        <td>
+          <span class="badge-dot ${
+            status === '완료'
+              ? 'badge-done'
+              : status === '조리중'
+              ? 'badge-cook'
+              : 'badge-wait'
+          }"></span>
+          <select
+            class="input"
+            style="width:100px"
+            data-type="delivery"
+            data-id="${o.id || o.orderId || ''}"
+          >
+            <option ${status === '대기' ? 'selected' : ''}>대기</option>
+            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
+            <option ${status === '완료' ? 'selected' : ''}>완료</option>
+          </select>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error('renderDeliv err', e);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="small">배달/예약 주문을 불러오지 못했습니다.</td>
+      </tr>`;
+  }
+}
+
+export function attachGlobalHandlers() {
+  // 상태 변경
   document.body.addEventListener('change', async (e) => {
-    const target = e.target;
-    if (!target || target.tagName !== 'SELECT') return;
+    const sel = e.target;
+    if (!sel || sel.tagName !== 'SELECT') return;
 
-    const id = target.dataset.id;
-    const type = target.dataset.type; // 'store' or 'deliv'
+    const id = sel.dataset.id;
+    const type = sel.dataset.type; // "store" | "delivery"
     if (!id || !type) return;
 
-    const key = type === 'store' ? 'ordersStore' : 'ordersDelivery';
-    const list = get(['admin', key]) || [];
-    const idx = list.findIndex(o => String(o.id) === String(id));
-    if (idx === -1) return;
-
-    const uiStatus = target.value; // '대기' | '조리중' | '완료'
-
-    // 1) 로컬(admin 스토어) 상태 업데이트 - 항상 UI용 한글 상태로 저장
-    const updated = [...list];
-    updated[idx] = { ...updated[idx], status: uiStatus }
-const adminState = get(['admin']) || {};
-    adminState[key] = updated;
+    const nextStatus = sel.value;
 
     try {
-      const m = await import('./store.js');
-      if (typeof m.save === 'function') {
-        m.save({ admin: adminState });
+      await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, status: nextStatus })
+      });
+
+      if (type === 'store') {
+        await renderStore();
+      } else if (type === 'delivery') {
+        await renderDeliv();
       }
     } catch (err) {
-      console.error('save admin orders failed', err);
+      console.error('status change err', err);
+      alert('상태 변경에 실패했습니다.');
     }
+  });
 
-    // 화면 다시 렌더링
-    if (type === 'store') {
-      renderStore();
-    } else {
-      renderDeliv();
-    }
-
-    // (필요하면 여기서 /api/orders PUT으로 서버 상태도 동기화)
+  // 상세보기 (원하면 추후 구현)
+  document.body.addEventListener('click', (e) => {
+    const btn = e.target;
+    if (!btn || !btn.dataset || !btn.dataset.detail) return;
+    // data-detail="${idx},store" / "${idx},delivery" 로 모달 띄우는 기능 구현 가능
   });
 }
+
