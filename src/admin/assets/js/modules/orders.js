@@ -173,12 +173,15 @@ export async function renderDeliv() {
   if (!tbody) return;
 
   try {
+    // 1) 배달 주문
     const r1 = await fetch('/api/orders?type=delivery', { cache: 'no-store' });
     const d1 = await r1.json().catch(() => ({ orders: [] }));
 
+    // 2) 예약 주문
     const r2 = await fetch('/api/orders?type=reserve', { cache: 'no-store' });
     const d2 = await r2.json().catch(() => ({ orders: [] }));
 
+    // 합치고 최신순 정렬
     const rows = [...(d1.orders || []), ...(d2.orders || [])]
       .sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
@@ -187,49 +190,82 @@ export async function renderDeliv() {
     if (!rows.length) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" class="small">배달/예약 주문이 없습니다.</td>
+          <td colspan="9" class="small">배달/예약 주문이 없습니다.</td>
         </tr>`;
       return;
     }
 
-    rows.forEach(o => {
-      const d = o.ts ? new Date(o.ts) : null;
+    rows.forEach((o, idx) => {
+      const ts = o.ts || o.time; // ts 없으면 time fallback
+      const d = ts ? new Date(ts) : null;
       const time = d
         ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
         : '-';
 
-      const items = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
+      // 주문자 / 연락처
+      const customer = o.customer || {};
+      const name = customer.name || o.name || '-';
+      const phone = customer.phone || o.phone || '-';
+
+      // 주소 (payload에서 customer.addr 로 보냈던 값)
       const addr =
-        (o.customer && (o.customer.addr || o.customer.address)) ||
+        customer.addr ||
+        customer.address ||
         o.addr ||
         '-';
+
+      // 예약일자 / 예약시간
+      // delivery.html 에서 reserveDate, time(예약시간) 넣어줬다고 가정
+      const reserveDate = o.reserveDate || (o.meta && o.meta.reserveDate) || '-';
+      const reserveTime = o.time || (o.meta && o.meta.reserveTime) || '-';
+
+      // 요청사항
+      const req =
+        customer.req ||
+        o.memo ||
+        (o.meta && o.meta.req) ||
+        '-';
+
+      // 구매내역
+      const items = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
+
+      // 합계금액
       const amount = Number(o.amount || 0);
+
+      // 상태
       const status = o.status || '대기';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${time}</td>
+        <td>${name}</td>
+        <td>${phone}</td>
         <td>${addr}</td>
+        <td>${reserveDate}</td>
+        <td>${reserveTime}</td>
+        <td>${req}</td>
         <td>${items || '-'}</td>
-        <td>${fmt(amount)}</td>
         <td>
-          <span class="badge-dot ${
-            status === '완료'
-              ? 'badge-done'
-              : status === '조리중'
-              ? 'badge-cook'
-              : 'badge-wait'
-          }"></span>
-          <select
-            class="input"
-            style="width:100px"
-            data-type="delivery"
-            data-id="${o.id || o.orderId || ''}"
-          >
-            <option ${status === '대기' ? 'selected' : ''}>대기</option>
-            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
-            <option ${status === '완료' ? 'selected' : ''}>완료</option>
-          </select>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
+            <span>${fmt(amount)}</span>
+            <span class="badge-dot ${
+              status === '완료'
+                ? 'badge-done'
+                : status === '조리중'
+                ? 'badge-cook'
+                : 'badge-wait'
+            }"></span>
+            <select
+              class="input"
+              style="width:90px"
+              data-type="delivery"
+              data-id="${o.id || o.orderId || ''}"
+            >
+              <option ${status === '대기' ? 'selected' : ''}>대기</option>
+              <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
+              <option ${status === '완료' ? 'selected' : ''}>완료</option>
+            </select>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);
@@ -238,7 +274,7 @@ export async function renderDeliv() {
     console.error('renderDeliv err', e);
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="small">배달/예약 주문을 불러오지 못했습니다.</td>
+        <td colspan="9" class="small">배달/예약 주문을 불러오지 못했습니다.</td>
       </tr>`;
   }
 }
