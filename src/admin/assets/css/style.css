@@ -36,3 +36,16 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+.field-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.field-label{
+  width:70px;
+  font-size:13px;          /* h3보다 살짝 작게 */
+  color:var(--text);       /* 흰색 계열 (배달/예약 정보 글씨보다 조금 가볍게) */
+  flex-shrink:0;
+}
+
