@@ -103,10 +103,12 @@
   <script type="module">
     import { getPendingOrder } from '/src/shared/toss-client.js';
 
-    // 버튼에서 쓸 수 있도록 먼저 window에 심어둔다.
-    window.goBack = () => {
-      // 필요하면 /order/store 말고 실제 매장 주문 URL로 수정
-      location.replace('/order/store');
+    // 기본 이동 경로 (매장 주문)
+  let redirectPath = '/order/store';
+
+  // 확인 버튼 + 자동 이동에서 공통 사용
+  window.goBack = () => {
+    location.replace(redirectPath);
     };
 
     (async () => {
@@ -131,6 +133,7 @@
       }
 
       // 2) 로컬에 저장해둔 pending 주문을 /api/orders로 저장
+       let pending = null;
       try {
         const pending = getPendingOrder && getPendingOrder();
         if (pending) {
@@ -139,6 +142,14 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
           });
+           // ✅ 주문 타입에 따라 이동 경로 설정
+          if (pending.type === 'delivery' || pending.type === 'reserve') {
+            // 배달/예약 완료 후 배달/예약 페이지로
+            redirectPath = '/order/delivery';
+          } else {
+            // 그 외(매장 주문 등)는 매장 주문 페이지
+            redirectPath = '/order/store';
+          }
         } else {
           console.warn('no pending order found');
         }
