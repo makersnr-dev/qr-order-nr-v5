@@ -54,7 +54,7 @@ if (callBtn) {
 
     const note = (reasonEl?.value || '').trim();
 
-    try {
+    /*try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -81,13 +81,35 @@ if (callBtn) {
     } catch (err) {
       console.error('call send failed', err);
       alert('호출 전송에 실패했습니다. 다시 시도해주세요.');
+    }*/
+// ✅ 1) 관리자 알림 탭에 쌓을 데이터 (로컬용)
+    //    admin.notify 배열에 push (매장주문과 분리)
+    try {
+      patch(['admin', 'notify'], (list) => {
+        const arr = Array.isArray(list) ? [...list] : [];
+        arr.unshift({
+          id: 'CALL-' + Date.now(),
+          type: 'CALL',
+          ts: Date.now(),
+          table: tableVal,
+          message: note
+        });
+        return arr;
+      });
+    } catch (e) {
+      console.error('local notify patch failed', e);
     }
+
+    // ✅ 2) 같은 브라우저의 관리자 탭에 실시간 알림 (API X)
     adminChannel.postMessage({
       type: 'CALL',
       table: tableVal,
       note,
       ts: Date.now()
     });
+     if (msgEl) {
+        msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
+      }
   };
 }
 
