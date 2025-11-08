@@ -45,17 +45,18 @@
 
       <!-- 일자 + 예약시간 -->
       <div class="field-row">
-        <div class="field-label">일자</div>
-        <div class="hstack" style="gap:8px;flex-wrap:wrap;width:100%">
-          <input id="date" type="date" class="input" style="max-width:200px">
-          <div class="hstack" style="gap:6px">
-            <span class="small">예약시간</span>
-            <select id="time-ap" class="input" style="width:90px"></select>
-            <select id="time-hh" class="input" style="width:90px"></select>
-            <select id="time-mm" class="input" style="width:90px"></select>
-          </div>
-        </div>
-      </div>
+  <div class="field-label">일자</div>
+  <div class="date-time-row">
+    <input id="date" type="date" class="input date-input">
+
+    <span class="time-label">예약시간</span>
+
+    <select id="time-ap" class="input input-sm time-ap"></select>
+    <select id="time-hh" class="input input-sm"></select>
+    <select id="time-mm" class="input input-sm"></select>
+  </div>
+</div>
+
 
       <!-- 요청사항 -->
       <div class="field-row">
