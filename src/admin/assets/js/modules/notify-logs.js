@@ -3,7 +3,7 @@ const $ = (s, r=document) => r.querySelector(s);
 
 export function renderNotifyLogs() {
   const list = get(['admin', 'notifyLogs']) || [];
-  const tbody = $('#tbody-notify-logs');
+  const tbody = $('#tbody-notify-logs'); // ✅ 호출 로그 탭 tbody
   if (!tbody) return;
 
   tbody.innerHTML = '';
@@ -28,7 +28,7 @@ export function renderNotifyLogs() {
       <td>${time}</td>
       <td>${n.table || '-'}</td>
       <td>${n.message || ''}</td>
-      <td>${n.status || '-'}</td>
+      <td>${n.status || '대기'}</td>
     `;
     tbody.appendChild(tr);
   });
