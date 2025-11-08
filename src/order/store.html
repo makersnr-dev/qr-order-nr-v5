@@ -85,7 +85,7 @@ if (callBtn) {
 // ✅ 1) 관리자 알림 탭에 쌓을 데이터 (로컬용)
     //    admin.notify 배열에 push (매장주문과 분리)
     try {
-      patch(['admin', 'notify'], (list) => {
+      patch(['admin', 'notifyLogs'], (list) => {
         const arr = Array.isArray(list) ? [...list] : [];
         arr.unshift({
           id: 'CALL-' + Date.now(),
