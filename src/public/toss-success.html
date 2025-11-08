@@ -146,6 +146,20 @@
         console.error('save order err', e);
       }
 
+      //2.5) 알림보내기
+try {
+    const ch = new BroadcastChannel('qrnr-admin');
+    ch.postMessage({
+      type: 'NEW_ORDER_PAID',
+      orderId,
+      amount,
+      ts: Date.now()
+    });
+    ch.close();
+  } catch (e) {
+    console.error('broadcast err', e);
+  }
+      
       // 3) 자동 복귀 (주문 페이지에서 관리자에 표시되는 흐름 유지)
       setTimeout(window.goBack, 800);
     })();
