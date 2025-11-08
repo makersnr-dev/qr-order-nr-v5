@@ -26,10 +26,14 @@
 
     <div class="vstack" style="gap:10px">
       <!-- 배송지 -->
-      <div class="field-row">
-        <div class="field-label">배송지</div>
-        <input id="addr" class="input" />
-      </div>
+     <div class="field-row">
+  <div class="field-label">배송지</div>
+  <div class="hstack addr-wrap">
+    <input id="addr" class="input" />
+    <button type="button" class="btn" id="btn-find-addr">주소찾기</button>
+  </div>
+</div>
+
 
       <!-- 주문자명 -->
       <div class="field-row">
