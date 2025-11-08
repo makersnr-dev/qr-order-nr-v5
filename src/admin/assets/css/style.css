@@ -49,3 +49,51 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   flex-shrink:0;
 }
 
+.field-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* 왼쪽 라벨 */
+.field-label{
+  width:70px;
+  font-size:13px;
+  color:var(--text);
+  flex-shrink:0;
+}
+
+/* 일자 + 예약시간 줄 전체 */
+.date-time-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  width:100%;
+}
+
+/* 날짜 인풋 살짝 더 넓게 */
+.date-input{
+  max-width:220px;
+}
+
+/* "예약시간" 텍스트 */
+.time-label{
+  font-size:12px;
+  color:var(--muted);
+  margin-right:2px;
+}
+
+/* 시간 선택 셀렉트는 조금 낮고 컴팩트하게 */
+.input-sm{
+  width:90px;
+  padding:8px 10px;
+}
+
+/* 오전/오후 셀렉트는 글자가 잘리지 않도록 조금 더 넓게 */
+.time-ap{
+  width: 110px;      /* 오전/오후 여유 있게 보이도록 */
+}
+
+
+
