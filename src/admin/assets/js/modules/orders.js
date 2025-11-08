@@ -186,3 +186,25 @@ export function attachGlobalHandlers() {
     // 1) 로컬(admin 스토어) 상태 업데이트 - 항상 UI용 한글 상태로 저장
     const updated = [...list];
     updated[idx] = { ...updated[idx], status: uiStatus }
+const adminState = get(['admin']) || {};
+    adminState[key] = updated;
+
+    try {
+      const m = await import('./store.js');
+      if (typeof m.save === 'function') {
+        m.save({ admin: adminState });
+      }
+    } catch (err) {
+      console.error('save admin orders failed', err);
+    }
+
+    // 화면 다시 렌더링
+    if (type === 'store') {
+      renderStore();
+    } else {
+      renderDeliv();
+    }
+
+    // (필요하면 여기서 /api/orders PUT으로 서버 상태도 동기화)
+  });
+}
