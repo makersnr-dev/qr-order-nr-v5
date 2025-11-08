@@ -34,9 +34,6 @@
   </div>
 </div>
 
-
-
-
       <!-- 주문자명 -->
       <div class="field-row">
         <div class="field-label">주문자명</div>
@@ -45,9 +42,15 @@
 
       <!-- 연락처 -->
       <div class="field-row">
-        <div class="field-label">연락처</div>
-        <input id="phone" class="input" />
-      </div>
+  <div class="field-label">연락처</div>
+  <input
+    id="phone"
+    class="input"
+    placeholder="숫자만 기입"
+    inputmode="numeric"
+  />
+</div>
+
 
       <!-- 일자 + 예약시간 -->
       <div class="field-row">
@@ -177,6 +180,38 @@ if (addrInput) {
 }
 
 
+// 연락처 숫자만 + 하이픈 자동 포맷
+function formatPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 10) {
+    // 예: 0101234567 → 010-123-4567
+    return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+  if (digits.length === 11) {
+    // 예: 01012345678 → 010-1234-5678
+    return digits.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  }
+  // 그 외 길이는 그냥 숫자만 리턴 (검증에서 걸러짐)
+  return digits;
+}
+
+// 입력 중에는 숫자만 유지
+const phoneInput = document.getElementById('phone');
+if (phoneInput) {
+  phoneInput.addEventListener('input', () => {
+    const digits = phoneInput.value.replace(/\D/g, '');
+    phoneInput.value = digits; // 타이핑 중에는 하이픈 없이 숫자만
+  });
+
+  // 포커스 빠질 때 자동 포맷
+  phoneInput.addEventListener('blur', () => {
+    const formatted = formatPhone(phoneInput.value);
+    phoneInput.value = formatted || phoneInput.value;
+  });
+}
+
+
+  
 // 합계 계산
 function totalAmount() {
   if (typeof cart.total === 'function') return cart.total();
@@ -194,7 +229,8 @@ document.getElementById('action-btn').onclick = async (e) => {
 const addrDetail  = (document.getElementById('addr-detail')?.value || '').trim();
 const addr        = addrDetail ? `${addrBase} ${addrDetail}` : addrBase;
 const cust        = document.getElementById('cust').value.trim();
-const phone       = document.getElementById('phone').value.trim();
+const rawPhone    = document.getElementById('phone').value.trim();
+const digitsPhone = rawPhone.replace(/\D/g, '');
 const date        = document.getElementById('date').value;
 const memo        = document.getElementById('memo').value.trim();
 
@@ -204,11 +240,17 @@ const memo        = document.getElementById('memo').value.trim();
     alert('장바구니가 비어 있습니다.');
     return;
   }
-  if (!addr || !cust || !phone) {
-    alert('주소 / 주문자 / 연락처를 입력해주세요.');
+  if (!addr || !cust ) {
+    alert('주소 / 주문자명을 입력해주세요. ');
     return;
   }
-
+  if (digitsPhone.length < 10) {
+    alert('연락처를 확인해주세요. 숫자 10자리 이상 입력해주세요.');
+    document.getElementById('phone').focus();
+    return;
+  }
+  
+   const phone = formatPhone(rawPhone);
   const { ap, hh, mm } = getTimeValue('time');
   const timeStr = `${ap} ${hh}:${mm}`;
 
