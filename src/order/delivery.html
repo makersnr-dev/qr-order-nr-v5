@@ -95,6 +95,7 @@
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
 </div>
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
 import { requireCust } from '/src/order/assets/js/modules/cust-auth.js';
@@ -136,6 +137,30 @@ document.getElementById('bank-copy').onclick = () => {
   const txt = document.getElementById('bank-text').textContent;
   if (txt) navigator.clipboard.writeText(txt);
 };
+
+// 배송지 주소 찾기 (Daum 우편번호)
+const btnFindAddr = document.getElementById('btn-find-addr');
+if (btnFindAddr) {
+  btnFindAddr.onclick = () => {
+    if (!window.daum || !window.daum.Postcode) {
+      alert('주소 검색 서비스를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+      return;
+    }
+    new window.daum.Postcode({
+      oncomplete: function (data) {
+        const addrInput = document.getElementById('addr');
+        if (!addrInput) return;
+        const addr =
+          data.roadAddress ||
+          data.jibunAddress ||
+          data.address ||
+          '';
+        addrInput.value = addr;
+        addrInput.focus();
+      },
+    }).open();
+  };
+}
 
 // 합계 계산
 function totalAmount() {
@@ -232,6 +257,7 @@ document.getElementById('action-btn').onclick = async (e) => {
     alert('결제를 시작할 수 없습니다.');
   }
 };
+  
 </script>
 </body>
 </html>
