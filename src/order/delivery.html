@@ -21,32 +21,59 @@
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
-  <div class="card vstack" id="form-box">
+   <div class="card vstack" id="form-box">
     <h3>배달/예약 정보 <span class="small">*</span></h3>
-    <div class="vstack" style="gap:10px">
-      <input id="addr" class="input" placeholder="배송지 주소 *">
-      <input id="cust" class="input" placeholder="주문자 이름 *">
-      <input id="phone" class="input" placeholder="연락처 (숫자만) *">
 
-      <div class="hstack" style="gap:8px;flex-wrap:wrap">
-        <!-- 🔹 달력으로 날짜 선택 -->
-        <input id="date" type="date" class="input" style="max-width:200px">
-        <div class="hstack" style="gap:6px">
-          <span class="small">예약시간</span>
-          <select id="time-ap" class="input" style="width:90px"></select>
-          <select id="time-hh" class="input" style="width:90px"></select>
-          <select id="time-mm" class="input" style="width:90px"></select>
+    <div class="vstack" style="gap:10px">
+      <!-- 배송지 -->
+      <div class="field-row">
+        <div class="field-label">배송지</div>
+        <input id="addr" class="input" />
+      </div>
+
+      <!-- 주문자명 -->
+      <div class="field-row">
+        <div class="field-label">주문자명</div>
+        <input id="cust" class="input" />
+      </div>
+
+      <!-- 연락처 -->
+      <div class="field-row">
+        <div class="field-label">연락처</div>
+        <input id="phone" class="input" />
+      </div>
+
+      <!-- 일자 + 예약시간 -->
+      <div class="field-row">
+        <div class="field-label">일자</div>
+        <div class="hstack" style="gap:8px;flex-wrap:wrap;width:100%">
+          <input id="date" type="date" class="input" style="max-width:200px">
+          <div class="hstack" style="gap:6px">
+            <span class="small">예약시간</span>
+            <select id="time-ap" class="input" style="width:90px"></select>
+            <select id="time-hh" class="input" style="width:90px"></select>
+            <select id="time-mm" class="input" style="width:90px"></select>
+          </div>
         </div>
       </div>
 
-      <textarea id="memo" class="input" rows="5" placeholder="요청사항"></textarea>
+      <!-- 요청사항 -->
+      <div class="field-row">
+        <div class="field-label">요청사항</div>
+        <textarea id="memo" class="input" rows="4"></textarea>
+      </div>
 
-      <div id="bank-box" class="small" style="display:none">
-        <b>입금 계좌:</b> <span id="bank-text"></span>
-        <button class="btn" id="bank-copy" type="button">복사</button>
+      <!-- 예약(무결제)일 때만 보이는 계좌 안내 -->
+      <div id="bank-box" class="field-row small" style="display:none">
+        <div class="field-label">입금계좌</div>
+        <div class="hstack" style="gap:6px;flex-wrap:wrap">
+          <span id="bank-text"></span>
+          <button class="btn" id="bank-copy" type="button">복사</button>
+        </div>
       </div>
     </div>
   </div>
+
 
   <div class="card vstack">
     <h3>메뉴</h3>
