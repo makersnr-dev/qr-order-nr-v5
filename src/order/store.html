@@ -38,6 +38,7 @@
   renderMenu('menu-grid', cart);
 
   // ── 호출 버튼 (기존 기능 그대로 유지)
+   const adminChannel = new BroadcastChannel('qrnr-admin');
 const callBtn = document.getElementById('call-btn');
 
 if (callBtn) {
@@ -81,6 +82,12 @@ if (callBtn) {
       console.error('call send failed', err);
       alert('호출 전송에 실패했습니다. 다시 시도해주세요.');
     }
+    adminChannel.postMessage({
+      type: 'CALL',
+      table: tableVal,
+      note,
+      ts: Date.now()
+    });
   };
 }
 
