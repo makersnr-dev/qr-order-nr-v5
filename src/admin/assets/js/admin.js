@@ -7,7 +7,7 @@ import {renderMenu, bindMenu} from './modules/menu.js';
 import {renderCode, bindCode} from './modules/code.js';
 import {renderMyBank, bindMyBank} from './modules/mybank.js';
 import {renderNotify, bindNotify} from './modules/notify.js';
-import { renderNotifyLogs } from './modules/notify-logs.js';
+import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 
 const adminChannel = new BroadcastChannel('qrnr-admin');
@@ -65,7 +65,8 @@ async function main(){
   bindFilters(); renderStore(); renderDeliv(); attachGlobalHandlers();
   document.getElementById('store-export').onclick=()=>exportOrders('ordersStore');
   document.getElementById('deliv-export').onclick=()=>exportOrders('ordersDelivery');
-  renderMenu(); bindMenu(); renderCode(); bindCode(); renderMyBank(); bindMyBank(); renderNotify(); bindNotify();initQR();renderNotifyLogs();
+  renderMenu(); bindMenu(); renderCode(); bindCode(); renderMyBank(); bindMyBank(); 
+  renderNotify(); bindNotify();initQR();renderNotifyLogs();bindNotifyLogs();
 
     // 🔔 실시간(브라우저 내부) 알림 수신
   adminChannel.onmessage = async (event) => {
