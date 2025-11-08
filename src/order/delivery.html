@@ -190,11 +190,14 @@ function totalAmount() {
 document.getElementById('action-btn').onclick = async (e) => {
   e.preventDefault();
 
-  const addr  = document.getElementById('addr').value.trim();
-  const cust  = document.getElementById('cust').value.trim();
-  const phone = document.getElementById('phone').value.trim();
-  const date  = document.getElementById('date').value;        // 🔹 달력값
-  const memo  = document.getElementById('memo').value.trim();
+ const addrBase    = document.getElementById('addr').value.trim();
+const addrDetail  = (document.getElementById('addr-detail')?.value || '').trim();
+const addr        = addrDetail ? `${addrBase} ${addrDetail}` : addrBase;
+const cust        = document.getElementById('cust').value.trim();
+const phone       = document.getElementById('phone').value.trim();
+const date        = document.getElementById('date').value;
+const memo        = document.getElementById('memo').value.trim();
+
 
   const items = cart.items || [];
   if (!items.length) {
