@@ -87,83 +87,101 @@ document.getElementById('action-btn').onclick=async()=>{
   const memo=document.getElementById('memo').value.trim();
   const t = getTimeValue('time'); const reserve=`${t.ap} ${t.hh}:${t.mm}`;
 
-  if(!addr||!cust||!phone){ alert('주소/주문자/연락처를 입력하세요'); return; }
-  if(!cart.items.length){ alert('장바구니가 비어 있습니다'); return; }
-
-  const order = { type: document.getElementById('tab-resv').checked ? 'RESV' : 'DELIV',
-    time:new Date().toISOString(), customer:cust, phone, addr, reserve:`${date} ${reserve}`, items:cart.items, total:cart.total(), status:'대기', memo };
-
-  patch(['admin','ordersDelivery'], arr=>{ arr=[...(arr||[])]; arr.push(order); return arr; });
-
-  if(order.type==='RESV'){
-    alert('계좌번호를 확인하시고 입금해주시면 연락드리겠습니다.');
-    alert('예약이 완료되었습니다.');
-    patch(['admin','ordersDelivery'], arr=>{ arr=[...(arr||[])]; arr.push(order); return arr; });
-    document.getElementById('tab-resv').checked=true; updateTab(); cart.items=[]; cart.render();
-  } else {
-    const clientKey = (window.TOSS_CLIENT_KEY || (typeof process!=='undefined' && process.env && process.env.TOSS_CLIENT_KEY)) || '';
-    if(!clientKey){ alert('TOSS_CLIENT_KEY가 설정되지 않았습니다.'); return; }
-    const payments = await 
-    const orderId='D'+Date.now(); const orderName=(order.items||[]).map(i=>i.name+'x'+i.qty).join(', ').slice(0,48)||'배달주문';
-    sessionStorage.setItem('qrnr.lastOrder', JSON.stringify({kind:'delivery', payload:order}));
-    await payments.requestPayment({method:'CARD', amount: order.total, orderId, orderName, successUrl: location.origin + '/src/public/toss-success.html?amount='+order.total, failUrl: location.origin + '/src/public/toss-fail.html'});
-  }
+ 
 };
 </script>
+<script type="module">
+  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-    <script type="module">
-      import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
-      function totalAmount(){
-        const el = document.querySelector('[data-total]') || document.getElementById('total');
-        const v = el ? (el.getAttribute('data-total') || el.textContent || '0') : '0';
-        return Number(String(v).replace(/[^0-9.-]/g,'')) || 0;
+  function totalAmount(){
+    const el = document.querySelector('[data-total]') || document.getElementById('total');
+    const v = el ? (el.getAttribute('data-total') || el.textContent || '0') : '0';
+    return Number(String(v).replace(/[^0-9.-]/g,'')) || 0;
+  }
+
+  function buildCart(){
+    const items = [];
+    document.querySelectorAll('[data-cart-item]').forEach(row=>{
+      const name = row.getAttribute('data-name') || row.querySelector('.name')?.textContent || '메뉴';
+      const qty = Number(row.getAttribute('data-qty') || row.querySelector('.qty')?.textContent || 1);
+      const price = Number(row.getAttribute('data-price') || row.querySelector('.price')?.textContent || 0);
+      items.push({ name, qty, price });
+    });
+    return items;
+  }
+
+  function customerInfo(){
+    const info={};
+    const fields={
+      name:'#custName,#name',
+      phone:'#custPhone,#phone',
+      addr:'#custAddr,#address',
+      req:'#custNote,#request'
+    };
+    Object.entries(fields).forEach(([k,sel])=>{
+      const el=document.querySelector(sel);
+      if(el) info[k]=el.value||el.textContent||'';
+    });
+    return info;
+  }
+
+  function currentTable(){
+    const url = new URL(location.href);
+    return url.searchParams.get('table');
+  }
+
+  function bindPay(){
+    const btn =
+      document.getElementById('pay-btn') ||
+      document.querySelector('[data-action="pay"]') ||
+      document.querySelector('.btn-pay, button.pay');
+
+    if (!btn) return;
+
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+
+      const cart = { items: buildCart() };
+      if (!cart.items.length) {
+        alert('장바구니가 비어 있습니다');
+        return;
       }
-      function buildCart(){
-        const items = [];
-        document.querySelectorAll('[data-cart-item]').forEach(row=>{
-          const name = row.getAttribute('data-name') || row.querySelector('.name')?.textContent || '메뉴';
-          const qty = Number(row.getAttribute('data-qty') || row.querySelector('.qty')?.textContent || 1);
-          const price = Number(row.getAttribute('data-price') || row.querySelector('.price')?.textContent || 0);
-          items.push({ name, qty, price });
-        });
-        return items;
+
+      const customer = customerInfo();
+      if (!customer.addr || !customer.name || !customer.phone) {
+        alert('주소/이름/연락처를 입력하세요');
+        return;
       }
-      function customerInfo(){
-        const info={};
-        // common fields if exist
-        const fields={ 
-          name: '#custName,#name', 
-          phone: '#custPhone,#phone', 
-          addr: '#custAddr,#address', 
-          req: '#custNote,#request'
-        };
-        Object.entries(fields).forEach(([k,sel])=>{
-          const el=document.querySelector(sel);
-          if(el) info[k]=el.value||el.textContent||'';
-        });
-        return info;
+
+      const orderId = 'ORD-' + Date.now();
+      const amount = totalAmount();
+      const orderName = document.title || '배달/예약 주문';
+
+      const type = document.getElementById('tab-resv')?.checked ? 'reserve' : 'delivery';
+
+      const payload = {
+        type,
+        amount,
+        orderName,
+        cart: cart.items,
+        customer,
+        table: currentTable()
+      };
+
+      setPendingOrder(payload);
+
+      try {
+        await startPayment({ orderId, amount, orderName });
+      } catch (err) {
+        console.error('payment start error', err);
+        alert('결제를 시작할 수 없습니다.');
       }
-      function currentTable(){
-        const url = new URL(location.href);
-        return url.searchParams.get('table');
-      }
-      function bindPay(){
-        const btn = document.getElementById('payBtn') || document.querySelector('[data-action="pay"]') || document.querySelector('.btn-pay, button.pay');
-        if(!btn) return;
-        btn.addEventListener('click', async (e)=>{
-          e.preventDefault();
-          const orderId = 'ORD-' + Date.now();
-          const amount = totalAmount();
-          const orderName = document.title || '주문';
-          const payload = {
-            type: 'delivery', amount, orderName, cart: buildCart(), 
-            customer: customerInfo(), table: currentTable()
-          };
-          setPendingOrder(payload);
-          try { await startPayment({orderId, amount, orderName}); }
-          catch(err){ console.error('payment start error', err); alert('결제를 시작할 수 없습니다.'); }
-        });
-      }
-      bindPay();
-    </script>
+    });
+  }
+
+  bindPay();
+</script>
+
+
+  
     </body></html>
