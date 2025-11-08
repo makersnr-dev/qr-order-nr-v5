@@ -26,9 +26,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,s
 .badge-done{background:#63e6be}
 
 /* 날짜 입력 달력 아이콘을 어두운 배경에서 잘 보이게 반전 */
-input[type="date"].input {
-  padding-right: 28px; /* 아이콘 들어갈 자리 확보 (선택사항) */
-}
+//input[type="date"].input {
+//  padding-right: 28px; /* 아이콘 들어갈 자리 확보 (선택사항) */
+//}
 
 input[type="date"].input::-webkit-calendar-picker-indicator {
   opacity: 1;
