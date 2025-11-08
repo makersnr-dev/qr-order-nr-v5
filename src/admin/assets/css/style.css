@@ -24,3 +24,17 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,s
 .badge-wait{background:#ffda6a}
 .badge-cook{background:#74c0fc}
 .badge-done{background:#63e6be}
+/* 날짜 입력은 기본 브라우저 UI를 살린다 */
+input[type="date"].input {
+  -webkit-appearance: auto;
+  -moz-appearance: auto;
+  appearance: auto;
+  padding-right: 8px;
+}
+
+/* 크롬 등에서 달력 아이콘 보이게 */
+input[type="date"].input::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  display: block;
+  cursor: pointer;
+}
