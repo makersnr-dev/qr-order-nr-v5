@@ -79,9 +79,10 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 
 /* "예약시간" 텍스트 */
 .time-label{
-  font-size:12px;
-  color:var(--muted);
-  margin-right:2px;
+  font-size:13px;        /* field-label 과 맞춤 */
+  color:var(--text);     /* 흰색 계열 */
+  margin:0 6px 0 10px;   /* 날짜 입력 뒤 살짝 띄우기 */
+  flex-shrink:0;
 }
 
 /* 시간 선택 셀렉트는 조금 낮고 컴팩트하게 */
