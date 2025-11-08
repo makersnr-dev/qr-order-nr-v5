@@ -41,7 +41,27 @@
       <button class="btn" id="deliv-filter">필터</button><button class="btn" id="deliv-reset">초기화</button>
     </div>
     <button id="deliv-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
-    <table class="table"><thead><tr><th>시간</th><th>주문자</th><th>연락처</th><th>주소</th><th>예약</th><th>금액</th><th>상태</th><th>내역</th></tr></thead><tbody id="tbody-deliv"><tr><td colspan="8" class="small">주문 없음</td></tr></tbody></table>
+        <table class="table">
+      <thead>
+        <tr>
+          <th>시간</th>
+          <th>주문자</th>
+          <th>연락처</th>
+          <th>주소</th>
+          <th>예약일자</th>
+          <th>예약시간</th>
+          <th>요청사항</th>
+          <th>구매내역</th>
+          <th>합계금액 / 상태</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-deliv">
+        <tr>
+          <td colspan="9" class="small">주문 없음</td>
+        </tr>
+      </tbody>
+    </table>
+
   </div>
 
   <div class="card" data-panel="qr" style="display:none">
