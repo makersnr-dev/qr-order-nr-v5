@@ -145,7 +145,7 @@
            // ✅ 주문 타입에 따라 이동 경로 설정
           if (pending.type === 'delivery' || pending.type === 'reserve') {
             // 배달/예약 완료 후 배달/예약 페이지로
-            redirectPath = '/order/delivery';
+            redirectPath ='/src/order/delivery.html';
           } else {
             // 그 외(매장 주문 등)는 매장 주문 페이지
             redirectPath = '/order/store';
