@@ -1,9 +1,9 @@
-import { get } from './store.js';
+import { get, patch } from './store.js';
 const $ = (s, r=document) => r.querySelector(s);
 
 export function renderNotifyLogs() {
   const list = get(['admin', 'notifyLogs']) || [];
-  const tbody = $('#tbody-notify-logs'); // ✅ 호출 로그 탭 tbody
+  const tbody = $('#tbody-notify-logs');
   if (!tbody) return;
 
   tbody.innerHTML = '';
@@ -23,13 +23,53 @@ export function renderNotifyLogs() {
         })
       : '';
 
+    const status = n.status || '대기';
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${time}</td>
       <td>${n.table || '-'}</td>
       <td>${n.message || ''}</td>
-      <td>${n.status || '대기'}</td>
+      <td>
+        <select
+          class="input"
+          data-call-id="${n.id}"
+          data-call-status
+          style="width:90px"
+        >
+          <option value="대기" ${status === '대기' ? 'selected' : ''}>대기</option>
+          <option value="완료" ${status === '완료' ? 'selected' : ''}>완료</option>
+        </select>
+      </td>
     `;
     tbody.appendChild(tr);
+  });
+}
+
+/**
+ * 상태 드롭다운 변경 핸들러
+ * - select[data-call-status] 변경 시 notifyLogs 배열에서 해당 id 찾아 status 업데이트
+ */
+export function bindNotifyLogs() {
+  const tbody = $('#tbody-notify-logs');
+  if (!tbody) return;
+
+  tbody.addEventListener('change', (e) => {
+    const target = e.target;
+    if (!target || target.tagName !== 'SELECT' || !target.dataset.callId) return;
+
+    const id = target.dataset.callId;
+    const nextStatus = target.value === '완료' ? '완료' : '대기';
+
+    patch(['admin', 'notifyLogs'], (list) => {
+      const arr = Array.isArray(list) ? [...list] : [];
+      const idx = arr.findIndex((n) => String(n.id) === String(id));
+      if (idx === -1) return arr;
+      arr[idx] = {
+        ...arr[idx],
+        status: nextStatus,
+      };
+      return arr;
+    });
   });
 }
