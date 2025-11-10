@@ -49,6 +49,11 @@ function makeQRDataUrl(text) {
   });
 }
 
+// admin 화면 URL에서 store 값 가져오기 (없으면 store1)
+const adminUrl = new URL(location.href);
+const storeId = adminUrl.searchParams.get('store') || 'store1';
+
+
 export function initQR() {
   const tableInput = document.getElementById('qr-table');
   const labelInput = document.getElementById('qr-label');
@@ -71,7 +76,8 @@ export function initQR() {
       return;
     }
 
-    const url = `${location.origin}/order/store?table=${encodeURIComponent(table)}`;
+      const url = `${location.origin}/order/store?store=${encodeURIComponent(storeId)}&table=${encodeURIComponent(table)}`;
+
 
     try {
       const dataUrl = await makeQRDataUrl(url);
