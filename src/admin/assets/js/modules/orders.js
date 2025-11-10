@@ -4,7 +4,10 @@ import {showModal} from './ui.js';
 
 export async function syncStoreFromServer() {
   try {
-    const res = await fetch('/api/orders?type=store', { cache: 'no-store' });
+    const storeId = window.qrnrStoreId || 'store1';
+    const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, {
+      cache: 'no-store'
+    });
     const data = await res.json();
     if (!data.ok) return;
 
@@ -51,7 +54,7 @@ export async function syncStoreFromServer() {
         table: o.table || '-',        // 테이블
         items,                        // 내역
         total: o.amount || 0,         // 금액
-        status: o.status || 'paid'    // 상태
+        status    // 상태
       };
     });
 
