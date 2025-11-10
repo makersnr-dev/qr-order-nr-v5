@@ -115,7 +115,7 @@ import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
 await requireCust();
 const url = new URL(location.href);
-const storeId = url.searchParams.get('store') || 'default';
+const storeId = url.searchParams.get('store') || 'store1';
 
   
 // 예약 시간 선택 셋업
