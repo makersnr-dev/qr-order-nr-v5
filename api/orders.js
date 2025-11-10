@@ -57,7 +57,12 @@ export default async function handler(req, res){
       customer: p.customer||{},
       table: p.table||null,
       status: p.status||'paid',
-      ts: now, meta: p.meta||{}
+      ts: now,  reserveDate: p.reserveDate || null,
+    reserveTime: p.time || p.reserveTime || null,
+    memo:
+      p.memo ||
+      (p.customer && (p.customer.req || p.customer.memo)) ||
+      '',meta: p.meta||{}
     };
     db.orders.push(item);
     writeAll(db);
