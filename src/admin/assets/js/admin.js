@@ -9,6 +9,15 @@ import {renderMyBank, bindMyBank} from './modules/mybank.js';
 import {renderNotify, bindNotify} from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
+const url = new URL(location.href);
+const storeId =
+  url.searchParams.get('store') ||
+  localStorage.getItem('qrnr.storeId') ||
+  'default';
+
+window.qrnrStoreId = storeId;
+localStorage.setItem('qrnr.storeId', storeId);
+
 
 const adminChannel = new BroadcastChannel('qrnr-admin');
 function ensureToastContainer() {
