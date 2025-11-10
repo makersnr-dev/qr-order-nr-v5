@@ -106,7 +106,7 @@ export async function renderStore() {
   if (!tbody) return;
 
   try {
-    const storeId = window.qrnrStoreId || 'default';
+    const storeId = window.qrnrStoreId || 'store1';
 const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, {
   cache: 'no-store'
 });
@@ -176,7 +176,7 @@ export async function renderDeliv() {
   if (!tbody) return;
 
   try {
-    const storeId = window.qrnrStoreId || 'default';
+    const storeId = window.qrnrStoreId || 'store1';
     // 1) 배달 주문
    const r1 = await fetch(`/api/orders?type=delivery&storeId=${encodeURIComponent(storeId)}`, {
   cache: 'no-store'
