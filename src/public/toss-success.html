@@ -101,79 +101,94 @@
   </div>
 
   <script type="module">
-    import { getPendingOrder } from '/src/shared/toss-client.js';
+  import { getPendingOrder } from '/src/shared/toss-client.js';
 
-    // 기본 이동 경로 (매장 주문)
+  // 기본 값 (혹시 pending 못 읽었을 때 대비)
   let redirectPath = '/order/store';
 
-  // 확인 버튼 + 자동 이동에서 공통 사용
+  // 버튼/자동 이동에서 공통 사용
   window.goBack = () => {
     location.replace(redirectPath);
-    };
+  };
 
-    (async () => {
-      const qs = new URLSearchParams(location.search);
-      const paymentKey = qs.get('paymentKey');
-      const orderId = qs.get('orderId');
-      const amount = Number(qs.get('amount') || 0);
+  (async () => {
+    const qs = new URLSearchParams(location.search);
+    const paymentKey = qs.get('paymentKey');
+    const orderId = qs.get('orderId');
+    const amount = Number(qs.get('amount') || 0);
 
-      const s = document.getElementById('s');
-      if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
+    const s = document.getElementById('s');
+    if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
 
-      // 1) Toss 서버에 결제 확인 요청
-      try {
-        await fetch('/api/toss-confirm', {
+    // 1) Toss 결제 승인 확인
+    try {
+      await fetch('/api/toss-confirm', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ paymentKey, orderId, amount })
+      });
+    } catch (e) {
+      console.error('confirm err', e);
+      // 실패해도 아래 로직은 시도
+    }
+
+    // 2) pending 주문을 /api/orders에 저장
+    try {
+      const pending = getPendingOrder && getPendingOrder();
+
+      if (pending) {
+        // storeId, type, table 등은 pending 안에 이미 들어있음 (store.html / delivery.html에서 세팅)
+        await fetch('/api/orders', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ paymentKey, orderId, amount })
+          body: JSON.stringify({
+            ...pending,
+            orderId,
+            amount,
+            status: 'paid'
+          })
         });
-      } catch (e) {
-        console.error('confirm err', e);
-        // 실패해도 아래 로직은 계속 시도
-      }
 
-      // 2) 로컬에 저장해둔 pending 주문을 /api/orders로 저장
-       let pending = null;
-      try {
-        const pending = getPendingOrder && getPendingOrder();
-        if (pending) {
-          await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
-          });
-           // ✅ 주문 타입에 따라 이동 경로 설정
-          if (pending.type === 'delivery' || pending.type === 'reserve') {
-            // 배달/예약 완료 후 배달/예약 페이지로
-            redirectPath ='/src/order/delivery.html';
-          } else {
-            // 그 외(매장 주문 등)는 매장 주문 페이지
-            redirectPath = '/order/store';
-          }
+        const storeId = pending.storeId || 'store1';
+
+        // ✅ 주문 타입별로 돌아갈 주소 설정
+        if (pending.type === 'delivery' || pending.type === 'reserve') {
+          // 배달/예약 완료 → 배달/예약 페이지
+          // (배포 구조에 따라 /order/delivery 또는 /src/order/delivery.html 중 실제 쓰는 쪽으로 선택)
+          redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
         } else {
-          console.warn('no pending order found');
+          // 매장 주문
+          const table = pending.table || '';
+          redirectPath =
+            `/order/store?store=${encodeURIComponent(storeId)}` +
+            (table ? `&table=${encodeURIComponent(table)}` : '');
         }
-      } catch (e) {
-        console.error('save order err', e);
+      } else {
+        console.warn('no pending order found');
       }
+    } catch (e) {
+      console.error('save order err', e);
+    }
 
-      //2.5) 알림보내기
-try {
-    const ch = new BroadcastChannel('qrnr-admin');
-    ch.postMessage({
-      type: 'NEW_ORDER_PAID',
-      orderId,
-      amount,
-      ts: Date.now()
-    });
-    ch.close();
-  } catch (e) {
-    console.error('broadcast err', e);
-  }
-      
-      // 3) 자동 복귀 (주문 페이지에서 관리자에 표시되는 흐름 유지)
-      setTimeout(window.goBack, 3000);
-    })();
-  </script>
+    // 3) 관리자 탭용 실시간 알림 (동일 브라우저 한정)
+    try {
+      const ch = new BroadcastChannel('qrnr-admin');
+      ch.postMessage({
+        type: 'NEW_ORDER_PAID',
+        orderId,
+        amount,
+        ts: Date.now()
+      });
+      ch.close();
+    } catch (e) {
+      console.error('broadcast err', e);
+    }
+
+    // 4) 자동 복귀 (3초 후 현재 설정된 redirectPath로 이동)
+    setTimeout(window.goBack, 3000);
+  })();
+</script>
+
+ 
 </body>
 </html>
