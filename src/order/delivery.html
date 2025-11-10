@@ -225,23 +225,26 @@ function totalAmount() {
 document.getElementById('action-btn').onclick = async (e) => {
   e.preventDefault();
 
- const addrBase    = document.getElementById('addr').value.trim();
-const addrDetail  = (document.getElementById('addr-detail')?.value || '').trim();
-const addr        = addrDetail ? `${addrBase} ${addrDetail}` : addrBase;
-const cust        = document.getElementById('cust').value.trim();
-const rawPhone    = document.getElementById('phone').value.trim();
-const digitsPhone = rawPhone.replace(/\D/g, '');
-const date        = document.getElementById('date').value;
-const memo        = document.getElementById('memo').value.trim();
+  const addrBase    = document.getElementById('addr').value.trim();
+  const addrDetail  = (document.getElementById('addr-detail')?.value || '').trim();
+  const addr        = addrDetail ? `${addrBase} ${addrDetail}` : addrBase;
 
+  const cust        = document.getElementById('cust').value.trim();
+  const rawPhone    = document.getElementById('phone').value.trim();
+  const digitsPhone = rawPhone.replace(/\D/g, '');
+
+  const date        = document.getElementById('date').value;
+  const memo        = document.getElementById('memo').value.trim();
 
   const items = cart.items || [];
+
+  // 공통 유효성 체크
   if (!items.length) {
     alert('장바구니가 비어 있습니다.');
     return;
   }
-  if (!addr || !cust ) {
-    alert('주소 / 주문자명을 입력해주세요. ');
+  if (!addr || !cust) {
+    alert('주소 / 주문자명을 입력해주세요.');
     return;
   }
   if (digitsPhone.length < 10) {
@@ -249,48 +252,58 @@ const memo        = document.getElementById('memo').value.trim();
     document.getElementById('phone').focus();
     return;
   }
-  
-   const phone = formatPhone(rawPhone);
+
+  const phone = formatPhone(rawPhone); // 앞에서 만든 포맷 함수 사용
   const { ap, hh, mm } = getTimeValue('time');
   const timeStr = `${ap} ${hh}:${mm}`;
-
+  const total = totalAmount();
   const isResv = document.getElementById('tab-resv').checked;
 
+  // ✅ 1) 예약(무결제) 처리
   if (isResv) {
-    // ✅ 예약(무결제)
     if (!date) {
       alert('예약 날짜를 선택해주세요.');
       return;
     }
 
-    const reserveAt = `${date} ${timeStr}`;
-    const total = totalAmount();
-
-    // 관리자 배달/예약 목록에 로컬 저장 (API 호출 없음)
-    patch(['admin','ordersDelivery'], (list) => {
-      const arr = Array.isArray(list) ? [...list] : [];
-      arr.push({
-        id: 'RESV-' + Date.now(),
-        type: 'reserve',
-        time: new Date().toISOString(),
-        reserveAt,
+    const payload = {
+      type: 'reserve',
+      amount: total,
+      orderName: '예약 주문',
+      cart: items,
+      customer: {
+        name: cust,
+        phone,
         addr,
-        customer: { name: cust, phone },
-        items,
-        total,
-        status: '대기',
-        memo
-      });
-      return arr;
-    });
+        req: memo,
+      },
+      reserveDate: date,
+      reserveTime: timeStr,
+      status: '대기',
+    };
 
-    alert('예약이 등록되었습니다. (관리자 페이지에서 확인 가능합니다)');
-    return;
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error('save failed');
+
+      alert('예약이 등록되었습니다. (관리자 배달/예약 주문에서 확인 가능)');
+      // 필요하면 여기서 location.reload() 또는 delivery 페이지로 이동 가능
+      // location.replace('/src/order/delivery.html');
+    } catch (err) {
+      console.error('reserve save err', err);
+      alert('예약 정보를 저장하지 못했습니다. 다시 시도해주세요.');
+    }
+
+    return; // 🔴 예약은 여기서 끝. 결제 로직으로 넘어가면 안 됨.
   }
 
-  // ✅ 배달(결제)
-  const amount = totalAmount();
-  if (!amount) {
+  // ✅ 2) 배달(결제) 처리
+  if (!total) {
     alert('결제 금액이 올바르지 않습니다.');
     return;
   }
@@ -298,20 +311,25 @@ const memo        = document.getElementById('memo').value.trim();
   const orderId = 'DELIV-' + Date.now();
   const orderName = '배달 주문';
 
-  const payload = {
+  const pendingPayload = {
     type: 'delivery',
-    amount,
+    amount: total,
     orderName,
     cart: items,
-    customer: { name: cust, phone, addr, req: memo },
+    customer: {
+      name: cust,
+      phone,
+      addr,
+      req: memo,
+    },
     reserveDate: date || null,
-    time: timeStr
+    reserveTime: timeStr,
   };
 
-  setPendingOrder(payload);
+  setPendingOrder(pendingPayload);
 
   try {
-    await startPayment({ orderId, amount, orderName });
+    await startPayment({ orderId, amount: total, orderName });
   } catch (err) {
     console.error('payment start error', err);
     alert('결제를 시작할 수 없습니다.');
