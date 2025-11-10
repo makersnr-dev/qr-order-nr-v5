@@ -233,12 +233,13 @@ document.getElementById('action-btn').onclick = async (e) => {
   const rawPhone    = document.getElementById('phone').value.trim();
   const digitsPhone = rawPhone.replace(/\D/g, '');
 
-  const date        = document.getElementById('date').value;
+  const dateInput   = document.getElementById('date').value; // 선택된 날짜 (있을 수도, 없을 수도)
   const memo        = document.getElementById('memo').value.trim();
+  const isResv      = document.getElementById('tab-resv').checked;
 
   const items = cart.items || [];
 
-  // 공통 유효성 체크
+  // ✅ 공통 유효성 (배달/예약 공통)
   if (!items.length) {
     alert('장바구니가 비어 있습니다.');
     return;
@@ -253,19 +254,45 @@ document.getElementById('action-btn').onclick = async (e) => {
     return;
   }
 
-  const phone = formatPhone(rawPhone); // 앞에서 만든 포맷 함수 사용
+  const phone = formatPhone(rawPhone);
+
+  // 🔹 시간값은 getTimeValue로 읽되, 해석은 아래 분기에서 다르게
   const { ap, hh, mm } = getTimeValue('time');
   const timeStr = `${ap} ${hh}:${mm}`;
-  const total = totalAmount();
-  const isResv = document.getElementById('tab-resv').checked;
 
-  // ✅ 1) 예약(무결제) 처리
+  // 이 값들을 실제 payload에 넣기 전에
+  // isResv 여부에 따라 필수/선택 처리
+  let reserveDate = null;
+  let reserveTime = null;
+
   if (isResv) {
-    if (!date) {
+    // ✅ 예약: 날짜 + 시간 필수
+    if (!dateInput) {
       alert('예약 날짜를 선택해주세요.');
       return;
     }
+    // fillTimeSelectors 를 쓰고 있어서 기본값이 항상 들어가긴 할 텐데,
+    // 혹시 몰라서 timeStr도 체크 가능 (원하면 추가)
+    reserveDate = dateInput;
+    reserveTime = timeStr;
+  } else {
+    // ✅ 배달: 날짜/시간 선택하면 같이 저장, 없으면 null
+    const hasDate = !!dateInput;
+    const hasTimeSelect = !!(ap && hh && mm);
 
+    if (hasDate && hasTimeSelect) {
+      reserveDate = dateInput;
+      reserveTime = timeStr;
+    } else {
+      reserveDate = null;
+      reserveTime = null;
+    }
+  }
+
+  const total = totalAmount();
+
+  // ✅ 1) 예약(무결제)
+  if (isResv) {
     const payload = {
       type: 'reserve',
       amount: total,
@@ -277,8 +304,8 @@ document.getElementById('action-btn').onclick = async (e) => {
         addr,
         req: memo,
       },
-      reserveDate: date,
-      reserveTime: timeStr,
+      reserveDate,
+      reserveTime,      // 여기서는 항상 값 있음 (위에서 필수 검증)
       status: '대기',
     };
 
@@ -291,19 +318,17 @@ document.getElementById('action-btn').onclick = async (e) => {
       const data = await res.json();
       if (!data.ok) throw new Error('save failed');
 
-     // ✅ 예약 저장 성공 → 예약 완료 페이지로 이동
+      // 예약 완료 페이지 → 자동 복귀
       location.replace('/src/order/reserve-success.html');
-      // 필요하면 여기서 location.reload() 또는 delivery 페이지로 이동 가능
-      // location.replace('/src/order/delivery.html');
     } catch (err) {
       console.error('reserve save err', err);
       alert('예약 정보를 저장하지 못했습니다. 다시 시도해주세요.');
     }
 
-    return; // 🔴 예약은 여기서 끝. 결제 로직으로 넘어가면 안 됨.
+    return; // 🔴 예약은 여기서 끝
   }
 
-  // ✅ 2) 배달(결제) 처리
+  // ✅ 2) 배달(결제)
   if (!total) {
     alert('결제 금액이 올바르지 않습니다.');
     return;
@@ -323,8 +348,9 @@ document.getElementById('action-btn').onclick = async (e) => {
       addr,
       req: memo,
     },
-    reserveDate: date || null,
-    reserveTime: timeStr,
+    // 선택적으로 예약 배송 개념 쓰고 싶을 때만 사용
+    reserveDate,
+    reserveTime,
   };
 
   setPendingOrder(pendingPayload);
@@ -336,6 +362,7 @@ document.getElementById('action-btn').onclick = async (e) => {
     alert('결제를 시작할 수 없습니다.');
   }
 };
+
   
 </script>
 </body>
