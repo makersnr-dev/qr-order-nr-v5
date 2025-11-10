@@ -13,7 +13,7 @@ const url = new URL(location.href);
 const storeId =
   url.searchParams.get('store') ||
   localStorage.getItem('qrnr.storeId') ||
-  'default';
+  'store1';
 
 window.qrnrStoreId = storeId;
 localStorage.setItem('qrnr.storeId', storeId);
