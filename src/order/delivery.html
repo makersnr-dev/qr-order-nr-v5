@@ -114,7 +114,10 @@ import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/ti
 import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
 await requireCust();
+const url = new URL(location.href);
+const storeId = url.searchParams.get('store') || 'default';
 
+  
 // 예약 시간 선택 셋업
 fillTimeSelectors('time');
 
@@ -298,6 +301,7 @@ document.getElementById('action-btn').onclick = async (e) => {
       reserveDate,
       reserveTime,
       status: '대기',
+      storeId,  
     };
 
     try {
@@ -346,6 +350,7 @@ document.getElementById('action-btn').onclick = async (e) => {
     },
     reserveDate,
     reserveTime,
+    storeId
   };
 
   setPendingOrder(pendingPayload);
