@@ -140,7 +140,7 @@
           await fetch('/api/orders', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ ...pending, orderId, amount, status: 'paid',storeId })
+            body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
           });
            // ✅ 주문 타입에 따라 이동 경로 설정
           if (pending.type === 'delivery' || pending.type === 'reserve') {
