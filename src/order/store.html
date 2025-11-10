@@ -25,6 +25,7 @@
 
   // ── 테이블 번호 초기 세팅 (QR ?table= 파라미터)
   const url = new URL(location.href);
+   const storeId = url.searchParams.get('store') || 'store1';
   const tableParam = url.searchParams.get('table');
   const tableInput = document.getElementById('tableNo');
   if (tableParam && tableInput) {
@@ -231,6 +232,7 @@ if (callBtn) {
         orderName,
         cart: items,
         status: '대기',
+        storeId,
       };
 
       setPendingOrder(payload);
