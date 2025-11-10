@@ -106,7 +106,10 @@ export async function renderStore() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/orders?type=store', { cache: 'no-store' });
+    const storeId = window.qrnrStoreId || 'default';
+const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, {
+  cache: 'no-store'
+});
     const data = await res.json().catch(() => ({ orders: [] }));
     const rows = (data.orders || []).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
@@ -173,12 +176,17 @@ export async function renderDeliv() {
   if (!tbody) return;
 
   try {
+    const storeId = window.qrnrStoreId || 'default';
     // 1) 배달 주문
-    const r1 = await fetch('/api/orders?type=delivery', { cache: 'no-store' });
+   const r1 = await fetch(`/api/orders?type=delivery&storeId=${encodeURIComponent(storeId)}`, {
+  cache: 'no-store'
+});
     const d1 = await r1.json().catch(() => ({ orders: [] }));
 
     // 2) 예약 주문
-    const r2 = await fetch('/api/orders?type=reserve', { cache: 'no-store' });
+    const r2 = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, {
+  cache: 'no-store'
+});
     const d2 = await r2.json().catch(() => ({ orders: [] }));
 
     // 합치고 최신순 정렬
