@@ -61,28 +61,55 @@ async function main(){
   await requireAuth('admin');
   await syncStoreFromServer();
   initTabs();
-  document.getElementById('logoutBtn').onclick=()=>{ clearToken(); location.href='/admin'; };
-  bindFilters(); renderStore(); renderDeliv(); attachGlobalHandlers();
-  document.getElementById('store-export').onclick=()=>exportOrders('ordersStore');
-  document.getElementById('deliv-export').onclick=()=>exportOrders('ordersDelivery');
-  renderMenu(); bindMenu(); renderCode(); bindCode(); renderMyBank(); bindMyBank(); 
-  renderNotify(); bindNotify();initQR();renderNotifyLogs();bindNotifyLogs();
 
-    // 🔔 실시간(브라우저 내부) 알림 수신
+  document.getElementById('logoutBtn').onclick = () => {
+    clearToken();
+    location.href = '/admin';
+  };
+
+  // 기본 세팅
+  bindFilters();
+  renderStore();
+  renderDeliv();
+  attachGlobalHandlers();
+
+  // 🔹 탭별 새로고침 버튼 연결
+  const storeRefresh = document.getElementById('store-refresh');
+  if (storeRefresh) {
+    storeRefresh.onclick = () => {
+      renderStore();        // 매장 주문 테이블만 다시 불러오기
+    };
+  }
+
+  const delivRefresh = document.getElementById('deliv-refresh');
+  if (delivRefresh) {
+    delivRefresh.onclick = () => {
+      renderDeliv();        // 배달/예약 주문 테이블만 다시 불러오기
+    };
+  }
+
+  // 엑셀 export
+  document.getElementById('store-export').onclick = () => exportOrders('ordersStore');
+  document.getElementById('deliv-export').onclick = () => exportOrders('ordersDelivery');
+
+  // 나머지 설정들
+  renderMenu(); bindMenu();
+  renderCode(); bindCode();
+  renderMyBank(); bindMyBank();
+  renderNotify(); bindNotify();
+  initQR();
+  renderNotifyLogs(); bindNotifyLogs();
+
+  // 🔔 실시간 알림
   adminChannel.onmessage = async (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
 
     if (msg.type === 'CALL') {
-      // 직원 호출 알림 토스트
       showToast(
         `테이블 ${msg.table || '-'} 직원 호출${msg.note ? ' - ' + msg.note : ''}`,
         'info'
       );
-
-      // 나중에 서버 CALL 저장도 쓰고 있으면, 여기서 목록 새로고침
-      // await syncStoreFromServer();
-      // renderStore();
     }
 
     if (msg.type === 'NEW_ORDER_PENDING') {
@@ -97,12 +124,10 @@ async function main(){
         `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
         'success'
       );
-
-      // 여기서도 서버에 저장하는 구조가 있다면:
-      // await syncStoreFromServer();
-      // renderStore();
+      // 필요하면 여기서 renderStore()/renderDeliv() 추가 호출 가능
     }
   };
-
 }
+
 main();
+
