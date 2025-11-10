@@ -217,7 +217,11 @@ export async function renderDeliv() {
       // 예약일자 / 예약시간
       // delivery.html 에서 reserveDate, time(예약시간) 넣어줬다고 가정
       const reserveDate = o.reserveDate || (o.meta && o.meta.reserveDate) || '-';
-      const reserveTime = o.time || (o.meta && o.meta.reserveTime) || '-';
+      const reserveTime =
+  o.reserveTime ||        // ✅ 우리가 저장한 필드
+  o.time ||               // 혹시 과거 데이터에서 time에 넣은 경우
+  (o.meta && o.meta.reserveTime) ||
+  '-';
 
       // 요청사항
       const req =
