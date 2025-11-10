@@ -42,32 +42,51 @@ export default async function handler(req, res){
     return json(res, 200, { ok:true, orders: data });
   }
 
-  if(req.method==='POST'){
-    let body='';
-    await new Promise(r=>req.on('data',c=>body+=c).on('end',r));
-    let p={};
-    try{ p=JSON.parse(body||'{}'); }catch{}
-    if(!p.orderId) p.orderId = 'ORD-'+Date.now();
-    const now = Date.now();
-    const item = {
-      id: p.orderId, type: p.type||'store',
-      amount: Number(p.amount||0),
-      orderName: p.orderName||'주문',
-      cart: p.cart||[],
-      customer: p.customer||{},
-      table: p.table||null,
-      status: p.status||'paid',
-      ts: now,  reserveDate: p.reserveDate || null,
-    reserveTime: p.time || p.reserveTime || null,
+  if (req.method === 'POST') {
+  let body = '';
+  await new Promise(r =>
+    req.on('data', c => body += c).on('end', r)
+  );
+
+  let p = {};
+  try {
+    p = JSON.parse(body || '{}');
+  } catch {}
+
+  if (!p.orderId) {
+    p.orderId = 'ORD-' + Date.now();
+  }
+
+  const now = Date.now();
+
+  const item = {
+    id: p.orderId,
+    type: p.type || 'store',                      // store | delivery | reserve
+    amount: Number(p.amount || 0),
+    orderName: p.orderName || '주문',
+    cart: p.cart || [],
+    customer: p.customer || {},
+    table: p.table || null,
+    status: p.status || 'paid',
+    ts: now,
+
+    // 🔹 예약/배달용 필드들
+    reserveDate: p.reserveDate || null,          // delivery.html 예약, reserve용
+    reserveTime: p.reserveTime || p.time || null,
     memo:
       p.memo ||
       (p.customer && (p.customer.req || p.customer.memo)) ||
-      '',meta: p.meta||{}
-    };
-    db.orders.push(item);
-    writeAll(db);
-    return json(res, 200, { ok:true, order: item });
-  }
+      '',
+
+    meta: p.meta || {}
+  };
+
+  db.orders.push(item);
+  writeAll(db);
+
+  return json(res, 200, { ok: true, order: item });
+}
+
 
   if(req.method==='PUT'){
     let body='';
