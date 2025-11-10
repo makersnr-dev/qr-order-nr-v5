@@ -34,10 +34,15 @@ export default async function handler(req, res){
     const type = url.searchParams.get('type'); // store|delivery|reserve
     const from = url.searchParams.get('from'); // iso
     const to   = url.searchParams.get('to');   // iso
+    const storeId = url.searchParams.get('storeId'); 
+    
     let data = db.orders;
+    
     if(type) data = data.filter(o=>o.type===type);
+    if (storeId) data = data.filter(o => o.storeId === storeId);
     if(from){ const t = Date.parse(from); data = data.filter(o=>o.ts>=t); }
     if(to){ const t = Date.parse(to); data = data.filter(o=>o.ts<=t); }
+    
     data = data.sort((a,b)=>b.ts-a.ts);
     return json(res, 200, { ok:true, orders: data });
   }
@@ -58,7 +63,8 @@ export default async function handler(req, res){
   }
 
   const now = Date.now();
-
+  const storeId = p.storeId || 'store1';  // 기본값 하나 정해두기
+    
   const item = {
     id: p.orderId,
     type: p.type || 'store',                      // store | delivery | reserve
@@ -78,7 +84,8 @@ export default async function handler(req, res){
       (p.customer && (p.customer.req || p.customer.memo)) ||
       '',
 
-    meta: p.meta || {}
+    meta: p.meta || {},
+    storeId
   };
 
   db.orders.push(item);
