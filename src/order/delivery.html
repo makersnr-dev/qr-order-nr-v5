@@ -291,7 +291,8 @@ document.getElementById('action-btn').onclick = async (e) => {
       const data = await res.json();
       if (!data.ok) throw new Error('save failed');
 
-      alert('예약이 등록되었습니다. (관리자 배달/예약 주문에서 확인 가능)');
+     // ✅ 예약 저장 성공 → 예약 완료 페이지로 이동
+      location.replace('/src/order/reserve-success.html');
       // 필요하면 여기서 location.reload() 또는 delivery 페이지로 이동 가능
       // location.replace('/src/order/delivery.html');
     } catch (err) {
