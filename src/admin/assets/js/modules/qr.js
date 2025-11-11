@@ -1,11 +1,35 @@
-import {patch, get} from './store.js';
+import { patch, get } from './store.js';
 
-const PATH = ['admin', 'qrList'];
+// 기본 베이스 키
+const BASE_PATH = ['admin', 'qrList'];
 
+// 현재 관리자 페이지의 매장 ID
+function currentStoreId() {
+  // admin.js에서 window.qrnrStoreId 를 세팅해두었으므로 우선 사용
+  if (window.qrnrStoreId) return window.qrnrStoreId;
+
+  // 혹시 모를 fallback: URL에서 직접 읽기
+  try {
+    const u = new URL(location.href);
+    return u.searchParams.get('store') || 'store1';
+  } catch (e) {
+    return 'store1';
+  }
+}
+
+// 매장별 QR 저장 위치
+function storePath() {
+  return [...BASE_PATH, currentStoreId()];
+}
+
+// 현재 매장용 리스트 보장
 function ensureList() {
-  const cur = get(PATH);
+  const cur = get(storePath());
   if (Array.isArray(cur)) return cur;
-  return patch(PATH, () => []);
+
+  // 초기화
+  patch(storePath(), () => []);
+  return [];
 }
 
 // qrcodejs 사용해서 QR PNG DataURL 생성
@@ -32,9 +56,7 @@ function makeQRDataUrl(text) {
       setTimeout(() => {
         try {
           const canvas = wrap.querySelector('canvas');
-          if (!canvas) {
-            throw new Error('QR 캔버스를 찾을 수 없습니다.');
-          }
+          if (!canvas) throw new Error('QR 캔버스를 찾을 수 없습니다.');
           const dataUrl = canvas.toDataURL('image/png');
           document.body.removeChild(wrap);
           resolve(dataUrl);
@@ -49,11 +71,6 @@ function makeQRDataUrl(text) {
   });
 }
 
-// admin 화면 URL에서 store 값 가져오기 (없으면 store1)
-const adminUrl = new URL(location.href);
-const storeId = adminUrl.searchParams.get('store') || 'store1';
-
-
 export function initQR() {
   const tableInput = document.getElementById('qr-table');
   const labelInput = document.getElementById('qr-label');
@@ -66,7 +83,9 @@ export function initQR() {
   ensureList();
   renderList();
 
+  // QR 생성 & 저장
   genBtn.addEventListener('click', async () => {
+    const storeId = currentStoreId();
     const table = (tableInput.value || '').trim();
     const label = (labelInput.value || '').trim() || `${table}번 테이블`;
 
@@ -76,22 +95,27 @@ export function initQR() {
       return;
     }
 
-      const url = `${location.origin}/order/store?store=${encodeURIComponent(storeId)}&table=${encodeURIComponent(table)}`;
-
+    // 매장별 매장주문 URL 포함
+    const url = `${location.origin}/order/store?store=${encodeURIComponent(
+      storeId
+    )}&table=${encodeURIComponent(table)}`;
 
     try {
       const dataUrl = await makeQRDataUrl(url);
 
       const item = {
-        id: `${Date.now()}-${table}`,
+        id: `QR-${Date.now()}-${table}`,
+        storeId,     // 🔴 어느 매장 QR인지 표시
         table,
         label,
         url,
         dataUrl,
       };
 
-      patch(PATH, (list) => {
+      // 현재 매장 리스트에만 저장
+      patch(storePath(), (list) => {
         list = Array.isArray(list) ? list : [];
+        // 같은 테이블 번호 QR 있으면 교체
         const filtered = list.filter((x) => x.table !== table);
         return [...filtered, item];
       });
@@ -103,22 +127,27 @@ export function initQR() {
     }
   });
 
+  // 현재 매장에 대한 QR 전체 삭제
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
-      if (!confirm('저장된 QR을 모두 삭제할까요?')) return;
-      patch(PATH, () => []);
+      if (!confirm('이 매장의 저장된 QR을 모두 삭제할까요?')) return;
+      patch(storePath(), () => []);
       renderList();
     });
   }
 
+  // 목록 렌더링 (현재 매장 전용)
   function renderList() {
-    const list = get(PATH) || [];
+    const storeId = currentStoreId();
+    const list = get(storePath()) || [];
+
+    grid.innerHTML = '';
+
     if (!list.length) {
       grid.innerHTML = '<div class="small">저장된 QR이 없습니다.</div>';
       return;
     }
 
-    grid.innerHTML = '';
     list.forEach((q) => {
       const wrap = document.createElement('div');
       wrap.className = 'vstack';
@@ -157,7 +186,9 @@ export function initQR() {
       del.textContent = '삭제';
       del.className = 'btn small';
       del.onclick = () => {
-        patch(PATH, (list) => (list || []).filter((x) => x.id !== q.id));
+        patch(storePath(), (list) =>
+          (list || []).filter((x) => x.id !== q.id)
+        );
         renderList();
       };
 
