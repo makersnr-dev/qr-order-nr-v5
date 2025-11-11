@@ -110,23 +110,27 @@
   </div>
 
     <div class="card" data-panel="notify-log" style="display:none">
+  <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:8px">
     <h3>호출 알림 로그</h3>
-    <table class="table">
-      <thead>
-        <tr>
-          <th>시간</th>
-          <th>테이블</th>
-          <th>요청내용</th>
-          <th>상태</th>
-        </tr>
-      </thead>
-      <tbody id="tbody-notify-logs">
-        <tr>
-          <td colspan="4" class="small">알림 없음</td>
-        </tr>
-      </tbody>
-    </table>
+    <button id="notify-log-refresh" class="btn small">새로고침</button>
   </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>시간</th>
+        <th>테이블</th>
+        <th>요청내용</th>
+        <th>상태</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-notify-logs">
+      <tr>
+        <td colspan="4" class="small">알림 없음</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 
   
   <div class="card" data-panel="notify" style="display:none"><h3>알림 설정</h3>
