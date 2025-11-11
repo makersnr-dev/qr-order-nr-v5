@@ -85,30 +85,33 @@ if (callBtn) {
     }*/
 // ✅ 1) 관리자 알림 탭에 쌓을 데이터 (로컬용)
     //    admin.notify 배열에 push (매장주문과 분리)
-    try {
-      patch(['admin', 'notifyLogs'], (list) => {
-        const arr = Array.isArray(list) ? [...list] : [];
-        arr.unshift({
-          id: 'CALL-' + Date.now(),
-          type: 'CALL',
-          ts: Date.now(),
-          table: tableVal,
-          message: note,
-          status: '대기' 
-        });
-        return arr;
-      });
-    } catch (e) {
-      console.error('local notify patch failed', e);
-    }
-
-    // ✅ 2) 같은 브라우저의 관리자 탭에 실시간 알림 (API X)
-    adminChannel.postMessage({
+try {
+  patch(['admin', 'notifyLogs'], (list) => {
+    const arr = Array.isArray(list) ? [...list] : [];
+    arr.unshift({
+      id: 'CALL-' + Date.now(),
       type: 'CALL',
+      ts: Date.now(),
+      storeId,            // 🔴 추가: 어느 매장 호출인지
       table: tableVal,
-      note,
-      ts: Date.now()
+      message: note,
+      status: '대기'
     });
+    return arr;
+  });
+} catch (e) {
+  console.error('local notify patch failed', e);
+}
+
+// BroadcastChannel 메시지도 매장 정보 포함
+adminChannel.postMessage({
+  type: 'CALL',
+  storeId,            // 🔴 추가
+  table: tableVal,
+  note,
+  ts: Date.now()
+});
+
      if (msgEl) {
         msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
       }
