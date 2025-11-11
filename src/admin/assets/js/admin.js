@@ -111,31 +111,31 @@ async function main(){
 
   // 🔔 실시간 알림
   adminChannel.onmessage = async (event) => {
-    const msg = event.data;
-    if (!msg || !msg.type) return;
+  const msg = event.data;
+  if (!msg || !msg.type) return;
 
-    if (msg.type === 'CALL') {
-      showToast(
-        `테이블 ${msg.table || '-'} 직원 호출${msg.note ? ' - ' + msg.note : ''}`,
-        'info'
-      );
-    }
+  const currentStoreId = window.qrnrStoreId || 'store1';
 
-    if (msg.type === 'NEW_ORDER_PENDING') {
-      showToast(
-        `테이블 ${msg.table || '-'} 주문 진행 중`,
-        'info'
-      );
-    }
+  // 매장 불일치 메시지는 무시
+  if (msg.storeId && msg.storeId !== currentStoreId) {
+    return;
+  }
 
-    if (msg.type === 'NEW_ORDER_PAID') {
-      showToast(
-        `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-        'success'
-      );
-      // 필요하면 여기서 renderStore()/renderDeliv() 추가 호출 가능
-    }
-  };
+  if (msg.type === 'CALL') {
+    showToast(
+      `테이블 ${msg.table || '-'} 직원 호출${msg.note ? ' - ' + msg.note : ''}`,
+      'info'
+    );
+  }
+
+  if (msg.type === 'NEW_ORDER_PAID') {
+    showToast(
+      `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
+      'success'
+    );
+  }
+};
+
 }
 
 main();
