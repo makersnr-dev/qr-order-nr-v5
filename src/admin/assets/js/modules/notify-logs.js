@@ -60,6 +60,7 @@ export function bindNotifyLogs() {
   const tbody = $('#tbody-notify-logs');
   if (!tbody) return;
 
+  // 1) 상태 드롭다운 변경 → notifyLogs 배열 상태 업데이트
   tbody.addEventListener('change', (e) => {
     const target = e.target;
     if (!target || target.tagName !== 'SELECT' || !target.dataset.callId) return;
@@ -78,4 +79,13 @@ export function bindNotifyLogs() {
       return arr;
     });
   });
+
+  // 2) 새로고침 버튼 → 현재 매장 기준으로 다시 그리기
+  const refreshBtn = document.getElementById('notify-log-refresh');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      renderNotifyLogs();
+    });
+  }
 }
+
