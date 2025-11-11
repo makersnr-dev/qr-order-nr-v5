@@ -53,9 +53,25 @@ function makeQRDataUrl(text) {
       setTimeout(() => {
         try {
           const canvas = wrap.querySelector('canvas');
-          if (!canvas) throw new Error('QR 캔버스를 찾을 수 없습니다.');
-          const dataUrl = canvas.toDataURL('image/png');
+          const img = wrap.querySelector('img');
+
+          let dataUrl = null;
+
+          // 1️⃣ canvas가 있으면 png로
+          if (canvas && canvas.toDataURL) {
+            dataUrl = canvas.toDataURL('image/png');
+          }
+          // 2️⃣ canvas가 없고 img(data:URL)만 있으면 그걸 사용
+          else if (img && img.src) {
+            dataUrl = img.src;
+          }
+
           document.body.removeChild(wrap);
+
+          if (!dataUrl) {
+            throw new Error('QR 이미지를 생성하지 못했습니다.');
+          }
+
           resolve(dataUrl);
         } catch (e) {
           document.body.removeChild(wrap);
@@ -67,6 +83,7 @@ function makeQRDataUrl(text) {
     }
   });
 }
+
 
 // ===== 초기화 =====
 export function initQR() {
