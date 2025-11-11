@@ -2,9 +2,14 @@ import { get, patch } from './store.js';
 const $ = (s, r=document) => r.querySelector(s);
 
 export function renderNotifyLogs() {
-  const list = get(['admin', 'notifyLogs']) || [];
   const tbody = $('#tbody-notify-logs');
   if (!tbody) return;
+
+  const currentStoreId = window.qrnrStoreId || 'store1';
+  const all = get(['admin', 'notifyLogs']) || [];
+
+  // 현재 매장 로그만 필터 (과거 storeId 없는 데이터는 공통으로 표시)
+  const list = all.filter(n => !n.storeId || n.storeId === currentStoreId);
 
   tbody.innerHTML = '';
 
@@ -45,6 +50,7 @@ export function renderNotifyLogs() {
     tbody.appendChild(tr);
   });
 }
+
 
 /**
  * 상태 드롭다운 변경 핸들러
