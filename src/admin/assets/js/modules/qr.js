@@ -4,10 +4,10 @@ const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
 function currentStoreId() {
-  // admin.js에서 세팅한 값(use) 우선
+  // admin.js에서 설정한 값 우선
   if (window.qrnrStoreId) return window.qrnrStoreId;
 
-  // 혹시 누락됐으면 URL에서 store 파라미터 사용
+  // 없으면 URL ?store= 참고
   try {
     const u = new URL(location.href);
     return u.searchParams.get('store') || 'store1';
@@ -16,16 +16,13 @@ function currentStoreId() {
   }
 }
 
-// 매장별 QR 저장 위치: ['admin', 'qrList', storeId]
-function storePath() {
-  return ['admin', 'qrList', currentStoreId()];
-}
+// 공통 저장 위치 (2단계만 사용) : ['admin', 'qrList']
+const PATH = ['admin', 'qrList'];
 
-// 현재 매장의 리스트가 배열 형태인지 보장
 function ensureList() {
-  const cur = get(storePath());
+  const cur = get(PATH);
   if (Array.isArray(cur)) return cur;
-  patch(storePath(), () => []);
+  patch(PATH, () => []);
   return [];
 }
 
@@ -43,7 +40,7 @@ function makeQRDataUrl(text) {
       wrap.style.top = '-9999px';
       document.body.appendChild(wrap);
 
-      const qr = new QRCode(wrap, {
+      new QRCode(wrap, {
         text,
         width: 256,
         height: 256,
@@ -57,11 +54,11 @@ function makeQRDataUrl(text) {
 
           let dataUrl = null;
 
-          // 1️⃣ canvas가 있으면 png로
+          // canvas 우선
           if (canvas && canvas.toDataURL) {
             dataUrl = canvas.toDataURL('image/png');
           }
-          // 2️⃣ canvas가 없고 img(data:URL)만 있으면 그걸 사용
+          // 일부 버전은 img(data:URL)로 생성함
           else if (img && img.src) {
             dataUrl = img.src;
           }
@@ -83,7 +80,6 @@ function makeQRDataUrl(text) {
     }
   });
 }
-
 
 // ===== 초기화 =====
 export function initQR() {
@@ -120,7 +116,7 @@ export function initQR() {
       const dataUrl = await makeQRDataUrl(url);
 
       const item = {
-        id: `QR-${Date.now()}-${table}`,
+        id: `QR-${Date.now()}-${storeId}-${table}`,
         storeId,
         table,
         label,
@@ -128,10 +124,12 @@ export function initQR() {
         dataUrl,
       };
 
-      // 현재 매장 리스트에만 저장 (같은 테이블 번호면 교체)
-      patch(storePath(), (list) => {
+      // qrList 전체 중에서 같은 매장+테이블 것은 교체
+      patch(PATH, (list) => {
         list = Array.isArray(list) ? list : [];
-        const filtered = list.filter((x) => x.table !== table);
+        const filtered = list.filter(
+          (x) => !(x.storeId === storeId && x.table === table)
+        );
         return [...filtered, item];
       });
 
@@ -146,17 +144,24 @@ export function initQR() {
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       if (!confirm('이 매장의 저장된 QR을 모두 삭제할까요?')) return;
-      patch(storePath(), () => []);
+      patch(PATH, (list) => {
+        list = Array.isArray(list) ? list : [];
+        // 이 매장(storeId) 것만 제거
+        return list.filter((x) => x.storeId !== currentStoreId());
+      });
       renderList();
     });
   }
 
   // ===== 리스트 렌더 =====
   function renderList() {
-    const grid = $('#qr-grid');
     if (!grid) return;
 
-    const list = get(storePath()) || [];
+    const all = get(PATH) || [];
+    const storeId = currentStoreId();
+
+    // 현재 매장 QR만 필터링
+    const list = all.filter((q) => q.storeId === storeId);
 
     grid.innerHTML = '';
 
@@ -197,14 +202,14 @@ export function initQR() {
       const down = document.createElement('a');
       down.textContent = '다운로드';
       down.href = q.dataUrl;
-      down.download = `table-${q.table}.png`;
+      down.download = `table-${q.storeId}-${q.table}.png`;
       down.className = 'btn small';
 
       const del = document.createElement('button');
       del.textContent = '삭제';
       del.className = 'btn small';
       del.onclick = () => {
-        patch(storePath(), (list) =>
+        patch(PATH, (list) =>
           (list || []).filter((x) => x.id !== q.id)
         );
         renderList();
