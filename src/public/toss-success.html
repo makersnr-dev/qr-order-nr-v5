@@ -12,9 +12,7 @@
       --text-sub: #9ca3af;
       --radius: 24px;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -25,7 +23,6 @@
       font-family: -apple-system, BlinkMacSystemFont, system-ui, -sans-serif;
       color: var(--text-main);
     }
-
     .success-card {
       padding: 32px 40px;
       max-width: 720px;
@@ -41,59 +38,24 @@
       flex-direction: column;
       gap: 10px;
     }
-
-    .success-title {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text-main);
-    }
-
-    .success-text {
-      font-size: 16px;
-      color: var(--text-sub);
-    }
-
-    .success-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 18px;
-    }
-
+    .success-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-main); }
+    .success-text { font-size: 16px; color: var(--text-sub); }
+    .success-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
     .success-btn {
-      padding: 9px 22px;
-      border-radius: 999px;
+      padding: 9px 22px; border-radius: 999px;
       border: 1px solid rgba(255, 255, 255, 0.16);
-      background: transparent;
-      color: var(--text-main);
-      font-size: 14px;
-      cursor: pointer;
+      background: transparent; color: var(--text-main); font-size: 14px; cursor: pointer;
       transition: all 0.18s ease;
     }
-
-    .success-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: #2563eb;
-      box-shadow: 0 0 18px rgba(37, 99, 235, 0.4);
-    }
-
-    /* 디버그용: 주문 정보 텍스트 (화면에는 숨김) */
-    #s {
-      display: none;
-      font-size: 11px;
-      color: rgba(148,163,253,0.5);
-      margin-top: 4px;
-      word-break: break-all;
-    }
+    .success-btn:hover { background: rgba(255, 255, 255, 0.06); border-color: #2563eb; box-shadow: 0 0 18px rgba(37, 99, 235, 0.4); }
+    /* 디버그용(화면 숨김) */
+    #s { display: none; font-size: 11px; color: rgba(148,163,253,0.5); margin-top: 4px; word-break: break-all; }
   </style>
 </head>
 <body>
   <div class="success-card">
     <div class="success-title">주문이 완료되었습니다.</div>
-    <div class="success-text">
-      결제가 정상적으로 확인되었어요. 잠시 후 주문 페이지로 돌아갑니다.
-    </div>
-    <!-- 기존 s div: 로직 유지 & 필요시 디버그 확인용 -->
+    <div class="success-text">결제가 정상적으로 확인되었어요. 잠시 후 주문 페이지로 돌아갑니다.</div>
     <div id="s"></div>
     <div class="success-actions">
       <button class="success-btn" onclick="goBack()">확인</button>
@@ -101,86 +63,87 @@
   </div>
 
   <script type="module">
-  import { getPendingOrder } from '/src/shared/toss-client.js';
+    import { getPendingOrder } from '/src/shared/toss-client.js';
 
-  // 기본 값 (혹시 pending 못 읽었을 때 대비)
-  let redirectPath = '/order/store';
+    // 전역 리다이레クト 경로(기본값)
+    let redirectPath = '/order/store';
 
-  // 버튼/자동 이동에서 공통 사용
-  window.goBack = () => {
-    location.replace(redirectPath);
-  };
+    // 확인 버튼/자동 이동 공통
+    window.goBack = () => location.replace(redirectPath);
 
-  (async () => {
-    const qs = new URLSearchParams(location.search);
-    const paymentKey = qs.get('paymentKey');
-    const orderId = qs.get('orderId');
-    const amount = Number(qs.get('amount') || 0);
+    (async () => {
+      const qs = new URLSearchParams(location.search);
+      const paymentKey = qs.get('paymentKey');
+      const orderId    = qs.get('orderId');
+      const amount     = Number(qs.get('amount') || 0);
 
-    const s = document.getElementById('s');
-    if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
+      const s = document.getElementById('s');
+      if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
 
-    // 1) Toss 결제 승인 확인
-    try {
-      await fetch('/api/toss-confirm', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ paymentKey, orderId, amount })
-      });
-    } catch (e) {
-      console.error('confirm err', e);
-      // 실패해도 아래 로직은 시도
-    }
-
-    // 2) pending 주문을 /api/orders에 저장
-    try {
-      const pending = getPendingOrder && getPendingOrder();
-
-      if (pending) {
-        // storeId, type, table 등은 pending 안에 이미 들어있음 (store.html / delivery.html에서 세팅)
-        await fetch('/api/orders', {
+      // 1) Toss 결제 승인 확인
+      try {
+        await fetch('/api/toss-confirm', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            ...pending,
-            orderId,
-            amount,
-            status: 'paid'
-          })
+          body: JSON.stringify({ paymentKey, orderId, amount })
         });
-
-        const storeId = pending.storeId || 'store1';
-
-        // 기본값(혹시를 위해 매장 주문 페이지)
-        let redirectPath = '/order/store';
-        // ✅ pending.returnTo 가 있으면 그 페이지로 복귀
-        redirectPath = pending?.returnTo || redirectPath;
-      } else {
-        console.warn('no pending order found');
+      } catch (e) {
+        console.error('confirm err', e);
+        // 실패해도 아래 로직 진행
       }
-    } catch (e) {
-      console.error('save order err', e);
-    }
 
-    // 3) 관리자 탭용 실시간 알림 (동일 브라우저 한정)
-    try {
-      const ch = new BroadcastChannel('qrnr-admin');
-      ch.postMessage({
-        type: 'NEW_ORDER_PAID',
-        orderId,
-        amount,
-        ts: Date.now()
-      });
-      ch.close();
-    } catch (e) {
-      console.error('broadcast err', e);
-    }
+      // 2) pending 주문 저장 + 복귀 경로 결정
+      try {
+        const pending = getPendingOrder && getPendingOrder();
 
-    // 4) 자동 복귀 (3초 후 현재 설정된 redirectPath로 이동)
-    setTimeout(window.goBack, 3000);
-  })();
-</script>
+        if (pending) {
+          // 서버 저장
+          await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
+          });
 
- 
+          // 기본/fallback들
+          const storeId = pending.storeId || 'store1';
+          const table   = pending.table || '';
+
+          // 우선순위 1: 명시적 returnTo
+          if (pending.returnTo) {
+            redirectPath = pending.returnTo;
+          } else {
+            // 우선순위 2: 타입별 기본 복귀
+            if (pending.type === 'delivery' || pending.type === 'reserve') {
+              // 배포 구조에 맞춰 /order/delivery 사용 (store 쿼리 유지)
+              redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
+            } else {
+              // 매장 주문: store + table 유지
+              redirectPath = `/order/store?store=${encodeURIComponent(storeId)}` +
+                             (table ? `&table=${encodeURIComponent(table)}` : '');
+            }
+          }
+
+          // pending 비우기(중복 처리 방지)
+          try { sessionStorage.removeItem('qrnr.pendingOrder'); } catch {}
+        } else {
+          console.warn('no pending order found');
+        }
+      } catch (e) {
+        console.error('save order err', e);
+      }
+
+      // 3) 관리자 탭 실시간 알림 (동일 브라우저 한정)
+      try {
+        const ch = new BroadcastChannel('qrnr-admin');
+        ch.postMessage({ type: 'NEW_ORDER_PAID', orderId, amount, ts: Date.now() });
+        ch.close();
+      } catch (e) {
+        console.error('broadcast err', e);
+      }
+
+      // 4) 자동 복귀
+      setTimeout(window.goBack, 3000);
+    })();
+  </script>
 </body>
 </html>
