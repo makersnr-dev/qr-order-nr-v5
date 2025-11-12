@@ -2,6 +2,22 @@
 import {get, patch, fmt} from './store.js';
 import {showModal} from './ui.js';
 
+
+function fmtDateTimeFromOrder(o) {
+  // API가 저장해둔 문자열이 있으면 그대로 사용
+  if (o.dateTime) return o.dateTime;             // "YYYY-MM-DD HH:MM"
+  if (o.date && o.time) return `${o.date} ${o.time}`;
+  // 없으면 ts로 생성
+  const d = new Date(o.ts || Date.now());
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth()+1).padStart(2,'0');
+  const dd   = String(d.getDate()).padStart(2,'0');
+  const HH   = String(d.getHours()).padStart(2,'0');
+  const MM   = String(d.getMinutes()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd} ${HH}:${MM}`;
+}
+
+
 export async function syncStoreFromServer() {
   try {
     const storeId = window.qrnrStoreId || 'store1';
@@ -12,15 +28,8 @@ export async function syncStoreFromServer() {
     if (!data.ok) return;
 
     const rows = (data.orders || []).map(o => {
-      const d = o.ts ? new Date(o.ts) : new Date();
-
-      // 표시용 시간 문자열: MM/DD HH:MM
-      const time =
-        String(d.getMonth() + 1).padStart(2, '0') + '/' +
-        String(d.getDate()).padStart(2, '0') + ' ' +
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0');
-
+    const time = fmtDateTimeFromOrder(o);
+      
      const isCall =
         o.meta?.kind === 'CALL' ||
         o.orderName === '직원 호출';
@@ -96,8 +105,12 @@ export function exportOrders(type){
   const cols = type==='ordersStore'? ['시간','테이블','내역','금액','상태'] : ['시간','주문자','연락처','주소','예약','금액','상태','내역'];
   const data=[cols];
   rows.forEach(o=>{
-    if(type==='ordersStore') data.push([o.time||'',o.table||'',(o.items||[]).map(i=>i.name+'x'+i.qty).join('; '),o.total||'',o.status||'']);
-    else data.push([o.time||'',o.customer||'',o.phone||'',o.addr||'',o.reserve||'',o.total||'',o.status||'',(o.items||[]).map(i=>i.name+'x'+i.qty).join('; ')]);
+    const t = o.time || fmtDateTimeFromOrder(o);
+    if(type==='ordersStore') {
+      data.push([t, o.table||'', (o.items||[]).map(i=>i.name+'x'+i.qty).join('; '), o.total||'', o.status||'']);
+    } else {
+      data.push([t, o.customer||'', o.phone||'', o.addr||'', o.reserve||'', o.total||'', o.status||'', (o.items||[]).map(i=>i.name+'x'+i.qty).join('; ')]);
+    }
   });
   const csv=data.map(r=>r.map(v=>('"'+String(v).replaceAll('"','""')+'"')).join(",")).join("\n");
   const blob=new Blob([csv],{type:"application/vnd.ms-excel;charset=utf-8"});
@@ -127,10 +140,7 @@ const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(sto
     }
 
     rows.forEach(o => {
-      const d = o.ts ? new Date(o.ts) : null;
-      const time = d
-        ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-        : '-';
+      const time = fmtDateTimeFromOrder(o);
 
       const items = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
       const table = o.table || '-';
@@ -207,11 +217,7 @@ export async function renderDeliv() {
     }
 
     rows.forEach((o, idx) => {
-      const ts = o.ts || o.time; // ts 없으면 time fallback
-      const d = ts ? new Date(ts) : null;
-      const time = d
-        ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-        : '-';
+      const time = fmtDateTimeFromOrder(o);
 
       // 주문자 / 연락처
       const customer = o.customer || {};
