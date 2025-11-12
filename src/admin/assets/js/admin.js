@@ -9,6 +9,45 @@ import {renderMyBank, bindMyBank} from './modules/mybank.js';
 import {renderNotify, bindNotify} from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
+
+function resolveStoreId() {
+  let sid = null;
+
+  // 1) URL ?store= 우선
+  try {
+    const u = new URL(location.href);
+    const fromUrl = u.searchParams.get('store');
+    if (fromUrl) {
+      localStorage.setItem('qrnr.storeId', fromUrl);
+      return fromUrl;
+    }
+  } catch (e) {}
+
+  // 2) 로그인한 관리자 ID 기반 매핑
+  // requireAuth('admin')에서 사용자 정보를 어딘가에 저장해뒀다는 가정 (예: localStorage)
+  // 지금 당장은 임시로 localStorage에 qrnr.adminId 같은 값 두고 써도 되고,
+  // 나중에 DB 연동 시 여기만 진짜 값으로 교체하면 됨.
+  let adminId = null;
+  try {
+    const info = JSON.parse(localStorage.getItem('qrnr.adminInfo') || '{}');
+    adminId = info.id || info.email || null;
+  } catch (e) {}
+
+  if (adminId) {
+    const map = get(['system', 'storeAdmins']) || {};
+    if (map[adminId]) {
+      sid = map[adminId];
+      localStorage.setItem('qrnr.storeId', sid);
+      return sid;
+    }
+  }
+
+  // 3) 마지막으로 로컬에 기억된 storeId 또는 기본값
+  sid = localStorage.getItem('qrnr.storeId') || 'store1';
+  return sid;
+}
+
+
 const url = new URL(location.href);
 const storeId =
   url.searchParams.get('store') ||
@@ -68,6 +107,13 @@ function showToast(message, variant = 'info') {
 
 async function main(){
   await requireAuth('admin');
+
+  // ✅ 여기서 최종 storeId 결정
+  const sid = resolveStoreId();
+  window.qrnrStoreId = sid;
+  console.log('[admin] storeId =', sid);
+
+  
   await syncStoreFromServer();
   initTabs();
 
