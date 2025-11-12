@@ -13,16 +13,16 @@
   <div class="card vstack">
     <div class="small">
       관리자 계정(아이디/이메일)과 매장 ID(storeId)를 연결합니다.<br>
-      지금은 브라우저 로컬 저장용이고, 나중에 DB로 옮길 때 이 구조만 그대로 쓰면 됩니다.
+      지금은 브라우저 저장 기준으로 동작하고, 나중에 DB로 옮길 때 이 구조만 그대로 쓰면 됩니다.
     </div>
 
-    <div class="hstack" style="gap:8px;flex-wrap:wrap">
+    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
       <input id="map-admin" class="input" placeholder="관리자 ID (예: owner@narae.com)" style="min-width:260px">
       <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
       <button id="map-add" class="btn primary">매핑 추가/수정</button>
     </div>
 
-    <table class="table" style="margin-top:10px">
+    <table class="table" style="margin-top:14px">
       <thead>
         <tr>
           <th>관리자 ID</th>
@@ -37,6 +37,82 @@
   </div>
 </div>
 
-<script type="module" src="/src/admin/assets/js/store-admin.js"></script>
+<script type="module">
+  import { requireAuth } from '/src/admin/assets/js/modules/auth.js';
+  import { get, patch } from '/src/admin/assets/js/modules/store.js';
+
+  const $ = (s, r=document) => r.querySelector(s);
+  const PATH = ['system', 'storeAdmins'];
+
+  async function ensureAuth() {
+    await requireAuth('admin'); // 기존 admin과 동일한 방식으로 보호
+  }
+
+  function loadMap() {
+    return get(PATH) || {};
+  }
+  function saveMap(next) {
+    patch(PATH, () => next);
+  }
+
+  function render() {
+    const body = $('#map-body');
+    const map = loadMap();
+
+    body.innerHTML = '';
+
+    const entries = Object.entries(map);
+    if (!entries.length) {
+      body.innerHTML =
+        '<tr><td colspan="3" class="small">등록된 매핑 없음</td></tr>';
+      return;
+    }
+
+    entries.forEach(([adminId, storeId]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${adminId}</td>
+        <td>${storeId}</td>
+        <td class="right">
+          <button class="btn small" data-del="${adminId}">삭제</button>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+
+    body.querySelectorAll('[data-del]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-del');
+        const map = loadMap();
+        delete map[id];
+        saveMap(map);
+        render();
+      };
+    });
+  }
+
+  function bind() {
+    $('#map-add').onclick = () => {
+      const adminId = ($('#map-admin').value || '').trim();
+      const storeId = ($('#map-store').value || '').trim();
+
+      if (!adminId || !storeId) {
+        alert('관리자 ID와 storeId를 모두 입력하세요.');
+        return;
+      }
+
+      const map = loadMap();
+      map[adminId] = storeId;
+      saveMap(map);
+      render();
+    };
+  }
+
+  (async () => {
+    await ensureAuth();
+    render();
+    bind();
+  })();
+</script>
 </body>
 </html>
