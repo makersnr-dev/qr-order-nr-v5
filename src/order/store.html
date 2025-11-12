@@ -1,126 +1,142 @@
-
-<!doctype html><html lang="ko"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="/src/admin/assets/css/style.css"/><title>매장 주문</title></head><body>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <title>매장 주문</title>
+</head>
+<body>
 <div class="container">
   <h1>QR Order - 주문</h1>
+
+  <!-- 테이블/결제코드 -->
   <div class="card vstack">
     <div class="hstack" style="gap:12px;flex-wrap:wrap">
-      <div class="vstack" style="min-width:220px;flex:1"><label class="small">테이블</label><input id="tableNo" class="input" placeholder="예: 12"></div>
-      <div class="vstack" style="min-width:220px;flex:1"><label class="small">오늘의 결제 코드</label><input id="paycode" class="input" placeholder="관리자에게 받은 4자리"></div>
+      <div class="vstack" style="min-width:220px;flex:1">
+        <label class="small">테이블</label>
+        <input id="tableNo" class="input" placeholder="예: 12">
+      </div>
+      <div class="vstack" style="min-width:220px;flex:1">
+        <label class="small">오늘의 결제 코드</label>
+        <input id="paycode" class="input" placeholder="관리자에게 받은 4자리">
+      </div>
     </div>
   </div>
-  <div class="card vstack"><h3>직원 호출</h3>
-    <div class="hstack" style="gap:8px;flex-wrap:wrap"><select id="call-reason" class="input" style="max-width:240px"><option>선택 없음</option><option>물/수저 요청</option><option>테이블 정리</option><option>주문 문의</option></select><button id="call-btn" class="btn">직원 호출</button></div>
+
+  <!-- 직원 호출 -->
+  <div class="card vstack">
+    <h3>직원 호출</h3>
+    <div class="hstack" style="gap:8px;flex-wrap:wrap">
+      <select id="call-reason" class="input" style="max-width:240px">
+        <option>선택 없음</option>
+        <option>물/수저 요청</option>
+        <option>테이블 정리</option>
+        <option>주문 문의</option>
+      </select>
+      <button id="call-btn" class="btn">직원 호출</button>
+    </div>
     <div id="call-msg" class="small"></div>
   </div>
-  <div class="card vstack"><h3>메뉴</h3><div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div></div>
-  <div class="card vstack"><h3>장바구니</h3><div id="cart-box" class="vstack"></div></div>
-  <div class="card hstack" style="justify-content:space-between"><div>합계: <b id="total">0</b>원</div><button id="pay-btn" class="btn primary">결제하기</button></div>
+
+  <!-- 메뉴/장바구니 -->
+  <div class="card vstack">
+    <h3>메뉴</h3>
+    <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
+  </div>
+
+  <div class="card vstack">
+    <h3>장바구니</h3>
+    <div id="cart-box" class="vstack"></div>
+  </div>
+
+  <!-- 합계/결제 -->
+  <div class="card hstack" style="justify-content:space-between">
+    <div>합계: <b id="total">0</b>원</div>
+    <button id="pay-btn" class="btn primary">결제하기</button>
+  </div>
 </div>
 
- <script type="module">
+<script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-  // ── 테이블 번호 초기 세팅 (QR ?table= 파라미터)
+  // ───────────────────────────────────────────────────────────
+  // 초기 파라미터
+  // ───────────────────────────────────────────────────────────
   const url = new URL(location.href);
-   const storeId = url.searchParams.get('store') || 'store1';
-  const tableParam = url.searchParams.get('table');
+  const storeId = url.searchParams.get('store') || 'store1';
+  const tableParam = url.searchParams.get('table') || '';
   const tableInput = document.getElementById('tableNo');
-  if (tableParam && tableInput) {
-    tableInput.value = tableParam;
-  }
+  if (tableParam && tableInput) tableInput.value = tableParam;
 
-  // ── 장바구니 & 메뉴 초기화 (기존 로직 유지)
-  //    cart-box, total 요소를 사용하는 기존 구조 그대로 활용
-  const cart = makeCart('cart-box', 'total');   // cart.items, cart.render() 등 제공
+  // ───────────────────────────────────────────────────────────
+  // 장바구니 & 메뉴
+  // ───────────────────────────────────────────────────────────
+  const cart = makeCart('cart-box', 'total'); // { items[], render(), total() }
   cart.render();
-  renderMenu('menu-grid', cart);
+  renderMenu('menu-grid', cart);               // 매장별 메뉴가 비어있으면 기본 3종 fallback
 
-  // ── 호출 버튼 (기존 기능 그대로 유지)
-   const adminChannel = new BroadcastChannel('qrnr-admin');
-const callBtn = document.getElementById('call-btn');
+  // ───────────────────────────────────────────────────────────
+  // 직원 호출 (로컬 로그 + 브라우저 간 브로드캐스트)
+  // ───────────────────────────────────────────────────────────
+  const adminChannel = new BroadcastChannel('qrnr-admin');
+  const callBtn = document.getElementById('call-btn');
 
-if (callBtn) {
-  callBtn.onclick = async () => {
-    const reasonEl = document.getElementById('call-reason');
-    const msgEl = document.getElementById('call-msg');
-    const tableVal = (document.getElementById('tableNo')?.value || '').trim();
+  if (callBtn) {
+    callBtn.onclick = async () => {
+      const reasonEl = document.getElementById('call-reason');
+      const msgEl = document.getElementById('call-msg');
+      const tableVal = (document.getElementById('tableNo')?.value || '').trim();
 
-    if (!tableVal) {
-      alert('테이블 번호를 입력하세요.');
-      return;
-    }
+      if (!tableVal) {
+        alert('테이블 번호를 입력하세요.');
+        return;
+      }
+      const note = (reasonEl?.value || '').trim();
 
-    const note = (reasonEl?.value || '').trim();
+      // 1) 관리자 알림 탭용 로컬 로그에 저장 (매장 분리 포함)
+      try {
+        patch(['admin', 'notifyLogs'], (list) => {
+          const arr = Array.isArray(list) ? [...list] : [];
+          arr.unshift({
+            id: 'CALL-' + Date.now(),
+            type: 'CALL',
+            ts: Date.now(),        // 날짜+시간 기준 UTC ms
+            storeId,               // 매장 구분
+            table: tableVal,
+            message: note,
+            status: '대기'
+          });
+          return arr;
+        });
+      } catch (e) {
+        console.error('local notify patch failed', e);
+      }
 
-    /*try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          type: 'store',          // 매장 호출이니까 store로 통일
-          orderName: '직원 호출',  // 구분용
+      // 2) 같은 브라우저/다른 탭의 관리자 페이지에 실시간 알림
+      try {
+        adminChannel.postMessage({
+          type: 'CALL',
+          storeId,
           table: tableVal,
-          amount: 0,
-          cart: [],
-          status: '대기',
-          meta: {
-            kind: 'CALL',
-            note
-          }
-        })
-      });
-
-      const data = await res.json();
-      if (!data.ok) throw new Error('save failed');
+          note,
+          ts: Date.now()
+        });
+      } catch (e) {
+        console.error('broadcast failed', e);
+      }
 
       if (msgEl) {
         msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
       }
-    } catch (err) {
-      console.error('call send failed', err);
-      alert('호출 전송에 실패했습니다. 다시 시도해주세요.');
-    }*/
-// ✅ 1) 관리자 알림 탭에 쌓을 데이터 (로컬용)
-    //    admin.notify 배열에 push (매장주문과 분리)
-try {
-  patch(['admin', 'notifyLogs'], (list) => {
-    const arr = Array.isArray(list) ? [...list] : [];
-    arr.unshift({
-      id: 'CALL-' + Date.now(),
-      type: 'CALL',
-      ts: Date.now(),
-      storeId,            // 🔴 추가: 어느 매장 호출인지
-      table: tableVal,
-      message: note,
-      status: '대기'
-    });
-    return arr;
-  });
-} catch (e) {
-  console.error('local notify patch failed', e);
-}
+    };
+  }
 
-// BroadcastChannel 메시지도 매장 정보 포함
-adminChannel.postMessage({
-  type: 'CALL',
-  storeId,            // 🔴 추가
-  table: tableVal,
-  note,
-  ts: Date.now()
-});
-
-     if (msgEl) {
-        msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
-      }
-  };
-}
-
-
-  // ── 유틸 함수들 ─────────────────────────────
-
+  // ───────────────────────────────────────────────────────────
+  // 유틸
+  // ───────────────────────────────────────────────────────────
   function totalAmountFromCart() {
     if (cart?.items?.length) {
       return cart.items.reduce(
@@ -128,25 +144,20 @@ adminChannel.postMessage({
         0
       );
     }
-    const el =
-      document.querySelector('[data-total]') || document.getElementById('total');
-    const v = el
-      ? el.getAttribute('data-total') || el.textContent || '0'
-      : '0';
+    const el = document.querySelector('[data-total]') || document.getElementById('total');
+    const v = el ? el.getAttribute('data-total') || el.textContent || '0' : '0';
     return Number(String(v).replace(/[^0-9.-]/g, '')) || 0;
   }
 
   function buildCart() {
     if (cart?.items?.length) {
-      // menu-cart.js에서 관리하는 cart 객체 사용
       return cart.items.map((i) => ({
         name: i.name,
         qty: i.qty,
-        price: i.price,
+        price: i.price
       }));
     }
-
-    // 혹시 cart 객체가 없다면 data-cart-item 기반 fallback
+    // Fallback: data-cart-item DOM 스캔 (현재 구조에선 보통 사용되지 않음)
     const items = [];
     document.querySelectorAll('[data-cart-item]').forEach((row) => {
       const name =
@@ -155,13 +166,13 @@ adminChannel.postMessage({
         '메뉴';
       const qty = Number(
         row.getAttribute('data-qty') ||
-          row.querySelector('.qty')?.textContent ||
-          1
+        row.querySelector('.qty')?.textContent ||
+        1
       );
       const price = Number(
         row.getAttribute('data-price') ||
-          row.querySelector('.price')?.textContent ||
-          0
+        row.querySelector('.price')?.textContent ||
+        0
       );
       items.push({ name, qty, price });
     });
@@ -174,7 +185,6 @@ adminChannel.postMessage({
   }
 
   function getPayCode() {
-    // admin 설정에서 paymentCode.code 읽기, 없으면 7111 fallback
     try {
       const conf = get(['admin', 'paymentCode']) || {};
       return conf.code || '7111';
@@ -183,11 +193,12 @@ adminChannel.postMessage({
     }
   }
 
-  // ── 결제 버튼 바인딩 (setPendingOrder + startPayment 사용) ──
-
+  // ───────────────────────────────────────────────────────────
+  // 결제 버튼
+  // ───────────────────────────────────────────────────────────
   function bindPay() {
     const btn =
-      document.getElementById('pay-btn') || // 기존 코드의 실제 버튼 ID
+      document.getElementById('pay-btn') ||
       document.getElementById('payBtn') ||
       document.querySelector('[data-action="pay"]') ||
       document.querySelector('.btn-pay, button.pay');
@@ -223,14 +234,16 @@ adminChannel.postMessage({
 
       const orderId = 'S' + Date.now();
       const orderName =
-        items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) ||
-        '매장주문';
+        items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
-      const sourceUrl = location.pathname + location.search; // 예: /order/store?store=narae&table=5
-      
-      // ✅ toss-success.html 에서 getPendingOrder()로 읽어서 /api/orders 로 저장할 데이터
+      // 결제 후 되돌아올 정확한 경로(스토어/테이블 유지)
+      const returnTo =
+        `/order/store?store=${encodeURIComponent(storeId)}` +
+        (table ? `&table=${encodeURIComponent(table)}` : '');
+
+      // 성공 페이지에서 /api/orders 저장 시 사용할 페이로드
       const payload = {
-        type: 'store',          // /api/orders?type=store 와 맞춤
+        type: 'store',
         table,
         amount,
         orderId,
@@ -238,13 +251,15 @@ adminChannel.postMessage({
         cart: items,
         status: '대기',
         storeId,
-        returnTo: sourceUrl     // ✅ 결제 후 복귀 경로
+        // toss-success.html에서 우선 사용
+        returnTo
       };
 
       setPendingOrder(payload);
 
       try {
-        await startPayment({ orderId, amount, orderName });
+        // 성공/실패 URL에도 returnTo를 실어서 보냄(세션 유실 대비)
+        await startPayment({ orderId, amount, orderName, returnTo });
       } catch (err) {
         console.error('payment start error', err);
         alert('결제를 시작할 수 없습니다.');
@@ -254,6 +269,5 @@ adminChannel.postMessage({
 
   bindPay();
 </script>
-
-
-    </body></html>
+</body>
+</html>
