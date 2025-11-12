@@ -64,6 +64,14 @@ export default async function handler(req, res){
 
   const now = Date.now();
   const storeId = p.storeId || 'store1';  // 기본값 하나 정해두기
+
+// (아래 5줄 추가)
+const dt = new Date(now);
+const yyyy = dt.getFullYear();
+const mm = String(dt.getMonth() + 1).padStart(2, '0');
+const dd = String(dt.getDate()).padStart(2, '0');
+const HH = String(dt.getHours()).padStart(2, '0');
+const MM = String(dt.getMinutes()).padStart(2, '0');
     
   const item = {
     id: p.orderId,
@@ -75,6 +83,11 @@ export default async function handler(req, res){
     table: p.table || null,
     status: p.status || 'paid',
     ts: now,
+
+    // ⬇️⬇️ 추가 (저장 시점의 일시를 문자열로 보관)
+  date: `${yyyy}-${mm}-${dd}`,
+  dateTime: `${yyyy}-${mm}-${dd} ${HH}:${MM}`,
+
 
     // 🔹 예약/배달용 필드들
     reserveDate: p.reserveDate || null,          // delivery.html 예약, reserve용
