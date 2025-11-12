@@ -42,7 +42,7 @@
   import { get, patch } from '/src/admin/assets/js/modules/store.js';
 
   const $ = (s, r=document) => r.querySelector(s);
-  const PATH = ['system', 'storeAdmins'];
+  const PATH = ['admin', 'storeAdmins'];
 
   async function ensureAuth() {
     await requireAuth('admin'); // 기존 admin과 동일한 방식으로 보호
