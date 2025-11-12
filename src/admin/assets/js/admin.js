@@ -117,6 +117,23 @@ async function main(){
   await syncStoreFromServer();
   initTabs();
 
+  // 탭 전환 시 notify-log면 최신 렌더
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('.tab');
+  if (!t) return;
+  const tab = t.dataset.tab;
+  if (tab === 'notify-log') {
+    // 모듈이 이미 import 되어 있으니 바로 호출
+    try {
+      // 전역으로 로드된 모듈 함수 사용
+      // (이미 상단 import { renderNotifyLogs } from './modules/notify-logs.js' 되어 있어야 함)
+      // 없으면 import 라인 추가: import { renderNotifyLogs } from './modules/notify-logs.js';
+      import('/src/admin/assets/js/modules/notify-logs.js').then(m => m.renderNotifyLogs());
+    } catch (_) {}
+  }
+});
+
+
   document.getElementById('logoutBtn').onclick = () => {
     clearToken();
     location.href = '/admin';
