@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <title>매장 관리자 매핑</title>
+</head>
+<body>
+<div class="container">
+  <h1>매장 관리자 매핑</h1>
+
+  <div class="card vstack">
+    <div class="small">
+      관리자 계정(아이디/이메일)과 매장 ID(storeId)를 연결합니다.<br>
+      지금은 브라우저 로컬 저장용이고, 나중에 DB로 옮길 때 이 구조만 그대로 쓰면 됩니다.
+    </div>
+
+    <div class="hstack" style="gap:8px;flex-wrap:wrap">
+      <input id="map-admin" class="input" placeholder="관리자 ID (예: owner@narae.com)" style="min-width:260px">
+      <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
+      <button id="map-add" class="btn primary">매핑 추가/수정</button>
+    </div>
+
+    <table class="table" style="margin-top:10px">
+      <thead>
+        <tr>
+          <th>관리자 ID</th>
+          <th>storeId</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="map-body">
+        <tr><td colspan="3" class="small">등록된 매핑 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module" src="/src/admin/assets/js/store-admin.js"></script>
+</body>
+</html>
