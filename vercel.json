@@ -52,6 +52,10 @@
     {
       "src": "/toss/fail",
       "dest": "/src/public/toss-fail.html"
-    }
+    },
+    {
+      "src": "/admin/store-admin",
+      "dest": "/src/admin/store-admin.html"
+    },
   ]
 }
