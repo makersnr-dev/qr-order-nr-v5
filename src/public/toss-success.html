@@ -151,18 +151,10 @@
 
         const storeId = pending.storeId || 'store1';
 
-        // ✅ 주문 타입별로 돌아갈 주소 설정
-        if (pending.type === 'delivery' || pending.type === 'reserve') {
-          // 배달/예약 완료 → 배달/예약 페이지
-          // (배포 구조에 따라 /order/delivery 또는 /src/order/delivery.html 중 실제 쓰는 쪽으로 선택)
-          redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
-        } else {
-          // 매장 주문
-          const table = pending.table || '';
-          redirectPath =
-            `/order/store?store=${encodeURIComponent(storeId)}` +
-            (table ? `&table=${encodeURIComponent(table)}` : '');
-        }
+        // 기본값(혹시를 위해 매장 주문 페이지)
+        let redirectPath = '/order/store';
+        // ✅ pending.returnTo 가 있으면 그 페이지로 복귀
+        redirectPath = pending?.returnTo || redirectPath;
       } else {
         console.warn('no pending order found');
       }
