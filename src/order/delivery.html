@@ -313,7 +313,9 @@ document.getElementById('action-btn').onclick = async (e) => {
       const data = await res.json();
       if (!data.ok) throw new Error('save failed');
 
-      location.replace('/src/order/reserve-success.html');
+      const back = location.pathname + location.search; // 예: /src/order/delivery.html?store=narae
+      location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
+      
     } catch (err) {
       console.error('reserve save err', err);
       alert('예약 정보를 저장하지 못했습니다. 다시 시도해주세요.');
@@ -352,6 +354,9 @@ document.getElementById('action-btn').onclick = async (e) => {
     reserveTime,
     storeId
   };
+
+  // ✅ 결제 성공 후 돌아올 원래 배달/예약 페이지 (store 쿼리 포함)
+ pendingPayload.returnTo = location.pathname + location.search;
 
   setPendingOrder(pendingPayload);
 
