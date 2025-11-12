@@ -1,4 +1,15 @@
 import { get, patch } from './store.js';
+
+function fmtDateTime(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const HH   = String(d.getHours()).padStart(2, '0');
+  const MM   = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${HH}:${MM}`;
+}
+
 const $ = (s, r=document) => r.querySelector(s);
 
 export function renderNotifyLogs() {
@@ -21,12 +32,7 @@ export function renderNotifyLogs() {
 
   list.forEach((n) => {
     const d = n.ts ? new Date(n.ts) : null;
-    const time = d
-      ? d.toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : '';
+    const time = fmtDateTime(n.ts);
 
     const status = n.status || '대기';
 
