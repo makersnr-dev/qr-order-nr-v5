@@ -1,14 +1,17 @@
 import { get, patch } from './store.js';
 
 function currentStoreId() {
-  return window.qrnrStoreId || 'store1';
+  try {
+    return (new URL(location.href)).searchParams.get('store') || 'store1';
+  } catch { return 'store1'; }
 }
 
 // 매장별 메뉴 저장 위치: ['admin', 'menu', storeId]
 const PATH = () => ['admin', 'menu', currentStoreId()];
 
 export function renderMenu() {
-  const menu = get(PATH()) || [];
+  const storeId = currentStoreId();
+  const menu = get(['admin','menu', storeId]) || [];
   const body = document.getElementById('m-body');
   if (!body) return;
 
@@ -62,6 +65,7 @@ export function renderMenu() {
 }
 
 export function bindMenu() {
+  const storeId = currentStoreId();
   const addBtn = document.getElementById('m-add');
   if (!addBtn) return;
 
