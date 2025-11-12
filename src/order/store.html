@@ -226,6 +226,8 @@ adminChannel.postMessage({
         items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) ||
         '매장주문';
 
+      const sourceUrl = location.pathname + location.search; // 예: /order/store?store=narae&table=5
+      
       // ✅ toss-success.html 에서 getPendingOrder()로 읽어서 /api/orders 로 저장할 데이터
       const payload = {
         type: 'store',          // /api/orders?type=store 와 맞춤
@@ -235,7 +237,8 @@ adminChannel.postMessage({
         orderName,
         cart: items,
         status: '대기',
-        storeId
+        storeId,
+        returnTo: sourceUrl     // ✅ 결제 후 복귀 경로
       };
 
       setPendingOrder(payload);
