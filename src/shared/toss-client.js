@@ -42,36 +42,3 @@ export function setPendingOrder(data) {
 }
 
 export function getPendingOrder() {
-  try {
-    return JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null');
-  } catch (_) {
-    return null;
-  }
-}
-
-// ===== Payment starter (supports returnTo) =====
-// Usage:
-//   await startPayment({ orderId, amount, orderName, returnTo });
-//   - returnTo 예: `/order/store?store=narae&table=3` 또는 `/order/delivery?store=narae`
-export async function startPayment({ orderId, amount, orderName, returnTo }) {
-  const client = await ensureToss();
-
-  const successUrl =
-    `${location.origin}/toss/success` +
-    `?orderId=${encodeURIComponent(orderId)}` +
-    `&amount=${encodeURIComponent(amount)}` +
-    (returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : '');
-
-  const failUrl =
-    `${location.origin}/toss/fail` +
-    `?orderId=${encodeURIComponent(orderId)}` +
-    (returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : '');
-
-  return client.requestPayment({
-    amount: Number(amount),
-    orderId: String(orderId),
-    orderName: String(orderName || '주문'),
-    successUrl,
-    failUrl,
-  });
-}
