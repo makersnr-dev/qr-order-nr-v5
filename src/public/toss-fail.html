@@ -5,137 +5,86 @@
   <title>결제 실패</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --bg: #02040a;
-      --card-bg: #0d1117;
-      --text-main: #ffffff;
-      --text-sub: #9ca3af;
-      --radius: 24px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      font-family: -apple-system, BlinkMacSystemFont, system-ui, -sans-serif;
-      color: var(--text-main);
-    }
-    .fail-card {
-      padding: 28px 34px;
-      max-width: 720px;
-      width: calc(100% - 40px);
-      background:
-        radial-gradient(circle at top left, rgba(255,0,0,0.05), transparent),
-        var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow:
-        0 18px 60px rgba(0, 0, 0, 0.7),
-        0 0 0 1px rgba(255, 255, 255, 0.04);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .fail-title {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: #f97373;
-    }
-    .fail-text {
-      font-size: 14px;
-      color: var(--text-sub);
-    }
-    .fail-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 16px;
-      gap: 8px;
-    }
-    .fail-btn {
-      padding: 8px 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: transparent;
-      color: var(--text-main);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.18s ease;
-    }
-    .fail-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: #f97373;
-      box-shadow: 0 0 14px rgba(249, 115, 129, 0.35);
-    }
-    #debug {
-      display:none;
-      font-size:10px;
-      color:#6b7280;
-      margin-top:4px;
-      word-break:break-all;
-    }
+    :root { --bg:#02040a; --card-bg:#0d1117; --text-main:#fff; --text-sub:#9ca3af; --radius:24px; }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,system-ui,-sans-serif;color:var(--text-main)}
+    .fail-card{padding:28px 34px;max-width:720px;width:calc(100% - 40px);background:radial-gradient(circle at top left,rgba(255,0,0,.05),transparent),var(--card-bg);border-radius:var(--radius);box-shadow:0 18px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);display:flex;flex-direction:column;gap:8px}
+    .fail-title{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#f97373}
+    .fail-text{font-size:14px;color:var(--text-sub)}
+    .fail-actions{display:flex;justify-content:flex-end;margin-top:16px;gap:8px}
+    .fail-btn{padding:8px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text-main);font-size:13px;cursor:pointer;transition:all .18s ease}
+    .fail-btn:hover{background:rgba(255,255,255,.06);border-color:#f97373;box-shadow:0 0 14px rgba(249,115,129,.35)}
+    #debug{display:none;font-size:10px;color:#6b7280;margin-top:4px;word-break:break-all}
   </style>
 </head>
 <body>
   <div class="fail-card">
     <div class="fail-title">결제가 완료되지 않았습니다.</div>
-    <div class="fail-text">
-      결제가 취소되었거나 오류가 발생했어요.<br/>
-      다시 시도하시려면 잠시 후 이전 화면으로 돌아갑니다.
-    </div>
+    <div class="fail-text">결제가 취소되었거나 오류가 발생했어요.<br/>잠시 후 원래 화면으로 돌아갑니다.</div>
     <div id="debug"></div>
     <div class="fail-actions">
-      <button class="fail-btn" onclick="retryNow()">다시 시도</button>
-      <button class="fail-btn" onclick="goBack()">이전 화면으로</button>
+      <button class="fail-btn" id="btn-retry">다시 시도</button>
+      <button class="fail-btn" id="btn-back">이전 화면으로</button>
     </div>
   </div>
 
   <script type="module">
-    import { getPendingOrder } from '/src/shared/toss-client.js';
+    import { getPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-    // 어디에서 온 결제였는지에 따라 돌아갈 페이지 결정
+    // ✅ 실패 후 돌아갈 경로 계산: returnTo > storeId(+type) > 기본값
     function resolveReturnPath() {
       try {
         const pending = getPendingOrder && getPendingOrder();
-        if (pending && (pending.type === 'delivery' || pending.type === 'reserve')) {
-          // 배달/예약 결제였던 경우
-          return '/src/order/delivery.html';
+        if (pending?.returnTo) return pending.returnTo;
+
+        const storeId = pending?.storeId || 'store1';
+        if (pending?.type === 'delivery' || pending?.type === 'reserve') {
+          return `/order/delivery?store=${encodeURIComponent(storeId)}`;
         }
-        // 기본: 매장 주문
-        return '/order/store';
-      } catch (e) {
-        console.error('pending read err', e);
-        // 혹시 에러나면 그냥 매장주문으로 보냄
+        const table = pending?.table ? `&table=${encodeURIComponent(pending.table)}` : '';
+        return `/order/store?store=${encodeURIComponent(storeId)}${table}`;
+      } catch {
         return '/order/store';
       }
     }
 
     function goBack() {
-      const path = resolveReturnPath();
-      location.replace(path);
+      location.replace(resolveReturnPath());
     }
 
-    function retryNow() {
-      // 사실상 goBack과 동일: 원래 페이지로 돌려보내서 다시 결제 버튼 누르게
-      goBack();
-    }
-
-    // 쿼리 정보 (디버그용)
-    (function showDebug() {
+    async function retryNow() {
+      // 같은 페이지에서 다시 결제 트리거 (불가하면 원래 페이지로 보내 재시도)
       try {
-        const qs = new URLSearchParams(location.search);
-        const msg = qs.get('message') || qs.get('code') || '';
-        if (!msg) return;
-        const box = document.getElementById('debug');
-        if (!box) return;
-        box.textContent = `fail: ${msg}`;
-        box.style.display = 'block';
-      } catch {}
+        const pending = getPendingOrder && getPendingOrder();
+        if (!pending) return goBack();
+        const orderId = (pending.orderId && String(pending.orderId)) || ('RETRY-' + Date.now());
+        const amount  = Number(pending.amount || 0);
+        const orderName = pending.orderName || '주문';
+        await startPayment({ orderId, amount, orderName });
+      } catch {
+        goBack();
+      }
+    }
+
+    // 버튼 바인딩
+    document.getElementById('btn-back').onclick = goBack;
+    document.getElementById('btn-retry').onclick = retryNow;
+
+    // 디버그(선택)
+    (function showDebug() {
+      const qs = new URLSearchParams(location.search);
+      const parts = [];
+      const code = qs.get('code') || qs.get('errorCode');
+      const msg  = qs.get('message') || qs.get('reason');
+      if (code) parts.push(`code=${code}`);
+      if (msg)  parts.push(`message=${msg}`);
+      if (!parts.length) return;
+      const box = document.getElementById('debug');
+      box.textContent = parts.join(' | ');
+      box.style.display = 'block';
     })();
 
-    // 자동 복귀 (원하면 시간 조절)
+    // 자동 복귀
     setTimeout(goBack, 3000);
   </script>
 </body>
