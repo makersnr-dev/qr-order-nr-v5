@@ -329,8 +329,13 @@
     setPendingOrder(pendingPayload);
 
     try {
-      // (신규 toss-client가 returnTo를 받도록 확장되어 있다면 함께 전달해도 OK)
-      await startPayment({ orderId, amount: total, orderName /*, returnTo: pendingPayload.returnTo*/ });
+      // 성공/실패 URL에도 returnTo를 명시적으로 전달
+      await startPayment({
+        orderId,
+        amount: total,
+        orderName,
+        returnTo: pendingPayload.returnTo,
+      });
     } catch (err) {
       console.error('payment start error', err);
       alert('결제를 시작할 수 없습니다.');
