@@ -65,17 +65,17 @@
   <script type="module">
     import { getPendingOrder } from '/src/shared/toss-client.js';
 
-    // 전역 리다이레クト 경로(기본값)
+    // 전역 리다이렉트 경로(기본값)
     let redirectPath = '/order/store';
-
     // 확인 버튼/자동 이동 공통
     window.goBack = () => location.replace(redirectPath);
 
     (async () => {
       const qs = new URLSearchParams(location.search);
-      const paymentKey = qs.get('paymentKey');
-      const orderId    = qs.get('orderId');
-      const amount     = Number(qs.get('amount') || 0);
+      const paymentKey    = qs.get('paymentKey');
+      const orderId       = qs.get('orderId');
+      const amount        = Number(qs.get('amount') || 0);
+      const queryReturnTo = qs.get('returnTo'); // ✅ 쿼리 폴백
 
       const s = document.getElementById('s');
       if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
@@ -104,29 +104,34 @@
             body: JSON.stringify({ ...pending, orderId, amount, status: 'paid' })
           });
 
-          // 기본/fallback들
           const storeId = pending.storeId || 'store1';
           const table   = pending.table || '';
 
-          // 우선순위 1: 명시적 returnTo
+          // 우선순위 1: 명시적 returnTo (pending 기반)
           if (pending.returnTo) {
             redirectPath = pending.returnTo;
+          }
+          // 우선순위 2: 쿼리로 전달된 returnTo (세션 유실 대비)
+          else if (queryReturnTo) {
+            redirectPath = queryReturnTo;
+          }
+          // 우선순위 3: 타입별 기본 복귀
+          else if (pending.type === 'delivery' || pending.type === 'reserve') {
+            // 배포 구조에 맞춰 /order/delivery 사용 (store 쿼리 유지)
+            redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
           } else {
-            // 우선순위 2: 타입별 기본 복귀
-            if (pending.type === 'delivery' || pending.type === 'reserve') {
-              // 배포 구조에 맞춰 /order/delivery 사용 (store 쿼리 유지)
-              redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
-            } else {
-              // 매장 주문: store + table 유지
-              redirectPath = `/order/store?store=${encodeURIComponent(storeId)}` +
-                             (table ? `&table=${encodeURIComponent(table)}` : '');
-            }
+            // 매장 주문: store + table 유지
+            redirectPath =
+              `/order/store?store=${encodeURIComponent(storeId)}` +
+              (table ? `&table=${encodeURIComponent(table)}` : '');
           }
 
           // pending 비우기(중복 처리 방지)
           try { sessionStorage.removeItem('qrnr.pendingOrder'); } catch {}
         } else {
           console.warn('no pending order found');
+          // 세션이 비어도 쿼리에 returnTo가 있으면 그리로 보냄
+          if (queryReturnTo) redirectPath = queryReturnTo;
         }
       } catch (e) {
         console.error('save order err', e);
