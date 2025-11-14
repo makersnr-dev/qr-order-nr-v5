@@ -54,21 +54,28 @@ async function saveOrders(orders) {
 /**
  * 날짜/시간 헬퍼
  */
-function makeTimeMeta(dateObj = new Date()) {
-  const ts = dateObj.getTime();
-  const iso = dateObj.toISOString(); // YYYY-MM-DDTHH:mm:ss.sssZ
-  const date = iso.slice(0, 10); // YYYY-MM-DD
+// KST(UTC+9) 기준으로 날짜/시간을 만들어주는 함수
+function makeTimeMeta() {
+  // ts는 항상 UTC 기준 타임스탬프(밀리초)
+  const ts = Date.now();
 
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
-  const hh = String(dateObj.getHours()).padStart(2, '0');
-  const mm = String(dateObj.getMinutes()).padStart(2, '0');
+  // KST = UTC + 9시간
+  const KST_OFFSET = 9 * 60 * 60 * 1000;
+  const kstDate = new Date(ts + KST_OFFSET);
 
-  const dateTime = `${y}-${m}-${d} ${hh}:${mm}`;
+  // getUTC*를 쓰면서 9시간 더한 날짜를 "현지"처럼 사용
+  const y  = kstDate.getUTCFullYear();
+  const m  = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
+  const d  = String(kstDate.getUTCDate()).padStart(2, '0');
+  const hh = String(kstDate.getUTCHours()).padStart(2, '0');
+  const mm = String(kstDate.getUTCMinutes()).padStart(2, '0');
+
+  const date = `${y}-${m}-${d}`;          // 예: 2025-11-14
+  const dateTime = `${y}-${m}-${d} ${hh}:${mm}`; // 예: 2025-11-14 10:10
 
   return { ts, date, dateTime };
 }
+
 
 /**
  * 메인 핸들러
