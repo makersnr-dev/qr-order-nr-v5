@@ -225,7 +225,7 @@ async function handlePost(req, res) {
     orderId ||
     `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const { ts, date, dateTime } = makeTimeMeta(new Date());
+ const { ts, date, dateTime } = makeTimeMeta();
 
   const newOrder = {
     id,
