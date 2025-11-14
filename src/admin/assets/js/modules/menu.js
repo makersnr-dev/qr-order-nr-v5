@@ -1,18 +1,7 @@
-import { get, patch } from '/src/admin/assets/js/modules/store.js';
+// /src/admin/assets/js/modules/menu.js
+// 관리자 메뉴 관리: 전역 admin.menu 배열만 직접 수정 (매장 공용)
 
-// 현재 storeId
-function currentStoreId() {
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
-  }
-}
-
-// 저장 경로
-const PER_STORE_PATH = () => ['admin', 'menu', currentStoreId()];
+import { get, patch } from './store.js';
 
 // 샘플 기본 메뉴
 const SAMPLE_MENU = [
@@ -21,30 +10,27 @@ const SAMPLE_MENU = [
   { id: 'B1', name: '크로와상',   price: 3500, active: true },
 ];
 
-// 매장 메뉴 로딩
-function loadMenuForAdmin() {
-  const storeId = currentStoreId();
-  const path = ['admin', 'menu', storeId];
-  const exist = get(path);
+// 전역 메뉴 경로
+const MENU_PATH = ['admin', 'menu'];
 
-  // 이미 있음(빈 배열 포함)
+// 전역 메뉴 로딩
+function loadMenu() {
+  const exist = get(MENU_PATH);
+
+  // 이미 배열이면 그대로 사용 (빈 배열도 허용 = 메뉴 없음)
   if (Array.isArray(exist)) return exist;
 
-  // 첫 로딩: 전역 메뉴 or 샘플 복사
-  const globalMenu = get(['admin','menu']);
-  let base = [];
-
-  if (Array.isArray(globalMenu) && globalMenu.length) base = globalMenu;
-  else base = SAMPLE_MENU;
-
-  const cloned = base.map(m => ({ ...m }));
-  patch(path, () => cloned);
+  // 처음이면 샘플 메뉴로 초기화
+  const cloned = SAMPLE_MENU.map(m => ({ ...m }));
+  patch(MENU_PATH, () => cloned);
   return cloned;
 }
 
+// ──────────────────────────────────────────────
 // 렌더링
+// ──────────────────────────────────────────────
 export function renderMenu() {
-  const menu = loadMenuForAdmin();
+  const menu = loadMenu();
   const body = document.getElementById('m-body');
   if (!body) return;
 
@@ -59,8 +45,8 @@ export function renderMenu() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${m.id}</td>
-      <td><input class="input" value="${m.name}" data-k="name"></td>
-      <td><input class="input" type="number" value="${m.price}" data-k="price"></td>
+      <td><input class="input" value="${m.name || ''}" data-k="name"></td>
+      <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
       <td style="width:90px">
         <input type="checkbox" ${m.active ? 'checked' : ''} data-k="active">
       </td>
@@ -74,64 +60,80 @@ export function renderMenu() {
     const saveBtn = tr.querySelector('[data-act="save"]');
     const delBtn  = tr.querySelector('[data-act="del"]');
 
-    // 저장
-    saveBtn.onclick = () => {
-      const arr = loadMenuForAdmin().slice();
-      const target = arr[idx];
+    // 💾 저장
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        const arr = loadMenu().slice();
+        const target = arr[idx] || { id: m.id };
 
-      tr.querySelectorAll('input[data-k]').forEach(input => {
-        const k = input.dataset.k;
-        if (k === 'active') target[k] = input.checked;
-        else if (k === 'price') target[k] = Number(input.value);
-        else target[k] = input.value;
-      });
+        tr.querySelectorAll('input[data-k]').forEach((input) => {
+          const k = input.getAttribute('data-k');
+          if (k === 'active') {
+            target.active = input.checked;
+          } else if (k === 'price') {
+            target.price = Number(input.value || 0);
+          } else if (k === 'name') {
+            target.name = input.value || '';
+          }
+        });
 
-      patch(PER_STORE_PATH(), () => arr);
-      renderMenu();
-    };
+        arr[idx] = target;
+        patch(MENU_PATH, () => arr);
+        renderMenu();
+      };
+    }
 
-    // 삭제
-    delBtn.onclick = () => {
-      if (!confirm('삭제할까요?')) return;
+    // 🗑 삭제
+    if (delBtn) {
+      delBtn.onclick = () => {
+        if (!confirm('삭제할까요?')) return;
 
-      const arr = loadMenuForAdmin().slice();
-      arr.splice(idx, 1);
-      patch(PER_STORE_PATH(), () => arr);
-      renderMenu();
-    };
+        const arr = loadMenu().slice();
+        arr.splice(idx, 1);            // 해당 행 삭제
+        patch(MENU_PATH, () => arr);   // 전역 메뉴에 그대로 저장
+        renderMenu();                  // 화면 다시 그리기
+      };
+    }
   });
 }
 
-// 신규 메뉴 추가
+// ──────────────────────────────────────────────
+// 상단 "추가" 버튼
+// ──────────────────────────────────────────────
 export function bindMenu() {
   const addBtn = document.getElementById('m-add');
   if (!addBtn) return;
 
   addBtn.onclick = () => {
-    const id    = (document.getElementById('m-id')?.value || '').trim();
-    const name  = (document.getElementById('m-name')?.value || '').trim();
-    const price = Number((document.getElementById('m-price')?.value || '').trim());
+    const idEl    = document.getElementById('m-id');
+    const nameEl  = document.getElementById('m-name');
+    const priceEl = document.getElementById('m-price');
+
+    const id    = (idEl?.value || '').trim();
+    const name  = (nameEl?.value || '').trim();
+    const price = Number((priceEl?.value || '').trim() || 0);
 
     if (!id || !name || !price) {
       alert('ID, 이름, 가격을 모두 입력하세요.');
       return;
     }
 
-    const arr = loadMenuForAdmin().slice();
-    const idx = arr.findIndex(x => x.id === id);
+    const arr = loadMenu().slice();
+    const existingIdx = arr.findIndex((it) => it.id === id);
 
-    if (idx >= 0) {
-      if (!confirm('이미 존재합니다. 덮어쓸까요?')) return;
-      arr[idx] = { id, name, price, active: true };
+    if (existingIdx >= 0) {
+      if (!confirm('이미 존재하는 ID입니다. 덮어쓸까요?')) return;
+      arr[existingIdx] = { ...arr[existingIdx], id, name, price, active: true };
     } else {
       arr.push({ id, name, price, active: true });
     }
 
-    patch(PER_STORE_PATH(), () => arr);
-    renderMenu();
+    patch(MENU_PATH, () => arr);
 
-    document.getElementById('m-id').value = '';
-    document.getElementById('m-name').value = '';
-    document.getElementById('m-price').value = '';
+    if (idEl) idEl.value = '';
+    if (nameEl) nameEl.value = '';
+    if (priceEl) priceEl.value = '';
+
+    renderMenu();
   };
 }
