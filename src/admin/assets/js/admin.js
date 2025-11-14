@@ -1,15 +1,46 @@
-
-import {requireAuth, clearToken} from './modules/auth.js';
-import {initTabs} from './modules/ui.js';
-import {renderStore, renderDeliv, bindFilters, exportOrders, attachGlobalHandlers,syncStoreFromServer} from './modules/orders.js';
-import {initQR} from './modules/qr.js';
-import {renderMenu, bindMenu} from './modules/menu.js';
-import {renderCode, bindCode} from './modules/code.js';
-import {renderMyBank, bindMyBank} from './modules/mybank.js';
-import {renderNotify, bindNotify} from './modules/notify.js';
+import { requireAuth, clearToken } from './modules/auth.js';
+import { initTabs } from './modules/ui.js';
+import {
+  renderStore,
+  renderDeliv,
+  bindFilters,
+  exportOrders,
+  attachGlobalHandlers,
+  syncStoreFromServer,
+} from './modules/orders.js';
+import { initQR } from './modules/qr.js';
+import { renderMenu, bindMenu } from './modules/menu.js';
+import { renderCode, bindCode } from './modules/code.js';
+import { renderMyBank, bindMyBank } from './modules/mybank.js';
+import { renderNotify, bindNotify } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
+// ===== 새로고침 폭탄 방지용 공통 유틸 =====
+const REFRESH_COOLDOWN_MS = 5000; // 5초 안에 여러 번 호출돼도 실제 실행은 1번만
 
+function makeSafeRefresher(realFn) {
+  let last = 0;
+  return async function safeRefresher(...args) {
+    const now = Date.now();
+    if (now - last < REFRESH_COOLDOWN_MS) {
+      console.log('[safeRefresh] skip (cooldown):', realFn.name || 'fn');
+      return;
+    }
+    last = now;
+    try {
+      return await realFn(...args);
+    } catch (e) {
+      console.error('[safeRefresh] error in', realFn.name || 'fn', e);
+    }
+  };
+}
+
+// 탭 3종(매장 / 배달·예약 / 호출로그)에 대한 안전 새로고침 래퍼
+const safeRenderStore       = makeSafeRefresher(renderStore);
+const safeRenderDeliv       = makeSafeRefresher(renderDeliv);
+const safeRenderNotifyLogs  = makeSafeRefresher(renderNotifyLogs);
+
+// ===== storeId 결정 =====
 function resolveStoreId() {
   let sid = null;
 
@@ -23,10 +54,7 @@ function resolveStoreId() {
     }
   } catch (e) {}
 
-  // 2) 로그인한 관리자 ID 기반 매핑
-  // requireAuth('admin')에서 사용자 정보를 어딘가에 저장해뒀다는 가정 (예: localStorage)
-  // 지금 당장은 임시로 localStorage에 qrnr.adminId 같은 값 두고 써도 되고,
-  // 나중에 DB 연동 시 여기만 진짜 값으로 교체하면 됨.
+  // 2) 로그인한 관리자 ID 기반 매핑 (추후 DB 연동 가능)
   let adminId = null;
   try {
     const info = JSON.parse(localStorage.getItem('qrnr.adminInfo') || '{}');
@@ -34,6 +62,7 @@ function resolveStoreId() {
   } catch (e) {}
 
   if (adminId) {
+    // 주: get([...])는 바깥에서 전역으로 제공된다고 가정 (기존 코드 유지)
     const map = get(['system', 'storeAdmins']) || {};
     if (map[adminId]) {
       sid = map[adminId];
@@ -47,7 +76,6 @@ function resolveStoreId() {
   return sid;
 }
 
-
 const url = new URL(location.href);
 const storeId =
   url.searchParams.get('store') ||
@@ -57,8 +85,8 @@ const storeId =
 window.qrnrStoreId = storeId;
 localStorage.setItem('qrnr.storeId', storeId);
 
-
 const adminChannel = new BroadcastChannel('qrnr-admin');
+
 function ensureToastContainer() {
   let box = document.getElementById('admin-toast-box');
   if (!box) {
@@ -105,34 +133,30 @@ function showToast(message, variant = 'info') {
   }, 2500);
 }
 
-async function main(){
+async function main() {
   await requireAuth('admin');
 
-  // ✅ 여기서 최종 storeId 결정
+  // ✅ 최종 storeId 결정
   const sid = resolveStoreId();
   window.qrnrStoreId = sid;
   console.log('[admin] storeId =', sid);
 
-  
   await syncStoreFromServer();
   initTabs();
 
-  // 탭 전환 시 notify-log면 최신 렌더
-document.addEventListener('click', (e) => {
-  const t = e.target.closest('.tab');
-  if (!t) return;
-  const tab = t.dataset.tab;
-  if (tab === 'notify-log') {
-    // 모듈이 이미 import 되어 있으니 바로 호출
-    try {
-      // 전역으로 로드된 모듈 함수 사용
-      // (이미 상단 import { renderNotifyLogs } from './modules/notify-logs.js' 되어 있어야 함)
-      // 없으면 import 라인 추가: import { renderNotifyLogs } from './modules/notify-logs.js';
-      import('/src/admin/assets/js/modules/notify-logs.js').then(m => m.renderNotifyLogs());
-    } catch (_) {}
-  }
-});
-
+  // 🔹 탭 클릭 시: 해당 탭 내용 새로고침 (폭탄 방지 래퍼 사용)
+  document.querySelectorAll('.tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (tab === 'store') {
+        safeRenderStore();
+      } else if (tab === 'delivery') {
+        safeRenderDeliv();
+      } else if (tab === 'notify-log') {
+        safeRenderNotifyLogs();
+      }
+    });
+  });
 
   document.getElementById('logoutBtn').onclick = () => {
     clearToken();
@@ -141,65 +165,88 @@ document.addEventListener('click', (e) => {
 
   // 기본 세팅
   bindFilters();
-  renderStore();
-  renderDeliv();
+  // 초회 로딩도 안전 래퍼로 (한 번만 실행됨)
+  safeRenderStore();
+  safeRenderDeliv();
   attachGlobalHandlers();
 
-  // 🔹 탭별 새로고침 버튼 연결
+  // 🔹 탭별 새로고침 버튼 연결 (안전 래퍼 사용)
   const storeRefresh = document.getElementById('store-refresh');
   if (storeRefresh) {
     storeRefresh.onclick = () => {
-      renderStore();        // 매장 주문 테이블만 다시 불러오기
+      safeRenderStore(); // 매장 주문 테이블 새로고침
     };
   }
 
   const delivRefresh = document.getElementById('deliv-refresh');
   if (delivRefresh) {
     delivRefresh.onclick = () => {
-      renderDeliv();        // 배달/예약 주문 테이블만 다시 불러오기
+      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
     };
   }
 
   // 엑셀 export
-  document.getElementById('store-export').onclick = () => exportOrders('ordersStore');
-  document.getElementById('deliv-export').onclick = () => exportOrders('ordersDelivery');
+  document.getElementById('store-export').onclick = () =>
+    exportOrders('ordersStore');
+  document.getElementById('deliv-export').onclick = () =>
+    exportOrders('ordersDelivery');
 
   // 나머지 설정들
-  renderMenu(); bindMenu();
-  renderCode(); bindCode();
-  renderMyBank(); bindMyBank();
-  renderNotify(); bindNotify();
+  renderMenu();
+  bindMenu();
+  renderCode();
+  bindCode();
+  renderMyBank();
+  bindMyBank();
+  renderNotify();
+  bindNotify();
   initQR();
-  renderNotifyLogs(); bindNotifyLogs();
 
-  // 🔔 실시간 알림
+  // 호출 로그: 초기 렌더 + 바인딩
+  safeRenderNotifyLogs();
+  bindNotifyLogs();
+
+  // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
+  const notifyRefresh = document.getElementById('notify-log-refresh');
+  if (notifyRefresh) {
+    notifyRefresh.onclick = () => {
+      safeRenderNotifyLogs();
+    };
+  }
+
+  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침만 사용)
   adminChannel.onmessage = async (event) => {
-  const msg = event.data;
-  if (!msg || !msg.type) return;
+    const msg = event.data;
+    if (!msg || !msg.type) return;
 
-  const currentStoreId = window.qrnrStoreId || 'store1';
+    const currentStoreId = window.qrnrStoreId || 'store1';
 
-  // 매장 불일치 메시지는 무시
-  if (msg.storeId && msg.storeId !== currentStoreId) {
-    return;
-  }
+    // 매장 불일치 메시지는 무시
+    if (msg.storeId && msg.storeId !== currentStoreId) {
+      return;
+    }
 
-  if (msg.type === 'CALL') {
-    showToast(
-      `테이블 ${msg.table || '-'} 직원 호출${msg.note ? ' - ' + msg.note : ''}`,
-      'info'
-    );
-  }
+    if (msg.type === 'CALL') {
+      showToast(
+        `테이블 ${msg.table || '-'} 직원 호출${
+          msg.note ? ' - ' + msg.note : ''
+        }`,
+        'info'
+      );
+      // 호출 로그 새로고침 (쿨타임 내 중복 호출 차단)
+      safeRenderNotifyLogs();
+    }
 
-  if (msg.type === 'NEW_ORDER_PAID') {
-    showToast(
-      `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-      'success'
-    );
-  }
-};
-
+    if (msg.type === 'NEW_ORDER_PAID') {
+      showToast(
+        `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
+        'success'
+      );
+      // 매장/배달 주문 목록 새로고침 (각각 쿨타임 처리)
+      safeRenderStore();
+      safeRenderDeliv();
+    }
+  };
 }
 
 main();
-
