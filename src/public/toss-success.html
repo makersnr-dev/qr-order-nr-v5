@@ -48,7 +48,6 @@
       transition: all 0.18s ease;
     }
     .success-btn:hover { background: rgba(255, 255, 255, 0.06); border-color: #2563eb; box-shadow: 0 0 18px rgba(37, 99, 235, 0.4); }
-    /* 디버그용(화면 숨김) */
     #s { display: none; font-size: 11px; color: rgba(148,163,253,0.5); margin-top: 4px; word-break: break-all; }
   </style>
 </head>
@@ -65,41 +64,38 @@
   <script type="module">
     import { getPendingOrder, clearPendingOrder } from '/src/shared/toss-client.js';
 
-    // 전역 리다이렉트 경로(기본값)
     let redirectPath = '/order/store';
-    // 확인 버튼/자동 이동 공통
     window.goBack = () => location.replace(redirectPath);
 
     (async () => {
       const qs = new URLSearchParams(location.search);
-      const paymentKey    = qs.get('paymentKey');
-      const orderId       = qs.get('orderId');
-      const amount        = Number(qs.get('amount') || 0);
-      const queryReturnTo = qs.get('returnTo'); // 쿼리로 온 returnTo (있으면 사용)
+      const paymentKey = qs.get('paymentKey');
+      const orderId    = qs.get('orderId');
+      const amount     = Number(qs.get('amount') || 0);
+      const queryReturnTo = qs.get('returnTo') || '';
 
       const s = document.getElementById('s');
-      if (s) s.textContent = `orderId=${orderId} amount=${amount} returnTo=${queryReturnTo || ''}`;
+      if (s) s.textContent = `orderId=${orderId} amount=${amount} returnTo=${queryReturnTo}`;
 
-      // 1) Toss 결제 승인 확인 (성공/실패 상관없이 아래 로직 진행)
+      // 1) Toss 결제 승인 시도 (실패해도 아래 계속 진행)
       try {
         await fetch('/api/toss-confirm', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ paymentKey, orderId, amount })
+          body: JSON.stringify({ paymentKey, orderId, amount }),
         });
-      } catch (e) {
-        console.error('confirm err', e);
+      } catch (err) {
+        console.error('toss confirm error', err);
       }
 
-      // 서버에 저장된 주문(POST /api/orders 응답)을 통해서도 storeId/table 복원하기 위해 사용
+      let pending = null;
       let savedOrder = null;
 
-      // 2) pending 주문 저장 + 복귀 경로 결정
+      // 2) pending 주문 가져오기 + 서버에 저장
       try {
-        const pending = getPendingOrder && getPendingOrder();
+        pending = getPendingOrder && getPendingOrder();
 
         if (pending) {
-          // (1) 서버 저장
           try {
             const res = await fetch('/api/orders', {
               method: 'POST',
@@ -115,63 +111,42 @@
             if (data && data.ok && data.order) {
               savedOrder = data.order;
             }
-          } catch (err) {
-            console.error('save order err', err);
+          } catch (saveErr) {
+            console.error('order save error', saveErr);
           }
 
-          const storeId = pending.storeId || 'store1';
-          const table   = pending.table || '';
-
-          // (2) 우선순위 1: pending.returnTo
-          if (pending.returnTo) {
-            redirectPath = pending.returnTo;
-          }
-          // (3) 우선순위 2: 쿼리로 전달된 returnTo (세션 유실 대비)
-          else if (queryReturnTo) {
-            redirectPath = queryReturnTo;
-          }
-          // (4) 우선순위 3: type/storeId/table 기반 기본 경로
-          else if (pending.type === 'delivery' || pending.type === 'reserve') {
-            redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
-          } else {
-            redirectPath =
-              `/order/store?store=${encodeURIComponent(storeId)}` +
-              (table ? `&table=${encodeURIComponent(table)}` : '');
-          }
-
-          // pending 비우기(중복 처리 방지)
           clearPendingOrder();
+        }
+      } catch (e) {
+        console.error('pending load error', e);
+      }
+
+      // 3) 어디로 돌아갈지 결정
+      const base = savedOrder || pending;
+
+      if (base) {
+        const type    = base.type || 'store';
+        const storeId = base.storeId || 'store1';
+        const table   = base.table || '';
+
+        if (type === 'delivery' || type === 'reserve') {
+          // 배달/예약 → 배달 페이지로
+          redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
         } else {
-          console.warn('no pending order found');
-
-          // pending이 없으면, 우선 순위 1: 쿼리의 returnTo
-          if (queryReturnTo) {
-            redirectPath = queryReturnTo;
-          }
+          // 매장 주문 → store + table 모두 유지
+          redirectPath =
+            `/order/store?store=${encodeURIComponent(storeId)}` +
+            (table ? `&table=${encodeURIComponent(table)}` : '');
         }
-      } catch (e) {
-        console.error('pending/save block err', e);
+      } else if (queryReturnTo) {
+        // pending이 없으면 returnTo 쿼리라도 사용
+        redirectPath = queryReturnTo;
+      } else {
+        // 아무 정보도 없으면 기본값(/order/store)
+        redirectPath = '/order/store';
       }
 
-      // 3) savedOrder를 통한 최종 fallback (savedOrder가 있고, 위에서 경로를 못 잡았을 때)
-      try {
-        if ((!redirectPath || redirectPath === '/order/store') && savedOrder) {
-          const storeId = savedOrder.storeId || savedOrder.store || 'store1';
-          const table   = savedOrder.table || '';
-
-          if (savedOrder.type === 'delivery' || savedOrder.type === 'reserve') {
-            redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
-          } else {
-            redirectPath =
-              `/order/store?store=${encodeURIComponent(storeId)}` +
-              (table ? `&table=${encodeURIComponent(table)}` : '');
-          }
-        }
-      } catch (e) {
-        console.error('savedOrder fallback err', e);
-      }
-
-      // 4) 관리자 탭 실시간 알림 (동일 브라우저 한정)
+      // 4) 관리자 탭 실시간 알림
       try {
         const ch = new BroadcastChannel('qrnr-admin');
         ch.postMessage({ type: 'NEW_ORDER_PAID', orderId, amount, ts: Date.now() });
