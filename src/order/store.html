@@ -236,10 +236,11 @@
       const orderName =
         items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
-      // 결제 후 되돌아올 정확한 경로(스토어/테이블 유지)
+      // ✅ 결제 후 되돌아올 정확한 경로(스토어/테이블 유지)
+      //   → 여기서는 인코딩하지 않고 "깨끗한 URL" 그대로 둠
       const returnTo =
-        `/order/store?store=${encodeURIComponent(storeId)}` +
-        (table ? `&table=${encodeURIComponent(table)}` : '');
+        `/order/store?store=${storeId}` +
+        (table ? `&table=${table}` : '');
 
       // 성공 페이지에서 /api/orders 저장 시 사용할 페이로드
       const payload = {
@@ -251,14 +252,13 @@
         cart: items,
         status: '대기',
         storeId,
-        // toss-success.html에서 우선 사용
         returnTo
       };
 
       setPendingOrder(payload);
 
       try {
-        // 성공/실패 URL에도 returnTo를 실어서 보냄(세션 유실 대비)
+        // Toss URL 쪽 인코딩은 toss-client.js에서 전체를 encodeURIComponent로 처리
         await startPayment({ orderId, amount, orderName, returnTo });
       } catch (err) {
         console.error('payment start error', err);
