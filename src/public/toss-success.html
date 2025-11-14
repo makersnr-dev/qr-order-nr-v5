@@ -64,20 +64,61 @@
   <script type="module">
     import { getPendingOrder, clearPendingOrder } from '/src/shared/toss-client.js';
 
+    // 기본값
     let redirectPath = '/order/store';
-    window.goBack = () => location.replace(redirectPath);
+
+    // 버튼/자동 이동 공통 진입점
+    window.goBack = () => {
+      location.replace(redirectPath);
+    };
 
     (async () => {
       const qs = new URLSearchParams(location.search);
-      const paymentKey = qs.get('paymentKey');
-      const orderId    = qs.get('orderId');
-      const amount     = Number(qs.get('amount') || 0);
+      const paymentKey    = qs.get('paymentKey');
+      const orderId       = qs.get('orderId');
+      const amount        = Number(qs.get('amount') || 0);
       const queryReturnTo = qs.get('returnTo') || '';
 
       const s = document.getElementById('s');
       if (s) s.textContent = `orderId=${orderId} amount=${amount} returnTo=${queryReturnTo}`;
 
-      // 1) Toss 결제 승인 시도 (실패해도 아래 계속 진행)
+      // 1) pending 먼저 읽고, "어디로 돌아갈지"를 제일 먼저 결정한다 (동기)
+      let pending = null;
+      try {
+        pending = getPendingOrder && getPendingOrder();
+      } catch (e) {
+        console.error('pending load error', e);
+      }
+
+      if (pending) {
+        const type    = pending.type || 'store';
+        const storeId = pending.storeId || 'store1';
+        const table   = pending.table || '';
+
+        // 매장 주문 vs 배달/예약에 따라 기본 경로 계산
+        if (type === 'delivery' || type === 'reserve') {
+          redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
+        } else {
+          redirectPath =
+            `/order/store?store=${encodeURIComponent(storeId)}` +
+            (table ? `&table=${encodeURIComponent(table)}` : '');
+        }
+
+        // pending.returnTo가 있다면, 경로를 그걸로 덮어써도 됨
+        if (pending.returnTo) {
+          redirectPath = pending.returnTo;
+        }
+      } else if (queryReturnTo) {
+        // pending이 없고, 쿼리에 returnTo가 있으면 그걸 사용
+        redirectPath = queryReturnTo;
+      } else {
+        // 둘 다 없으면 기본값 유지 (/order/store)
+        redirectPath = '/order/store';
+      }
+
+      // 여기까지 오면, 버튼을 바로 눌러도 항상 "최종 계산된 redirectPath"로 이동함
+
+      // 2) Toss 결제 승인 시도 (실패해도 아래 계속 진행)
       try {
         await fetch('/api/toss-confirm', {
           method: 'POST',
@@ -88,13 +129,8 @@
         console.error('toss confirm error', err);
       }
 
-      let pending = null;
-      let savedOrder = null;
-
-      // 2) pending 주문 가져오기 + 서버에 저장
+      // 3) pending이 있으면 서버에 주문 저장
       try {
-        pending = getPendingOrder && getPendingOrder();
-
         if (pending) {
           try {
             const res = await fetch('/api/orders', {
@@ -108,8 +144,8 @@
               }),
             });
             const data = await res.json().catch(() => ({}));
-            if (data && data.ok && data.order) {
-              savedOrder = data.order;
+            if (!data || !data.ok) {
+              console.warn('order save may have failed', data);
             }
           } catch (saveErr) {
             console.error('order save error', saveErr);
@@ -118,32 +154,7 @@
           clearPendingOrder();
         }
       } catch (e) {
-        console.error('pending load error', e);
-      }
-
-      // 3) 어디로 돌아갈지 결정
-      const base = savedOrder || pending;
-
-      if (base) {
-        const type    = base.type || 'store';
-        const storeId = base.storeId || 'store1';
-        const table   = base.table || '';
-
-        if (type === 'delivery' || type === 'reserve') {
-          // 배달/예약 → 배달 페이지로
-          redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
-        } else {
-          // 매장 주문 → store + table 모두 유지
-          redirectPath =
-            `/order/store?store=${encodeURIComponent(storeId)}` +
-            (table ? `&table=${encodeURIComponent(table)}` : '');
-        }
-      } else if (queryReturnTo) {
-        // pending이 없으면 returnTo 쿼리라도 사용
-        redirectPath = queryReturnTo;
-      } else {
-        // 아무 정보도 없으면 기본값(/order/store)
-        redirectPath = '/order/store';
+        console.error('pending/save block err', e);
       }
 
       // 4) 관리자 탭 실시간 알림
@@ -155,7 +166,7 @@
         console.error('broadcast err', e);
       }
 
-      // 5) 자동 복귀
+      // 5) 자동 복귀 (버튼과 동일하게 redirectPath 사용)
       setTimeout(window.goBack, 3000);
     })();
   </script>
