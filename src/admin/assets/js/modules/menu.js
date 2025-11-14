@@ -1,4 +1,4 @@
-import { get, patch, fmt } from './store.js';
+import { get, patch } from './store.js';
 
 // 현재 storeId: 전역 → URL → 기본값 순
 function currentStoreId() {
@@ -11,32 +11,50 @@ function currentStoreId() {
   }
 }
 
-// 매장별 메뉴 저장 경로: ['admin', 'menu', storeId]
+// 매장별 메뉴 저장 경로
 const PER_STORE_PATH = () => ['admin', 'menu', currentStoreId()];
+
+// 샘플 기본 메뉴
+const SAMPLE_MENU = [
+  { id: 'A1', name: '아메리카노', price: 3000, active: true },
+  { id: 'A2', name: '라떼',       price: 4000, active: true },
+  { id: 'B1', name: '크로와상',   price: 3500, active: true },
+];
 
 /**
  * 관리자에서 사용할 "현재 매장의 메뉴" 로딩 규칙
- * 1) ['admin','menu', storeId]  (매장별 메뉴)
- * 2) ['admin','menu']           (전역 메뉴)
- * 3) 기본 샘플 3종
+ *
+ * 1) ['admin','menu', storeId] 가:
+ *    - 배열이면 그대로 사용 (빈 배열도 허용 = 메뉴 없음)
+ * 2) 아니면(= undefined 등) 한 번만 초기화:
+ *    - 전역 메뉴 ['admin','menu'] 가 있으면 그걸 복사
+ *    - 없으면 SAMPLE_MENU 복사
+ *    그리고 그 복사본을 ['admin','menu', storeId]에 저장
  */
 function loadMenuForAdmin() {
   const storeId = currentStoreId();
+  const perStorePath = ['admin', 'menu', storeId];
+  const existing = get(perStorePath);
 
-  // (A) 매장별 메뉴 우선
-  let perStore = get(['admin', 'menu', storeId]);
-  if (Array.isArray(perStore) && perStore.length) return perStore;
+  // A) 이미 매장별 메뉴가 있으면 (빈 배열 포함) 그대로 사용
+  if (Array.isArray(existing)) {
+    return existing;
+  }
 
-  // (B) 전역 메뉴 fallback
-  const base = get(['admin', 'menu']) || [];
-  if (Array.isArray(base) && base.length) return base;
+  // B) 처음 접근한 매장: 전역 or 샘플을 매장별로 복사
+  const globalMenu = get(['admin', 'menu']);
+  let base = [];
 
-  // (C) 아무 것도 없으면 샘플 메뉴
-  return [
-    { id: 'A1', name: '아메리카노', price: 3000, active: true },
-    { id: 'A2', name: '라떼',       price: 4000, active: true },
-    { id: 'B1', name: '크로와상',   price: 3500, active: true },
-  ];
+  if (Array.isArray(globalMenu) && globalMenu.length) {
+    base = globalMenu;
+  } else {
+    base = SAMPLE_MENU;
+  }
+
+  const cloned = base.map((m) => ({ ...m }));
+  patch(perStorePath, () => cloned);
+
+  return cloned;
 }
 
 /**
@@ -73,7 +91,7 @@ export function renderMenu() {
     const saveBtn = tr.querySelector('[data-act="save"]');
     const delBtn  = tr.querySelector('[data-act="del"]');
 
-    // 저장 버튼: 현재 행만 수정해서 storeId 전용 메뉴로 저장
+    // 💾 저장: 해당 인덱스만 수정해서 매장별 메뉴에 저장
     if (saveBtn) {
       saveBtn.onclick = () => {
         const arr = loadMenuForAdmin().slice();
@@ -92,13 +110,12 @@ export function renderMenu() {
         });
 
         arr[idx] = target;
-        // 항상 매장별 경로에 저장 → 이 시점부터는 해당 매장 전용 메뉴
         patch(PER_STORE_PATH(), () => arr);
         renderMenu();
       };
     }
 
-    // 삭제 버튼
+    // 🗑 삭제: 매장별 메뉴 배열에서 제거 후 저장
     if (delBtn) {
       delBtn.onclick = () => {
         if (!confirm('삭제할까요?')) return;
@@ -148,7 +165,6 @@ export function bindMenu() {
       arr.push({ id, name, price, active: true });
     }
 
-    // 매장별 메뉴로 저장
     patch(PER_STORE_PATH(), () => arr);
 
     ['m-id', 'm-name', 'm-price'].forEach((fieldId) => {
