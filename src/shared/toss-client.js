@@ -38,7 +38,55 @@ const PENDING_KEY = 'qrnr.pendingOrder';
 export function setPendingOrder(data) {
   try {
     sessionStorage.setItem(PENDING_KEY, JSON.stringify(data));
-  } catch (_) {}
+  } catch (_) {
+    // ignore
+  }
 }
 
 export function getPendingOrder() {
+  try {
+    return JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null');
+  } catch (_) {
+    return null;
+  }
+}
+
+// 필요하면 쓸 수 있게 clear도 하나 내보내 둠 (안 써도 무방)
+export function clearPendingOrder() {
+  try {
+    sessionStorage.removeItem(PENDING_KEY);
+  } catch (_) {
+    // ignore
+  }
+}
+
+// ===== Payment starter (supports returnTo) =====
+// Usage:
+//   await startPayment({ orderId, amount, orderName, returnTo });
+//   - returnTo 예: `/order/store?store=narae&table=3` 또는 `/order/delivery?store=narae`
+export async function startPayment({ orderId, amount, orderName, returnTo }) {
+  const client = await ensureToss();
+
+  // returnTo가 안 넘어왔으면, 현재 보고 있는 페이지 주소(쿼리 포함)를 기본값으로 사용
+  const finalReturnTo =
+    returnTo || `${location.pathname}${location.search || ''}`;
+
+  const successUrl =
+    `${location.origin}/toss/success` +
+    `?orderId=${encodeURIComponent(orderId)}` +
+    `&amount=${encodeURIComponent(amount)}` +
+    (finalReturnTo ? `&returnTo=${encodeURIComponent(finalReturnTo)}` : '');
+
+  const failUrl =
+    `${location.origin}/toss/fail` +
+    `?orderId=${encodeURIComponent(orderId)}` +
+    (finalReturnTo ? `&returnTo=${encodeURIComponent(finalReturnTo)}` : '');
+
+  return client.requestPayment({
+    amount: Number(amount),
+    orderId: String(orderId),
+    orderName: String(orderName || '주문'),
+    successUrl,
+    failUrl,
+  });
+}
