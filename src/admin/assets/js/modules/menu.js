@@ -1,7 +1,6 @@
 import { get, patch } from '/src/admin/assets/js/modules/store.js';
 
-
-// 현재 storeId: 전역 → URL → 기본값 순
+// 현재 storeId
 function currentStoreId() {
   if (window.qrnrStoreId) return window.qrnrStoreId;
   try {
@@ -12,7 +11,7 @@ function currentStoreId() {
   }
 }
 
-// 매장별 메뉴 저장 경로
+// 저장 경로
 const PER_STORE_PATH = () => ['admin', 'menu', currentStoreId()];
 
 // 샘플 기본 메뉴
@@ -22,45 +21,28 @@ const SAMPLE_MENU = [
   { id: 'B1', name: '크로와상',   price: 3500, active: true },
 ];
 
-/**
- * 관리자에서 사용할 "현재 매장의 메뉴" 로딩 규칙
- *
- * 1) ['admin','menu', storeId] 가:
- *    - 배열이면 그대로 사용 (빈 배열도 허용 = 메뉴 없음)
- * 2) 아니면(= undefined 등) 한 번만 초기화:
- *    - 전역 메뉴 ['admin','menu'] 가 있으면 그걸 복사
- *    - 없으면 SAMPLE_MENU 복사
- *    그리고 그 복사본을 ['admin','menu', storeId]에 저장
- */
+// 매장 메뉴 로딩
 function loadMenuForAdmin() {
   const storeId = currentStoreId();
-  const perStorePath = ['admin', 'menu', storeId];
-  const existing = get(perStorePath);
+  const path = ['admin', 'menu', storeId];
+  const exist = get(path);
 
-  // A) 이미 매장별 메뉴가 있으면 (빈 배열 포함) 그대로 사용
-  if (Array.isArray(existing)) {
-    return existing;
-  }
+  // 이미 있음(빈 배열 포함)
+  if (Array.isArray(exist)) return exist;
 
-  // B) 처음 접근한 매장: 전역 or 샘플을 매장별로 복사
-  const globalMenu = get(['admin', 'menu']);
+  // 첫 로딩: 전역 메뉴 or 샘플 복사
+  const globalMenu = get(['admin','menu']);
   let base = [];
 
-  if (Array.isArray(globalMenu) && globalMenu.length) {
-    base = globalMenu;
-  } else {
-    base = SAMPLE_MENU;
-  }
+  if (Array.isArray(globalMenu) && globalMenu.length) base = globalMenu;
+  else base = SAMPLE_MENU;
 
-  const cloned = base.map((m) => ({ ...m }));
-  patch(perStorePath, () => cloned);
-
+  const cloned = base.map(m => ({ ...m }));
+  patch(path, () => cloned);
   return cloned;
 }
 
-/**
- * 메뉴 관리 테이블 렌더링
- */
+// 렌더링
 export function renderMenu() {
   const menu = loadMenuForAdmin();
   const body = document.getElementById('m-body');
@@ -77,8 +59,8 @@ export function renderMenu() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${m.id}</td>
-      <td><input class="input" value="${m.name || ''}" data-k="name"></td>
-      <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
+      <td><input class="input" value="${m.name}" data-k="name"></td>
+      <td><input class="input" type="number" value="${m.price}" data-k="price"></td>
       <td style="width:90px">
         <input type="checkbox" ${m.active ? 'checked' : ''} data-k="active">
       </td>
@@ -92,58 +74,43 @@ export function renderMenu() {
     const saveBtn = tr.querySelector('[data-act="save"]');
     const delBtn  = tr.querySelector('[data-act="del"]');
 
-    // 💾 저장: 해당 인덱스만 수정해서 매장별 메뉴에 저장
-    if (saveBtn) {
-      saveBtn.onclick = () => {
-        const arr = loadMenuForAdmin().slice();
-        const rowInputs = tr.querySelectorAll('input[data-k]');
-        const target = arr[idx] || { id: m.id };
+    // 저장
+    saveBtn.onclick = () => {
+      const arr = loadMenuForAdmin().slice();
+      const target = arr[idx];
 
-        rowInputs.forEach((input) => {
-          const k = input.getAttribute('data-k');
-          if (k === 'active') {
-            target.active = input.checked;
-          } else if (k === 'price') {
-            target.price = Number(input.value || 0);
-          } else if (k === 'name') {
-            target.name = input.value || '';
-          }
-        });
+      tr.querySelectorAll('input[data-k]').forEach(input => {
+        const k = input.dataset.k;
+        if (k === 'active') target[k] = input.checked;
+        else if (k === 'price') target[k] = Number(input.value);
+        else target[k] = input.value;
+      });
 
-        arr[idx] = target;
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
-    }
+      patch(PER_STORE_PATH(), () => arr);
+      renderMenu();
+    };
 
-    // 🗑 삭제: 매장별 메뉴 배열에서 제거 후 저장
-    if (delBtn) {
-      delBtn.onclick = () => {
-        if (!confirm('삭제할까요?')) return;
-        const arr = loadMenuForAdmin().slice();
-        arr.splice(idx, 1);
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
-    }
+    // 삭제
+    delBtn.onclick = () => {
+      if (!confirm('삭제할까요?')) return;
+
+      const arr = loadMenuForAdmin().slice();
+      arr.splice(idx, 1);
+      patch(PER_STORE_PATH(), () => arr);
+      renderMenu();
+    };
   });
 }
 
-/**
- * 상단 "추가" 버튼 바인딩
- */
+// 신규 메뉴 추가
 export function bindMenu() {
   const addBtn = document.getElementById('m-add');
   if (!addBtn) return;
 
   addBtn.onclick = () => {
-    const idEl    = document.getElementById('m-id');
-    const nameEl  = document.getElementById('m-name');
-    const priceEl = document.getElementById('m-price');
-
-    const id    = (idEl?.value || '').trim();
-    const name  = (nameEl?.value || '').trim();
-    const price = Number((priceEl?.value || '').trim() || 0);
+    const id    = (document.getElementById('m-id')?.value || '').trim();
+    const name  = (document.getElementById('m-name')?.value || '').trim();
+    const price = Number((document.getElementById('m-price')?.value || '').trim());
 
     if (!id || !name || !price) {
       alert('ID, 이름, 가격을 모두 입력하세요.');
@@ -151,28 +118,20 @@ export function bindMenu() {
     }
 
     const arr = loadMenuForAdmin().slice();
-    const existingIdx = arr.findIndex((it) => it.id === id);
+    const idx = arr.findIndex(x => x.id === id);
 
-    if (existingIdx >= 0) {
-      if (!confirm('이미 존재하는 ID입니다. 덮어쓸까요?')) return;
-      arr[existingIdx] = {
-        ...arr[existingIdx],
-        id,
-        name,
-        price,
-        active: true,
-      };
+    if (idx >= 0) {
+      if (!confirm('이미 존재합니다. 덮어쓸까요?')) return;
+      arr[idx] = { id, name, price, active: true };
     } else {
       arr.push({ id, name, price, active: true });
     }
 
     patch(PER_STORE_PATH(), () => arr);
-
-    ['m-id', 'm-name', 'm-price'].forEach((fieldId) => {
-      const el = document.getElementById(fieldId);
-      if (el) el.value = '';
-    });
-
     renderMenu();
+
+    document.getElementById('m-id').value = '';
+    document.getElementById('m-name').value = '';
+    document.getElementById('m-price').value = '';
   };
 }
