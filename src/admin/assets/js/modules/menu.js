@@ -1,4 +1,5 @@
-import { get, patch } from './store.js';
+import { get, patch } from '/src/admin/assets/js/modules/store.js';
+
 
 // 현재 storeId: 전역 → URL → 기본값 순
 function currentStoreId() {
