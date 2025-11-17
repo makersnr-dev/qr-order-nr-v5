@@ -1,36 +1,61 @@
 // /src/admin/assets/js/modules/menu.js
-// 관리자 메뉴 관리: 전역 admin.menu 배열만 직접 수정 (매장 공용)
+// 다점포용 메뉴 관리: admin.menuByStore[storeId] 를 매장별 메뉴로 사용
+// 없으면 admin.menu(공용 템플릿) 또는 샘플에서 복사해서 초기화
 
 import { get, patch } from './store.js';
 
-// 샘플 기본 메뉴
+// 샘플 기본 메뉴 (공용 템플릿이 아예 없을 때만 사용)
 const SAMPLE_MENU = [
   { id: 'A1', name: '아메리카노', price: 3000, active: true },
   { id: 'A2', name: '라떼',       price: 4000, active: true },
   { id: 'B1', name: '크로와상',   price: 3500, active: true },
 ];
 
-// 전역 메뉴 경로
-const MENU_PATH = ['admin', 'menu'];
+// 현재 storeId 가져오기
+function currentStoreId() {
+  if (window.qrnrStoreId) return window.qrnrStoreId;
+  try {
+    const u = new URL(location.href);
+    return u.searchParams.get('store') || 'store1';
+  } catch (e) {
+    return 'store1';
+  }
+}
 
-// 전역 메뉴 로딩
-function loadMenu() {
-  const exist = get(MENU_PATH);
+// 매장별 메뉴 경로
+const PER_STORE_PATH = () => ['admin', 'menuByStore', currentStoreId()];
 
-  // 이미 배열이면 그대로 사용 (빈 배열도 허용 = 메뉴 없음)
-  if (Array.isArray(exist)) return exist;
+/**
+ * 관리자에서 사용할 "현재 매장의 메뉴" 로딩 규칙
+ *
+ * 1) admin.menuByStore[storeId] 가 배열이면 그대로 사용 (빈 배열도 허용)
+ * 2) 아니면 한 번만 초기화:
+ *    - admin.menu (공용 템플릿)이 있으면 그걸 복사
+ *    - 없으면 SAMPLE_MENU 복사
+ *    그리고 복사본을 admin.menuByStore[storeId]에 저장
+ */
+function loadMenuForAdmin() {
+  const storeId = currentStoreId();
 
-  // 처음이면 샘플 메뉴로 초기화
-  const cloned = SAMPLE_MENU.map(m => ({ ...m }));
-  patch(MENU_PATH, () => cloned);
+  const perStore = get(['admin', 'menuByStore', storeId]);
+  if (Array.isArray(perStore)) return perStore;
+
+  const global = get(['admin', 'menu']);
+  let base = [];
+
+  if (Array.isArray(global) && global.length) base = global;
+  else base = SAMPLE_MENU;
+
+  const cloned = base.map(m => ({ ...m }));
+  patch(['admin', 'menuByStore', storeId], () => cloned);
   return cloned;
 }
 
-// ──────────────────────────────────────────────
-// 렌더링
-// ──────────────────────────────────────────────
+/**
+ * 메뉴 관리 테이블 렌더링
+ */
 export function renderMenu() {
-  const menu = loadMenu();
+  const menu = loadMenuForAdmin();
   const body = document.getElementById('m-body');
   if (!body) return;
 
@@ -60,10 +85,10 @@ export function renderMenu() {
     const saveBtn = tr.querySelector('[data-act="save"]');
     const delBtn  = tr.querySelector('[data-act="del"]');
 
-    // 💾 저장
+    // 💾 저장: 해당 인덱스만 수정해서 menuByStore[storeId]에 저장
     if (saveBtn) {
       saveBtn.onclick = () => {
-        const arr = loadMenu().slice();
+        const arr = loadMenuForAdmin().slice();
         const target = arr[idx] || { id: m.id };
 
         tr.querySelectorAll('input[data-k]').forEach((input) => {
@@ -78,7 +103,7 @@ export function renderMenu() {
         });
 
         arr[idx] = target;
-        patch(MENU_PATH, () => arr);
+        patch(PER_STORE_PATH(), () => arr);
         renderMenu();
       };
     }
@@ -87,19 +112,18 @@ export function renderMenu() {
     if (delBtn) {
       delBtn.onclick = () => {
         if (!confirm('삭제할까요?')) return;
-
-        const arr = loadMenu().slice();
-        arr.splice(idx, 1);            // 해당 행 삭제
-        patch(MENU_PATH, () => arr);   // 전역 메뉴에 그대로 저장
-        renderMenu();                  // 화면 다시 그리기
+        const arr = loadMenuForAdmin().slice();
+        arr.splice(idx, 1);
+        patch(PER_STORE_PATH(), () => arr);
+        renderMenu();
       };
     }
   });
 }
 
-// ──────────────────────────────────────────────
-// 상단 "추가" 버튼
-// ──────────────────────────────────────────────
+/**
+ * 상단 "추가" 버튼 바인딩
+ */
 export function bindMenu() {
   const addBtn = document.getElementById('m-add');
   if (!addBtn) return;
@@ -118,21 +142,28 @@ export function bindMenu() {
       return;
     }
 
-    const arr = loadMenu().slice();
+    const arr = loadMenuForAdmin().slice();
     const existingIdx = arr.findIndex((it) => it.id === id);
 
     if (existingIdx >= 0) {
       if (!confirm('이미 존재하는 ID입니다. 덮어쓸까요?')) return;
-      arr[existingIdx] = { ...arr[existingIdx], id, name, price, active: true };
+      arr[existingIdx] = {
+        ...arr[existingIdx],
+        id,
+        name,
+        price,
+        active: true,
+      };
     } else {
       arr.push({ id, name, price, active: true });
     }
 
-    patch(MENU_PATH, () => arr);
+    patch(PER_STORE_PATH(), () => arr);
 
-    if (idEl) idEl.value = '';
-    if (nameEl) nameEl.value = '';
-    if (priceEl) priceEl.value = '';
+    ['m-id', 'm-name', 'm-price'].forEach((fieldId) => {
+      const el = document.getElementById(fieldId);
+      if (el) el.value = '';
+    });
 
     renderMenu();
   };
