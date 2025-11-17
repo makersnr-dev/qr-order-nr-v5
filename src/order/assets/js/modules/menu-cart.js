@@ -13,14 +13,15 @@ function currentStoreId() {
   }
 }
 
-// 2) 스토어별 메뉴 로딩: ['admin','menu', storeId] → ['admin','menu'] → 시드
+// 2) 스토어별 메뉴 로딩:
+//    ['admin','menuByStore', storeId] → ['admin','menu'] → 시드
 export function loadMenu() {
   const storeId = currentStoreId();
 
-  // (A) 스토어별 메뉴 우선
-  let menu = get(['admin', 'menu', storeId]) || [];
+  // (A) 다점포: 매장별 메뉴 우선
+  let menu = get(['admin', 'menuByStore', storeId]) || [];
 
-  // (B) 과거 전역 키 호환
+  // (B) 과거 전역 키 호환 (admin.menu 템플릿)
   if (!Array.isArray(menu) || menu.length === 0) {
     menu = get(['admin', 'menu']) || [];
   }
@@ -41,6 +42,7 @@ export function loadMenu() {
 export function renderMenu(gridId, cart) {
   const list = loadMenu();
   const g = document.getElementById(gridId);
+  if (!g) return;
   g.innerHTML = "";
 
   list.forEach(item => {
@@ -61,9 +63,13 @@ export function renderMenu(gridId, cart) {
 export function makeCart(containerId, totalId) {
   const cart = {
     items: [],
-    total() { return this.items.reduce((s, it) => s + it.price * it.qty, 0); },
+    total() {
+      return this.items.reduce((s, it) => s + it.price * it.qty, 0);
+    },
     render() {
-      const box = document.getElementById(containerId); box.innerHTML = "";
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      box.innerHTML = "";
       if (!this.items.length) {
         box.innerHTML = '<div class="small">담긴 항목이 없습니다. 메뉴를 눌러 추가해주세요.</div>';
       }
@@ -81,12 +87,23 @@ export function makeCart(containerId, totalId) {
              <button class="btn" data-a="plus">+</button>
              <button class="btn" data-a="del">삭제</button>
            </div>`;
-        row.querySelector('[data-a="minus"]').onclick = () => { if (it.qty > 1) it.qty--; else this.items.splice(idx, 1); this.render(); };
-        row.querySelector('[data-a="plus"]').onclick = () => { it.qty++; this.render(); };
-        row.querySelector('[data-a="del"]').onclick = () => { this.items.splice(idx, 1); this.render(); };
+        row.querySelector('[data-a="minus"]').onclick = () => {
+          if (it.qty > 1) it.qty--;
+          else this.items.splice(idx, 1);
+          this.render();
+        };
+        row.querySelector('[data-a="plus"]').onclick = () => {
+          it.qty++;
+          this.render();
+        };
+        row.querySelector('[data-a="del"]').onclick = () => {
+          this.items.splice(idx, 1);
+          this.render();
+        };
         box.appendChild(row);
       });
-      document.getElementById(totalId).textContent = fmt(this.total());
+      const totalEl = document.getElementById(totalId);
+      if (totalEl) totalEl.textContent = fmt(this.total());
     }
   };
   return cart;
