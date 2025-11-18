@@ -1,3 +1,5 @@
+// /src/admin/assets/js/admin.js
+
 import { requireAuth, clearToken } from './modules/auth.js';
 import { initTabs } from './modules/ui.js';
 import {
@@ -12,7 +14,7 @@ import { initQR } from './modules/qr.js';
 import { renderMenu, bindMenu } from './modules/menu.js';
 import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
-import { renderNotify, bindNotify } from './modules/notify.js';
+import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 // ===== 새로고침 폭탄 방지용 공통 유틸 =====
@@ -36,9 +38,9 @@ function makeSafeRefresher(realFn) {
 }
 
 // 탭 3종(매장 / 배달·예약 / 호출로그)에 대한 안전 새로고침 래퍼
-const safeRenderStore       = makeSafeRefresher(renderStore);
-const safeRenderDeliv       = makeSafeRefresher(renderDeliv);
-const safeRenderNotifyLogs  = makeSafeRefresher(renderNotifyLogs);
+const safeRenderStore      = makeSafeRefresher(renderStore);
+const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
+const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 =====
 function resolveStoreId() {
@@ -76,6 +78,7 @@ function resolveStoreId() {
   return sid;
 }
 
+// 초기 storeId (URL 우선)
 const url = new URL(location.href);
 const storeId =
   url.searchParams.get('store') ||
@@ -214,7 +217,7 @@ async function main() {
     };
   }
 
-  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침만 사용)
+  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
   adminChannel.onmessage = async (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
@@ -233,6 +236,10 @@ async function main() {
         }`,
         'info'
       );
+
+      // 🔔 소리 + 데스크탑 알림 트리거 (매장별 설정 반영)
+      notifyEvent(msg);
+
       // 호출 로그 새로고침 (쿨타임 내 중복 호출 차단)
       safeRenderNotifyLogs();
     }
@@ -242,6 +249,10 @@ async function main() {
         `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
         'success'
       );
+
+      // 🔔 소리 + 데스크탑 알림 트리거
+      notifyEvent(msg);
+
       // 매장/배달 주문 목록 새로고침 (각각 쿨타임 처리)
       safeRenderStore();
       safeRenderDeliv();
