@@ -40,39 +40,31 @@
     }
     .success-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-main); }
     .success-text { font-size: 16px; color: var(--text-sub); }
-    .success-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
-    .success-btn {
-      padding: 9px 22px; border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: transparent; color: var(--text-main); font-size: 14px; cursor: pointer;
-      transition: all 0.18s ease;
-    }
-    .success-btn:hover { background: rgba(255, 255, 255, 0.06); border-color: #2563eb; box-shadow: 0 0 18px rgba(37, 99, 235, 0.4); }
     #s { display: none; font-size: 11px; color: rgba(148,163,253,0.5); margin-top: 4px; word-break: break-all; }
   </style>
 </head>
 <body>
   <div class="success-card">
     <div class="success-title">주문이 완료되었습니다.</div>
-    <div class="success-text">결제가 정상적으로 확인되었어요. 잠시 후 주문 페이지로 돌아갑니다.</div>
-    <div id="s"></div>
-    <div class="success-actions">
-      <button class="success-btn" onclick="goBack()">확인</button>
+    <div class="success-text">
+      결제가 정상적으로 확인되었어요.<br/>
+      잠시 후 주문 페이지로 자동 이동합니다.
     </div>
+    <div id="s"></div>
   </div>
 
   <script type="module">
     import { getPendingOrder } from '/src/shared/toss-client.js';
 
+    // 기본 이동 경로 (fallback)
     let redirectPath = '/order/store';
-    window.goBack = () => location.replace(redirectPath);
 
     (async () => {
       const qs = new URLSearchParams(location.search);
       const paymentKey    = qs.get('paymentKey');
       const orderId       = qs.get('orderId');
       const amount        = Number(qs.get('amount') || 0);
-      const queryReturnTo = qs.get('returnTo');
+      const queryReturnTo = qs.get('returnTo'); // /order/store?store=...&table=...
 
       const s = document.getElementById('s');
       if (s) s.textContent = `orderId=${orderId} amount=${amount}`;
@@ -86,6 +78,7 @@
         });
       } catch (e) {
         console.error('confirm err', e);
+        // 실패해도 아래 로직은 계속 진행
       }
 
       let adminEventPayload = null;
@@ -95,6 +88,7 @@
         const pending = getPendingOrder && getPendingOrder();
 
         if (pending) {
+          // 서버 주문 저장
           await fetch('/api/orders', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -104,11 +98,16 @@
           const storeId = pending.storeId || 'store1';
           const table   = pending.table || '';
 
+          // 우선순위 1: pending.returnTo
           if (pending.returnTo) {
             redirectPath = pending.returnTo;
-          } else if (queryReturnTo) {
+          }
+          // 우선순위 2: 쿼리로 넘어온 returnTo (세션 유실 대비)
+          else if (queryReturnTo) {
             redirectPath = queryReturnTo;
-          } else if (pending.type === 'delivery' || pending.type === 'reserve') {
+          }
+          // 우선순위 3: 타입별 기본 경로
+          else if (pending.type === 'delivery' || pending.type === 'reserve') {
             redirectPath = `/order/delivery?store=${encodeURIComponent(storeId)}`;
           } else {
             redirectPath =
@@ -116,20 +115,21 @@
               (table ? `&table=${encodeURIComponent(table)}` : '');
           }
 
-          // ✅ 관리자 알림용 payload 구성
+          // 관리자 알림용 payload
           adminEventPayload = {
             type: 'NEW_ORDER_PAID',
-            orderType: pending.type || 'store',            // 'store' | 'delivery' | 'reserve'
+            orderType: pending.type || 'store', // 'store' | 'delivery' | 'reserve'
             storeId,
             table,
             orderId,
             amount,
             orderName: pending.orderName,
             cart: Array.isArray(pending.cart) ? pending.cart : [],
-            customer: pending.customer || null,            // 배달/예약용
+            customer: pending.customer || null,
             ts: Date.now(),
           };
 
+          // 중복 방지
           try { sessionStorage.removeItem('qrnr.pendingOrder'); } catch {}
         } else {
           console.warn('no pending order found');
@@ -139,7 +139,7 @@
         console.error('save order err', e);
       }
 
-      // 3) 관리자 탭 실시간 알림 (같은 브라우저 한정)
+      // 3) 관리자 탭 실시간 알림 (같은 브라우저)
       try {
         const ch = new BroadcastChannel('qrnr-admin');
         if (adminEventPayload) {
@@ -158,8 +158,10 @@
         console.error('broadcast err', e);
       }
 
-      // 4) 자동 복귀
-      setTimeout(window.goBack, 3000);
+      // 4) 자동 복귀 (확인 버튼 없음)
+      setTimeout(() => {
+        location.replace(redirectPath);
+      }, 3000);
     })();
   </script>
 </body>
