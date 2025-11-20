@@ -116,9 +116,9 @@ async function showDesktopNotification(title, body) {
   try {
     new Notification(title, {
       body,
-      tag: 'qrnr-admin',
+      tag: 'qrnr-admin', // 동일 tag이면 묶어서 표시
       renotify: true,
-      // icon: '/favicon.ico', // 필요하면 아이콘 추가
+      // icon: '/favicon.ico', // 필요하면 아이콘 경로 추가
     });
   } catch (e) {
     console.error('[notify] notification error', e);
@@ -162,6 +162,7 @@ export function bindNotify() {
 
     saveNotifyConfig(() => cfg);
 
+    // 데스크탑 알림 켰으면 권한 요청
     if (desktop && 'Notification' in window) {
       if (Notification.permission === 'default') {
         try {
@@ -196,14 +197,31 @@ export function notifyEvent(msg) {
   let body  = '';
 
   if (isCall) {
+    // 직원 호출
     title = '직원 호출';
     const table = msg.table || '-';
     const note  = msg.note || msg.message || '';
     body = `테이블 ${table}${note ? ' - ' + note : ''}`;
   } else if (isPaid) {
-    const orderType = msg.orderType || ''; // 'store' | 'delivery' | 'reserve'
+    // ── 주문 알림 ─────────────────────
+    // 1) 주문 타입 결정: orderType이 없으면 필드 보고 추론
+    let orderType = msg.orderType || '';
 
-    // 공통: 주문 내역 텍스트
+    if (!orderType) {
+      const hasTable    = !!msg.table;
+      const hasCustomer = !!msg.customer;
+      const hasReserve  = !!(msg.customer && msg.reserveDate);
+
+      if (hasTable && !hasCustomer) {
+        orderType = 'store';
+      } else if (hasReserve) {
+        orderType = 'reserve';
+      } else if (hasCustomer) {
+        orderType = 'delivery';
+      }
+    }
+
+    // 2) 공통: 주문내역 텍스트 만들기
     let itemsText = '';
     if (Array.isArray(msg.cart) && msg.cart.length) {
       itemsText = msg.cart
@@ -213,6 +231,7 @@ export function notifyEvent(msg) {
       itemsText = msg.orderName;
     }
 
+    // 3) 타입별 제목/내용
     if (orderType === 'store') {
       // ✅ 매장 주문
       title = '매장 주문 완료';
@@ -235,7 +254,7 @@ export function notifyEvent(msg) {
         '-';
       body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
     } else {
-      // 타입 정보 없을 때 fallback
+      // 정보 부족할 때 기존 형식으로 fallback
       title = '새 주문 결제 완료';
       const orderId = msg.orderId || '';
       const amount  =
@@ -246,10 +265,12 @@ export function notifyEvent(msg) {
     }
   }
 
+  // 소리
   if (cfg.useBeep) {
     playBeep(cfg.beepVolume ?? 0.7);
   }
 
+  // 데스크탑 알림
   if (cfg.desktop) {
     showDesktopNotification(title, body);
   }
