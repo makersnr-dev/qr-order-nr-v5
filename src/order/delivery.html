@@ -46,8 +46,8 @@
         <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
       </div>
 
-      <!-- 일자 + 예약시간 -->
-      <div class="field-row">
+      <!-- 일자 + 예약시간 (예약에서만 사용) -->
+      <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
         <div class="date-time-row">
           <input id="date" type="date" class="input date-input">
@@ -110,7 +110,7 @@
   const url = new URL(location.href);
   const storeId = url.searchParams.get('store') || 'store1';
 
-  // 시간 선택 셋업
+  // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
   fillTimeSelectors('time');
 
   // 장바구니 / 메뉴
@@ -128,6 +128,7 @@
       get(['admin', 'ownerBank']) ||
       { bank:'', number:'', holder:'' };
 
+    // 예약일 때만 계좌 안내 노출
     document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
     document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
 
@@ -135,7 +136,14 @@
       bank.bank && bank.number
         ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
         : '(관리자에 계좌 정보가 없습니다)';
+
+    // 🔹 예약일 때만 날짜/시간 입력 보이기
+    const dateRow = document.getElementById('date-row');
+    if (dateRow) {
+      dateRow.style.display = isResv ? '' : 'none';
+    }
   }
+
   ['tab-deliv','tab-resv'].forEach(id => {
     document.getElementById(id).addEventListener('change', updateTab);
   });
@@ -253,7 +261,7 @@
     let reserveDate = null;
     let reserveTime = null;
 
-    // 예약(무결제): 날짜+시간 필수
+    // 🔹 예약(무결제): 날짜+시간 필수
     if (isResv) {
       if (!dateInput) {
         alert('예약 날짜를 선택해주세요.');
@@ -298,12 +306,7 @@
       return;
     }
 
-    // 배달(결제): 날짜/시간 선택시 함께 저장(선택)
-    if (dateInput && hasTime) {
-      reserveDate = dateInput;
-      reserveTime = `${ap} ${hh}:${mm}`;
-    }
-
+    // 🔹 배달(결제): 날짜/시간은 사용하지 않음 (reserveDate/Time 저장 X)
     const total = totalAmount();
     if (!total) {
       alert('결제 금액이 올바르지 않습니다.');
@@ -319,8 +322,7 @@
       orderName,
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
-      reserveDate,
-      reserveTime,
+      // reserveDate, reserveTime 은 배달에서는 사용하지 않음
       storeId,
       // 결제 성공 후 돌아올 경로(스토어 유지)
       returnTo: location.pathname + location.search
@@ -329,13 +331,7 @@
     setPendingOrder(pendingPayload);
 
     try {
-      // 성공/실패 URL에도 returnTo를 명시적으로 전달
-      await startPayment({
-        orderId,
-        amount: total,
-        orderName,
-        returnTo: pendingPayload.returnTo,
-      });
+      await startPayment({ orderId, amount: total, orderName /*, returnTo: pendingPayload.returnTo*/ });
     } catch (err) {
       console.error('payment start error', err);
       alert('결제를 시작할 수 없습니다.');
