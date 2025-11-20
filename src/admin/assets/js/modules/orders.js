@@ -1,4 +1,3 @@
-
 import {get, patch, fmt} from './store.js';
 import {showModal} from './ui.js';
 
@@ -28,9 +27,9 @@ export async function syncStoreFromServer() {
     if (!data.ok) return;
 
     const rows = (data.orders || []).map(o => {
-    const time = fmtDateTimeFromOrder(o);
+      const time = fmtDateTimeFromOrder(o);
       
-     const isCall =
+      const isCall =
         o.meta?.kind === 'CALL' ||
         o.orderName === '직원 호출';
 
@@ -46,13 +45,12 @@ export async function syncStoreFromServer() {
         };
       }
 
-      
       const items = (o.cart || []).map(i => ({
         name: i.name ?? i.menuName ?? '메뉴',
         qty: i.qty ?? i.quantity ?? 1
       }));
 
- // 서버 status → 화면 status 매핑
+      // 서버 status → 화면 status 매핑
       let status = '대기';
       if (o.status === '조리중' || o.status === 'cook') status = '조리중';
       else if (o.status === '완료' || o.status === 'done') status = '완료';
@@ -63,7 +61,7 @@ export async function syncStoreFromServer() {
         table: o.table || '-',        // 테이블
         items,                        // 내역
         total: o.amount || 0,         // 금액
-        status    // 상태
+        status                        // 상태
       };
     });
 
@@ -78,6 +76,7 @@ export async function syncStoreFromServer() {
 const $=(s,r=document)=>r.querySelector(s);
 const EMPTY_ROW = '<tr><td colspan="8" class="small">주문 없음</td></tr>';
 const filters = { store:{from:'',to:'',status:'',search:''}, deliv:{from:'',to:'',status:'',search:''} };
+
 function matchOrder(o, from, to, status, search){
   const t = o.time? new Date(o.time) : null;
   if(from && (!t || t < new Date(from))) return false;
@@ -88,6 +87,7 @@ function matchOrder(o, from, to, status, search){
   if(s && !fields.includes(s)) return false;
   return true;
 }
+
 export function bindFilters(){
   function bind(prefix,key){
     const f = filters[key];
@@ -98,11 +98,16 @@ export function bindFilters(){
     $('#'+prefix+'-reset').onclick=()=>{
       f.from=f.to=f.status=f.search=''; ['from','to','status','search'].forEach(x=>$('#'+prefix+'-'+x).value=''); key==='store'?renderStore():renderDeliv();
     };
-  } bind('store','store'); bind('deliv','deliv');
+  }
+  bind('store','store');
+  bind('deliv','deliv');
 }
+
 export function exportOrders(type){
   const rows = get(['admin', type]); if(!rows || !rows.length){ alert('데이터가 없습니다.'); return; }
-  const cols = type==='ordersStore'? ['시간','테이블','내역','금액','상태'] : ['시간','주문자','연락처','주소','예약','금액','상태','내역'];
+  const cols = type==='ordersStore'
+    ? ['시간','테이블','내역','금액','상태']
+    : ['시간','주문자','연락처','주소','예약','금액','상태','내역'];
   const data=[cols];
   rows.forEach(o=>{
     const t = o.time || fmtDateTimeFromOrder(o);
@@ -117,15 +122,16 @@ export function exportOrders(type){
   const a=document.createElement('a'); const today=new Date().toISOString().slice(0,10);
   a.href=URL.createObjectURL(blob); a.download=(type==='ordersStore'?`store_${today}.xlsx`:`delivery_${today}.xlsx`); a.click(); URL.revokeObjectURL(a.href);
 }
+
 export async function renderStore() {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
   try {
     const storeId = window.qrnrStoreId || 'store1';
-const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, {
-  cache: 'no-store'
-});
+    const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, {
+      cache: 'no-store'
+    });
     const data = await res.json().catch(() => ({ orders: [] }));
     const rows = (data.orders || []).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
@@ -190,16 +196,17 @@ export async function renderDeliv() {
 
   try {
     const storeId = window.qrnrStoreId || 'store1';
+
     // 1) 배달 주문
-   const r1 = await fetch(`/api/orders?type=delivery&storeId=${encodeURIComponent(storeId)}`, {
-  cache: 'no-store'
-});
+    const r1 = await fetch(`/api/orders?type=delivery&storeId=${encodeURIComponent(storeId)}`, {
+      cache: 'no-store'
+    });
     const d1 = await r1.json().catch(() => ({ orders: [] }));
 
     // 2) 예약 주문
     const r2 = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, {
-  cache: 'no-store'
-});
+      cache: 'no-store'
+    });
     const d2 = await r2.json().catch(() => ({ orders: [] }));
 
     // 합치고 최신순 정렬
@@ -216,29 +223,44 @@ export async function renderDeliv() {
       return;
     }
 
-    rows.forEach((o, idx) => {
+    rows.forEach((o) => {
       const time = fmtDateTimeFromOrder(o);
+
+      // 🔹 타입 판별: delivery / reserve
+      const isReserve =
+        o.type === 'reserve' ||
+        o.orderType === 'reserve';
+      const typeLabel = isReserve ? '[예약] ' : '[배달] ';
 
       // 주문자 / 연락처
       const customer = o.customer || {};
-      const name = customer.name || o.name || '-';
+      const name = typeLabel + (customer.name || o.name || '-');   // ✅ [배달]/[예약] 표시
       const phone = customer.phone || o.phone || '-';
 
-      // 주소 (payload에서 customer.addr 로 보냈던 값)
+      // 주소
       const addr =
         customer.addr ||
         customer.address ||
         o.addr ||
         '-';
 
-      // 예약일자 / 예약시간
-      // delivery.html 에서 reserveDate, time(예약시간) 넣어줬다고 가정
-      const reserveDate = o.reserveDate || (o.meta && o.meta.reserveDate) || '-';
-      const reserveTime =
-  o.reserveTime ||        // ✅ 우리가 저장한 필드
-  o.time ||               // 혹시 과거 데이터에서 time에 넣은 경우
-  (o.meta && o.meta.reserveTime) ||
-  '-';
+      // 🔹 예약일자 / 예약시간
+      //  - 예약 주문일 때만 실제 값 사용
+      //  - 배달 주문이면 항상 '-' 로 표시
+      let reserveDate = '-';
+      let reserveTime = '-';
+
+      if (isReserve) {
+        reserveDate =
+          o.reserveDate ||
+          (o.meta && o.meta.reserveDate) ||
+          '-';
+
+        reserveTime =
+          o.reserveTime ||        // 우리가 저장한 필드
+          (o.meta && o.meta.reserveTime) ||
+          '-';
+      }
 
       // 요청사항
       const req =
@@ -337,4 +359,3 @@ export function attachGlobalHandlers() {
     // data-detail="${idx},store" / "${idx},delivery" 로 모달 띄우는 기능 구현 가능
   });
 }
-
