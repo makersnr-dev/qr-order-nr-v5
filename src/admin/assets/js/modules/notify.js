@@ -57,7 +57,6 @@ const BEEP_COOLDOWN_MS = 3000; // 3초에 한 번만
 function playBeep(volume = 0.7) {
   const now = Date.now();
   if (now - lastBeepAt < BEEP_COOLDOWN_MS) {
-    // 너무 자주 울리면 무시
     return;
   }
   lastBeepAt = now;
@@ -80,7 +79,7 @@ function playBeep(volume = 0.7) {
     gain.connect(audioCtx.destination);
 
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.2); // 0.2초짜리 삐-
+    osc.stop(audioCtx.currentTime + 0.2);
   } catch (e) {
     console.error('[notify] beep error', e);
   }
@@ -117,8 +116,9 @@ async function showDesktopNotification(title, body) {
   try {
     new Notification(title, {
       body,
-      tag: 'qrnr-admin', // 동일 tag면 묶어서 표시
+      tag: 'qrnr-admin',
       renotify: true,
+      // icon: '/favicon.ico', // 필요하면 아이콘 추가
     });
   } catch (e) {
     console.error('[notify] notification error', e);
@@ -162,7 +162,6 @@ export function bindNotify() {
 
     saveNotifyConfig(() => cfg);
 
-    // 데스크탑 알림 켰으면 권한 요청
     if (desktop && 'Notification' in window) {
       if (Notification.permission === 'default') {
         try {
@@ -202,24 +201,56 @@ export function notifyEvent(msg) {
     const note  = msg.note || msg.message || '';
     body = `테이블 ${table}${note ? ' - ' + note : ''}`;
   } else if (isPaid) {
-    title = '새 주문 결제 완료';
-    const orderId = msg.orderId || '';
-    const amount  =
-      typeof msg.amount === 'number'
-        ? fmt(msg.amount) + '원'
-        : '';
-    body = `주문번호 ${orderId}${amount ? ' / ' + amount : ''}`;
+    const orderType = msg.orderType || ''; // 'store' | 'delivery' | 'reserve'
+
+    // 공통: 주문 내역 텍스트
+    let itemsText = '';
+    if (Array.isArray(msg.cart) && msg.cart.length) {
+      itemsText = msg.cart
+        .map((i) => `${i.name} x${i.qty}`)
+        .join(', ');
+    } else if (msg.orderName) {
+      itemsText = msg.orderName;
+    }
+
+    if (orderType === 'store') {
+      // ✅ 매장 주문
+      title = '매장 주문 완료';
+      const table = msg.table || '-';
+      body = `테이블 ${table}${itemsText ? ' · ' + itemsText : ''}`;
+    } else if (orderType === 'delivery') {
+      // ✅ 배달 주문
+      title = '배달 주문 완료';
+      const name =
+        (msg.customer && msg.customer.name) ||
+        msg.customerName ||
+        '-';
+      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
+    } else if (orderType === 'reserve') {
+      // ✅ 예약 주문
+      title = '예약 주문 완료';
+      const name =
+        (msg.customer && msg.customer.name) ||
+        msg.customerName ||
+        '-';
+      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
+    } else {
+      // 타입 정보 없을 때 fallback
+      title = '새 주문 결제 완료';
+      const orderId = msg.orderId || '';
+      const amount  =
+        typeof msg.amount === 'number'
+          ? fmt(msg.amount) + '원'
+          : '';
+      body = `주문번호 ${orderId}${amount ? ' / ' + amount : ''}`;
+    }
   }
 
-  // 소리
   if (cfg.useBeep) {
     playBeep(cfg.beepVolume ?? 0.7);
   }
 
-  // 데스크탑 알림
   if (cfg.desktop) {
     showDesktopNotification(title, body);
   }
-
-  // webhook은 나중에 진짜 필요해지면 여기서 fetch 추가하면 됨.
 }
