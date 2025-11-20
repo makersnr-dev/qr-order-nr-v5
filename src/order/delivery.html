@@ -118,6 +118,44 @@
   cart.render();
   renderMenu('menu-grid', cart);
 
+  // ✅ 토스트 UI: 복사되었습니다 표시용
+  let copyToastTimer = null;
+  function showCopyToast(message = '복사되었습니다.') {
+    let box = document.getElementById('copy-toast');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'copy-toast';
+      box.style.position = 'fixed';
+      box.style.left = '50%';
+      box.style.bottom = '24px';
+      box.style.transform = 'translateX(-50%)';
+      box.style.padding = '8px 16px';
+      box.style.borderRadius = '999px';
+      box.style.fontSize = '13px';
+      box.style.background = 'rgba(0,0,0,0.75)';
+      box.style.color = '#fff';
+      box.style.zIndex = '9999';
+      box.style.opacity = '0';
+      box.style.transition = 'opacity 0.2s ease';
+      document.body.appendChild(box);
+    }
+    box.textContent = message;
+
+    // 이미 떠있는 상태면 타이머 리셋
+    if (copyToastTimer) {
+      clearTimeout(copyToastTimer);
+      copyToastTimer = null;
+    }
+
+    // 살짝 보였다가 3초 후 사라짐
+    requestAnimationFrame(() => {
+      box.style.opacity = '1';
+      copyToastTimer = setTimeout(() => {
+        box.style.opacity = '0';
+      }, 3000);
+    });
+  }
+
   // 탭 전환 UI
   function updateTab() {
     const isResv = document.getElementById('tab-resv').checked;
@@ -149,11 +187,25 @@
   });
   updateTab();
 
-  // 계좌 복사
-  document.getElementById('bank-copy').onclick = () => {
-    const txt = document.getElementById('bank-text').textContent;
-    if (txt) navigator.clipboard.writeText(txt);
-  };
+  // ✅ 계좌 복사 + 토스트
+  const bankCopyBtn = document.getElementById('bank-copy');
+  if (bankCopyBtn) {
+    bankCopyBtn.onclick = async () => {
+      const txt = document.getElementById('bank-text').textContent.trim();
+      if (!txt || txt.startsWith('(관리자에 계좌 정보가 없습니다')) {
+        alert('복사할 계좌 정보가 없습니다.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(txt);
+        showCopyToast('계좌번호가 복사되었습니다.');
+      } catch (e) {
+        console.error('clipboard error', e);
+        // Clipboard API 미지원 브라우저용
+        showCopyToast('복사를 지원하지 않는 브라우저입니다.');
+      }
+    };
+  }
 
   // 주소 검색
   function openAddrSearch() {
