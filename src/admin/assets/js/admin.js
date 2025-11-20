@@ -17,6 +17,14 @@ import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
+// ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
+if (typeof window !== 'undefined' && 'Notification' in window) {
+  if (Notification.permission === 'default') {
+    // 사용자가 이미 허용/차단한 상태가 아니면 한 번만 물어봄
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
 // ===== 새로고침 폭탄 방지용 공통 유틸 =====
 const REFRESH_COOLDOWN_MS = 5000; // 5초 안에 여러 번 호출돼도 실제 실행은 1번만
 
