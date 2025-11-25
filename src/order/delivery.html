@@ -141,13 +141,11 @@
     }
     box.textContent = message;
 
-    // 이미 떠있는 상태면 타이머 리셋
     if (copyToastTimer) {
       clearTimeout(copyToastTimer);
       copyToastTimer = null;
     }
 
-    // 살짝 보였다가 3초 후 사라짐
     requestAnimationFrame(() => {
       box.style.opacity = '1';
       copyToastTimer = setTimeout(() => {
@@ -166,7 +164,6 @@
       get(['admin', 'ownerBank']) ||
       { bank:'', number:'', holder:'' };
 
-    // 예약일 때만 계좌 안내 노출
     document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
     document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
 
@@ -175,7 +172,7 @@
         ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
         : '(관리자에 계좌 정보가 없습니다)';
 
-    // 🔹 예약일 때만 날짜/시간 입력 보이기
+    // 예약일 때만 날짜/시간 입력 보이기
     const dateRow = document.getElementById('date-row');
     if (dateRow) {
       dateRow.style.display = isResv ? '' : 'none';
@@ -201,7 +198,6 @@
         showCopyToast('계좌번호가 복사되었습니다.');
       } catch (e) {
         console.error('clipboard error', e);
-        // Clipboard API 미지원 브라우저용
         showCopyToast('복사를 지원하지 않는 브라우저입니다.');
       }
     };
@@ -224,14 +220,12 @@
     }).open();
   }
 
-  // "배송지" 라벨 클릭 시 주소검색
   const addrLabel = document.querySelector('.addr-label');
   if (addrLabel) {
     addrLabel.addEventListener('click', openAddrSearch);
     addrLabel.classList.add('clickable-label');
   }
 
-  // 빈 칸일 때 인풋 클릭으로도 열기(선택)
   const addrInput = document.getElementById('addr');
   if (addrInput) {
     addrInput.addEventListener('click', () => {
@@ -313,7 +307,7 @@
     let reserveDate = null;
     let reserveTime = null;
 
-    // 🔹 예약(무결제): 날짜+시간 필수
+    // ✅ 예약(무결제): 날짜+시간 필수
     if (isResv) {
       if (!dateInput) {
         alert('예약 날짜를 선택해주세요.');
@@ -327,9 +321,14 @@
       reserveDate = dateInput;
       reserveTime = `${ap} ${hh}:${mm}`;
 
+      // ✅ 서버 검증 통과를 위한 orderId / amount
+      const orderId = 'RESV-' + Date.now();
+      const amount  = Number(totalAmount() || 0);
+
       const payload = {
+        orderId,                     // 🔴 추가
         type: 'reserve',
-        amount: totalAmount(),
+        amount,
         orderName: '예약 주문',
         cart: items,
         customer: { name: cust, phone, addr, req: memo },
@@ -348,8 +347,7 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
-        // 돌아갈 원래 페이지(스토어 유지)
-        const back = location.pathname + location.search; // 예: /src/order/delivery.html?store=narae
+        const back = location.pathname + location.search;
         location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
       } catch (err) {
         console.error('reserve save err', err);
@@ -358,7 +356,7 @@
       return;
     }
 
-    // 🔹 배달(결제): 날짜/시간은 사용하지 않음 (reserveDate/Time 저장 X)
+    // 🔹 배달(결제): 날짜/시간은 사용하지 않음
     const total = totalAmount();
     if (!total) {
       alert('결제 금액이 올바르지 않습니다.');
@@ -374,16 +372,14 @@
       orderName,
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
-      // reserveDate, reserveTime 은 배달에서는 사용하지 않음
       storeId,
-      // 결제 성공 후 돌아올 경로(스토어 유지)
       returnTo: location.pathname + location.search
     };
 
     setPendingOrder(pendingPayload);
 
     try {
-      await startPayment({ orderId, amount: total, orderName /*, returnTo: pendingPayload.returnTo*/ });
+      await startPayment({ orderId, amount: total, orderName });
     } catch (err) {
       console.error('payment start error', err);
       alert('결제를 시작할 수 없습니다.');
