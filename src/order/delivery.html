@@ -11,8 +11,10 @@
   <div class="hstack" style="justify-content:space-between">
     <h1>배달/예약</h1>
     <div class="hstack" style="gap:8px">
-      <a class="btn" href="/src/order/mypage.html">마이페이지</a>
-      <a class="btn" href="/src/order/select.html">주문 유형</a>
+      <!-- ✅ storeId를 JS에서 붙이기 위해 id 부여, href는 임시 -->
+      <a id="btn-mypage" class="btn" href="#">마이페이지</a>
+      <!-- ✅ 주문 유형 선택 페이지는 제거 -->
+      <!-- <a class="btn" href="/src/order/select.html">주문 유형</a> -->
     </div>
   </div>
 
@@ -110,6 +112,18 @@
   const url = new URL(location.href);
   const storeId = url.searchParams.get('store') || 'store1';
 
+  // ✅ 이 매장을 "마지막 매장"으로 기억해서 마이페이지에서 재사용
+  try {
+    localStorage.setItem('qrnr.lastStoreId', storeId);
+  } catch (_) {}
+
+  // ✅ 마이페이지 버튼에 storeId를 붙여서 이동
+  const btnMypage = document.getElementById('btn-mypage');
+  if (btnMypage) {
+    btnMypage.href =
+      '/src/order/mypage.html?store=' + encodeURIComponent(storeId);
+  }
+
   // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
   fillTimeSelectors('time');
 
@@ -164,6 +178,7 @@
       get(['admin', 'ownerBank']) ||
       { bank:'', number:'', holder:'' };
 
+    // 예약일 때만 계좌 안내 노출
     document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
     document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
 
@@ -172,7 +187,7 @@
         ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
         : '(관리자에 계좌 정보가 없습니다)';
 
-    // 예약일 때만 날짜/시간 입력 보이기
+    // 🔹 예약일 때만 날짜/시간 입력 보이기
     const dateRow = document.getElementById('date-row');
     if (dateRow) {
       dateRow.style.display = isResv ? '' : 'none';
@@ -198,6 +213,7 @@
         showCopyToast('계좌번호가 복사되었습니다.');
       } catch (e) {
         console.error('clipboard error', e);
+        // Clipboard API 미지원 브라우저용
         showCopyToast('복사를 지원하지 않는 브라우저입니다.');
       }
     };
@@ -220,12 +236,14 @@
     }).open();
   }
 
+  // "배송지" 라벨 클릭 시 주소검색
   const addrLabel = document.querySelector('.addr-label');
   if (addrLabel) {
     addrLabel.addEventListener('click', openAddrSearch);
     addrLabel.classList.add('clickable-label');
   }
 
+  // 빈 칸일 때 인풋 클릭으로도 열기(선택)
   const addrInput = document.getElementById('addr');
   if (addrInput) {
     addrInput.addEventListener('click', () => {
@@ -307,7 +325,7 @@
     let reserveDate = null;
     let reserveTime = null;
 
-    // ✅ 예약(무결제): 날짜+시간 필수
+    // 🔹 예약(무결제): 날짜+시간 필수
     if (isResv) {
       if (!dateInput) {
         alert('예약 날짜를 선택해주세요.');
@@ -321,14 +339,9 @@
       reserveDate = dateInput;
       reserveTime = `${ap} ${hh}:${mm}`;
 
-      // ✅ 서버 검증 통과를 위한 orderId / amount
-      const orderId = 'RESV-' + Date.now();
-      const amount  = Number(totalAmount() || 0);
-
       const payload = {
-        orderId,                     // 🔴 추가
         type: 'reserve',
-        amount,
+        amount: totalAmount(),
         orderName: '예약 주문',
         cart: items,
         customer: { name: cust, phone, addr, req: memo },
@@ -347,6 +360,7 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
+        // 돌아갈 원래 페이지(스토어 유지)
         const back = location.pathname + location.search;
         location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
       } catch (err) {
@@ -379,7 +393,7 @@
     setPendingOrder(pendingPayload);
 
     try {
-      await startPayment({ orderId, amount: total, orderName });
+      await startPayment({ orderId, amount: total, orderName /*, returnTo: pendingPayload.returnTo*/ });
     } catch (err) {
       console.error('payment start error', err);
       alert('결제를 시작할 수 없습니다.');
