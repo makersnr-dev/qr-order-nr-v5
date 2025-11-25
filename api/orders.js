@@ -70,7 +70,7 @@ function makeTimeMeta() {
   const hh = String(kstDate.getUTCHours()).padStart(2, '0');
   const mm = String(kstDate.getUTCMinutes()).padStart(2, '0');
 
-  const date = `${y}-${m}-${d}`;          // 예: 2025-11-14
+  const date = `${y}-${m}-${d}`;                // 예: 2025-11-14
   const dateTime = `${y}-${m}-${d} ${hh}:${mm}`; // 예: 2025-11-14 10:10
 
   return { ts, date, dateTime };
@@ -183,7 +183,8 @@ async function handleGet(req, res) {
  *   reserveTime,
  *   memo,
  *   meta,
- *   storeId
+ *   storeId,
+ *   agreePrivacy   // ✅ 개인정보 동의 여부 (true/false)
  * }
  *
  * toss-success.html 에서 호출하는 구조를 그대로 유지
@@ -205,6 +206,7 @@ async function handlePost(req, res) {
     memo,
     meta,
     storeId,
+    agreePrivacy,
   } = body;
 
   // 최소 필드 검증 (필요 시 더 추가 가능)
@@ -219,13 +221,13 @@ async function handlePost(req, res) {
   const orders = await loadOrders();
 
   // 내부적으로 사용할 고유 id
-  // (기존 body.Id가 있으면 우선 사용 → admin 쪽과 호환)
+  // (기존 body.id가 있으면 우선 사용 → admin 쪽과 호환)
   const id =
     body.id ||
     orderId ||
     `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
- const { ts, date, dateTime } = makeTimeMeta();
+  const { ts, date, dateTime } = makeTimeMeta();
 
   const newOrder = {
     id,
@@ -245,6 +247,8 @@ async function handlePost(req, res) {
     ts,
     date,
     dateTime,
+    // ✅ 개인정보 동의 여부 저장 (기본 false)
+    agreePrivacy: !!agreePrivacy,
   };
 
   orders.push(newOrder);
