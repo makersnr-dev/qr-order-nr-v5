@@ -1,96 +1,94 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>예약 완료</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --bg: #02040a;
-      --card-bg: #0d1117;
-      --text-main: #ffffff;
-      --text-sub: #9ca3af;
-      --radius: 24px;
-    }
-    * { box-sizing: border-box; }
     body {
-      margin: 0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg);
-      font-family: -apple-system, BlinkMacSystemFont, system-ui, -sans-serif;
-      color: var(--text-main);
+      background: #02040a;
+      color: #fff;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     }
-    .success-card {
-      padding: 32px 40px;
-      max-width: 720px;
+    .card {
+      max-width: 420px;
       width: calc(100% - 40px);
-      background:
-        radial-gradient(circle at top left, rgba(255,255,255,0.03), transparent),
-        var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow:
-        0 18px 60px rgba(0, 0, 0, 0.7),
-        0 0 0 1px rgba(255, 255, 255, 0.03);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      padding: 28px 24px 24px;
+      border-radius: 16px;
+      background: #0d1117;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.55);
+      text-align: center;
     }
-    .success-title {
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text-main);
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
     }
-    .success-text {
-      font-size: 15px;
-      color: var(--text-sub);
-    }
-    .success-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 18px;
-    }
-    .success-btn {
-      padding: 9px 22px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: transparent;
-      color: var(--text-main);
+    .msg {
       font-size: 14px;
-      cursor: pointer;
-      transition: all 0.18s ease;
+      color: #9ca3af;
+      margin-bottom: 16px;
+      line-height: 1.5;
     }
-    .success-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: #2563eb;
-      box-shadow: 0 0 18px rgba(37, 99, 235, 0.4);
+    .small {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .link-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      text-decoration: none;
+      font-size: 13px;
+      color: #e5e7eb;
     }
   </style>
 </head>
 <body>
-  <div class="success-card">
-    <div class="success-title">예약이 등록되었습니다.</div>
-    <div class="success-text">
-      요청하신 예약 정보를 접수했어요.<br/>
-      잠시 후 예약/배달 주문 페이지로 돌아갑니다.
+  <div class="card">
+    <div class="title">예약이 완료되었습니다.</div>
+    <div class="msg">
+      주문해 주셔서 감사합니다.<br>
+      잠시 후 이전 화면으로 자동 이동합니다.
     </div>
-    <div class="success-actions">
-      <button class="success-btn" onclick="goBack()">확인</button>
+    <div class="small">
+      자동으로 이동하지 않으면 아래 버튼을 눌러 주세요.
     </div>
+    <a id="back-link" class="link-btn" href="#">이전 화면으로 이동</a>
   </div>
 
   <script>
-    function goBack() {
-      // 배달/예약 작성 페이지로 복귀
-      location.replace('/src/order/delivery.html');
-      // 라우팅 구조에 따라 '/order/delivery' 를 쓰는 경우면 그걸로 변경
-    }
+    // returnTo 파라미터에서 돌아갈 주소 읽기
+    (function(){
+      try {
+        const url = new URL(location.href);
+        const returnTo = url.searchParams.get('returnTo') || '/src/order/select.html';
 
-    // 자동 복귀
-    setTimeout(goBack, 3000);
+        const link = document.getElementById('back-link');
+        link.href = returnTo;
+
+        // 2.5초 후 자동 이동
+        setTimeout(function () {
+          location.replace(returnTo);
+        }, 2500);
+      } catch (e) {
+        // 파싱 실패 시 기본 화면으로
+        console.error('reserve-success returnTo parse error', e);
+        const fallback = '/src/order/select.html';
+        document.getElementById('back-link').href = fallback;
+        setTimeout(function () {
+          location.replace(fallback);
+        }, 2500);
+      }
+    })();
   </script>
 </body>
 </html>
