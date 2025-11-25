@@ -12,7 +12,7 @@
     <h1>배달/예약</h1>
     <div class="hstack" style="gap:8px">
       <a class="btn" href="/src/order/mypage.html">마이페이지</a>
-      <!-- 주문 유형 선택 페이지는 나중에 없앨 예정이므로 일단 주석 처리하거나 제거 가능 -->
+      <!-- 주문 유형 선택 페이지는 나중에 제거 예정이니 일단 주석 -->
       <!-- <a class="btn" href="/src/order/select.html">주문 유형</a> -->
     </div>
   </div>
@@ -47,20 +47,6 @@
         <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
       </div>
 
-      <!-- ✅ 개인정보 수집·이용 동의 (배달/예약 공통, 필수) -->
-      <div class="field-row">
-        <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px">
-          <label class="hstack small" style="gap:6px;align-items:flex-start">
-            <input type="checkbox" id="agree-privacy" style="margin-top:3px">
-            <span>
-              (필수) 배달/예약 주문을 위해 이름, 연락처, 주소를 수집·이용하는 것에 동의합니다.<br/>
-              수집된 정보는 주문 처리 및 고객 응대 목적으로만 사용되며, 관련 법령에 따른 보관 기간 후 안전하게 파기됩니다.
-            </span>
-          </label>
-        </div>
-      </div>
-
       <!-- 일자 + 예약시간 (예약에서만 사용) -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
@@ -77,6 +63,23 @@
       <div class="field-row">
         <div class="field-label">요청사항</div>
         <textarea id="memo" class="input" rows="4"></textarea>
+      </div>
+
+      <!-- ✅ 개인정보 수집·이용 동의 (요청사항 아래로 이동) -->
+      <div class="field-row">
+        <div class="field-label">개인정보</div>
+        <div class="vstack" style="gap:4px">
+          <label class="hstack small" style="gap:6px;align-items:flex-start">
+            <input type="checkbox" id="agree-privacy" style="margin-top:3px">
+            <span>
+              (필수) 배달/예약 주문을 위해 이름, 연락처, 주소를 수집·이용하는 것에 동의합니다.<br/>
+              수집된 정보는 주문 처리 및 고객 응대 목적으로만 사용되며, 관련 법령에 따른 보관 기간 후 안전하게 파기됩니다.
+            </span>
+          </label>
+          <button type="button" id="privacy-open" class="btn small" style="align-self:flex-start;">
+            개인정보 처리방침 전문 보기
+          </button>
+        </div>
       </div>
 
       <!-- 예약(무결제)일 때만 보이는 계좌 안내 -->
@@ -106,6 +109,55 @@
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
+  </div>
+</div>
+
+<!-- ✅ 개인정보 처리방침 모달 -->
+<div id="privacy-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9998;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#020617;
+    border-radius:12px;
+    padding:16px 18px;
+    max-width:520px;
+    width:calc(100% - 40px);
+    max-height:80vh;
+    overflow:auto;
+    box-shadow:0 10px 40px rgba(0,0,0,0.45);
+    font-size:13px;
+  ">
+    <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
+    <div id="privacy-modal-body" class="small" style="white-space:pre-wrap; line-height:1.5;">
+[개인정보 수집·이용 안내]
+
+1. 수집 항목
+- 필수: 주문자 이름, 연락처, 배송지 주소, 주문 내역
+
+2. 수집·이용 목적
+- 배달/예약 주문 접수 및 처리
+- 고객 문의 대응 및 주문 관련 안내
+
+3. 보유 및 이용 기간
+- 관련 법령(전자상거래 등에서의 소비자 보호에 관한 법률 등)에 따른 보존 기간 동안 보관 후 지체 없이 파기됩니다.
+- 단, 분쟁 발생 시 해결을 위한 범위 내에서 추가 보관될 수 있습니다.
+
+4. 동의 거부 권리 및 불이익
+- 이용자는 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다.
+- 다만, 필수 항목에 대한 동의를 거부할 경우 배달/예약 서비스 이용이 제한될 수 있습니다.
+
+5. 기타
+- 개인정보 처리와 관련된 상세 문의는 매장 운영자에게 연락해주시기 바랍니다.
+    </div>
+    <div class="hstack" style="justify-content:flex-end;margin-top:12px;gap:8px">
+      <button type="button" id="privacy-close" class="btn">닫기</button>
+    </div>
   </div>
 </div>
 
@@ -271,6 +323,30 @@
     phoneInput.addEventListener('blur', () => {
       const formatted = formatPhone(phoneInput.value);
       phoneInput.value = formatted || phoneInput.value;
+    });
+  }
+
+  // ✅ 개인정보 처리방침 모달 열기/닫기
+  const privacyModal = document.getElementById('privacy-modal');
+  const privacyOpen  = document.getElementById('privacy-open');
+  const privacyClose = document.getElementById('privacy-close');
+
+  if (privacyOpen && privacyModal) {
+    privacyOpen.addEventListener('click', () => {
+      privacyModal.style.display = 'flex';
+    });
+  }
+  if (privacyClose && privacyModal) {
+    privacyClose.addEventListener('click', () => {
+      privacyModal.style.display = 'none';
+    });
+  }
+  if (privacyModal) {
+    privacyModal.addEventListener('click', (e) => {
+      // 배경 클릭 시 닫기
+      if (e.target === privacyModal) {
+        privacyModal.style.display = 'none';
+      }
     });
   }
 
