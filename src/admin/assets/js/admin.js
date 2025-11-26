@@ -1,5 +1,5 @@
 // /src/admin/assets/js/admin.js
-
+import { renderPolicy, bindPolicy } from './modules/policy.js';
 import { requireAuth, clearToken } from './modules/auth.js';
 import { initTabs } from './modules/ui.js';
 import {
@@ -216,6 +216,10 @@ async function main() {
   // 호출 로그: 초기 렌더 + 바인딩
   safeRenderNotifyLogs();
   bindNotifyLogs();
+
+   // 🔹 개인정보 처리방침
+  renderPolicy();
+  bindPolicy();
 
   // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
   const notifyRefresh = document.getElementById('notify-log-refresh');
