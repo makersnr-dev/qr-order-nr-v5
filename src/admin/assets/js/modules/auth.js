@@ -1,4 +1,4 @@
-// src/admin/assets/js/modules/auth.js 
+// /src/admin/assets/js/modules/auth.js
 // 관리자(SUPER 포함) 공통 인증 모듈
 
 const TOKEN_KEY = 'qrnr.jwt';
@@ -31,7 +31,7 @@ export function clearToken() {
   }
 }
 
-// JWT payload 디코딩 (디버깅용 / 선택)
+// JWT payload 디코딩 (필요하면 사용)
 export function decodeToken(t) {
   if (!t) return null;
   const parts = t.split('.');
@@ -46,15 +46,16 @@ export function decodeToken(t) {
 }
 
 // 로그인이 꼭 필요한 페이지에서 호출:
-//  await requireAuth('admin');  또는  await requireAuth('super');
+//   await requireAuth('admin');
+//   await requireAuth('super');
 export async function requireAuth(realm) {
   const here = location.pathname;
-  const loginPath = '/admin/login'; // 실제 로그인 페이지 경로에 맞게 조정 가능
+  const loginPath = '/admin/login'; // 실제 로그인 페이지 경로에 맞게 필요하면 조정
 
   try {
     const t = getToken();
 
-    // 1) 토큰 자체가 없음 → 로그인 페이지로
+    // 1) 토큰조차 없으면 → 로그인 페이지로
     if (!t) {
       if (!here.startsWith(loginPath)) {
         location.href = loginPath;
@@ -62,7 +63,7 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // 2) /api/verify 에 JSON 형식으로 토큰 보내기
+    // 2) /api/verify 에 JSON 형식으로 토큰 보내기 (★ 핵심 수정)
     const r = await fetch('/api/verify', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -84,7 +85,7 @@ export async function requireAuth(realm) {
 
     const need = realm || 'admin'; // 기본은 admin
     if (p.realm !== need) {
-      // 예: SUPER 토큰으로 admin-only 페이지 오거나 반대 경우
+      // SUPER 토큰으로 admin-only 페이지에 오거나, 반대의 경우 등
       clearToken();
       if (!here.startsWith(loginPath)) {
         location.href = loginPath;
@@ -92,7 +93,7 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // 여기까지 왔으면 인증 성공
+    // 여기까지 왔으면 인증 OK
     return p;
   } catch (e) {
     console.error('[auth] requireAuth error', e);
@@ -103,13 +104,12 @@ export async function requireAuth(realm) {
   }
 }
 
-// 이미 로그인돼 있으면 /admin/login 에서 바로 /admin 으로 보내기
+// 이미 로그인 돼 있으면 /admin/login 에서 바로 /admin 으로 보내기
 export function redirectIfLoggedIn() {
   const here = location.pathname;
   const t = getToken();
   if (!t) return;
 
-  // 토큰이 있긴 하지만, realm 이 admin/super 인지 한 번 더 확인해도 됨
   const payload = decodeToken(t);
   if (!payload || !payload.realm) return;
 
