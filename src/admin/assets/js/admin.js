@@ -297,10 +297,10 @@ async function main() {
   // ⚠️ 여러 매장을 동시에 쓰지 않는다면,
   //    일단 매장 불일치 필터는 잠시 꺼두는 게 안전함.
   //    (필요하면 나중에 다시 조건을 세게 걸자)
-  // if (msg.storeId && msg.storeId !== currentStoreId) {
-  //   console.log('[adminChannel] ignore due to store mismatch');
-  //   return;
-  // }
+  if (msg.storeId && msg.storeId !== currentStoreId) {
+     console.log('[adminChannel] ignore due to store mismatch');
+     return;
+   }
 
   if (msg.type === 'CALL') {
     showToast(
