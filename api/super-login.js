@@ -1,19 +1,19 @@
 // /api/super-login.js
-// SUPER_ADMINS_JSON + JWT 기반 SUPER 로그인 API
+// SUPER_ADMINS_JSON + JWT 기반 SUPER 로그인 API (CommonJS 스타일)
 // POST { id, password } -> { ok, token, user }
 
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-dev-secret';
 
-// 요청 body 읽기 유틸 (Node http.ServerResponse 기준)
+// 요청 body 읽기 유틸
 async function readBody(req) {
   return await new Promise((resolve, reject) => {
     let data = '';
     req.on('data', (chunk) => {
       data += chunk;
-      // 혹시 너무 큰 요청이 들어오면 방어
       if (data.length > 1e6) {
+        // 너무 큰 요청 방어
         req.destroy();
         reject(new Error('Body too large'));
       }
@@ -24,8 +24,8 @@ async function readBody(req) {
 }
 
 // SUPER_ADMINS_JSON 파싱
-// - 객체 형태: { "super": "pw", "owner": "pw2" }
-// - 배열 형태: [ { "id": "super", "password": "pw" }, ... ]
+// - 객체: { "super": "pw", "owner": "pw2" }
+// - 배열: [ { "id": "super", "password": "pw" }, ... ]
 function getSuperAdminMap() {
   const raw = process.env.SUPER_ADMINS_JSON;
   if (!raw) return {};
@@ -46,7 +46,7 @@ function getSuperAdminMap() {
     }
 
     if (parsed && typeof parsed === 'object') {
-      // { id: pw } 형태라고 가정
+      // { id: pw } 형태로 간주
       return parsed;
     }
 
@@ -57,10 +57,12 @@ function getSuperAdminMap() {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
+    return res
+      .status(405)
+      .json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
   }
 
   let bodyText = '';
@@ -68,23 +70,28 @@ export default async function handler(req, res) {
     bodyText = await readBody(req);
   } catch (e) {
     console.error('[super-login] readBody error:', e);
-    return res.status(400).json({ ok: false, error: 'BODY_READ_ERROR' });
+    return res
+      .status(400)
+      .json({ ok: false, error: 'BODY_READ_ERROR' });
   }
 
   let body = null;
   try {
     body = bodyText ? JSON.parse(bodyText) : {};
   } catch (e) {
-    return res.status(400).json({ ok: false, error: 'INVALID_JSON' });
+    return res
+      .status(400)
+      .json({ ok: false, error: 'INVALID_JSON' });
   }
 
   const id = (body.id || '').trim();
   const password = (body.password || '').trim();
 
   if (!id || !password) {
-    return res
-      .status(400)
-      .json({ ok: false, error: 'ID_AND_PASSWORD_REQUIRED' });
+    return res.status(400).json({
+      ok: false,
+      error: 'ID_AND_PASSWORD_REQUIRED',
+    });
   }
 
   const map = getSuperAdminMap();
@@ -102,9 +109,15 @@ export default async function handler(req, res) {
     realm: 'super',
   };
 
-  const token = jwt.sign(payload, JWT_SECRET, {
-    expiresIn: '12h', // 필요시 조정
-  });
+  let token;
+  try {
+    token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' });
+  } catch (e) {
+    console.error('[super-login] jwt.sign error:', e);
+    return res
+      .status(500)
+      .json({ ok: false, error: 'TOKEN_SIGN_ERROR' });
+  }
 
   return res.status(200).json({
     ok: true,
@@ -114,4 +127,4 @@ export default async function handler(req, res) {
       realm: 'super',
     },
   });
-}
+};
