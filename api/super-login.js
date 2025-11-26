@@ -1,130 +1,91 @@
 // /api/super-login.js
-// SUPER_ADMINS_JSON + JWT 기반 SUPER 로그인 API (CommonJS 스타일)
-// POST { id, password } -> { ok, token, user }
+// SUPER_ADMINS_JSON + JWT 기반 SUPER 로그인 (Edge 런타임, Web Crypto 방식)
+// 요청:  POST { uid, pwd }
+// 응답:  { ok: true, token } 또는 { ok:false } / { error: ... }
 
-const jwt = require('jsonwebtoken');
+export const config = { runtime: 'edge' };
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-dev-secret';
-
-// 요청 body 읽기 유틸
-async function readBody(req) {
-  return await new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk) => {
-      data += chunk;
-      if (data.length > 1e6) {
-        // 너무 큰 요청 방어
-        req.destroy();
-        reject(new Error('Body too large'));
-      }
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json;charset=utf-8' },
   });
 }
 
-// SUPER_ADMINS_JSON 파싱
-// - 객체: { "super": "pw", "owner": "pw2" }
-// - 배열: [ { "id": "super", "password": "pw" }, ... ]
-function getSuperAdminMap() {
-  const raw = process.env.SUPER_ADMINS_JSON;
-  if (!raw) return {};
+// login-admin.js와 동일한 방식으로 JWT 서명
+async function sign(payload) {
+  const enc = new TextEncoder();
+  const secret =
+    process.env.JWT_SECRET || 'dev-secret-please-change';
 
-  try {
-    const parsed = JSON.parse(raw);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
 
-    if (Array.isArray(parsed)) {
-      const map = {};
-      for (const item of parsed) {
-        if (!item || typeof item !== 'object') continue;
-        const id = item.id || item.uid || item.user || item.name;
-        const pw = item.password || item.pw;
-        if (!id || !pw) continue;
-        map[id] = pw;
-      }
-      return map;
-    }
+  const head = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = btoa(JSON.stringify(payload));
+  const data = `${head}.${body}`;
 
-    if (parsed && typeof parsed === 'object') {
-      // { id: pw } 형태로 간주
-      return parsed;
-    }
-
-    return {};
-  } catch (e) {
-    console.error('[super-login] SUPER_ADMINS_JSON parse error:', e);
-    return {};
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+  const bytes = new Uint8Array(sig);
+  let sigStr = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    sigStr += String.fromCharCode(bytes[i]);
   }
+  const b64 = btoa(sigStr)
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  return `${data}.${b64}`;
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res
-      .status(405)
-      .json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
+    return json({ error: 'Method' }, 405);
   }
 
-  let bodyText = '';
+  let body;
   try {
-    bodyText = await readBody(req);
-  } catch (e) {
-    console.error('[super-login] readBody error:', e);
-    return res
-      .status(400)
-      .json({ ok: false, error: 'BODY_READ_ERROR' });
+    body = await req.json();
+  } catch (_e) {
+    return json({ error: 'Bad JSON' }, 400);
   }
 
-  let body = null;
+  const uid = (body?.uid || '').trim();
+  const pwd = (body?.pwd || '').trim();
+
+  // SUPER 계정 목록: SUPER_ADMINS_JSON
+  // 형식 예시: [ {"id":"super","pw":"1234"}, {"id":"owner","pw":"abcd"} ]
+  const raw =
+    process.env.SUPER_ADMINS_JSON ||
+    '[{"id":"super","pw":"1234"}]';
+
+  let users;
   try {
-    body = bodyText ? JSON.parse(bodyText) : {};
-  } catch (e) {
-    return res
-      .status(400)
-      .json({ ok: false, error: 'INVALID_JSON' });
+    users = JSON.parse(raw);
+  } catch (_e) {
+    return json({ error: 'bad SUPER_ADMINS_JSON' }, 500);
   }
 
-  const id = (body.id || '').trim();
-  const password = (body.password || '').trim();
+  const ok =
+    Array.isArray(users) &&
+    users.some((u) => u.id === uid && u.pw === pwd);
 
-  if (!id || !password) {
-    return res.status(400).json({
-      ok: false,
-      error: 'ID_AND_PASSWORD_REQUIRED',
-    });
+  if (!ok) {
+    return json({ ok: false }, 401);
   }
 
-  const map = getSuperAdminMap();
-  const expectedPw = map[id];
-
-  if (!expectedPw || expectedPw !== password) {
-    return res
-      .status(401)
-      .json({ ok: false, error: 'INVALID_CREDENTIALS' });
-  }
-
-  // JWT payload 통일: sub + realm
-  const payload = {
-    sub: id,
+  const token = await sign({
+    uid,
     realm: 'super',
-  };
-
-  let token;
-  try {
-    token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' });
-  } catch (e) {
-    console.error('[super-login] jwt.sign error:', e);
-    return res
-      .status(500)
-      .json({ ok: false, error: 'TOKEN_SIGN_ERROR' });
-  }
-
-  return res.status(200).json({
-    ok: true,
-    token,
-    user: {
-      id,
-      realm: 'super',
-    },
+    tenant: 'default',
+    iat: Math.floor(Date.now() / 1000),
   });
-};
+
+  return json({ ok: true, token });
+}
