@@ -70,7 +70,7 @@ function makeTimeMeta() {
   const hh = String(kstDate.getUTCHours()).padStart(2, '0');
   const mm = String(kstDate.getUTCMinutes()).padStart(2, '0');
 
-  const date = `${y}-${m}-${d}`;                // 예: 2025-11-14
+  const date = `${y}-${m}-${d}`;                 // 예: 2025-11-14
   const dateTime = `${y}-${m}-${d} ${hh}:${mm}`; // 예: 2025-11-14 10:10
 
   return { ts, date, dateTime };
@@ -192,7 +192,7 @@ async function handleGet(req, res) {
 async function handlePost(req, res) {
   const body = req.body || {};
 
-  const {
+  let {
     orderId,
     type,
     amount,
@@ -209,12 +209,19 @@ async function handlePost(req, res) {
     agreePrivacy,
   } = body;
 
-  // 최소 필드 검증 (필요 시 더 추가 가능)
-  if (!orderId || !type || typeof amount !== 'number') {
+  // amount가 문자열로 올 수 있으니 숫자로 한 번 변환
+  const amt =
+    typeof amount === 'number' ? amount : Number(amount);
+
+  // 최소 필드 검증:
+  //  - type은 필수
+  //  - amount는 숫자여야 함
+  //  - orderId는 없어도 됨 (서버에서 자동 생성)
+  if (!type || Number.isNaN(amt)) {
     return res.status(400).json({
       ok: false,
       error: 'INVALID_ORDER_PARAMS',
-      detail: { orderId, type, amount },
+      detail: { orderId: orderId || null, type, amount },
     });
   }
 
@@ -229,11 +236,14 @@ async function handlePost(req, res) {
 
   const { ts, date, dateTime } = makeTimeMeta();
 
+  // 최종 orderId (없으면 id와 동일하게 자동 설정)
+  const finalOrderId = orderId || id;
+
   const newOrder = {
     id,
-    orderId,
+    orderId: finalOrderId,
     type,
-    amount,
+    amount: amt,
     orderName,
     cart: cart || [],
     customer: customer || null,
