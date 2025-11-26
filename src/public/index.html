@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="/src/admin/assets/css/style.css" />
-  <title>매장 관리자 매핑 (SUPER)</title>
+  <title>매장 관리자 매핑</title>
 </head>
 <body>
 <div class="container">
-  <h1>매장 관리자 매핑 (SUPER 전용)</h1>
+  <h1>매장 관리자 매핑</h1>
 
   <!-- 로그인 상태 / 로그아웃 -->
   <div id="super-status" class="hstack"
@@ -24,13 +24,10 @@
        class="card vstack"
        style="display:none;max-width:420px;margin-bottom:16px">
     <h3>SUPER 로그인</h3>
-    <p class="small">
-      이 페이지는 매장 관리자 계정과 매장 ID(storeId)를 연결하는
-      <b>최상위(SUPER) 매핑 페이지</b>입니다.<br>
-      Vercel 환경변수 <code>SUPER_ADMINS_JSON</code>에 등록된 계정만 로그인할 수 있습니다.
-    </p>
+    <!-- 요청대로 설명 문단 제거 -->
+
     <div class="vstack" style="gap:8px;margin-top:8px">
-      <input id="super-id" class="input" placeholder="SUPER 아이디 (예: super)">
+      <input id="super-id" class="input" placeholder="아이디">
       <input id="super-pw" class="input" type="password" placeholder="비밀번호">
       <button id="super-login-btn" class="btn primary">로그인</button>
       <div id="super-login-msg"
