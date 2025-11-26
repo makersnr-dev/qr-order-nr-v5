@@ -1,67 +1,135 @@
 // /src/admin/assets/js/modules/policy.js
+// 관리자 페이지 - 개인정보 처리방침 편집 모듈
 
-const $ = (s, r = document) => r.querySelector(s);
+import { get, patch } from './store.js';
 
-export async function renderPolicy() {
-  const area = $('#policy-text');
-  const info = $('#policy-updated');
-  if (!area) return;
+// 저장 위치: ['admin', 'policyText']
+const PATH = ['admin', 'policyText'];
 
-  try {
-    const res = await fetch('/api/policy', { cache: 'no-store' });
-    const data = await res.json();
-    if (!data.ok) throw new Error('load failed');
+// ✅ 기본 예시(너한테 이전에 만들어준 전문 버전)
+//   필요하면 나중에 여기 문자열만 수정하면 됨.
+const DEFAULT_POLICY = `
+1. 총칙
+본 서비스(이하 "서비스")는 이용자의 개인정보를 중요하게 생각하며 「개인정보 보호법」 및 관련 법령을 준수합니다. 본 개인정보 처리방침은 서비스가 수집하는 개인정보의 항목, 이용 목적, 보유 기간, 안전성 확보 조치 등을 명확하게 안내하기 위하여 마련되었습니다.
+서비스는 개인정보 처리방침을 개정하는 경우, 개정 내용을 본 페이지 또는 주문 화면 등을 통해 공지합니다.
 
-    const text = data.policy?.text || '';
-    const updatedAt = data.policy?.updatedAt || null;
+2. 수집하는 개인정보의 항목 및 수집방법
+(1) 필수 수집 항목
+- 주문자 성명
+- 연락처(휴대전화 번호)
+- 주소(배달 시 필요)
+- 요청사항(선택 작성)
+- 주문 내역(상품명, 수량, 결제금액 등)
+- 예약 정보(예약일자, 예약시간 등 — 예약 주문 시)
+- 접속 정보(IP, 접속 브라우저 정보 — 서비스 안정성 확보 목적)
 
-    area.value = text;
-    if (info) {
-      info.textContent = updatedAt
-        ? `마지막 수정: ${new Date(updatedAt).toLocaleString()}`
-        : '아직 저장된 기록이 없습니다.';
-    }
-  } catch (e) {
-    console.error('renderPolicy error', e);
-    if (area && !area.value) {
-      area.value = '개인정보 처리방침을 불러오지 못했습니다.';
-    }
-    if (info) info.textContent = '불러오기 오류';
+(2) 선택 수집 항목
+- 이메일(제공 시에 한함)
+- 비회원 주문 시 확인용 식별 정보(브라우저 ID 등)
+
+(3) 수집방법
+- 주문/예약 페이지 입력
+- 고객이 QR을 스캔하여 접속한 후 직접 기입
+- 서비스 이용 과정에서 자동 생성
+
+3. 개인정보의 처리 목적
+서비스는 아래의 목적을 위하여 개인정보를 이용합니다.
+1) 주문 접수 및 처리, 배달/예약 운영
+2) 결제 및 정산 관리
+3) 고객 상담 및 민원 처리
+4) 서비스 품질 향상 및 운영 기록 관리
+5) 법령상 의무 준수
+
+4. 개인정보의 보유 및 이용기간
+1) 주문 및 예약 정보: 이용 목적 달성 후 5년간 보관
+2) 비회원 정보: 목적 달성 후 내부 방침 및 관련 법령에 따른 기간 보관
+3) 접속 로그(IP 등): 3개월 보관
+
+5. 개인정보의 제3자 제공
+원칙적으로 이용자의 개인정보를 외부에 제공하지 않으나, 다음의 경우 예외적으로 제공될 수 있습니다.
+1) 이용자가 사전에 동의한 경우
+2) 법령에 근거한 수사기관·행정기관의 요청이 있는 경우
+3) 배달 업무 수행을 위해 필요한 범위에서 배달 담당자에게 제공하는 경우(성명, 주소, 연락처, 주문내역)
+
+6. 개인정보의 처리 위탁
+서비스는 안정적인 운영을 위해 일부 업무를 외부에 위탁할 수 있습니다.
+- 결제대행사(PG사): 결제 처리, 결제 결과 통지
+- 서버/호스팅 제공업체: 주문 데이터 저장, 시스템 운영
+- 고객 메시지 서비스(선택): 알림톡/문자 발송
+
+7. 이용자 권리 및 행사 방법
+이용자는 언제든지 개인정보 조회, 수정, 삭제, 처리 정지 및 동의 철회를 요청할 수 있습니다. 다만, 관련 법령에 따라 일정 기간 보관이 필요한 정보는 삭제가 제한될 수 있습니다.
+
+8. 개인정보의 파기 절차 및 방법
+보유 기간이 경과하거나 처리 목적이 달성된 경우, 해당 정보를 지체 없이 파기합니다.
+- 전자 파일: 복구 불가능한 방식으로 영구 삭제
+- 인쇄물: 분쇄 또는 소각
+
+9. 개인정보의 안전성 확보 조치
+서비스는 다음과 같은 조치를 통해 개인정보를 보호합니다.
+- 접근 권한 관리 및 최소화
+- 개인정보 암호화(연락처, 주소 등 민감 정보 암호 처리 가능)
+- 서버 보안 업데이트 및 취약점 점검
+- 로그 기록 관리 및 모니터링
+
+10. 쿠키(Cookie)의 사용
+서비스는 로그인 유지, 장바구니 유지, 서비스 품질 향상 등을 위해 쿠키를 사용할 수 있습니다. 이용자는 브라우저 설정을 통해 쿠키 저장을 거부할 수 있습니다.
+
+11. 개인정보 보호책임자
+- 책임자: (관리자 또는 점주 명)
+- 연락처: (전화번호 또는 이메일)
+- 주소: (매장 또는 담당자 주소)
+
+12. 고지 의무
+본 개인정보 처리방침은 법령 또는 내부 정책 변경 시 일부 또는 전체가 변경될 수 있으며, 변경 시 서비스 내 공지를 통해 안내합니다.
+시행일자: 2025년 ○월 ○일
+`.trim();
+
+/**
+ * 현재 저장된 개인정보 처리방침을 textarea에 반영
+ */
+export function renderPolicy() {
+  const ta = document.getElementById('policy-text');
+  if (!ta) return;
+
+  const saved = get(PATH);
+  if (typeof saved === 'string' && saved.trim()) {
+    ta.value = saved;
+  } else {
+    // 처음에는 비워두고, "기본 예시 불러오기"로 채우게
+    ta.value = '';
   }
 }
 
+/**
+ * 버튼 이벤트 연결:
+ *  - 기본 예시 불러오기
+ *  - 저장
+ */
 export function bindPolicy() {
-  const btn = document.getElementById('policy-save');
-  const area = document.getElementById('policy-text');
-  const info = document.getElementById('policy-updated');
-  if (!btn || !area) return;
+  const ta       = document.getElementById('policy-text');
+  const loadBtn  = document.getElementById('policy-load-default');
+  const saveBtn  = document.getElementById('policy-save');
 
-  btn.onclick = async () => {
-    const text = area.value.trim();
-    if (!text) {
-      alert('내용이 비어 있습니다.');
-      area.focus();
-      return;
-    }
-    try {
-      const res = await fetch('/api/policy', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error('save failed');
+  if (!ta) return;
 
-      alert('저장되었습니다.');
-
-      if (info && data.policy?.updatedAt) {
-        info.textContent = `마지막 수정: ${new Date(
-          data.policy.updatedAt
-        ).toLocaleString()}`;
+  // 기본 예시 불러오기
+  if (loadBtn) {
+    loadBtn.onclick = () => {
+      if (ta.value.trim()) {
+        const ok = confirm('현재 내용을 덮어쓰고 기본 예시를 불러오시겠습니까?');
+        if (!ok) return;
       }
-    } catch (e) {
-      console.error('save policy error', e);
-      alert('저장 중 오류가 발생했습니다.');
-    }
-  };
+      ta.value = DEFAULT_POLICY;
+    };
+  }
+
+  // 저장
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const txt = ta.value || '';
+      patch(PATH, () => txt);
+      alert('개인정보 처리방침이 저장되었습니다.');
+    };
+  }
 }
