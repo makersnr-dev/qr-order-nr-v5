@@ -289,20 +289,38 @@ async function main() {
   const msg = event.data;
   if (!msg || !msg.type) return;
 
-  const currentStoreId = window.qrnrStoreId || 'store1';
+  // 현재 관리자 페이지가 바라보는 매장 ID
+  const currentStoreId =
+    window.qrnrStoreId ||
+    localStorage.getItem('qrnr.storeId') ||
+    'store1';
 
-  // 디버깅용 로그: 실제로 어떤 값이 들어오는지 먼저 확인
-  console.log('[adminChannel] incoming msg =', msg, 'currentStoreId =', currentStoreId);
+  // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
+  const msgStoreId =
+    msg.storeId ||
+    msg.store ||
+    msg.store_id ||
+    msg.sid ||
+    null;
 
-  // ⚠️ 여러 매장을 동시에 쓰지 않는다면,
-  //    일단 매장 불일치 필터는 잠시 꺼두는 게 안전함.
-  //    (필요하면 나중에 다시 조건을 세게 걸자)
-  if (msg.storeId && msg.storeId !== currentStoreId) {
-     console.log('[adminChannel] ignore due to store mismatch');
-     return;
-   }
+  // 🔒 매장별 필터: "내 매장"이 아닌 것은 아예 무시
+  if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
+    console.log('[admin] ignore message for other store', {
+      msgStoreId,
+      currentStoreId,
+      msg,
+    });
+    return;
+  }
+
+  console.log('[admin] accepted message', {
+    msgStoreId,
+    currentStoreId,
+    msg,
+  });
 
   if (msg.type === 'CALL') {
+    // 화면 상단 토스트
     showToast(
       `테이블 ${msg.table || '-'} 직원 호출${
         msg.note ? ' - ' + msg.note : ''
@@ -310,7 +328,7 @@ async function main() {
       'info'
     );
 
-    // 🔔 소리 + 데스크탑 알림
+    // 🔔 소리 + 데스크탑 알림 (notify.js 쪽에서 실행)
     notifyEvent(msg);
 
     // 호출 로그 새로고침
