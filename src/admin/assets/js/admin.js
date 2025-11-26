@@ -51,6 +51,8 @@ const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 =====
+// auth.js 쪽에서 requireAuth 후에 localStorage['qrnr.storeId']를
+// admin1 -> narae 같은 매핑값으로 채워준다는 전제
 function resolveStoreId() {
   // 1) URL ?store= 우선
   try {
@@ -71,16 +73,6 @@ function resolveStoreId() {
   // 3) 아무것도 없으면 기본값
   return 'store1';
 }
-
-// 초기 storeId (URL 우선)
-const url = new URL(location.href);
-const storeId =
-  url.searchParams.get('store') ||
-  localStorage.getItem('qrnr.storeId') ||
-  'store1';
-
-window.qrnrStoreId = storeId;
-localStorage.setItem('qrnr.storeId', storeId);
 
 const adminChannel = new BroadcastChannel('qrnr-admin');
 
@@ -131,14 +123,16 @@ function showToast(message, variant = 'info') {
 }
 
 async function main() {
+  // 1) 관리자 인증 (토큰 검증 + auth.js에서 adminInfo/storeId 주입)
   await requireAuth('admin');
 
-  // ✅ 최종 storeId 결정
+  // 2) 최종 storeId 결정
   const sid = resolveStoreId();
   window.qrnrStoreId = sid;
+  localStorage.setItem('qrnr.storeId', sid);
   console.log('[admin] storeId =', sid);
 
-  // (선택) 주소창에 ?store= 없으면 한 번 넣어주기
+  // 3) 주소창에 ?store= 없으면 한 번 넣어주기
   try {
     const u = new URL(location.href);
     if (!u.searchParams.get('store')) {
@@ -149,6 +143,7 @@ async function main() {
     console.error('[admin] URL store param set error', e);
   }
 
+  // 4) 서버에서 매장 관련 설정/데이터 동기화
   await syncStoreFromServer();
   initTabs();
 
@@ -166,10 +161,13 @@ async function main() {
     });
   });
 
-  document.getElementById('logoutBtn').onclick = () => {
-    clearToken();
-    location.href = '/admin';
-  };
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      clearToken();
+      location.href = '/admin';
+    };
+  }
 
   // 기본 세팅
   bindFilters();
@@ -194,10 +192,15 @@ async function main() {
   }
 
   // 엑셀 export
-  document.getElementById('store-export').onclick = () =>
-    exportOrders('ordersStore');
-  document.getElementById('deliv-export').onclick = () =>
-    exportOrders('ordersDelivery');
+  const storeExportBtn = document.getElementById('store-export');
+  if (storeExportBtn) {
+    storeExportBtn.onclick = () => exportOrders('ordersStore');
+  }
+
+  const delivExportBtn = document.getElementById('deliv-export');
+  if (delivExportBtn) {
+    delivExportBtn.onclick = () => exportOrders('ordersDelivery');
+  }
 
   // 나머지 설정들
   renderMenu();
