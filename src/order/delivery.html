@@ -332,8 +332,8 @@
         reserveTime,
         status: '대기',
         storeId,
-        // 회원은 가입 시 이미 동의했다고 보고 서버에는 true로 남겨둠 (선택)
-        agreePrivacy: true,
+        // 회원은 동의 UI 없이, 나중에 소셜 가입에서 따로 동의 받을 계획 → 여기서는 굳이 flag 안 써도 됨
+        // agreePrivacy: true,
       };
 
       try {
@@ -371,8 +371,8 @@
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
       storeId,
-      // 마찬가지로 서버에는 true 기록만 남김
-      agreePrivacy: true,
+      // 마찬가지로 여기서도 개인정보 동의는 따로 관리 예정
+      // agreePrivacy: true,
       returnTo: location.pathname + location.search
     };
 
