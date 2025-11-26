@@ -345,6 +345,23 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
+        // ✅ 관리자에게 "새 예약 주문" 알림 브로드캐스트
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const ch = new BroadcastChannel('qrnr-admin');
+            ch.postMessage({
+              type: 'NEW_ORDER_PAID',           // admin.js에서 이미 처리하는 타입 재사용
+              storeId,
+              orderType: 'reserve',
+              orderId: data.order?.orderId || data.order?.id,
+              summary: `예약 주문 - ${cust}님 / ${reserveDate} ${reserveTime}`,
+              customer: { name: cust, phone, addr },
+            });
+          }
+        } catch (bcErr) {
+          console.warn('[reserve] broadcast failed', bcErr);
+        }
+
         const back = location.pathname + location.search;
         location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
       } catch (err) {
