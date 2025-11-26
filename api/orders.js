@@ -63,7 +63,6 @@ function makeTimeMeta() {
   const KST_OFFSET = 9 * 60 * 60 * 1000;
   const kstDate = new Date(ts + KST_OFFSET);
 
-  // getUTC*를 쓰면서 9시간 더한 날짜를 "현지"처럼 사용
   const y  = kstDate.getUTCFullYear();
   const m  = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
   const d  = String(kstDate.getUTCDate()).padStart(2, '0');
@@ -236,6 +235,30 @@ async function handlePost(req, res) {
 
   const { ts, date, dateTime } = makeTimeMeta();
 
+  // 🔹 최종 storeId 결정
+  let finalStoreId = storeId || null;
+
+  // 1) body.storeId가 없다면, Referer 의 ?store= 에서 추출 시도
+  if (!finalStoreId) {
+    const ref = req.headers?.referer || req.headers?.referrer;
+    if (ref) {
+      try {
+        const u = new URL(ref);
+        const qsStore = u.searchParams.get('store');
+        if (qsStore) {
+          finalStoreId = qsStore;
+        }
+      } catch (e) {
+        console.error('[orders] parse referer error', e);
+      }
+    }
+  }
+
+  // 2) 그래도 없으면 기본값
+  if (!finalStoreId) {
+    finalStoreId = 'store1';
+  }
+
   // 최종 orderId (없으면 id와 동일하게 자동 설정)
   const finalOrderId = orderId || id;
 
@@ -253,7 +276,7 @@ async function handlePost(req, res) {
     reserveTime: reserveTime || null,
     memo: memo || '',
     meta: meta || {},
-    storeId: storeId || 'store1',
+    storeId: finalStoreId,
     ts,
     date,
     dateTime,
