@@ -65,7 +65,7 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- ✅ 개인정보 수집·이용 동의 (요청사항 아래로 이동) -->
+      <!-- ✅ 개인정보 수집·이용 동의 (요청사항 아래) -->
       <div class="field-row">
         <div class="field-label">개인정보</div>
         <div class="vstack" style="gap:4px">
@@ -134,26 +134,8 @@
     font-size:13px;
   ">
     <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
+    <!-- 🔹 내용은 JS에서 관리자 설정값으로 채움 -->
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap; line-height:1.5;">
-[개인정보 수집·이용 안내]
-
-1. 수집 항목
-- 필수: 주문자 이름, 연락처, 배송지 주소, 주문 내역
-
-2. 수집·이용 목적
-- 배달/예약 주문 접수 및 처리
-- 고객 문의 대응 및 주문 관련 안내
-
-3. 보유 및 이용 기간
-- 관련 법령(전자상거래 등에서의 소비자 보호에 관한 법률 등)에 따른 보존 기간 동안 보관 후 지체 없이 파기됩니다.
-- 단, 분쟁 발생 시 해결을 위한 범위 내에서 추가 보관될 수 있습니다.
-
-4. 동의 거부 권리 및 불이익
-- 이용자는 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다.
-- 다만, 필수 항목에 대한 동의를 거부할 경우 배달/예약 서비스 이용이 제한될 수 있습니다.
-
-5. 기타
-- 개인정보 처리와 관련된 상세 문의는 매장 운영자에게 연락해주시기 바랍니다.
     </div>
     <div class="hstack" style="justify-content:flex-end;margin-top:12px;gap:8px">
       <button type="button" id="privacy-close" class="btn">닫기</button>
@@ -176,6 +158,58 @@
   // URL 파라미터
   const url = new URL(location.href);
   const storeId = url.searchParams.get('store') || 'store1';
+
+  // ✅ 개인정보 처리방침 텍스트 로드
+  const defaultPrivacyText = `
+[개인정보 수집·이용 안내]
+
+1. 수집 항목
+- 필수: 주문자 이름, 연락처, 배송지 주소, 주문 내역
+
+2. 수집·이용 목적
+- 배달/예약 주문 접수 및 처리
+- 주문 내역 확인, 배송/방문 일정 안내 등 고객 응대
+- 민원 처리 및 분쟁 발생 시 사실 확인
+
+3. 보유 및 이용 기간
+- 전자상거래 등에서의 소비자 보호에 관한 법률 등 관련 법령에 따라,
+  계약 또는 청약철회에 관한 기록은 5년,
+  대금 결제 및 재화 공급에 관한 기록은 5년,
+  소비자의 불만 또는 분쟁 처리에 관한 기록은 3년간 보관 후
+  지체 없이 안전한 방법으로 파기합니다.
+
+4. 동의 거부 권리 및 유의사항
+- 이용자는 개인정보 수집·이용에 대한 동의를 거부할 권리가 있습니다.
+- 단, 필수 항목에 대한 동의를 거부하시는 경우 배달/예약 서비스 이용이 제한될 수 있습니다.
+
+5. 제3자 제공 및 처리 위탁
+- 당사는 원칙적으로 이용자의 동의 없이 개인정보를 제3자에게 제공하지 않습니다.
+  다만, 법령에 근거가 있는 경우 또는 이용자의 별도 동의가 있는 경우에 한하여
+  최소한의 범위 내에서 제공될 수 있습니다.
+- 시스템 운영 및 알림 발송 등을 위해 일부 업무를 외부 업체에 위탁할 수 있으며,
+  이 경우 위탁받는 자와 위탁 업무 내용을 관련 법령에 따라 관리·감독합니다.
+
+6. 개인정보 보호 책임자
+- 개인정보 처리와 관련된 문의, 열람·정정·삭제 요청,
+  권리 행사에 대한 문의는 매장 운영자 또는 홈페이지에 안내된 연락처로 문의해 주시기 바랍니다.
+`.trim();
+
+  function applyPrivacyText() {
+    const el = document.getElementById('privacy-modal-body');
+    if (!el) return;
+
+    // 관리자 페이지에서 저장한 값 여러 경로 중 하나 사용
+    const fromAdmin =
+      get(['admin', 'privacyPolicy', storeId]) ||
+      get(['admin', 'privacyPolicy']) ||
+      get(['system', 'privacyPolicy', storeId]) ||
+      get(['system', 'privacyPolicy']) ||
+      '';
+
+    el.textContent = fromAdmin || defaultPrivacyText;
+  }
+
+  applyPrivacyText();
 
   // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
   fillTimeSelectors('time');
@@ -208,13 +242,11 @@
     }
     box.textContent = message;
 
-    // 이미 떠있는 상태면 타이머 리셋
     if (copyToastTimer) {
       clearTimeout(copyToastTimer);
       copyToastTimer = null;
     }
 
-    // 살짝 보였다가 3초 후 사라짐
     requestAnimationFrame(() => {
       box.style.opacity = '1';
       copyToastTimer = setTimeout(() => {
@@ -268,7 +300,6 @@
         showCopyToast('계좌번호가 복사되었습니다.');
       } catch (e) {
         console.error('clipboard error', e);
-        // Clipboard API 미지원 브라우저용
         showCopyToast('복사를 지원하지 않는 브라우저입니다.');
       }
     };
@@ -343,7 +374,6 @@
   }
   if (privacyModal) {
     privacyModal.addEventListener('click', (e) => {
-      // 배경 클릭 시 닫기
       if (e.target === privacyModal) {
         privacyModal.style.display = 'none';
       }
@@ -436,7 +466,7 @@
         reserveTime,
         status: '대기',
         storeId,
-        agreePrivacy: true,      // ✅ 동의 여부 저장
+        agreePrivacy: true,
       };
 
       try {
@@ -448,8 +478,7 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
-        // 돌아갈 원래 페이지(스토어 유지)
-        const back = location.pathname + location.search; // 예: /src/order/delivery.html?store=narae
+        const back = location.pathname + location.search;
         location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
       } catch (err) {
         console.error('reserve save err', err);
@@ -458,7 +487,7 @@
       return;
     }
 
-    // 🔹 배달(결제): 날짜/시간은 사용하지 않음 (reserveDate/Time 저장 X)
+    // 🔹 배달(결제): 날짜/시간은 사용하지 않음
     const total = totalAmount();
     if (!total) {
       alert('결제 금액이 올바르지 않습니다.');
@@ -474,17 +503,15 @@
       orderName,
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
-      // reserveDate, reserveTime 은 배달에서는 사용하지 않음
       storeId,
-      agreePrivacy: true,    // ✅ 동의 여부 저장
-      // 결제 성공 후 돌아올 경로(스토어 유지)
+      agreePrivacy: true,
       returnTo: location.pathname + location.search
     };
 
     setPendingOrder(pendingPayload);
 
     try {
-      await startPayment({ orderId, amount: total, orderName /*, returnTo: pendingPayload.returnTo*/ });
+      await startPayment({ orderId, amount: total, orderName });
     } catch (err) {
       console.error('payment start error', err);
       alert('결제를 시작할 수 없습니다.');
