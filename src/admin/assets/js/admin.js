@@ -286,45 +286,50 @@ async function main() {
 
   // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
   adminChannel.onmessage = async (event) => {
-    const msg = event.data;
-    if (!msg || !msg.type) return;
+  const msg = event.data;
+  if (!msg || !msg.type) return;
 
-    const currentStoreId = window.qrnrStoreId || 'store1';
+  const currentStoreId = window.qrnrStoreId || 'store1';
 
-    // 매장 불일치 메시지는 무시
-    if (msg.storeId && msg.storeId !== currentStoreId) {
-      return;
-    }
+  // 디버깅용 로그: 실제로 어떤 값이 들어오는지 먼저 확인
+  console.log('[adminChannel] incoming msg =', msg, 'currentStoreId =', currentStoreId);
 
-    if (msg.type === 'CALL') {
-      showToast(
-        `테이블 ${msg.table || '-'} 직원 호출${
-          msg.note ? ' - ' + msg.note : ''
-        }`,
-        'info',
-      );
+  // ⚠️ 여러 매장을 동시에 쓰지 않는다면,
+  //    일단 매장 불일치 필터는 잠시 꺼두는 게 안전함.
+  //    (필요하면 나중에 다시 조건을 세게 걸자)
+  // if (msg.storeId && msg.storeId !== currentStoreId) {
+  //   console.log('[adminChannel] ignore due to store mismatch');
+  //   return;
+  // }
 
-      // 🔔 소리 + 데스크탑 알림 트리거 (매장별 설정 반영)
-      notifyEvent(msg);
+  if (msg.type === 'CALL') {
+    showToast(
+      `테이블 ${msg.table || '-'} 직원 호출${
+        msg.note ? ' - ' + msg.note : ''
+      }`,
+      'info'
+    );
 
-      // 호출 로그 새로고침 (쿨타임 내 중복 호출 차단)
-      safeRenderNotifyLogs();
-    }
+    // 🔔 소리 + 데스크탑 알림
+    notifyEvent(msg);
 
-    if (msg.type === 'NEW_ORDER_PAID') {
-      showToast(
-        `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-        'success',
-      );
+    // 호출 로그 새로고침
+    safeRenderNotifyLogs();
+  }
 
-      // 🔔 소리 + 데스크탑 알림 트리거
-      notifyEvent(msg);
+  if (msg.type === 'NEW_ORDER_PAID') {
+    showToast(
+      `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
+      'success'
+    );
 
-      // 매장/배달 주문 목록 새로고침 (각각 쿨타임 처리)
-      safeRenderStore();
-      safeRenderDeliv();
-    }
-  };
+    notifyEvent(msg);
+
+    // 매장/배달 주문 목록 새로고침
+    safeRenderStore();
+    safeRenderDeliv();
+  }
+};
 }
 
 main();
