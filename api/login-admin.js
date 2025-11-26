@@ -15,7 +15,7 @@ function json(body, status = 200) {
   });
 }
 
-// 기존 login-admin이 쓰던 Web Crypto 기반 JWT 서명 함수
+// Web Crypto 기반 JWT 서명 함수
 async function sign(payload) {
   const enc = new TextEncoder();
   const secret =
@@ -49,7 +49,7 @@ async function sign(payload) {
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
-    return json({ error: 'Method' }, 405);
+    return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
   }
 
   let body;
@@ -77,6 +77,7 @@ export default async function handler(req) {
   try {
     users = JSON.parse(raw);
   } catch (_e) {
+    console.error('[login-admin] ADMIN_USERS_JSON parse error');
     return json(
       { ok: false, error: 'BAD_ADMIN_USERS_JSON' },
       500,
@@ -90,11 +91,11 @@ export default async function handler(req) {
     );
 
   if (!user) {
-    // 기존처럼 401 유지
+    // 아이디/비번 틀림 → 401
     return json({ ok: false }, 401);
   }
 
-  // 여기서부터가 "나중에 소셜까지 고려한" 토큰 구조
+  // 나중에 소셜 로그인도 재사용하기 좋은 토큰 구조
   const payload = {
     sub: uid,                        // 내부적으로 쓰는 고유 ID
     uid,                             // 기존 코드 호환용 필드
@@ -104,11 +105,4 @@ export default async function handler(req) {
     iat: Math.floor(Date.now() / 1000),
   };
 
-  const token = await sign(payload);
-
-  return json({
-    ok: true,
-    token,
-    user: payload,
-  });
-}
+  co
