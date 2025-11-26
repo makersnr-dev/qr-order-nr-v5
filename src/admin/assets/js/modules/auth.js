@@ -31,7 +31,7 @@ export function clearToken() {
   }
 }
 
-// JWT payload 디코딩 (필요하면 사용)
+// JWT payload 디코딩
 export function decodeToken(t) {
   if (!t) return null;
   const parts = t.split('.');
@@ -45,7 +45,7 @@ export function decodeToken(t) {
   }
 }
 
-// 내부용: adminInfo / storeId 로컬 저장
+// ✅ 토큰 → adminInfo / storeId로 채워 넣는 함수
 function hydrateAdminInfoAndStore(t, realmHint) {
   try {
     const decoded = decodeToken(t);
@@ -60,23 +60,25 @@ function hydrateAdminInfoAndStore(t, realmHint) {
       realm: decoded.realm || realmHint || 'admin',
     };
 
-    // 관리자 정보 저장 (admin.js 의 resolveStoreId에서 사용)
+    // 관리자 정보 저장 (admin.js 의 resolveStoreId에서 사용 가능)
     localStorage.setItem('qrnr.adminInfo', JSON.stringify(info));
 
     // 관리자라면 매장 매핑도 시도
     if (info.realm === 'admin' && typeof get === 'function') {
       try {
+        // SUPER 매핑에서 가져오는 구조: ['system','storeAdmins'][adminId] = 'storeId'
         const map = get(['system', 'storeAdmins']) || {};
         const mapped = map[info.id];
 
         if (mapped) {
           let sid = mapped;
-          // 매핑이 객체라면 { storeId: 'store1', note: '...' } 형태일 수도 있음
+          // 혹시 객체 형태라면: { storeId:'narae', note:'...' } 이런 것도 처리
           if (typeof mapped === 'object') {
             sid = mapped.storeId || mapped.id || mapped.code || null;
           }
           if (sid) {
             localStorage.setItem('qrnr.storeId', sid);
+            console.log('[auth] storeId hydrated from mapping:', info.id, '->', sid);
           }
         }
       } catch (e) {
@@ -136,7 +138,7 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // ✅ 여기까지 왔으면 인증 OK → adminInfo / storeId 세팅
+    // ✅ 여기까지 왔으면 인증 OK → adminInfo / storeId 세팅 시도
     hydrateAdminInfoAndStore(t, p.realm);
 
     return p;
