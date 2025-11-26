@@ -64,18 +64,20 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- ✅ 개인정보 처리방침 동의 (비회원 필수) -->
+      <!-- ✅ 개인정보 처리방침 동의 + 모달 버튼 (비회원 필수) -->
       <div class="field-row small" id="privacy-row">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="agree-privacy">
-          <span>(필수) 개인정보 수집·이용에 동의합니다.</span>
-        </label>
-        <div class="small" style="margin-top:4px;">
-          자세한 내용은
-          <a href="/src/order/privacy.html" target="_blank" rel="noopener">
-            개인정보 처리방침
-          </a>
-          을(를) 확인해 주세요.
+        <div class="field-label">개인정보</div>
+        <div class="vstack" style="gap:4px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="agree-privacy">
+            <span>(필수) 개인정보 수집·이용에 동의합니다.</span>
+          </label>
+          <div class="small">
+            자세한 내용은 아래 버튼을 눌러 확인하실 수 있습니다.
+          </div>
+          <div>
+            <button type="button" class="btn" id="privacy-open">개인정보 처리방침 보기</button>
+          </div>
         </div>
       </div>
 
@@ -109,6 +111,35 @@
   </div>
 </div>
 
+<!-- ✅ 개인정보 처리방침 모달 -->
+<div id="privacy-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9998;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#020617;
+    border-radius:12px;
+    padding:16px 18px;
+    max-width:520px;
+    width:calc(100% - 40px);
+    max-height:80vh;
+    overflow:auto;
+    box-shadow:0 10px 40px rgba(0,0,0,0.45);
+    font-size:13px;
+  ">
+    <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
+    <div id="privacy-modal-body" class="small" style="white-space:pre-wrap; line-height:1.5;"></div>
+    <div class="hstack" style="justify-content:flex-end;margin-top:12px;gap:8px">
+      <button type="button" id="privacy-close" class="btn">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 다음 우편번호 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
@@ -122,7 +153,35 @@
   const url = new URL(location.href);
   const storeId = url.searchParams.get('store') || 'store1';
 
-  // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
+  // ✅ 기본 개인정보 처리방침 (관리자에서 아무 것도 저장 안 했을 때 fallback)
+  const defaultPrivacyText = `
+[개인정보 처리방침]
+
+이 매장의 QR 주문·배달/예약 서비스(이하 "서비스")는 관련 법령을 준수하며,
+이용자의 개인정보를 안전하게 보호하기 위해 다음과 같이 개인정보 처리방침을 운영합니다.
+
+※ 실제 사업자의 형태, 서비스 구조, 법률 자문 결과 등에 따라
+  일부 수정·보완이 필요할 수 있습니다.
+  `.trim();
+
+  // ✅ 관리자에서 저장한 정책을 불러와 모달에 적용
+  function applyPrivacyText() {
+    const el = document.getElementById('privacy-modal-body');
+    if (!el) return;
+
+    const fromAdmin =
+      get(['admin', 'privacyPolicy', storeId]) ||
+      get(['admin', 'privacyPolicy']) ||
+      get(['system', 'privacyPolicy', storeId]) ||
+      get(['system', 'privacyPolicy']) ||
+      '';
+
+    el.textContent = fromAdmin || defaultPrivacyText;
+  }
+
+  applyPrivacyText();
+
+  // 시간 선택 셋업
   fillTimeSelectors('time');
 
   // 장바구니 / 메뉴
@@ -170,13 +229,11 @@
   function updateTab() {
     const isResv = document.getElementById('tab-resv').checked;
 
-    // 매장별 계좌정보 (신규 구조) → 없으면 구 구조 fallback
     const bank =
       get(['admin', 'ownerBank', storeId]) ||
       get(['admin', 'ownerBank']) ||
       { bank:'', number:'', holder:'' };
 
-    // 예약일 때만 계좌 안내 노출
     document.getElementById('bank-box').style.display = isResv ? 'block' : 'none';
     document.getElementById('action-btn').textContent = isResv ? '예약하기' : '결제하기';
 
@@ -185,7 +242,6 @@
         ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
         : '(관리자에 계좌 정보가 없습니다)';
 
-    // 예약일 때만 날짜/시간 입력 보이기
     const dateRow = document.getElementById('date-row');
     if (dateRow) {
       dateRow.style.display = isResv ? '' : 'none';
@@ -233,14 +289,12 @@
     }).open();
   }
 
-  // "배송지" 라벨 클릭 시 주소검색
   const addrLabel = document.querySelector('.addr-label');
   if (addrLabel) {
     addrLabel.addEventListener('click', openAddrSearch);
     addrLabel.classList.add('clickable-label');
   }
 
-  // 빈 칸일 때 인풋 클릭으로도 열기
   const addrInput = document.getElementById('addr');
   if (addrInput) {
     addrInput.addEventListener('click', () => {
@@ -248,7 +302,6 @@
     });
   }
 
-  // 연락처 숫자만 + 하이픈 포맷
   function formatPhone(raw) {
     const digits = String(raw || '').replace(/\D/g, '');
     if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
@@ -265,6 +318,30 @@
     phoneInput.addEventListener('blur', () => {
       const formatted = formatPhone(phoneInput.value);
       phoneInput.value = formatted || phoneInput.value;
+    });
+  }
+
+  // ✅ 개인정보 처리방침 모달 열기/닫기
+  const privacyModal = document.getElementById('privacy-modal');
+  const privacyOpen  = document.getElementById('privacy-open');
+  const privacyClose = document.getElementById('privacy-close');
+
+  if (privacyOpen && privacyModal) {
+    privacyOpen.addEventListener('click', () => {
+      applyPrivacyText();
+      privacyModal.style.display = 'flex';
+    });
+  }
+  if (privacyClose && privacyModal) {
+    privacyClose.addEventListener('click', () => {
+      privacyModal.style.display = 'none';
+    });
+  }
+  if (privacyModal) {
+    privacyModal.addEventListener('click', (e) => {
+      if (e.target === privacyModal) {
+        privacyModal.style.display = 'none';
+      }
     });
   }
 
@@ -296,9 +373,11 @@
     const memo        = document.getElementById('memo').value.trim();
     const isResv      = document.getElementById('tab-resv').checked;
 
+    const agreeEl     = document.getElementById('agree-privacy');
+    const agreePrivacy = !!(agreeEl && agreeEl.checked);
+
     const items = cart.items || [];
 
-    // 공통 체크
     if (!items.length) {
       alert('장바구니가 비어 있습니다.');
       return;
@@ -312,10 +391,6 @@
       document.getElementById('phone').focus();
       return;
     }
-
-    // ✅ 개인정보 동의 체크
-    const agreeEl = document.getElementById('agree-privacy');
-    const agreePrivacy = !!(agreeEl && agreeEl.checked);
     if (!agreePrivacy) {
       alert('개인정보 수집·이용에 동의해 주세요.');
       if (agreeEl) agreeEl.focus();
@@ -324,7 +399,6 @@
 
     const phone = formatPhone(rawPhone);
 
-    // 시간값
     const { ap, hh, mm } = getTimeValue('time') || {};
     const hasTime =
       ap && hh && mm &&
@@ -334,7 +408,7 @@
     let reserveDate = null;
     let reserveTime = null;
 
-    // 🔹 예약(무결제): 날짜+시간 필수
+    // 🔹 예약(무결제)
     if (isResv) {
       if (!dateInput) {
         alert('예약 날짜를 선택해주세요.');
@@ -358,7 +432,7 @@
         reserveTime,
         status: '대기',
         storeId,
-        agreePrivacy,   // ✅ 비회원 예약에도 동의 여부 저장
+        agreePrivacy: true,
       };
 
       try {
@@ -370,23 +444,6 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
-        // 관리자 알림 브로드캐스트 (예약도 알림 받게)
-        try {
-          if (typeof BroadcastChannel !== 'undefined') {
-            const ch = new BroadcastChannel('qrnr-admin');
-            ch.postMessage({
-              type: 'NEW_ORDER_PAID',
-              storeId,
-              orderType: 'reserve',
-              orderId: data.order?.orderId || data.order?.id,
-              summary: `예약 주문 - ${cust}님 / ${reserveDate} ${reserveTime}`,
-              customer: { name: cust, phone, addr },
-            });
-          }
-        } catch (bcErr) {
-          console.warn('[reserve] broadcast failed', bcErr);
-        }
-
         const back = location.pathname + location.search;
         location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
       } catch (err) {
@@ -396,7 +453,7 @@
       return;
     }
 
-    // 🔹 배달(결제): 날짜/시간은 사용하지 않음
+    // 🔹 배달(결제)
     const total = totalAmount();
     if (!total) {
       alert('결제 금액이 올바르지 않습니다.');
@@ -413,7 +470,7 @@
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
       storeId,
-      agreePrivacy,  // ✅ 배달 결제도 동의 여부 전달
+      agreePrivacy: true,
       returnTo: location.pathname + location.search
     };
 
