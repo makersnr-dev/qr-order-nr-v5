@@ -64,6 +64,21 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
+      <!-- ✅ 개인정보 처리방침 동의 (비회원 필수) -->
+      <div class="field-row small" id="privacy-row">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="agree-privacy">
+          <span>(필수) 개인정보 수집·이용에 동의합니다.</span>
+        </label>
+        <div class="small" style="margin-top:4px;">
+          자세한 내용은
+          <a href="/src/order/privacy.html" target="_blank" rel="noopener">
+            개인정보 처리방침
+          </a>
+          을(를) 확인해 주세요.
+        </div>
+      </div>
+
       <!-- 예약(무결제)일 때만 보이는 계좌 안내 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
@@ -298,6 +313,15 @@
       return;
     }
 
+    // ✅ 개인정보 동의 체크
+    const agreeEl = document.getElementById('agree-privacy');
+    const agreePrivacy = !!(agreeEl && agreeEl.checked);
+    if (!agreePrivacy) {
+      alert('개인정보 수집·이용에 동의해 주세요.');
+      if (agreeEl) agreeEl.focus();
+      return;
+    }
+
     const phone = formatPhone(rawPhone);
 
     // 시간값
@@ -333,7 +357,8 @@
         reserveDate,
         reserveTime,
         status: '대기',
-        storeId
+        storeId,
+        agreePrivacy,   // ✅ 비회원 예약에도 동의 여부 저장
       };
 
       try {
@@ -345,12 +370,12 @@
         const data = await res.json();
         if (!data.ok) throw new Error('save failed');
 
-        // ✅ 관리자에게 "새 예약 주문" 알림 브로드캐스트
+        // 관리자 알림 브로드캐스트 (예약도 알림 받게)
         try {
           if (typeof BroadcastChannel !== 'undefined') {
             const ch = new BroadcastChannel('qrnr-admin');
             ch.postMessage({
-              type: 'NEW_ORDER_PAID',           // admin.js에서 이미 처리하는 타입 재사용
+              type: 'NEW_ORDER_PAID',
               storeId,
               orderType: 'reserve',
               orderId: data.order?.orderId || data.order?.id,
@@ -388,6 +413,7 @@
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
       storeId,
+      agreePrivacy,  // ✅ 배달 결제도 동의 여부 전달
       returnTo: location.pathname + location.search
     };
 
