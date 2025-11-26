@@ -52,8 +52,6 @@ const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 =====
 function resolveStoreId() {
-  let sid = null;
-
   // 1) URL ?store= 우선
   try {
     const u = new URL(location.href);
@@ -62,28 +60,16 @@ function resolveStoreId() {
       localStorage.setItem('qrnr.storeId', fromUrl);
       return fromUrl;
     }
-  } catch (e) {}
-
-  // 2) 로그인한 관리자 ID 기반 매핑 (추후 DB 연동 가능)
-  let adminId = null;
-  try {
-    const info = JSON.parse(localStorage.getItem('qrnr.adminInfo') || '{}');
-    adminId = info.id || info.email || null;
-  } catch (e) {}
-
-  if (adminId) {
-    // 주: get([...])는 바깥에서 전역으로 제공된다고 가정 (기존 코드 유지)
-    const map = get(['system', 'storeAdmins']) || {};
-    if (map[adminId]) {
-      sid = map[adminId];
-      localStorage.setItem('qrnr.storeId', sid);
-      return sid;
-    }
+  } catch (e) {
+    console.error('[admin] resolveStoreId URL parse error', e);
   }
 
-  // 3) 마지막으로 로컬에 기억된 storeId 또는 기본값
-  sid = localStorage.getItem('qrnr.storeId') || 'store1';
-  return sid;
+  // 2) 로컬스토리지에 기억된 storeId
+  const stored = localStorage.getItem('qrnr.storeId');
+  if (stored) return stored;
+
+  // 3) 아무것도 없으면 기본값
+  return 'store1';
 }
 
 // 초기 storeId (URL 우선)
@@ -152,6 +138,17 @@ async function main() {
   window.qrnrStoreId = sid;
   console.log('[admin] storeId =', sid);
 
+  // (선택) 주소창에 ?store= 없으면 한 번 넣어주기
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.get('store')) {
+      u.searchParams.set('store', sid);
+      history.replaceState(null, '', u.toString());
+    }
+  } catch (e) {
+    console.error('[admin] URL store param set error', e);
+  }
+
   await syncStoreFromServer();
   initTabs();
 
@@ -217,7 +214,7 @@ async function main() {
   safeRenderNotifyLogs();
   bindNotifyLogs();
 
-   // 🔹 개인정보 처리방침
+  // 🔹 개인정보 처리방침
   renderPolicy();
   bindPolicy();
 
@@ -246,7 +243,7 @@ async function main() {
         `테이블 ${msg.table || '-'} 직원 호출${
           msg.note ? ' - ' + msg.note : ''
         }`,
-        'info'
+        'info',
       );
 
       // 🔔 소리 + 데스크탑 알림 트리거 (매장별 설정 반영)
@@ -259,7 +256,7 @@ async function main() {
     if (msg.type === 'NEW_ORDER_PAID') {
       showToast(
         `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-        'success'
+        'success',
       );
 
       // 🔔 소리 + 데스크탑 알림 트리거
