@@ -1,7 +1,7 @@
 // /src/admin/assets/js/store-admin.js
 // SUPER용 JWT를 사용해 매장 관리자 매핑을 관리하는 스크립트
-// - SUPER 로그인: /api/super-login
-// - 토큰 검증:    /api/verify
+// - SUPER 로그인: /api/super-login (Edge + Web Crypto 방식)
+// - 토큰 저장:    localStorage "qrnr.super.jwt"
 // - 매핑 저장:    localStorage "qrnr.store.v8" 의 ['system','storeAdmins']
 
 import { get, patch } from './modules/store.js';
@@ -32,26 +32,17 @@ function setSuperToken(token) {
   }
 }
 
-// JWT 검증: realm === 'super' 인지 확인
-async function verifySuper() {
-  const token = getSuperToken();
+// JWT payload만 간단히 decode (서명 검증은 안 함 / 이 페이지는 로컬 설정용이라 가볍게)
+function decodeToken(token) {
   if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
 
   try {
-    const r = await fetch('/api/verify', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
-
-    if (!r.ok) return null;
-
-    const data = await r.json().catch(() => null);
-    if (!data || !data.ok || data.realm !== 'super') return null;
-
-    return data; // { ok, sub, realm, payload }
+    const bodyJson = atob(parts[1]);
+    return JSON.parse(bodyJson);
   } catch (e) {
-    console.error('[store-admin] verifySuper error', e);
+    console.error('[store-admin] decodeToken error', e);
     return null;
   }
 }
@@ -160,7 +151,7 @@ function bindMappingForm() {
   });
 }
 
-// ----- 페이지 초기화 (SUPER 로그인/로그아웃 포함) -----
+// ----- 페이지 초기화 (로그인/로그아웃 포함) -----
 async function init() {
   const statusBox = $('#super-status-text');
   const logoutBtn = $('#super-logout');
@@ -176,12 +167,13 @@ async function init() {
     return;
   }
 
-  // 1) 현재 SUPER 토큰 검증
-  const me = await verifySuper();
+  // 1) 현재 SUPER 토큰 확인 (localStorage만 보고 판단)
+  const currentToken = getSuperToken();
+  const me = decodeToken(currentToken);
 
-  if (me) {
-    // SUPER 인증 OK → 로그인 상태만 표시
-    statusBox.textContent = `로그인: ${me.sub}`;
+  if (me && me.realm === 'super') {
+    // SUPER 로그인 OK
+    statusBox.textContent = `로그인: ${me.uid || ''}`;
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
     mappingCard.style.display = 'block';
@@ -189,7 +181,7 @@ async function init() {
     renderMapTable();
     bindMappingForm();
   } else {
-    // SUPER 미인증 → 상태 텍스트 비우기
+    // SUPER 미인증 → 상태 텍스트 비우고 로그인 폼 표시
     statusBox.textContent = '';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
@@ -197,10 +189,10 @@ async function init() {
 
     if (loginBtn && idInput && pwInput && loginMsg) {
       loginBtn.addEventListener('click', async () => {
-        const id = (idInput.value || '').trim();
-        const pw = (pwInput.value || '').trim();
+        const uid = (idInput.value || '').trim();
+        const pwd = (pwInput.value || '').trim();
 
-        if (!id || !pw) {
+        if (!uid || !pwd) {
           loginMsg.textContent = '아이디와 비밀번호를 모두 입력해 주세요.';
           return;
         }
@@ -211,7 +203,7 @@ async function init() {
           const r = await fetch('/api/super-login', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ id, password: pw }),
+            body: JSON.stringify({ uid, pwd }),
           });
 
           const data = await r.json().catch(() => null);
@@ -223,9 +215,9 @@ async function init() {
 
           setSuperToken(data.token);
 
-          const me2 = await verifySuper();
-          if (me2) {
-            statusBox.textContent = `로그인: ${me2.sub}`;
+          const me2 = decodeToken(data.token);
+          if (me2 && me2.realm === 'super') {
+            statusBox.textContent = `로그인: ${me2.uid || ''}`;
             logoutBtn.style.display = 'inline-flex';
             loginCard.style.display = 'none';
             mappingCard.style.display = 'block';
@@ -233,7 +225,8 @@ async function init() {
             renderMapTable();
             bindMappingForm();
           } else {
-            loginMsg.textContent = '로그인에 실패했습니다. (검증 실패)';
+            loginMsg.textContent =
+              '로그인에 실패했습니다. (토큰 정보가 올바르지 않습니다)';
           }
         } catch (e) {
           console.error('[store-admin] login error', e);
@@ -252,5 +245,7 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  init().catch((e) => console.error('[store-admin] init error', e));
+  init().catch((e) =>
+    console.error('[store-admin] init error', e),
+  );
 });
