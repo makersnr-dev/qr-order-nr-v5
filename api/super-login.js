@@ -1,49 +1,58 @@
 // /api/super-login.js
-import { getIronSession } from 'iron-session';
+// SUPER_ADMINS_JSON + JWT 기반 SUPER 로그인 API
+// POST { id, password } -> { ok, token, user }
 
-const sessionOptions = {
-  cookieName: 'qrnr_sess',
-  password:
-    process.env.SESSION_PASSWORD ||
-    'change-me-32-characters-min-secret!!!!',
-  cookieOptions: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'lax',
-  },
-};
+import jwt from 'jsonwebtoken';
 
-// env: SUPER_ADMINS_JSON = {"super":"super1234!","audit":"audit-pass-9999"}
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-dev-secret';
+
+// 요청 body 읽기 유틸 (Node http.ServerResponse 기준)
+async function readBody(req) {
+  return await new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+      // 혹시 너무 큰 요청이 들어오면 방어
+      if (data.length > 1e6) {
+        req.destroy();
+        reject(new Error('Body too large'));
+      }
+    });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+// SUPER_ADMINS_JSON 파싱
+// - 객체 형태: { "super": "pw", "owner": "pw2" }
+// - 배열 형태: [ { "id": "super", "password": "pw" }, ... ]
 function getSuperAdminMap() {
   const raw = process.env.SUPER_ADMINS_JSON;
-  if (!raw) {
-    console.warn('[super] SUPER_ADMINS_JSON env not set');
-    return {};
-  }
+  if (!raw) return {};
 
   try {
     const parsed = JSON.parse(raw);
 
-    // 형태 1) {"super":"pw","audit":"pw2"}
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed;
-    }
-
-    // 형태 2) [{"id":"super","password":"pw"}, ...] 도 허용
     if (Array.isArray(parsed)) {
       const map = {};
       for (const item of parsed) {
         if (!item || typeof item !== 'object') continue;
-        if (!item.id || !item.password) continue;
-        map[item.id] = item.password;
+        const id = item.id || item.uid || item.user || item.name;
+        const pw = item.password || item.pw;
+        if (!id || !pw) continue;
+        map[id] = pw;
       }
       return map;
     }
 
-    console.warn('[super] SUPER_ADMINS_JSON has unexpected shape');
+    if (parsed && typeof parsed === 'object') {
+      // { id: pw } 형태라고 가정
+      return parsed;
+    }
+
     return {};
   } catch (e) {
-    console.error('[super] SUPER_ADMINS_JSON parse error:', e);
+    console.error('[super-login] SUPER_ADMINS_JSON parse error:', e);
     return {};
   }
 }
@@ -54,38 +63,55 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
   }
 
+  let bodyText = '';
   try {
-    // Vercel / Node 함수에서는 JSON POST면 req.body에 들어오는 구조
-    const body = req.body || {};
-    const id = body.id || body.username || '';
-    const password = body.password || '';
-
-    if (!id || !password) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'MISSING_CREDENTIALS' });
-    }
-
-    const map = getSuperAdminMap();
-    const expectedPw = map[id];
-
-    if (!expectedPw || expectedPw !== password) {
-      // 이 부분이 지금 "아니래"의 원인
-      return res
-        .status(401)
-        .json({ ok: false, error: 'INVALID_CREDENTIALS' });
-    }
-
-    const session = await getIronSession(req, res, sessionOptions);
-    session.isSuper = true;
-    session.superId = id;
-    await session.save();
-
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error('[super-login] error:', err);
-    return res
-      .status(500)
-      .json({ ok: false, error: 'INTERNAL_ERROR' });
+    bodyText = await readBody(req);
+  } catch (e) {
+    console.error('[super-login] readBody error:', e);
+    return res.status(400).json({ ok: false, error: 'BODY_READ_ERROR' });
   }
+
+  let body = null;
+  try {
+    body = bodyText ? JSON.parse(bodyText) : {};
+  } catch (e) {
+    return res.status(400).json({ ok: false, error: 'INVALID_JSON' });
+  }
+
+  const id = (body.id || '').trim();
+  const password = (body.password || '').trim();
+
+  if (!id || !password) {
+    return res
+      .status(400)
+      .json({ ok: false, error: 'ID_AND_PASSWORD_REQUIRED' });
+  }
+
+  const map = getSuperAdminMap();
+  const expectedPw = map[id];
+
+  if (!expectedPw || expectedPw !== password) {
+    return res
+      .status(401)
+      .json({ ok: false, error: 'INVALID_CREDENTIALS' });
+  }
+
+  // JWT payload 통일: sub + realm
+  const payload = {
+    sub: id,
+    realm: 'super',
+  };
+
+  const token = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: '12h', // 필요시 조정
+  });
+
+  return res.status(200).json({
+    ok: true,
+    token,
+    user: {
+      id,
+      realm: 'super',
+    },
+  });
 }
