@@ -13,12 +13,13 @@
   <div class="card vstack">
     <div class="small">
       관리자 계정(아이디/이메일)과 매장 ID(storeId)를 연결합니다.<br>
-      지금은 브라우저 저장 기준으로 동작하고, 나중에 DB로 옮길 때 이 구조만 그대로 쓰면 됩니다.
+      이 정보는 <b>관리자 콘솔(admin.js)의 storeId 자동 선택</b>에 사용되며,<br>
+      현재는 로컬 저장소 기반으로 동작하고, 나중에 DB로 옮길 때도 같은 구조를 그대로 사용할 수 있습니다.
     </div>
 
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
       <input id="map-admin" class="input" placeholder="관리자 ID (예: owner@narae.com)" style="min-width:260px">
-      <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
+      <input id="map-store" class="input" placeholder="storeId (예: store1)" style="min-width:160px">
       <button id="map-add" class="btn primary">매핑 추가/수정</button>
     </div>
 
@@ -27,7 +28,7 @@
         <tr>
           <th>관리자 ID</th>
           <th>storeId</th>
-          <th></th>
+          <th class="right">관리</th>
         </tr>
       </thead>
       <tbody id="map-body">
@@ -42,7 +43,10 @@
   import { get, patch } from '/src/admin/assets/js/modules/store.js';
 
   const $ = (s, r=document) => r.querySelector(s);
-  const PATH = ['admin', 'storeAdmins'];
+
+  // ✅ admin.js 에서 사용하는 키와 맞춤
+  //   admin.js: get(['system', 'storeAdmins']) 를 참조하고 있음
+  const PATH = ['system', 'storeAdmins'];
 
   async function ensureAuth() {
     await requireAuth('admin'); // 기존 admin과 동일한 방식으로 보호
@@ -70,16 +74,22 @@
 
     entries.forEach(([adminId, storeId]) => {
       const tr = document.createElement('tr');
+
+      // 관리자 콘솔 링크 (해당 매장 storeId로 진입)
+      const consoleHref = `/src/admin/index.html?store=${encodeURIComponent(storeId)}`;
+
       tr.innerHTML = `
         <td>${adminId}</td>
         <td>${storeId}</td>
         <td class="right">
+          <a class="btn small" href="${consoleHref}">관리자 콘솔</a>
           <button class="btn small" data-del="${adminId}">삭제</button>
         </td>
       `;
       body.appendChild(tr);
     });
 
+    // 삭제 버튼 바인딩
     body.querySelectorAll('[data-del]').forEach(btn => {
       btn.onclick = () => {
         const id = btn.getAttribute('data-del');
@@ -106,6 +116,17 @@
       saveMap(map);
       render();
     };
+
+    // (선택) 현재 로그인 관리자 ID가 localStorage에 있으면 자동 채워주기
+    try {
+      const info = JSON.parse(localStorage.getItem('qrnr.adminInfo') || '{}');
+      const id = info.id || info.email;
+      if (id && $('#map-admin')) {
+        $('#map-admin').value = id;
+      }
+    } catch (e) {
+      // 무시해도 됨
+    }
   }
 
   (async () => {
