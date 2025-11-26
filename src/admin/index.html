@@ -19,7 +19,7 @@
   <div class="tabbar">
     <button class="tab active" data-tab="store">매장</button>
     <button class="tab" data-tab="delivery">배달/예약</button>
-    <!-- 🔹 기존 "QR 배포" → "매장QR"로 이름/키 변경 -->
+    <!-- 🔹 기존 QR 배포 → 매장QR -->
     <button class="tab" data-tab="qr-store">매장QR</button>
     <!-- 🔹 새 배달/예약QR 탭 -->
     <button class="tab" data-tab="qr-deliv">배달/예약QR</button>
@@ -28,6 +28,8 @@
     <button class="tab" data-tab="mybank">내 계좌정보</button>
     <button class="tab" data-tab="notify-log">호출 알림</button>
     <button class="tab" data-tab="notify">알림 설정</button>
+    <!-- 🔹 개인정보 처리방침 탭 -->
+    <button class="tab" data-tab="privacy">개인정보 처리방침</button>
   </div>
 
   <!-- ================= 매장 주문 ================= -->
@@ -230,6 +232,29 @@
       <input id="n-webhook" class="input" placeholder="Webhook URL (선택)" style="min-width:300px">
       <button id="n-save" class="btn primary">저장</button>
     </div>
+  </div>
+
+  <!-- ================= 개인정보 처리방침 ================= -->
+  <div class="card" data-panel="privacy" style="display:none">
+    <h3>개인정보 처리방침</h3>
+    <p class="small" style="margin-bottom:8px">
+      이 내용은 배달/예약 주문 페이지의
+      <b>「개인정보 처리방침 전문 보기」 모달</b>에 그대로 노출됩니다.<br/>
+      매장 사정에 맞게 수정 후 <b>저장</b> 버튼을 눌러주세요.
+    </p>
+    <textarea
+      id="privacy-text"
+      class="input"
+      style="width:100%;min-height:260px;white-space:pre-wrap"
+    ></textarea>
+    <div class="hstack" style="gap:8px;margin-top:8px">
+      <button id="privacy-save" class="btn primary">저장</button>
+      <button id="privacy-reset" class="btn small" type="button">기본 예시 불러오기</button>
+    </div>
+    <p class="small" style="margin-top:6px;color:#9ca3af">
+      ※ 저장된 내용은 브라우저/로컬 저장소 또는 추후 DB에 보관되며,
+      법적 효력을 갖는지 여부는 별도의 법률 검토가 필요할 수 있습니다.
+    </p>
   </div>
 </div>
 
