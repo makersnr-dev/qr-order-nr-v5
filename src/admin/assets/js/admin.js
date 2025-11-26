@@ -16,11 +16,11 @@ import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
+import { get } from './modules/store.js'; // ✅ 매장 관리자 매핑용
 
 // ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
 if (typeof window !== 'undefined' && 'Notification' in window) {
   if (Notification.permission === 'default') {
-    // 사용자가 이미 허용/차단한 상태가 아니면 한 번만 물어봄
     Notification.requestPermission().catch(() => {});
   }
 }
@@ -50,27 +50,69 @@ const safeRenderStore      = makeSafeRefresher(renderStore);
 const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
-// ===== storeId 결정 =====
-// auth.js 쪽에서 requireAuth 후에 localStorage['qrnr.storeId']를
-// admin1 -> narae 같은 매핑값으로 채워준다는 전제
-function resolveStoreId() {
+// ===== storeId 결정 함수 =====
+// 1) URL ?store= 우선
+// 2) 매장 관리자 매핑에서 adminId → storeId
+// 3) localStorage에 남아 있던 storeId
+// 4) 마지막 fallback: 'store1'
+function resolveStoreId(adminId) {
   // 1) URL ?store= 우선
   try {
     const u = new URL(location.href);
     const fromUrl = u.searchParams.get('store');
     if (fromUrl) {
       localStorage.setItem('qrnr.storeId', fromUrl);
+      console.log('[admin] storeId from URL:', fromUrl);
       return fromUrl;
     }
   } catch (e) {
     console.error('[admin] resolveStoreId URL parse error', e);
   }
 
-  // 2) 로컬스토리지에 기억된 storeId
-  const stored = localStorage.getItem('qrnr.storeId');
-  if (stored) return stored;
+  // 2) 매장 관리자 매핑에서 adminId → storeId 찾기
+  if (adminId && typeof get === 'function') {
+    try {
+      const map = get(['system', 'storeAdmins']) || {};
+      const mapped = map[adminId];
+      console.log('[admin] storeAdmins map for', adminId, ':', mapped);
 
-  // 3) 아무것도 없으면 기본값
+      let sid = null;
+
+      if (typeof mapped === 'string') {
+        // 예: storeAdmins["admin1"] = "korea"
+        sid = mapped;
+      } else if (mapped && typeof mapped === 'object') {
+        // 예: storeAdmins["admin1"] = { storeId:"korea", ... } 형태
+        // ⚠️ 매장 ID로 쓸만한 필드만 본다. (id/이름 같은 건 절대 안 씀)
+        sid =
+          mapped.storeId ||
+          mapped.store ||
+          mapped.storeCode ||
+          mapped.store_id ||
+          null;
+      }
+
+      if (sid) {
+        localStorage.setItem('qrnr.storeId', sid);
+        console.log('[admin] storeId from mapping:', adminId, '->', sid);
+        return sid;
+      } else {
+        console.log('[admin] no usable storeId in mapping for', adminId);
+      }
+    } catch (e) {
+      console.error('[admin] resolveStoreId mapping error', e);
+    }
+  }
+
+  // 3) 로컬스토리지에 기억된 storeId
+  const stored = localStorage.getItem('qrnr.storeId');
+  if (stored) {
+    console.log('[admin] storeId from localStorage:', stored);
+    return stored;
+  }
+
+  // 4) 아무것도 없으면 기본값
+  console.log('[admin] storeId fallback: store1');
   return 'store1';
 }
 
@@ -123,14 +165,27 @@ function showToast(message, variant = 'info') {
 }
 
 async function main() {
-  // 1) 관리자 인증 (토큰 검증 + auth.js에서 adminInfo/storeId 주입)
-  await requireAuth('admin');
+  // 1) 관리자 인증 (토큰 검증)
+  const session = await requireAuth('admin');
+  if (!session) return;
 
-  // 2) 최종 storeId 결정
-  const sid = resolveStoreId();
+  // verify 응답에서 adminId 추출 (여러 케이스 방어적으로 처리)
+  const adminId =
+    session.uid ||
+    session.sub ||
+    (session.user && (session.user.uid || session.user.id)) ||
+    (session.payload &&
+      (session.payload.uid || session.payload.sub)) ||
+    null;
+
+  console.log('[admin] session from verify:', session);
+  console.log('[admin] resolved adminId:', adminId);
+
+  // 2) 최종 storeId 결정 (URL / 매핑 / localStorage)
+  const sid = resolveStoreId(adminId);
   window.qrnrStoreId = sid;
   localStorage.setItem('qrnr.storeId', sid);
-  console.log('[admin] storeId =', sid);
+  console.log('[admin] final storeId =', sid);
 
   // 3) 주소창에 ?store= 없으면 한 번 넣어주기
   try {
