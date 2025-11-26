@@ -72,12 +72,30 @@ function renderMapTable() {
       <td>${adminId}</td>
       <td>${storeId}</td>
       <td class="right">
+        <button class="btn small" data-go="${storeId}">관리자 페이지</button>
         <button class="btn small" data-del="${adminId}">삭제</button>
       </td>
     `;
     body.appendChild(tr);
   });
 
+  // 🔹 "관리자 페이지" 버튼 → 해당 매장 관리자 콘솔로 이동
+  body.querySelectorAll('[data-go]').forEach((btn) => {
+    btn.onclick = () => {
+      const sid = btn.getAttribute('data-go');
+      if (!sid) return;
+
+      // storeId를 로컬에도 기억시켜두기 (admin.js에서도 참고)
+      try {
+        localStorage.setItem('qrnr.storeId', sid);
+      } catch (e) {}
+
+      // /admin?store=storeId 로 이동 → 관리자 로그인 후 해당 매장 콘솔로 진입
+      location.href = `/admin?store=${encodeURIComponent(sid)}`;
+    };
+  });
+
+  // 🔹 삭제 버튼
   body.querySelectorAll('[data-del]').forEach((btn) => {
     btn.onclick = () => {
       const id = btn.getAttribute('data-del');
@@ -110,7 +128,7 @@ function bindMapForm() {
     saveMap(map);
     renderMapTable();
 
-    // 입력값 정리
+    // 입력값은 유지하거나, 원하면 여기서 초기화해도 됨
     $('#map-admin').value = adminId;
     $('#map-store').value = storeId;
   };
