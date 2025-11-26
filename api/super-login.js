@@ -1,7 +1,6 @@
 // /api/super-login.js
 import { getIronSession } from 'iron-session';
 
-// ⚙️ admin 쪽에서 이미 쓰는 세션 설정과 동일하게 맞춰주는 게 좋음
 const sessionOptions = {
   cookieName: 'qrnr_sess',
   password:
@@ -15,7 +14,6 @@ const sessionOptions = {
 };
 
 // env: SUPER_ADMINS_JSON = {"super":"super1234!","audit":"audit-pass-9999"}
-// 또는 [{"id":"super","password":"super1234!"}, ...]도 허용
 function getSuperAdminMap() {
   const raw = process.env.SUPER_ADMINS_JSON;
   if (!raw) {
@@ -31,7 +29,7 @@ function getSuperAdminMap() {
       return parsed;
     }
 
-    // 형태 2) [{"id":"super","password":"pw"}, ...]
+    // 형태 2) [{"id":"super","password":"pw"}, ...] 도 허용
     if (Array.isArray(parsed)) {
       const map = {};
       for (const item of parsed) {
@@ -57,7 +55,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { id, password } = req.body || {};
+    // Vercel / Node 함수에서는 JSON POST면 req.body에 들어오는 구조
+    const body = req.body || {};
+    const id = body.id || body.username || '';
+    const password = body.password || '';
+
     if (!id || !password) {
       return res
         .status(400)
@@ -68,6 +70,7 @@ export default async function handler(req, res) {
     const expectedPw = map[id];
 
     if (!expectedPw || expectedPw !== password) {
+      // 이 부분이 지금 "아니래"의 원인
       return res
         .status(401)
         .json({ ok: false, error: 'INVALID_CREDENTIALS' });
