@@ -32,7 +32,7 @@ function setSuperToken(token) {
   }
 }
 
-// JWT payload만 간단히 decode (서명 검증은 안 함 / 이 페이지는 로컬 설정용이라 가볍게)
+// JWT payload만 간단히 decode (서명 검증은 안 함)
 function decodeToken(token) {
   if (!token) return null;
   const parts = token.split('.');
@@ -167,12 +167,11 @@ async function init() {
     return;
   }
 
-  // 1) 현재 SUPER 토큰 확인 (localStorage만 보고 판단)
+  // 1) 현재 SUPER 토큰 확인
   const currentToken = getSuperToken();
   const me = decodeToken(currentToken);
 
   if (me && me.realm === 'super') {
-    // SUPER 로그인 OK
     statusBox.textContent = `로그인: ${me.uid || ''}`;
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
@@ -181,7 +180,6 @@ async function init() {
     renderMapTable();
     bindMappingForm();
   } else {
-    // SUPER 미인증 → 상태 텍스트 비우고 로그인 폼 표시
     statusBox.textContent = '';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
@@ -193,7 +191,8 @@ async function init() {
         const pwd = (pwInput.value || '').trim();
 
         if (!uid || !pwd) {
-          loginMsg.textContent = '아이디와 비밀번호를 모두 입력해 주세요.';
+          loginMsg.textContent =
+            '아이디와 비밀번호를 모두 입력해 주세요.';
           return;
         }
 
@@ -208,8 +207,21 @@ async function init() {
 
           const data = await r.json().catch(() => null);
 
-          if (!r.ok || !data || !data.ok || !data.token) {
-            loginMsg.textContent = '로그인에 실패했습니다.';
+          if (!data || data.ok !== true || !data.token) {
+            // 자세한 에러 메시지 분기
+            if (data && data.error === 'INVALID_CREDENTIALS') {
+              loginMsg.textContent =
+                '아이디 또는 비밀번호가 올바르지 않습니다.';
+            } else if (
+              data &&
+              (data.error === 'BAD_SUPER_ADMINS_JSON_PARSE' ||
+                data.error === 'NO_VALID_SUPER_USERS')
+            ) {
+              loginMsg.textContent =
+                'SUPER_ADMINS_JSON 환경변수를 확인해 주세요.';
+            } else {
+              loginMsg.textContent = '로그인에 실패했습니다.';
+            }
             return;
           }
 
@@ -230,7 +242,8 @@ async function init() {
           }
         } catch (e) {
           console.error('[store-admin] login error', e);
-          loginMsg.textContent = '로그인 중 오류가 발생했습니다.';
+          loginMsg.textContent =
+            '로그인 중 오류가 발생했습니다.';
         }
       });
     }
