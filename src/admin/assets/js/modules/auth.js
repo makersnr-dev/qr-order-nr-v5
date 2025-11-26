@@ -66,20 +66,38 @@ function hydrateAdminInfoAndStore(t, realmHint) {
     // 관리자라면 매장 매핑도 시도
     if (info.realm === 'admin' && typeof get === 'function') {
       try {
-        // SUPER 매핑에서 가져오는 구조: ['system','storeAdmins'][adminId] = 'storeId'
         const map = get(['system', 'storeAdmins']) || {};
         const mapped = map[info.id];
 
-        if (mapped) {
-          let sid = mapped;
-          // 혹시 객체 형태라면: { storeId:'narae', note:'...' } 이런 것도 처리
-          if (typeof mapped === 'object') {
-            sid = mapped.storeId || mapped.id || mapped.code || null;
-          }
-          if (sid) {
-            localStorage.setItem('qrnr.storeId', sid);
-            console.log('[auth] storeId hydrated from mapping:', info.id, '->', sid);
-          }
+        let sid = null;
+
+        if (typeof mapped === 'string') {
+          // 예: storeAdmins[adminId] = 'korea'
+          sid = mapped;
+        } else if (mapped && typeof mapped === 'object') {
+          // 예: storeAdmins[adminId] = { storeId:'korea', ... } 형태
+          // 👉 매장 ID로 쓸만한 필드만 본다 (id 같은 건 절대 쓰지 않음!)
+          sid =
+            mapped.storeId ||
+            mapped.store ||
+            mapped.storeCode ||
+            null;
+        }
+
+        if (sid) {
+          localStorage.setItem('qrnr.storeId', sid);
+          console.log(
+            '[auth] storeId hydrated from mapping:',
+            info.id,
+            '->',
+            sid,
+          );
+        } else {
+          console.log(
+            '[auth] no usable storeId in mapping for',
+            info.id,
+            mapped,
+          );
         }
       } catch (e) {
         console.error('[auth] hydrate storeId from storeAdmins failed', e);
