@@ -181,7 +181,7 @@ async function init() {
 
   if (me) {
     // SUPER 인증 OK
-    statusBox.textContent = `SUPER 로그인: ${me.sub}`;
+    statusBox.textContent = `로그인: ${me.sub}`;
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
     mappingCard.style.display = 'block';
@@ -190,7 +190,7 @@ async function init() {
     bindMappingForm();
   } else {
     // SUPER 미인증
-    statusBox.textContent = 'SUPER 로그인 필요';
+    statusBox.textContent = '로그인 전입니다.';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
     mappingCard.style.display = 'none';
@@ -225,7 +225,7 @@ async function init() {
 
           const me2 = await verifySuper();
           if (me2) {
-            statusBox.textContent = `SUPER 로그인: ${me2.sub}`;
+            statusBox.textContent = `로그인: ${me2.sub}`;
             logoutBtn.style.display = 'inline-flex';
             loginCard.style.display = 'none';
             mappingCard.style.display = 'block';
@@ -245,7 +245,7 @@ async function init() {
 
   // 2) 로그아웃 버튼
   logoutBtn.addEventListener('click', () => {
-    if (!confirm('SUPER에서 로그아웃할까요?')) return;
+    if (!confirm('로그아웃할까요?')) return;
     setSuperToken('');
     location.reload();
   });
