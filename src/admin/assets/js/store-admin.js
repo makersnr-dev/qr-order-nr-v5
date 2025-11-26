@@ -180,7 +180,7 @@ async function init() {
   const me = await verifySuper();
 
   if (me) {
-    // SUPER 인증 OK
+    // SUPER 인증 OK → 로그인 상태만 표시
     statusBox.textContent = `로그인: ${me.sub}`;
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
@@ -189,8 +189,8 @@ async function init() {
     renderMapTable();
     bindMappingForm();
   } else {
-    // SUPER 미인증
-    statusBox.textContent = '로그인 전입니다.';
+    // SUPER 미인증 → 상태 텍스트 비우기
+    statusBox.textContent = '';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
     mappingCard.style.display = 'none';
