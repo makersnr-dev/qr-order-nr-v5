@@ -45,6 +45,49 @@ export function decodeToken(t) {
   }
 }
 
+// 내부용: adminInfo / storeId 로컬 저장
+function hydrateAdminInfoAndStore(t, realmHint) {
+  try {
+    const decoded = decodeToken(t);
+    if (!decoded) return;
+
+    const id = decoded.uid || decoded.sub;
+    if (!id) return;
+
+    const info = {
+      id,
+      name: decoded.name || id,
+      realm: decoded.realm || realmHint || 'admin',
+    };
+
+    // 관리자 정보 저장 (admin.js 의 resolveStoreId에서 사용)
+    localStorage.setItem('qrnr.adminInfo', JSON.stringify(info));
+
+    // 관리자라면 매장 매핑도 시도
+    if (info.realm === 'admin' && typeof get === 'function') {
+      try {
+        const map = get(['system', 'storeAdmins']) || {};
+        const mapped = map[info.id];
+
+        if (mapped) {
+          let sid = mapped;
+          // 매핑이 객체라면 { storeId: 'store1', note: '...' } 형태일 수도 있음
+          if (typeof mapped === 'object') {
+            sid = mapped.storeId || mapped.id || mapped.code || null;
+          }
+          if (sid) {
+            localStorage.setItem('qrnr.storeId', sid);
+          }
+        }
+      } catch (e) {
+        console.error('[auth] hydrate storeId from storeAdmins failed', e);
+      }
+    }
+  } catch (e) {
+    console.error('[auth] hydrateAdminInfoAndStore error', e);
+  }
+}
+
 // 로그인이 꼭 필요한 페이지에서 호출:
 //   await requireAuth('admin');
 //   await requireAuth('super');
@@ -63,7 +106,7 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // 2) /api/verify 에 JSON 형식으로 토큰 보내기 (★ 핵심 수정)
+    // 2) /api/verify 에 JSON 형식으로 토큰 보내기
     const r = await fetch('/api/verify', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -93,7 +136,9 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // 여기까지 왔으면 인증 OK
+    // ✅ 여기까지 왔으면 인증 OK → adminInfo / storeId 세팅
+    hydrateAdminInfoAndStore(t, p.realm);
+
     return p;
   } catch (e) {
     console.error('[auth] requireAuth error', e);
@@ -104,7 +149,7 @@ export async function requireAuth(realm) {
   }
 }
 
-// 이미 로그인 돼 있으면 /admin/login 에서 바로 /admin 으로 보내기
+// 이미 로그인 돼 있으면 /admin/login 에서 바로 /admin(또는 /admin?store=) 으로 보내기
 export function redirectIfLoggedIn() {
   const here = location.pathname;
   const t = getToken();
@@ -114,11 +159,18 @@ export function redirectIfLoggedIn() {
   if (!payload || !payload.realm) return;
 
   if (here.startsWith('/admin/login')) {
+    // 이미 로그인된 상태라면, storeId 있으면 붙여서 보내기
+    let target = '/admin';
+    const sid = localStorage.getItem('qrnr.storeId');
+    if (sid) {
+      target = `/admin?store=${encodeURIComponent(sid)}`;
+    }
+
     try {
-      history.replaceState(null, '', '/admin');
+      history.replaceState(null, '', target);
     } catch (e) {
       console.error('[auth] redirectIfLoggedIn history error', e);
     }
-    location.href = '/admin';
+    location.href = target;
   }
 }
