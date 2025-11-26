@@ -1,10 +1,11 @@
 // /api/super-login.js
 // SUPER_ADMINS_JSON 기반 SUPER 로그인 (Edge + Web Crypto)
 // 요청:  POST { uid, pwd }
-// 응답:
-//   - 성공:   { ok:true, token, user:{ uid, realm:'super' } }
-//   - 실패(계정틀림): { ok:false, error:'INVALID_CREDENTIALS' }
-//   - 설정오류:       { ok:false, error:'BAD_SUPER_ADMINS_JSON' } 등
+// 환경변수 예시:
+//   SUPER_ADMINS_JSON=[{"id":"super","pw":"1234","name":"슈퍼관리자","provider":"local"}]
+//
+// 응답(성공):
+//   { ok:true, token, user:{ sub, uid, realm:'super', provider, name, iat } }
 
 export const config = { runtime: 'edge' };
 
@@ -47,13 +48,11 @@ async function sign(payload) {
   return `${data}.${b64}`;
 }
 
-// SUPER 계정 목록 파싱 (여러 형태 지원)
+// SUPER 계정 목록 파싱 (배열/맵 둘 다 지원)
 function getSuperUsers() {
-  // 우선 SUPER_ADMINS_JSON, 없으면 기본값
   const raw =
     process.env.SUPER_ADMINS_JSON ||
-    // 아무 것도 안 넣었을 때 테스트용 기본 계정
-    '[{"id":"super","pw":"1234"}]';
+    '[{"id":"super","pw":"1234","name":"슈퍼관리자","provider":"local"}]';
 
   let parsed;
   try {
@@ -65,7 +64,6 @@ function getSuperUsers() {
   const norm = [];
 
   if (Array.isArray(parsed)) {
-    // [ { id, pw } ] 형태
     for (const item of parsed) {
       if (!item || typeof item !== 'object') continue;
       const id =
@@ -77,13 +75,23 @@ function getSuperUsers() {
         item.pw ||
         item.password;
       if (!id || !pw) continue;
-      norm.push({ id: String(id), pw: String(pw) });
+      norm.push({
+        id: String(id),
+        pw: String(pw),
+        name: item.displayName || item.name || String(id),
+        provider: item.provider || 'local',
+      });
     }
   } else if (parsed && typeof parsed === 'object') {
-    // { "super":"1234", "owner":"abcd" } 형태
+    // { "super":"1234", "owner":"abcd" } 형태도 지원
     for (const [k, v] of Object.entries(parsed)) {
       if (v == null) continue;
-      norm.push({ id: String(k), pw: String(v) });
+      norm.push({
+        id: String(k),
+        pw: String(v),
+        name: String(k),
+        provider: 'local',
+      });
     }
   }
 
@@ -110,38 +118,43 @@ export default async function handler(req) {
   const pwd = (body?.pwd || '').trim();
 
   if (!uid || !pwd) {
-    return json({
-      ok: false,
-      error: 'ID_AND_PASSWORD_REQUIRED',
-    });
+    return json(
+      { ok: false, error: 'ID_AND_PASSWORD_REQUIRED' },
+      400,
+    );
   }
 
   const { error, users } = getSuperUsers();
   if (error && users.length === 0) {
-    // 설정 자체가 잘못된 경우
     console.error('[super-login] config error:', error);
     return json({ ok: false, error }, 500);
   }
 
-  const ok =
+  const user =
     Array.isArray(users) &&
-    users.some((u) => u.id === uid && u.pw === pwd);
+    users.find(
+      (u) => u && u.id === uid && u.pw === pwd,
+    );
 
-  if (!ok) {
-    // 아이디/비밀번호 틀린 경우 → HTTP 200 + 에러 코드만 내려줌
-    return json({ ok: false, error: 'INVALID_CREDENTIALS' });
+  if (!user) {
+    // SUPER도 실패하면 401 유지
+    return json({ ok: false }, 401);
   }
 
-  const token = await sign({
-    uid,
-    realm: 'super',
-    tenant: 'default',
+  const payload = {
+    sub: user.id,                     // 내부 고유 ID
+    uid: user.id,                     // 기존 패턴 호환용
+    realm: 'super',                   // SUPER 역할
+    provider: user.provider || 'local',
+    name: user.name || user.id,
     iat: Math.floor(Date.now() / 1000),
-  });
+  };
+
+  const token = await sign(payload);
 
   return json({
     ok: true,
     token,
-    user: { uid, realm: 'super' },
+    user: payload,
   });
 }
