@@ -4,44 +4,60 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
   <title>매장 관리자 매핑</title>
 </head>
 <body>
 <div class="container">
-  <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-    <h1>매장 관리자 매핑</h1>
-    <button id="logoutBtn" class="btn">로그아웃</button>
-  </div>
+  <h1>매장 관리자 매핑</h1>
 
-  <p class="small" style="margin-bottom:10px">
-    이 페이지에서는 <b>각 매장의 관리자 콘솔</b>로 바로 이동할 수 있습니다.<br/>
-    로그인되지 않은 경우, 먼저 관리자 로그인 화면으로 이동합니다.
-  </p>
-
-  <div class="card vstack" style="gap:10px">
-    <h3>매장 목록</h3>
-    <div id="store-list" class="grid" style="gap:12px"></div>
-    <p class="small" style="margin-top:6px;color:#9ca3af">
-      ※ 매장 정보(이름·설명 등)는 <code>admin-mapping.js</code>의 STORES 상수에서 수정할 수 있습니다.
-    </p>
-  </div>
-
-  <div class="card vstack" style="margin-top:12px;gap:6px">
-    <h3>손님용 주문 화면</h3>
-    <p class="small">
-      손님이 사용하는 주문 페이지(매장/배달/예약)는 종전과 같이 QR 또는 별도 링크를 통해 접속하면 됩니다.<br/>
-      테스트를 위해서는 아래 예시 버튼을 이용할 수 있습니다.
-    </p>
-    <div class="hstack" style="gap:8px;flex-wrap:wrap">
-      <!-- 필요에 따라 store 파라미터 수정 -->
-      <a class="btn small" href="/src/order/select.html?store=store1">손님용 주문유형 선택 (store1)</a>
-      <!-- 다른 매장용 테스트 버튼도 추가 가능 -->
-      <!-- <a class="btn small" href="/src/order/select.html?store=store2">손님용 주문유형 선택 (store2)</a> -->
+  <div class="card vstack">
+    <div class="small">
+      관리자 계정(아이디/이메일)과 매장 ID(<code>storeId</code>)를 연결합니다.<br/>
+      지금은 브라우저(로컬 저장소) 기준으로 동작하고,
+      나중에 DB로 옮길 때도 이 구조만 그대로 가져가면 됩니다.
     </div>
+
+    <!-- 매핑 입력 영역 -->
+    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      <input
+        id="map-admin"
+        class="input"
+        placeholder="관리자 ID (예: owner@narae.com)"
+        style="min-width:260px"
+      >
+      <input
+        id="map-store"
+        class="input"
+        placeholder="storeId (예: narae, store1)"
+        style="min-width:160px"
+      >
+      <button id="map-add" class="btn primary">매핑 추가/수정</button>
+    </div>
+
+    <!-- 매핑 목록 -->
+    <table class="table" style="margin-top:14px">
+      <thead>
+        <tr>
+          <th>관리자 ID</th>
+          <th>storeId</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="map-body">
+        <tr><td colspan="3" class="small">등록된 매핑 없음</td></tr>
+      </tbody>
+    </table>
+
+    <p class="small" style="margin-top:10px;color:#9ca3af">
+      · 이 화면에서 저장된 매핑은 <code>['system','storeAdmins']</code> 경로로 저장됩니다.<br/>
+      · 관리자 콘솔에서 <code>requireAuth('admin')</code>로 로그인한 뒤,
+        해당 관리자 ID에 매핑된 storeId로 관리자 페이지가 열리도록 연동할 수 있습니다.<br/>
+      · 나중에 DB를 붙일 때는 이 경로를 읽어서 그대로 옮기면 됩니다.
+    </p>
   </div>
 </div>
 
-<script type="module" src="/src/admin/assets/js/admin-mapping.js"></script>
+<!-- 매장 관리자 매핑 로직 -->
+<script type="module" src="/src/admin/assets/js/store-admin.js"></script>
 </body>
 </html>
