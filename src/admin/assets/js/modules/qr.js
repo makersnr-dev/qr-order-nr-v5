@@ -1,30 +1,21 @@
 // /src/admin/assets/js/modules/qr.js
-// QR 생성/관리 모듈 (매장별 분리)
-
 import { patch, get } from './store.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
-// 👉 QR에서 사용할 현재 매장 ID
 function currentStoreId() {
-  // admin.js 에서 설정한 값 우선
-  if (window.qrnrStoreId && typeof window.qrnrStoreId === 'string') {
-    return window.qrnrStoreId;
-  }
+  // admin.js에서 설정한 값 우선
+  if (window.qrnrStoreId) return window.qrnrStoreId;
 
-  // 그 다음으로, 로컬에 저장된 값
+  // 없으면 URL ?store= 참고
   try {
-    const saved = localStorage.getItem('qrnr.storeId');
-    if (saved) return saved;
+    const u = new URL(location.href);
+    return u.searchParams.get('store') || 'store1';
   } catch (e) {
-    // 무시
+    return 'store1';
   }
-
-  // 최종 기본값
-  return 'store1';
 }
-
 
 // 공통 저장 위치 : ['admin', 'qrList']
 //  - kind: 'store' | 'deliv' 로 구분
@@ -120,7 +111,7 @@ export function initQR() {
   ensureList();
 
   // ─────────────────────────────────────────────
-  // 1) 매장 테이블용 QR
+  // 1) 매장 테이블용 QR (기존 기능)
   //    - 입력: #qr-table, #qr-label
   //    - 버튼: #qr-generate, #qr-clear
   //    - 그리드: #qr-grid
@@ -229,7 +220,7 @@ export function initQR() {
 
         const item = {
           id: `QR-${Date.now()}-${storeId}-${table}`,
-          kind: 'store', // 매장용
+          kind: 'store',          // ✅ 매장용
           storeId,
           table,
           label,
@@ -272,10 +263,11 @@ export function initQR() {
   }
 
   // ─────────────────────────────────────────────
-  // 2) 배달/예약용 QR
+  // 2) 배달/예약용 QR (새 기능)
   //    - 입력: #qr-deliv-label
   //    - 버튼: #qr-deliv-generate, #qr-deliv-clear
   //    - 그리드: #qr-deliv-grid
+  //    ※ admin.html 에 이 id들이 없으면 그냥 건너뜀
   // ─────────────────────────────────────────────
   const delivLabelInput = $('#qr-deliv-label');
   const delivGenBtn = $('#qr-deliv-generate');
@@ -363,7 +355,7 @@ export function initQR() {
       const label =
         (delivLabelInput?.value || '').trim() || '배달/예약 주문';
 
-      // 회원/비회원 선택 진입 페이지로 연결
+      // ✅ 회원/비회원 선택 진입 페이지로 연결
       const url =
         `${location.origin}/src/order/delivery-entry.html?store=${encodeURIComponent(
           storeId
@@ -374,7 +366,7 @@ export function initQR() {
 
         const item = {
           id: `QR-DELIV-${Date.now()}-${storeId}`,
-          kind: 'deliv', // 배달/예약용
+          kind: 'deliv', // ✅ 배달/예약용
           storeId,
           label,
           url,
