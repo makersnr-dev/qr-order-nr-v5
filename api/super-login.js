@@ -1,120 +1,160 @@
 // /api/super-login.js
-// POST { id, password }
-// 1) Vercel ENV SUPER_ADMINS_JSON 에서 아이디/비번 확인
-// 2) HS256 JWT 서명 (Web Crypto 스타일) 해서 token 으로 반환
+// SUPER_ADMINS_JSON 기반 SUPER 로그인 (Edge + Web Crypto)
+// 요청:  POST { uid, pwd }
+// 환경변수 예시:
+//   SUPER_ADMINS_JSON=[{"id":"super","pw":"1234","name":"슈퍼관리자","provider":"local"}]
+//
+// 응답(성공):
+//   { ok:true, token, user:{ sub, uid, realm:'super', provider, name, iat } }
 
-import { webcrypto } from 'crypto';
+export const config = { runtime: 'edge' };
 
-const subtle = webcrypto.subtle;
-const encoder = new TextEncoder();
-
-// base64url 인코딩
-function base64UrlEncode(buf) {
-  const b64 = Buffer.from(buf).toString('base64');
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json;charset=utf-8' },
+  });
 }
 
-async function signHS256JWT(payload, secret) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const headerJson = JSON.stringify(header);
-  const payloadJson = JSON.stringify(payload);
+// login-admin.js와 동일한 방식으로 JWT 서명
+async function sign(payload) {
+  const enc = new TextEncoder();
+  const secret =
+    process.env.JWT_SECRET || 'dev-secret-please-change';
 
-  const headerB64 = base64UrlEncode(Buffer.from(headerJson));
-  const payloadB64 = base64UrlEncode(Buffer.from(payloadJson));
-  const data = `${headerB64}.${payloadB64}`;
-
-  const key = await subtle.importKey(
+  const key = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(secret),
+    enc.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   );
 
-  const sigBuf = await subtle.sign('HMAC', key, encoder.encode(data));
-  const sigB64 = base64UrlEncode(new Uint8Array(sigBuf));
+  const head = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = btoa(JSON.stringify(payload));
+  const data = `${head}.${body}`;
 
-  return `${data}.${sigB64}`;
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+  const bytes = new Uint8Array(sig);
+  let sigStr = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    sigStr += String.fromCharCode(bytes[i]);
+  }
+  const b64 = btoa(sigStr)
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  return `${data}.${b64}`;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
-  }
+// SUPER 계정 목록 파싱 (배열/맵 둘 다 지원)
+function getSuperUsers() {
+  const raw =
+    process.env.SUPER_ADMINS_JSON ||
+    '[{"id":"super","pw":"1234","name":"슈퍼관리자","provider":"local"}]';
 
+  let parsed;
   try {
-    const { id, password } = req.body || {};
-
-    if (!id || !password) {
-      return res.status(400).json({
-        ok: false,
-        error: 'MISSING_ID_OR_PASSWORD',
-      });
-    }
-
-    // ✅ 1. SUPER_ADMINS_JSON 파싱
-    const rawAdmins = process.env.SUPER_ADMINS_JSON || '';
-    if (!rawAdmins) {
-      return res.status(500).json({
-        ok: false,
-        error: 'SUPER_ADMINS_JSON_NOT_SET',
-      });
-    }
-
-    let adminMap = {};
-    try {
-      adminMap = JSON.parse(rawAdmins);
-    } catch (e) {
-      console.error('[super-login] JSON parse error:', e);
-      return res.status(500).json({
-        ok: false,
-        error: 'SUPER_ADMINS_JSON_INVALID',
-        detail: e.message,
-      });
-    }
-
-    const expectedPw = adminMap[id];
-    if (!expectedPw || expectedPw !== password) {
-      // 👉 여기서 "아이디 비밀번호가 옳지 않습니다" 상황
-      return res.status(401).json({
-        ok: false,
-        error: 'INVALID_CREDENTIALS',
-      });
-    }
-
-    // ✅ 2. JWT 서명용 시크릿
-    const secret = process.env.SUPER_JWT_SECRET || '';
-    if (!secret) {
-      return res.status(500).json({
-        ok: false,
-        error: 'SUPER_JWT_SECRET_NOT_SET',
-      });
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      sub: id,
-      role: 'super',
-      iat: now,
-      exp: now + 60 * 60 * 12, // 12시간
-    };
-
-    const token = await signHS256JWT(payload, secret);
-
-    // 👉 다른 로그인과 동일하게, 보통은 프론트에서 localStorage 에 보관하거나
-    // Authorization: Bearer 로 보내게 사용
-    return res.status(200).json({
-      ok: true,
-      id,
-      token,
-    });
-  } catch (err) {
-    console.error('[super-login] top-level error:', err);
-    return res.status(500).json({
-      ok: false,
-      error: 'INTERNAL_ERROR',
-      detail: err?.message || String(err),
-    });
+    parsed = JSON.parse(raw);
+  } catch (_e) {
+    return { error: 'BAD_SUPER_ADMINS_JSON_PARSE', users: [] };
   }
+
+  const norm = [];
+
+  if (Array.isArray(parsed)) {
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') continue;
+      const id =
+        item.id ||
+        item.uid ||
+        item.user ||
+        item.name;
+      const pw =
+        item.pw ||
+        item.password;
+      if (!id || !pw) continue;
+      norm.push({
+        id: String(id),
+        pw: String(pw),
+        name: item.displayName || item.name || String(id),
+        provider: item.provider || 'local',
+      });
+    }
+  } else if (parsed && typeof parsed === 'object') {
+    // { "super":"1234", "owner":"abcd" } 형태도 지원
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v == null) continue;
+      norm.push({
+        id: String(k),
+        pw: String(v),
+        name: String(k),
+        provider: 'local',
+      });
+    }
+  }
+
+  if (!norm.length) {
+    return { error: 'NO_VALID_SUPER_USERS', users: [] };
+  }
+
+  return { error: null, users: norm };
+}
+
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return json({ error: 'Method' }, 405);
+  }
+
+  let body;
+  try {
+    body = await req.json();
+  } catch (_e) {
+    return json({ ok: false, error: 'BAD_JSON' }, 400);
+  }
+
+  const uid = (body?.uid || '').trim();
+  const pwd = (body?.pwd || '').trim();
+
+  if (!uid || !pwd) {
+    return json(
+      { ok: false, error: 'ID_AND_PASSWORD_REQUIRED' },
+      400,
+    );
+  }
+
+  const { error, users } = getSuperUsers();
+  if (error && users.length === 0) {
+    console.error('[super-login] config error:', error);
+    return json({ ok: false, error }, 500);
+  }
+
+  const user =
+    Array.isArray(users) &&
+    users.find(
+      (u) => u && u.id === uid && u.pw === pwd,
+    );
+
+  if (!user) {
+    // SUPER도 실패하면 401 유지
+    return json({ ok: false }, 401);
+  }
+
+  const payload = {
+    sub: user.id,                     // 내부 고유 ID
+    uid: user.id,                     // 기존 패턴 호환용
+    realm: 'super',                   // SUPER 역할
+    provider: user.provider || 'local',
+    name: user.name || user.id,
+    iat: Math.floor(Date.now() / 1000),
+  };
+
+  const token = await sign(payload);
+
+  return json({
+    ok: true,
+    token,
+    user: payload,
+  });
 }
