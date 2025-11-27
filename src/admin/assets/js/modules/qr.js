@@ -1,17 +1,38 @@
 // /src/admin/assets/js/modules/qr.js
 import { patch, get } from './store.js';
+import { getToken, decodeToken } from './auth.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
 // ✅ QR에서 쓸 현재 매장 ID
 function currentStoreId() {
-  // admin.js 에서 로그인 후에 이미 이 값을 정해둠
+  // 1) 로그인한 관리자 → 매장 매핑(system.storeAdmins) 기준
+  //    관리자계정1, 2 각각에 매장ID를 매핑해 두면
+  //    여기서 서로 다른 storeId 가 나오게 됨.
+  try {
+    const t = getToken && getToken();
+    if (t) {
+      const p = decodeToken && decodeToken(t);
+      const adminId = p?.uid || p?.sub || null;
+
+      if (adminId) {
+        const map = get(['system', 'storeAdmins']) || {};
+        if (map[adminId]) {
+          return map[adminId];
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[qr] currentStoreId token/mapping error', e);
+  }
+
+  // 2) admin.js 에서 로그인 후에 설정한 전역값 (백업용)
   if (window.qrnrStoreId && typeof window.qrnrStoreId === 'string') {
     return window.qrnrStoreId;
   }
 
-  // 혹시나 해서 URL에 ?store= 이 있으면 사용
+  // 3) 혹시나 해서 URL에 ?store= 이 있으면 사용
   try {
     const u = new URL(location.href);
     const fromUrl = u.searchParams.get('store');
@@ -20,7 +41,7 @@ function currentStoreId() {
     // 무시
   }
 
-  // 마지막으로, 로컬에 저장된 값 or 기본값
+  // 4) 마지막으로, 로컬에 저장된 값 or 기본값
   try {
     const saved = localStorage.getItem('qrnr.storeId');
     if (saved) return saved;
@@ -30,7 +51,6 @@ function currentStoreId() {
 
   return 'store1';
 }
-
 
 // 공통 저장 위치 : ['admin', 'qrList']
 //  - kind: 'store' | 'deliv' 로 구분
