@@ -4,18 +4,33 @@ import { patch, get } from './store.js';
 const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
+// ✅ QR에서 쓸 현재 매장 ID
 function currentStoreId() {
-  // admin.js에서 설정한 값 우선
-  if (window.qrnrStoreId) return window.qrnrStoreId;
+  // admin.js 에서 로그인 후에 이미 이 값을 정해둠
+  if (window.qrnrStoreId && typeof window.qrnrStoreId === 'string') {
+    return window.qrnrStoreId;
+  }
 
-  // 없으면 URL ?store= 참고
+  // 혹시나 해서 URL에 ?store= 이 있으면 사용
   try {
     const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
+    const fromUrl = u.searchParams.get('store');
+    if (fromUrl) return fromUrl;
   } catch (e) {
-    return 'store1';
+    // 무시
   }
+
+  // 마지막으로, 로컬에 저장된 값 or 기본값
+  try {
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
+  } catch (e) {
+    // 무시
+  }
+
+  return 'store1';
 }
+
 
 // 공통 저장 위치 : ['admin', 'qrList']
 //  - kind: 'store' | 'deliv' 로 구분
