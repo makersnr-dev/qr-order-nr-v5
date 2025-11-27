@@ -14,45 +14,70 @@
     고객 로그인은 <a href="/order/login">/order/login</a>
   </div>
 </div>
+
 <script type="module">
-  import { get } from '/src/admin/assets/js/modules/store.js';
-  import { saveToken } from '/src/admin/assets/js/modules/auth.js';
+  import { saveToken } from './assets/js/modules/auth.js';
+  import { get } from './assets/js/modules/store.js';
 
-  document.getElementById('login').onclick = async () => {
-    const uid = document.getElementById('uid').value.trim();
-    const pwd = document.getElementById('pwd').value.trim();
+  const form = document.getElementById('login-form');
+  const msg  = document.getElementById('msg');
 
-    if (!uid || !pwd) {
-      alert('아이디와 비밀번호를 입력하세요.');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    msg.textContent = '';
+
+    const formData = new FormData(form);
+    const email = String(formData.get('email') || '').trim();
+    const pass  = String(formData.get('password') || '').trim();
+
+    if (!email || !pass) {
+      msg.textContent = '아이디와 비밀번호를 입력해주세요.';
       return;
     }
 
-    const res = await fetch('/api/login-admin', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ uid, pwd })
-    });
+    try {
+      const res = await fetch('/api/login-admin', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      });
 
-    const data = await res.json().catch(() => ({}));
+      const data = await res.json();
+      console.log('login-admin result', data);
 
-    if (!res.ok || !data.token) {
-      alert('로그인 실패');
-      return;
-    }
+      if (!res.ok || !data.token) {
+        msg.textContent = data?.error || '로그인에 실패했습니다.';
+        return;
+      }
 
-    // 토큰 저장 (기존 그대로)
-    saveToken(data.token);
+      // ✅ 토큰 저장
+      saveToken(data.token);
 
-    // 🔹 매장 매핑 조회: store-admin 페이지에서 저장한 값
-    const map = get(['admin', 'storeAdmins']) || {};
-    const storeId = map[uid];   // 예: { "admin1": "narae", "admin2": "korea" }
+      // ✅ 매장 관리자 매핑에서 이 관리자(email)에 연결된 storeId 찾기
+      //    (store-admin.js 와 동일하게 'system.storeAdmins' 사용)
+      const map = get(['system', 'storeAdmins']) || {};
+      const storeId = map[email] || 'store1';
 
-    // 🔹 매핑이 있으면 해당 매장으로, 없으면 기본 /admin
-    if (storeId) {
-      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
-    } else {
+      // ✅ admin 정보 / storeId 를 로컬에 저장
+      try {
+        localStorage.setItem('qrnr.storeId', storeId);
+        localStorage.setItem(
+          'qrnr.adminInfo',
+          JSON.stringify({ id: email, storeId })
+        );
+      } catch (e) {
+        console.warn('localStorage 저장 실패', e);
+      }
+
+      // ✅ 이제 URL의 ?store 파라미터는 쓰지 않고 /admin 으로만 이동
       location.href = '/admin';
+
+    } catch (err) {
+      console.error(err);
+      msg.textContent = '로그인 중 오류가 발생했습니다.';
     }
   };
 </script>
+
+  
 </body></html>
