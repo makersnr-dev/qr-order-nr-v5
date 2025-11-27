@@ -22,13 +22,13 @@ import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
-// ✅ 매장 설정(get) 함수: 기존 고객/매장 설정 모듈 재사용
-import { get } from '/src/order/assets/js/modules/cust-store.js';
+// ✅ 관리자용 설정 저장소에서 매장 매핑을 읽어옴
+//    (store-admin 페이지도 이 모듈을 씀)
+import { get } from './modules/store.js';
 
 // ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
 if (typeof window !== 'undefined' && 'Notification' in window) {
   if (Notification.permission === 'default') {
-    // 사용자가 이미 허용/차단한 상태가 아니면 한 번만 물어봄
     Notification.requestPermission().catch(() => {});
   }
 }
@@ -95,7 +95,7 @@ function resolveAdminStoreId(authInfo) {
     console.log('[admin] fallback storeId =', sid);
   }
 
-  // 4) URL ?store= 은 "보기 편하게"만 맞춰준다 (보안 X)
+  // 4) URL ?store= 은 "보기 편하게"만 sid 로 맞춰준다 (보안 X)
   try {
     const u = new URL(location.href);
     if (u.searchParams.get('store') !== sid) {
@@ -109,7 +109,7 @@ function resolveAdminStoreId(authInfo) {
   return sid;
 }
 
-// ===== 토스트 UI =====
+// ===== 토스트 UI + 브로드캐스트 채널 =====
 const adminChannel = new BroadcastChannel('qrnr-admin');
 
 function ensureToastContainer() {
@@ -169,6 +169,20 @@ async function main() {
   try {
     localStorage.setItem('qrnr.storeId', sid);
   } catch (e) {}
+
+  // adminInfo 도 참고용으로 저장
+  try {
+    const adminId = authInfo?.uid || authInfo?.sub || null;
+    if (adminId) {
+      localStorage.setItem(
+        'qrnr.adminInfo',
+        JSON.stringify({ id: adminId, storeId: sid })
+      );
+    }
+  } catch (e) {
+    console.warn('[admin] adminInfo save error', e);
+  }
+
   console.log('[admin] active storeId =', sid);
 
   // 3) 서버와 매장 설정 동기화 후 탭 초기화
@@ -210,14 +224,14 @@ async function main() {
   const storeRefresh = document.getElementById('store-refresh');
   if (storeRefresh) {
     storeRefresh.onclick = () => {
-      safeRenderStore(); // 매장 주문 테이블 새로고침
+      safeRenderStore();
     };
   }
 
   const delivRefresh = document.getElementById('deliv-refresh');
   if (delivRefresh) {
     delivRefresh.onclick = () => {
-      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
+      safeRenderDeliv();
     };
   }
 
@@ -301,4 +315,6 @@ async function main() {
   };
 }
 
-main();
+main().catch((e) => {
+  console.error('[admin] main error', e);
+});
