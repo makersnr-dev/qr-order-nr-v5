@@ -1,51 +1,40 @@
 // /api/super-login.js
-import { getIronSession } from 'iron-session';
+// POST { id, password }
+// 1) Vercel ENV SUPER_ADMINS_JSON 에서 아이디/비번 확인
+// 2) HS256 JWT 서명 (Web Crypto 스타일) 해서 token 으로 반환
 
-const sessionOptions = {
-  cookieName: 'qrnr_sess',
-  password:
-    process.env.SESSION_PASSWORD ||
-    'change-me-32-characters-min-secret!!!!',
-  cookieOptions: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'lax',
-  },
-};
+import { webcrypto } from 'crypto';
 
-// env: SUPER_ADMINS_JSON = {"super":"super1234!","audit":"audit-pass-9999"}
-function getSuperAdminMap() {
-  const raw = process.env.SUPER_ADMINS_JSON;
-  if (!raw) {
-    console.warn('[super] SUPER_ADMINS_JSON env not set');
-    return {};
-  }
+const subtle = webcrypto.subtle;
+const encoder = new TextEncoder();
 
-  try {
-    const parsed = JSON.parse(raw);
+// base64url 인코딩
+function base64UrlEncode(buf) {
+  const b64 = Buffer.from(buf).toString('base64');
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 
-    // 형태 1) {"super":"pw","audit":"pw2"}
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed;
-    }
+async function signHS256JWT(payload, secret) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const headerJson = JSON.stringify(header);
+  const payloadJson = JSON.stringify(payload);
 
-    // 형태 2) [{"id":"super","password":"pw"}, ...] 도 허용
-    if (Array.isArray(parsed)) {
-      const map = {};
-      for (const item of parsed) {
-        if (!item || typeof item !== 'object') continue;
-        if (!item.id || !item.password) continue;
-        map[item.id] = item.password;
-      }
-      return map;
-    }
+  const headerB64 = base64UrlEncode(Buffer.from(headerJson));
+  const payloadB64 = base64UrlEncode(Buffer.from(payloadJson));
+  const data = `${headerB64}.${payloadB64}`;
 
-    console.warn('[super] SUPER_ADMINS_JSON has unexpected shape');
-    return {};
-  } catch (e) {
-    console.error('[super] SUPER_ADMINS_JSON parse error:', e);
-    return {};
-  }
+  const key = await subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const sigBuf = await subtle.sign('HMAC', key, encoder.encode(data));
+  const sigB64 = base64UrlEncode(new Uint8Array(sigBuf));
+
+  return `${data}.${sigB64}`;
 }
 
 export default async function handler(req, res) {
@@ -55,37 +44,77 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Vercel / Node 함수에서는 JSON POST면 req.body에 들어오는 구조
-    const body = req.body || {};
-    const id = body.id || body.username || '';
-    const password = body.password || '';
+    const { id, password } = req.body || {};
 
     if (!id || !password) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'MISSING_CREDENTIALS' });
+      return res.status(400).json({
+        ok: false,
+        error: 'MISSING_ID_OR_PASSWORD',
+      });
     }
 
-    const map = getSuperAdminMap();
-    const expectedPw = map[id];
+    // ✅ 1. SUPER_ADMINS_JSON 파싱
+    const rawAdmins = process.env.SUPER_ADMINS_JSON || '';
+    if (!rawAdmins) {
+      return res.status(500).json({
+        ok: false,
+        error: 'SUPER_ADMINS_JSON_NOT_SET',
+      });
+    }
 
+    let adminMap = {};
+    try {
+      adminMap = JSON.parse(rawAdmins);
+    } catch (e) {
+      console.error('[super-login] JSON parse error:', e);
+      return res.status(500).json({
+        ok: false,
+        error: 'SUPER_ADMINS_JSON_INVALID',
+        detail: e.message,
+      });
+    }
+
+    const expectedPw = adminMap[id];
     if (!expectedPw || expectedPw !== password) {
-      // 이 부분이 지금 "아니래"의 원인
-      return res
-        .status(401)
-        .json({ ok: false, error: 'INVALID_CREDENTIALS' });
+      // 👉 여기서 "아이디 비밀번호가 옳지 않습니다" 상황
+      return res.status(401).json({
+        ok: false,
+        error: 'INVALID_CREDENTIALS',
+      });
     }
 
-    const session = await getIronSession(req, res, sessionOptions);
-    session.isSuper = true;
-    session.superId = id;
-    await session.save();
+    // ✅ 2. JWT 서명용 시크릿
+    const secret = process.env.SUPER_JWT_SECRET || '';
+    if (!secret) {
+      return res.status(500).json({
+        ok: false,
+        error: 'SUPER_JWT_SECRET_NOT_SET',
+      });
+    }
 
-    return res.json({ ok: true });
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      sub: id,
+      role: 'super',
+      iat: now,
+      exp: now + 60 * 60 * 12, // 12시간
+    };
+
+    const token = await signHS256JWT(payload, secret);
+
+    // 👉 다른 로그인과 동일하게, 보통은 프론트에서 localStorage 에 보관하거나
+    // Authorization: Bearer 로 보내게 사용
+    return res.status(200).json({
+      ok: true,
+      id,
+      token,
+    });
   } catch (err) {
-    console.error('[super-login] error:', err);
-    return res
-      .status(500)
-      .json({ ok: false, error: 'INTERNAL_ERROR' });
+    console.error('[super-login] top-level error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'INTERNAL_ERROR',
+      detail: err?.message || String(err),
+    });
   }
 }
