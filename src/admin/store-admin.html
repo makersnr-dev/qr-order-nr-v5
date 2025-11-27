@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <title>매장 관리자 매핑 (SUPER)</title>
+</head>
+<body>
+<div class="container">
+  <h1>매장 관리자 매핑 (SUPER 전용)</h1>
+
+  <!-- 🔹 로그인 상태 영역 / 로그아웃 버튼 -->
+  <div id="super-status" class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="small">로그인 상태 확인 중...</div>
+    <button id="super-logout" class="btn small" style="display:none">SUPER 로그아웃</button>
+  </div>
+
+  <!-- 🔹 SUPER 로그인 폼 (처음에는 숨겼다가, not super면 보이게) -->
+  <div id="super-login-card" class="card vstack" style="display:none;max-width:420px;margin-bottom:16px">
+    <h3>SUPER 로그인</h3>
+    <p class="small">
+      이 페이지는 매장 관리자 계정과 매장 ID(storeId)를 매핑하는
+      <b>최상위(SUPER) 관리 페이지</b>입니다.<br/>
+      Vercel 환경변수 <code>SUPER_ADMINS_JSON</code>에 등록된 계정만 로그인할 수 있습니다.
+    </p>
+    <div class="vstack" style="gap:8px;margin-top:8px">
+      <input id="super-id" class="input" placeholder="SUPER 아이디 (예: super)">
+      <input id="super-pw" class="input" type="password" placeholder="비밀번호">
+      <button id="super-login-btn" class="btn primary">로그인</button>
+      <div id="super-login-msg" class="small" style="color:#f97316;margin-top:4px"></div>
+    </div>
+  </div>
+
+  <!-- 🔹 실제 매핑 UI (SUPER 로그인일 때만 보이게) -->
+  <div id="mapping-card" class="card vstack" style="display:none">
+    <div class="small">
+      관리자 계정(아이디/이메일)과 매장 ID(storeId)를 연결합니다.<br>
+      지금은 브라우저 저장 기준으로 동작하고, 나중에 DB로 옮길 때도
+      <code>['system','storeAdmins']</code> 구조를 그대로 쓰면 됩니다.
+    </div>
+
+    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      <input id="map-admin" class="input" placeholder="관리자 ID (예: owner@narae.com)" style="min-width:260px">
+      <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
+      <button id="map-add" class="btn primary">매핑 추가/수정</button>
+    </div>
+
+    <table class="table" style="margin-top:14px">
+      <thead>
+      <tr>
+        <th>관리자 ID</th>
+        <th>storeId</th>
+        <th>관리자 콘솔</th>
+        <th></th>
+      </tr>
+      </thead>
+      <tbody id="map-body">
+      <tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+  import { get, patch } from '/src/admin/assets/js/modules/store.js';
+
+  const $ = (s, r=document) => r.querySelector(s);
+
+  // 🔹 매핑을 system 영역에 저장 (admin 영역과 분리)
+  const PATH = ['system', 'storeAdmins'];
+
+  function loadMap() {
+    return get(PATH) || {};
+  }
+  function saveMap(next) {
+    patch(PATH, () => next);
+  }
+
+  function renderMapTable() {
+    const body = $('#map-body');
+    const map = loadMap();
+
+    body.innerHTML = '';
+
+    const entries = Object.entries(map);
+    if (!entries.length) {
+      body.innerHTML =
+        '<tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>';
+      return;
+    }
+
+    entries.forEach(([adminId, storeId]) => {
+      const tr = document.createElement('tr');
+      const adminSafe = adminId.replace(/"/g, '&quot;');
+      const storeSafe = storeId.replace(/"/g, '&quot;');
+
+      tr.innerHTML = `
+        <td>${adminSafe}</td>
+        <td>${storeSafe}</td>
+        <td>
+          <a class="btn small"
+             href="/src/admin/index.html?store=${encodeURIComponent(storeId)}"
+             target="_blank">
+            관리자 콘솔 열기
+          </a>
+        </td>
+        <td class="right">
+          <button class="btn small" data-del="${adminSafe}">삭제</button>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+
+    body.querySelectorAll('[data-del]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-del');
+        const map = loadMap();
+        delete map[id];
+        saveMap(map);
+        renderMapTable();
+      };
+    });
+  }
+
+  function bindMappingUI() {
+    $('#map-add').onclick = () => {
+      const adminId = ($('#map-admin').value || '').trim();
+      const storeId = ($('#map-store').value || '').trim();
+
+      if (!adminId || !storeId) {
+        alert('관리자 ID와 storeId를 모두 입력하세요.');
+        return;
+      }
+
+      const map = loadMap();
+      map[adminId] = storeId;
+      saveMap(map);
+      renderMapTable();
+      $('#map-admin').value = '';
+      $('#map-store').value = '';
+    };
+  }
+
+  async function fetchSuperMe() {
+    try {
+      const r = await fetch('/api/super-me');
+      if (!r.ok) return { ok:false, isSuper:false };
+      return await r.json();
+    } catch (e) {
+      console.error('[store-admin] super-me error', e);
+      return { ok:false, isSuper:false };
+    }
+  }
+
+  async function superLogin(id, password) {
+    const r = await fetch('/api/super-login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, password }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      throw new Error(data.error || 'LOGIN_FAILED');
+    }
+    return data;
+  }
+
+  async function superLogout() {
+    try {
+      await fetch('/api/super-logout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+    } catch (e) {
+      console.error('[store-admin] super-logout error', e);
+    }
+  }
+
+  async function initPage() {
+    const statusBox = $('#super-status');
+    const logoutBtn = $('#super-logout');
+    const loginCard = $('#super-login-card');
+    const mappingCard = $('#mapping-card');
+    const loginMsg = $('#super-login-msg');
+
+    // 1) 현재 SUPER 로그인 상태 확인
+    const me = await fetchSuperMe();
+
+    if (me.ok && me.isSuper) {
+      statusBox.firstElementChild.textContent =
+        `SUPER 로그인: ${me.superId || ''}`;
+      logoutBtn.style.display = 'inline-flex';
+      loginCard.style.display = 'none';
+      mappingCard.style.display = 'block';
+
+      renderMapTable();
+      bindMappingUI();
+    } else {
+      statusBox.firstElementChild.textContent =
+        'SUPER 로그인 필요: 환경변수 SUPER_ADMINS_JSON에 등록된 계정만 사용 가능합니다.';
+      logoutBtn.style.display = 'none';
+      loginCard.style.display = 'block';
+      mappingCard.style.display = 'none';
+    }
+
+    // 2) 로그인 버튼
+    $('#super-login-btn').onclick = async () => {
+      const id = ($('#super-id').value || '').trim();
+      const pw = ($('#super-pw').value || '').trim();
+
+      if (!id || !pw) {
+        loginMsg.textContent = '아이디와 비밀번호를 모두 입력하세요.';
+        return;
+      }
+
+      loginMsg.textContent = '';
+      try {
+        await superLogin(id, pw);
+        // 로그인 성공 → 상태 다시 로드
+        const me2 = await fetchSuperMe();
+        if (me2.ok && me2.isSuper) {
+          statusBox.firstElementChild.textContent =
+            `SUPER 로그인: ${me2.superId || ''}`;
+          logoutBtn.style.display = 'inline-flex';
+          loginCard.style.display = 'none';
+          mappingCard.style.display = 'block';
+          renderMapTable();
+          bindMappingUI();
+        } else {
+          loginMsg.textContent = '로그인에 실패했습니다. (세션 확인 실패)';
+        }
+      } catch (e) {
+        console.error('[store-admin] login error', e);
+        loginMsg.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.';
+      }
+    };
+
+    // 3) 로그아웃 버튼
+    logoutBtn.onclick = async () => {
+      await superLogout();
+      location.reload();
+    };
+  }
+
+  initPage();
+</script>
+</body>
+</html>

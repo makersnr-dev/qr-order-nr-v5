@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <title>매장 관리자 매핑</title>
+</head>
+<body>
+<div class="container">
+  <h1>매장 관리자 매핑</h1>
+
+  <div class="card vstack">
+    <div class="small">
+      관리자 계정(아이디/이메일)과 매장 ID(<code>storeId</code>)를 연결합니다.<br/>
+      지금은 브라우저(로컬 저장소) 기준으로 동작하고,
+      나중에 DB로 옮길 때도 이 구조만 그대로 가져가면 됩니다.
+    </div>
+
+    <!-- 매핑 입력 영역 -->
+    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      <input
+        id="map-admin"
+        class="input"
+        placeholder="관리자 ID (예: owner@narae.com)"
+        style="min-width:260px"
+      >
+      <input
+        id="map-store"
+        class="input"
+        placeholder="storeId (예: narae, store1)"
+        style="min-width:160px"
+      >
+      <button id="map-add" class="btn primary">매핑 추가/수정</button>
+    </div>
+
+    <!-- 매핑 목록 -->
+    <table class="table" style="margin-top:14px">
+      <thead>
+        <tr>
+          <th>관리자 ID</th>
+          <th>storeId</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="map-body">
+        <tr><td colspan="3" class="small">등록된 매핑 없음</td></tr>
+      </tbody>
+    </table>
+
+    <p class="small" style="margin-top:10px;color:#9ca3af">
+      · 이 화면에서 저장된 매핑은 <code>['system','storeAdmins']</code> 경로로 저장됩니다.<br/>
+      · 관리자 콘솔에서 <code>requireAuth('admin')</code>로 로그인한 뒤,
+        해당 관리자 ID에 매핑된 storeId로 관리자 페이지가 열리도록 연동할 수 있습니다.<br/>
+      · 나중에 DB를 붙일 때는 이 경로를 읽어서 그대로 옮기면 됩니다.
+    </p>
+  </div>
+</div>
+
+<!-- 매장 관리자 매핑 로직 -->
+<script type="module" src="/src/admin/assets/js/store-admin.js"></script>
+</body>
+</html>
