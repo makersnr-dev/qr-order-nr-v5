@@ -65,23 +65,6 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- ✅ 개인정보 수집·이용 동의 (요청사항 아래) -->
-      <div class="field-row">
-        <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px">
-          <label class="hstack small" style="gap:6px;align-items:flex-start">
-            <input type="checkbox" id="agree-privacy" style="margin-top:3px">
-            <span>
-              (필수) 배달/예약 주문을 위해 이름, 연락처, 주소를 수집·이용하는 것에 동의합니다.<br/>
-              수집된 정보는 주문 처리 및 고객 응대 목적으로만 사용되며, 관련 법령에 따른 보관 기간 후 안전하게 파기됩니다.
-            </span>
-          </label>
-          <button type="button" id="privacy-open" class="btn small" style="align-self:flex-start;">
-            개인정보 처리방침 전문 보기
-          </button>
-        </div>
-      </div>
-
       <!-- 예약(무결제)일 때만 보이는 계좌 안내 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
@@ -112,36 +95,6 @@
   </div>
 </div>
 
-<!-- ✅ 개인정보 처리방침 모달 -->
-<div id="privacy-modal" style="
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.55);
-  z-index:9998;
-  align-items:center;
-  justify-content:center;
-">
-  <div style="
-    background:#020617;
-    border-radius:12px;
-    padding:16px 18px;
-    max-width:520px;
-    width:calc(100% - 40px);
-    max-height:80vh;
-    overflow:auto;
-    box-shadow:0 10px 40px rgba(0,0,0,0.45);
-    font-size:13px;
-  ">
-    <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
-    <!-- 🔹 내용은 JS에서 관리자 설정값으로 채움 -->
-    <div id="privacy-modal-body" class="small" style="white-space:pre-wrap; line-height:1.5;"></div>
-    <div class="hstack" style="justify-content:flex-end;margin-top:12px;gap:8px">
-      <button type="button" id="privacy-close" class="btn">닫기</button>
-    </div>
-  </div>
-</div>
-
 <!-- 다음 우편번호 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
@@ -152,128 +105,12 @@
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
+  // ✅ 로그인한 회원만 접근
   await requireCust();
 
   // URL 파라미터
   const url = new URL(location.href);
   const storeId = url.searchParams.get('store') || 'store1';
-
-  // ✅ 기본 개인정보 처리방침 (관리자에서 아무 것도 저장 안 했을 때 fallback)
-  const defaultPrivacyText = `
-[개인정보 처리방침]
-
-QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호법」, 
-「정보통신망 이용촉진 및 정보보호 등에 관한 법률」 등 관련 법령을 준수하며,
-이용자의 개인정보를 안전하게 보호하기 위해 다음과 같이 개인정보 처리방침을 수립·운영합니다.
-
-1. 수집하는 개인정보 항목
-1) 필수 항목
-  - 주문자 정보: 이름, 연락처(휴대전화 번호)
-  - 배송/방문 정보: 주소(배달 시), 예약 일자 및 시간(예약 시)
-  - 주문 정보: 주문 메뉴, 수량, 결제 금액, 주문 유형(매장/배달/예약) 등
-
-2) 자동으로 생성·수집될 수 있는 정보
-  - 서비스 이용 기록, 접속 일시, 브라우저 종류 등(로그 분석 및 보안 목적)
-
-2. 개인정보의 수집·이용 목적
-서비스는 수집한 개인정보를 다음의 목적 범위 내에서만 이용합니다.
-  1) 주문 접수 및 처리, 배달/방문 예약 관리
-  2) 주문 내역 확인 및 변경, 취소 등 고객 요청 처리
-  3) 배달/방문 일정 안내, 주문 관련 고지·안내
-  4) 민원 처리 및 분쟁 발생 시 사실 관계 확인
-  5) 서비스 품질 향상 및 운영 관리(통계·분석 등, 개인 식별이 불가능한 형태로 처리)
-
-3. 개인정보의 보유 및 이용 기간
-서비스는 관련 법령에서 정한 기간 동안 개인정보를 보유·이용하며,
-그 이후에는 지체 없이 안전한 방법으로 파기합니다.
-
-1) 전자상거래 등에서의 소비자 보호에 관한 법률에 따른 보존 기간
-  - 계약 또는 청약철회 등에 관한 기록: 5년
-  - 대금 결제 및 재화 등의 공급에 관한 기록: 5년
-  - 소비자의 불만 또는 분쟁 처리에 관한 기록: 3년
-
-2) 기타 관련 법령에 따른 보존 기간
-  - 관계 법령에 따라 추가 보관이 필요한 경우, 해당 법에서 정한 기간 동안 보관합니다.
-
-4. 개인정보의 제3자 제공
-서비스는 원칙적으로 이용자의 동의 없이 개인정보를 제3자에게 제공하지 않습니다.
-다만, 다음의 경우에는 예외로 합니다.
-  1) 이용자가 사전에 제3자 제공에 명시적으로 동의한 경우
-  2) 법령에 근거가 있거나, 수사기관·감독기관 등의 적법한 요구가 있는 경우
-  3) 기타 관련 법령에서 허용하는 경우
-
-5. 개인정보 처리의 위탁
-서비스는 주문 처리, 시스템 운영, 알림 발송 등 서비스 제공을 위하여
-일부 업무를 외부 전문 업체에 위탁할 수 있습니다.
-이 경우, 다음 사항을 포함하여 관계 법령에 따라 위탁 계약을 체결하고
-수탁자가 개인정보를 안전하게 관리하도록 감독합니다.
-  1) 위탁받는 자(수탁자)
-  2) 위탁 업무의 내용
-  3) 재위탁 제한, 안전성 확보 조치, 손해배상 책임 등
-
-※ 실제 위탁을 진행하는 경우, 위탁 업체 명칭과 업무 내용을 별도 공지 또는 안내문을 통해 고지합니다.
-
-6. 이용자 및 법정대리인의 권리와 행사 방법
-이용자는 언제든지 자신의 개인정보에 대하여 다음 각 호의 권리를 행사할 수 있습니다.
-  1) 개인정보 열람 요구
-  2) 개인정보 정정·삭제 요구
-  3) 개인정보 처리 정지 요구
-
-위 권리 행사는 매장 운영자 또는 서비스 관리자로 문의하여 요청할 수 있으며,
-서비스는 지체 없이 필요한 조치를 취합니다.
-다만, 법령에서 별도로 정한 경우에는 일부 권리가 제한될 수 있습니다.
-
-7. 개인정보의 파기 절차 및 방법
-서비스는 보유 기간이 경과하거나 처리 목적이 달성된 경우, 지체 없이 해당 정보를 파기합니다.
-
-1) 파기 절차
-  - 파기 사유가 발생한 개인정보를 선정하고, 내부 규정에 따라 파기합니다.
-
-2) 파기 방법
-  - 전자적 파일 형태: 복구 또는 재생이 불가능한 방법으로 영구 삭제
-  - 종이 문서 등: 분쇄 또는 소각 등 물리적 파기
-
-8. 개인정보의 안전성 확보 조치
-서비스는 개인정보의 안전한 처리를 위하여 다음과 같은 보호 조치를 취합니다.
-  1) 접근 권한 관리: 개인정보에 대한 접근 권한을 최소한으로 부여하고 관리합니다.
-  2) 보안 프로그램 사용: 악성코드 및 해킹 방지를 위한 보안 프로그램을 설치·운영합니다.
-  3) 접속 기록 보관: 개인정보 처리 시스템에 대한 접속 기록을 보관·관리합니다.
-  4) 기타 기술적·관리적 보호 조치: 관련 법령에서 요구하는 보호 조치를 지속적으로 이행합니다.
-
-9. 개인정보 보호 책임자 및 연락처
-이용자는 개인정보 보호 관련 문의, 불만 처리, 피해 구제 등을 위하여
-아래 연락처로 문의할 수 있습니다.
-
-  - 개인정보 보호 책임자: (매장 운영자 또는 관리자 이름)
-  - 연락처: (전화번호 또는 이메일 등 기재)
-  - 주소: (매장 주소 또는 사업장 주소 기재)
-
-10. 개인정보 처리방침의 변경
-본 개인정보 처리방침은 관련 법령, 서비스 정책 변화에 따라 개정될 수 있습니다.
-중요한 내용의 변경이 있는 경우, 서비스 화면 또는 별도 공지 등을 통하여
-개정 내용과 시행 시기를 사전에 안내합니다.
-
-※ 본 예시는 일반적인 매장 QR 주문·배달/예약 서비스 상황을 기준으로 작성된 예시이며,
-  실제 사업자의 형태, 서비스 구조, 법률 자문 결과 등에 따라
-  일부 수정·보완이 필요할 수 있습니다.
-  `.trim();
-
-  // ✅ 관리자에서 저장한 정책을 불러와 모달에 적용
-  function applyPrivacyText() {
-    const el = document.getElementById('privacy-modal-body');
-    if (!el) return;
-
-    const fromAdmin =
-      get(['admin', 'privacyPolicy', storeId]) ||
-      get(['admin', 'privacyPolicy']) ||
-      get(['system', 'privacyPolicy', storeId]) ||
-      get(['system', 'privacyPolicy']) ||
-      '';
-
-    el.textContent = fromAdmin || defaultPrivacyText;
-  }
-
-  applyPrivacyText();
 
   // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
   fillTimeSelectors('time');
@@ -416,36 +253,14 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
     });
   }
 
-  // ✅ 개인정보 처리방침 모달 열기/닫기
-  const privacyModal = document.getElementById('privacy-modal');
-  const privacyOpen  = document.getElementById('privacy-open');
-  const privacyClose = document.getElementById('privacy-close');
-
-  if (privacyOpen && privacyModal) {
-    privacyOpen.addEventListener('click', () => {
-      // 혹시 관리자에서 방금 수정했을 수도 있으니, 열기 직전에 한 번 더 적용
-      applyPrivacyText();
-      privacyModal.style.display = 'flex';
-    });
-  }
-  if (privacyClose && privacyModal) {
-    privacyClose.addEventListener('click', () => {
-      privacyModal.style.display = 'none';
-    });
-  }
-  if (privacyModal) {
-    privacyModal.addEventListener('click', (e) => {
-      if (e.target === privacyModal) {
-        privacyModal.style.display = 'none';
-      }
-    });
-  }
-
   // 합계 계산
   function totalAmount() {
     if (typeof cart.total === 'function') return cart.total();
     if (Array.isArray(cart.items)) {
-      return cart.items.reduce((s,i)=>s + Number(i.price||0)*Number(i.qty||1),0);
+      return cart.items.reduce(
+        (s,i)=>s + Number(i.price||0)*Number(i.qty||1),
+        0
+      );
     }
     return 0;
   }
@@ -466,8 +281,6 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
     const memo        = document.getElementById('memo').value.trim();
     const isResv      = document.getElementById('tab-resv').checked;
 
-    const agreePrivacy = document.getElementById('agree-privacy')?.checked ?? false;
-
     const items = cart.items || [];
 
     if (!items.length) {
@@ -481,12 +294,6 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
     if (digitsPhone.length < 10) {
       alert('연락처를 확인해주세요. 숫자 10자리 이상 입력해주세요.');
       document.getElementById('phone').focus();
-      return;
-    }
-    if (!agreePrivacy) {
-      alert('개인정보 수집·이용에 동의해 주세요.');
-      const agreeBox = document.getElementById('agree-privacy');
-      if (agreeBox) agreeBox.focus();
       return;
     }
 
@@ -525,7 +332,8 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
         reserveTime,
         status: '대기',
         storeId,
-        agreePrivacy: true,
+        // 회원은 동의 UI 없이, 나중에 소셜 가입에서 따로 동의 받을 계획 → 여기서는 굳이 flag 안 써도 됨
+        // agreePrivacy: true,
       };
 
       try {
@@ -563,7 +371,8 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
       storeId,
-      agreePrivacy: true,
+      // 마찬가지로 여기서도 개인정보 동의는 따로 관리 예정
+      // agreePrivacy: true,
       returnTo: location.pathname + location.search
     };
 
