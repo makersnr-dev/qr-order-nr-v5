@@ -7,24 +7,13 @@ const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
 // 👉 QR에서 사용할 현재 매장 ID
-//    - admin.js 가 로그인 후 window.qrnrStoreId 를
-//      "관리자계정 → 매장매핑(system.storeAdmins)" 기준으로 셋팅해 둠.
 function currentStoreId() {
-  // 1) admin.js 에서 정해 둔 값 최우선
+  // admin.js 에서 설정한 값 우선
   if (window.qrnrStoreId && typeof window.qrnrStoreId === 'string') {
     return window.qrnrStoreId;
   }
 
-  // 2) 혹시 URL에 ?store= 이 붙어 있으면 사용
-  try {
-    const u = new URL(location.href);
-    const fromUrl = u.searchParams.get('store');
-    if (fromUrl) return fromUrl;
-  } catch (e) {
-    // 무시
-  }
-
-  // 3) 마지막으로 로컬 저장된 값 or 기본값
+  // 그 다음으로, 로컬에 저장된 값
   try {
     const saved = localStorage.getItem('qrnr.storeId');
     if (saved) return saved;
@@ -32,8 +21,10 @@ function currentStoreId() {
     // 무시
   }
 
+  // 최종 기본값
   return 'store1';
 }
+
 
 // 공통 저장 위치 : ['admin', 'qrList']
 //  - kind: 'store' | 'deliv' 로 구분
