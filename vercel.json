@@ -1,6 +1,11 @@
 {
   "version": 2,
   "routes": [
+    /* --- 정적 asset 라우트 추가 (중요) --- */
+    { "src": "/admin/assets/(.*)", "dest": "/src/admin/assets/$1" },
+    { "src": "/order/assets/(.*)", "dest": "/src/order/assets/$1" },
+
+    /* --- 기존 페이지 라우트들 --- */
     { "src": "/", "dest": "/src/public/index.html" },
     { "src": "/login", "dest": "/src/public/login.html" },
 
