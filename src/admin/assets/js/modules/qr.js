@@ -7,169 +7,134 @@ const $ = (s, r = document) => r.querySelector(s);
 function currentStoreId() {
   // admin.js에서 설정한 값 우선
   if (window.qrnrStoreId) return window.qrnrStoreId;
-
-  // 없으면 localStorage 참고
-  try {
-    const saved = localStorage.getItem('qrnr.storeId');
-    if (saved) return saved;
-  } catch (e) {
-    console.error('[qr] currentStoreId localStorage error', e);
-  }
-
-  // 그래도 없으면 기본값
+  // URL 파라미터는 신뢰하지 않는다 (보안상)
   return 'store1';
 }
 
 // 공통 저장 위치 : ['admin', 'qrList']
-//  - kind: 'store' | 'deliv' 로 구분
-const PATH = ['admin', 'qrList'];
-
-function ensureList() {
-  const cur = get(PATH);
-  if (Array.isArray(cur)) return cur;
-  return [];
-}
+//  - key: storeId
+//  - value: 해당 매장의 QR 리스트 배열
+const ROOT_PATH = ['admin', 'qrList'];
 
 function loadAll() {
-  const cur = get(PATH);
-  return Array.isArray(cur) ? cur : [];
+  return get(ROOT_PATH) || {};
 }
 
-function saveAll(list) {
-  patch(PATH, () => (Array.isArray(list) ? list : []));
+function saveAll(updater) {
+  patch(ROOT_PATH, (cur) => {
+    const base = cur && typeof cur === 'object' ? cur : {};
+    return updater(base) || base;
+  });
 }
 
-function loadStoreQrList(storeId) {
+function currentList() {
+  const storeId = currentStoreId();
   const all = loadAll();
-  return all.filter((q) => q.storeId === storeId);
-}
-
-function saveStoreQrList(storeId, list) {
-  const all = loadAll().filter((q) => q.storeId !== storeId);
-  const next = [...all, ...(list || [])];
-  saveAll(next);
+  const arr = Array.isArray(all[storeId]) ? all[storeId] : [];
+  return { storeId, list: arr };
 }
 
 export function initQR() {
-  const wrap = document.getElementById('qr-wrap');
-  if (!wrap) return;
+  const tbody = $('#tbody-qr');
+  const addBtn = $('#qr-add');
+  const resetBtn = $('#qr-reset');
+  const storeLabel = $('#qr-store-label');
 
-  const storeId = currentStoreId();
-
-  const inputTableNo = document.getElementById('qr-table-no');
-  const inputCount = document.getElementById('qr-count');
-  const btnGenerate = document.getElementById('qr-generate');
-  const listWrap = document.getElementById('qr-list');
-  const storeSpan = document.getElementById('qr-store-id');
-
-  if (storeSpan) {
-    storeSpan.textContent = storeId;
+  const { storeId, list } = currentList();
+  if (storeLabel) {
+    storeLabel.textContent = storeId;
   }
 
-  function renderList() {
-    if (!listWrap) return;
-    const list = loadStoreQrList(storeId);
-    listWrap.innerHTML = '';
+  if (!tbody) return;
+  tbody.innerHTML = '';
 
-    if (!list.length) {
-      listWrap.innerHTML =
-        '<p class="text-muted small">생성된 QR 없음</p>';
-      return;
-    }
+  if (!list.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td colspan="4" class="small text-muted">등록된 QR 없음</td>';
+    tbody.appendChild(tr);
+  } else {
+    list.forEach((q, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${q.name || ''}</td>
+        <td>${q.mode || ''}</td>
+        <td>${q.value || ''}</td>
+        <td class="right">
+          <button class="btn small" data-act="preview">미리보기</button>
+          <button class="btn small danger" data-act="del">삭제</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
 
-    const ul = document.createElement('ul');
-    ul.className = 'qr-list';
+      const previewBtn = tr.querySelector('button[data-act="preview"]');
+      const delBtn     = tr.querySelector('button[data-act="del"]');
 
-    list.forEach((item) => {
-      const li = document.createElement('li');
-      li.className = 'qr-item';
+      if (previewBtn) {
+        previewBtn.onclick = () => openPreview(q);
+      }
+      if (delBtn) {
+        delBtn.onclick = () => {
+          const ok = confirm('이 QR을 삭제할까요?');
+          if (!ok) return;
 
-      const info = document.createElement('div');
-      info.className = 'qr-info';
-      info.textContent = `테이블 ${item.tableNo || '-'} (${item.kind === 'store' ? '매장' : '배달/예약'})`;
-
-      const btnDelete = document.createElement('button');
-      btnDelete.textContent = '삭제';
-      btnDelete.className = 'btn btn-sm btn-outline-danger';
-
-      btnDelete.addEventListener('click', () => {
-        const ok = confirm('이 QR 항목을 삭제할까요?');
-        if (!ok) return;
-        const list = loadStoreQrList(storeId).filter(
-          (q) => q.id !== item.id
-        );
-        saveStoreQrList(storeId, list);
-        renderList();
-      });
-
-      const link = document.createElement('a');
-      link.href = item.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = '열기';
-
-      li.appendChild(info);
-      li.appendChild(link);
-      li.appendChild(btnDelete);
-
-      ul.appendChild(li);
+          saveAll((all) => {
+            const arr = Array.isArray(all[storeId]) ? [...all[storeId]] : [];
+            arr.splice(idx, 1);
+            return { ...all, [storeId]: arr };
+          });
+          initQR();
+        };
+      }
     });
-
-    listWrap.appendChild(ul);
   }
 
-  renderList();
+  if (addBtn) {
+    addBtn.onclick = () => {
+      const name = (document.getElementById('qr-name')?.value || '').trim();
+      const mode = document.getElementById('qr-mode')?.value || 'table';
+      const value = (document.getElementById('qr-value')?.value || '').trim();
 
-  if (btnGenerate) {
-    btnGenerate.addEventListener('click', () => {
-      const baseUrl = location.origin || '';
-      const tableNo = (inputTableNo?.value || '').trim();
-      const count = Math.max(
-        1,
-        Math.min(50, Number(inputCount?.value || '1') || 1)
-      );
-
-      const kindSel = document.getElementById('qr-kind');
-      const kind =
-        kindSel && kindSel.value === 'delivery' ? 'deliv' : 'store';
-
-      const list = loadStoreQrList(storeId);
-      let maxIdx = 0;
-      list.forEach((q) => {
-        const m = /_(\d+)$/.exec(q.id || '');
-        if (m) {
-          const v = parseInt(m[1], 10);
-          if (!Number.isNaN(v) && v > maxIdx) maxIdx = v;
-        }
-      });
-
-      const next = [...list];
-      for (let i = 0; i < count; i++) {
-        const idx = maxIdx + 1 + i;
-        const id  = `${storeId}_${kind}_${idx}`;
-
-        let url = '';
-        if (kind === 'store') {
-          url = `${baseUrl}/order/store?store=${encodeURIComponent(
-            storeId
-          )}&table=${encodeURIComponent(tableNo || String(idx))}`;
-        } else {
-          url = `${baseUrl}/order/select?store=${encodeURIComponent(
-            storeId
-          )}`;
-        }
-
-        next.push({
-          id,
-          storeId,
-          kind,
-          tableNo: tableNo || String(idx),
-          url,
-        });
+      if (!name || !value) {
+        alert('QR 이름과 값은 필수입니다.');
+        return;
       }
 
-      saveStoreQrList(storeId, next);
-      renderList();
-    });
+      const { storeId, list } = currentList();
+      const nextList = [...list, { name, mode, value }];
+
+      saveAll((all) => ({ ...all, [storeId]: nextList }));
+      initQR();
+    };
   }
+
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      const ok = confirm('이 매장의 QR 리스트를 모두 삭제할까요?');
+      if (!ok) return;
+
+      const { storeId } = currentList();
+      saveAll((all) => {
+        const next = { ...all };
+        delete next[storeId];
+        return next;
+      });
+      initQR();
+    };
+  }
+}
+
+// (필요하다면 openPreview 구현은 기존 파일 내용 그대로 사용)
+function openPreview(q) {
+  const storeId = currentStoreId();
+
+  let url = '/order/select';
+  const u = new URL(url, location.origin);
+  u.searchParams.set('store', storeId);
+
+  if (q.mode === 'table' && q.value) {
+    u.searchParams.set('table', q.value);
+  }
+
+  window.open(u.toString(), '_blank');
 }
