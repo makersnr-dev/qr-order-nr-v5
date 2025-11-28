@@ -1,3 +1,4 @@
+import { ensureStoreInitialized } from './store.js';
 // /src/admin/assets/js/modules/qr.js
 // 매장별 QR 리스트 관리: admin.qrList[storeId] = [{ name, mode, value }, ...]
 
@@ -36,6 +37,7 @@ function saveAll(updater) {
 
 // 현재 매장 QR 목록
 function currentList() {
+  const storeId = currentStoreId(); ensureStoreInitialized(storeId);
   const storeId = currentStoreId();
   const all = loadAll();
   const list = Array.isArray(all[storeId]) ? all[storeId] : [];

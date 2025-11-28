@@ -1,3 +1,4 @@
+import { ensureStoreInitialized } from './store.js';
 import { get, patch } from './store.js';
 
 function currentStoreId() {
@@ -15,6 +16,7 @@ function currentStoreId() {
 const PATH = () => ['admin', 'ownerBank', currentStoreId()];
 
 export function renderMyBank() {
+  const storeId = currentStoreId(); ensureStoreInitialized(storeId);
   const b = get(PATH()) || {};
   const bankInput   = document.getElementById('mb-bank');
   const acctInput   = document.getElementById('mb-acct');

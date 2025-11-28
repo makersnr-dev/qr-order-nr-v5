@@ -1,3 +1,4 @@
+import { ensureStoreInitialized } from './store.js';
 // /src/admin/assets/js/modules/menu.js
 // 매장별 메뉴 관리 (admin.menuByStore[storeId])
 // 필드: id, name, price, active, soldOut, img, desc
@@ -38,6 +39,7 @@ const PER_STORE_PATH = () => ['admin', 'menuByStore', currentStoreId()];
  *    그리고 admin.menuByStore[storeId] 에 저장 후 반환
  */
 function loadMenuForAdmin() {
+  const storeId = currentStoreId(); ensureStoreInitialized(storeId);
   const storeId = currentStoreId();
   console.log('[menu] loadMenuForAdmin storeId =', storeId);
 
