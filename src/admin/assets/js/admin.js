@@ -16,7 +16,7 @@ import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
-import { get } from './modules/store.js'; // 매장 관리자 매핑용
+import { get, ensureStoreInitialized } from './modules/store.js'; // ★ ensureStoreInitialized 불러옴
 
 // ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
 if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -25,8 +25,8 @@ if (typeof window !== 'undefined' && 'Notification' in window) {
   }
 }
 
-// ===== 새로고침 폭탄 방지용 공통 유틸 =====
-const REFRESH_COOLDOWN_MS = 5000; // 5초 안에 여러 번 호출돼도 실제 실행은 1번만
+// ===== 새로고침 폭탄 방지 =====
+const REFRESH_COOLDOWN_MS = 5000;
 
 function makeSafeRefresher(realFn) {
   let last = 0;
@@ -45,17 +45,12 @@ function makeSafeRefresher(realFn) {
   };
 }
 
-// 탭 3종(매장 / 배달·예약 / 호출로그)에 대한 안전 새로고침 래퍼
 const safeRenderStore      = makeSafeRefresher(renderStore);
 const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 함수 =====
-// 1) 매장 관리자 매핑에서 adminId → storeId (가장 우선)
-// 2) 매핑이 없을 때만 localStorage 값을 참고
-// 3) 둘 다 없으면 store1
 function resolveStoreId(adminId) {
-  // 🔒 1) 매장 관리자 매핑에서 adminId → storeId 찾기 (가장 우선)
   if (adminId && typeof get === 'function') {
     try {
       const map = get(['system', 'storeAdmins']) || {};
@@ -65,10 +60,8 @@ function resolveStoreId(adminId) {
       let sid = null;
 
       if (typeof mapped === 'string') {
-        // 예: storeAdmins["admin1"] = "korea"
         sid = mapped;
       } else if (mapped && typeof mapped === 'object') {
-        // 예: storeAdmins["admin1"] = { storeId:"korea", ... } 형태
         sid =
           mapped.storeId ||
           mapped.store ||
@@ -88,8 +81,6 @@ function resolveStoreId(adminId) {
     }
   }
 
-  // 2) 매핑이 없다면, 로컬 스토리지 값(예전에 선택한 매장)을 참고
-  //    → 보안상 강제 매핑이 없는 계정에서만 의미 있음
   try {
     const stored = localStorage.getItem('qrnr.storeId');
     if (stored) {
@@ -100,13 +91,13 @@ function resolveStoreId(adminId) {
     console.error('[admin] resolveStoreId localStorage read error', e);
   }
 
-  // 3) 아무것도 없으면 기본값
   console.log('[admin] storeId fallback: store1');
   return 'store1';
 }
 
 const adminChannel = new BroadcastChannel('qrnr-admin');
 
+// 토스트 UI
 function ensureToastContainer() {
   let box = document.getElementById('admin-toast-box');
   if (!box) {
@@ -158,10 +149,7 @@ function showToast(message, variant = 'info') {
   closeBtn.style.fontSize = '16px';
   closeBtn.style.lineHeight = '1';
   closeBtn.style.marginLeft = '8px';
-
-  closeBtn.onclick = () => {
-    toast.remove();
-  };
+  closeBtn.onclick = () => toast.remove();
 
   toast.appendChild(closeBtn);
   box.appendChild(toast);
@@ -177,11 +165,10 @@ function showToast(message, variant = 'info') {
 
 // ===== 메인 진입 =====
 async function main() {
-  // 1) 관리자 인증 (토큰 검증)
+  // 1) 관리자 인증
   const session = await requireAuth('admin');
   if (!session) return;
 
-  // verify 응답에서 adminId 추출 (여러 케이스 방어적으로 처리)
   const adminId =
     session.uid ||
     session.sub ||
@@ -193,13 +180,21 @@ async function main() {
   console.log('[admin] session from verify:', session);
   console.log('[admin] resolved adminId:', adminId);
 
-  // 2) 최종 storeId 결정 (매핑 / localStorage)
+  // 2) storeId 결정
   const sid = resolveStoreId(adminId);
   window.qrnrStoreId = sid;
   localStorage.setItem('qrnr.storeId', sid);
   console.log('[admin] final storeId =', sid);
 
-  // 3) 주소창의 ?store= 값을 "내 매장 ID"로 덮어쓰기
+  // ★★★ 즉시 해결 핵심: 매장 메뉴/QR 저장 구조 자동 생성
+  try {
+    ensureStoreInitialized(sid);   // ★ 추가
+    console.log('[admin] ensureStoreInitialized applied for', sid);
+  } catch (e) {
+    console.error('[admin] ensureStoreInitialized error', e);
+  }
+
+  // 3) URL 파라미터 통일
   try {
     const u = new URL(location.href);
     u.searchParams.set('store', sid);
@@ -208,21 +203,17 @@ async function main() {
     console.error('[admin] URL store param set error', e);
   }
 
-  // 4) 서버에서 매장 관련 설정/데이터 동기화
+  // 4) 서버와 동기화
   await syncStoreFromServer();
   initTabs();
 
-  // 🔹 탭 클릭 시: 해당 탭 내용 새로고침 (폭탄 방지 래퍼 사용)
+  // 탭 이벤트
   document.querySelectorAll('.tab').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
-      if (tab === 'store') {
-        safeRenderStore();
-      } else if (tab === 'delivery') {
-        safeRenderDeliv();
-      } else if (tab === 'notify-log') {
-        safeRenderNotifyLogs();
-      }
+      if (tab === 'store') safeRenderStore();
+      else if (tab === 'delivery') safeRenderDeliv();
+      else if (tab === 'notify-log') safeRenderNotifyLogs();
     });
   });
 
@@ -234,39 +225,27 @@ async function main() {
     };
   }
 
-  // 기본 세팅
+  // 필터/초기 렌더
   bindFilters();
-  // 초회 로딩도 안전 래퍼로 (한 번만 실행됨)
   safeRenderStore();
   safeRenderDeliv();
   attachGlobalHandlers();
 
-  // 🔹 탭별 새로고침 버튼 연결 (안전 래퍼 사용)
+  // 새로고침 버튼
   const storeRefresh = document.getElementById('store-refresh');
-  if (storeRefresh) {
-    storeRefresh.onclick = () => {
-      safeRenderStore(); // 매장 주문 테이블 새로고침
-    };
-  }
+  if (storeRefresh) storeRefresh.onclick = () => safeRenderStore();
 
   const delivRefresh = document.getElementById('deliv-refresh');
-  if (delivRefresh) {
-    delivRefresh.onclick = () => {
-      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
-    };
-  }
+  if (delivRefresh) delivRefresh.onclick = () => safeRenderDeliv();
 
   // 엑셀 export
   const storeExportBtn = document.getElementById('store-export');
-  if (storeExportBtn) {
-    storeExportBtn.onclick = () => exportOrders('store');
-  }
-  const delivExportBtn = document.getElementById('deliv-export');
-  if (delivExportBtn) {
-    delivExportBtn.onclick = () => exportOrders('delivery');
-  }
+  if (storeExportBtn) storeExportBtn.onclick = () => exportOrders('store');
 
-  // 메뉴/결제코드/계좌/알림/QR 초기화
+  const delivExportBtn = document.getElementById('deliv-export');
+  if (delivExportBtn) delivExportBtn.onclick = () => exportOrders('delivery');
+
+  // 메뉴/QR/코드/계좌/알림
   renderMenu();
   bindMenu();
   renderCode();
@@ -285,17 +264,13 @@ async function main() {
   renderPolicy();
   bindPolicy();
 
-  // 🔔 BroadcastChannel 기반 실시간 알림
+  // 실시간 메시지 채널
   adminChannel.onmessage = (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
 
-    // 현재 관리자 페이지가 바라보는 매장 ID
-    const currentStoreId =
-      window.qrnrStoreId ||
-      'store1';
+    const currentStoreId = window.qrnrStoreId || 'store1';
 
-    // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
     const msgStoreId =
       msg.storeId ||
       msg.store ||
@@ -303,8 +278,7 @@ async function main() {
       msg.sid ||
       null;
 
-    // 🔒 매장별 필터: "내 매장"이 아닌 것은 아예 무시
-    if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
+    if (msgStoreId && msgStoreId !== currentStoreId) {
       console.log('[admin] ignore message for other store', {
         msgStoreId,
         currentStoreId,
@@ -312,50 +286,29 @@ async function main() {
       return;
     }
 
-    console.log('[admin] accepted message', {
-      msgStoreId,
-      currentStoreId,
-      msg,
-    });
+    console.log('[admin] accepted message', { msgStoreId, currentStoreId, msg });
 
     if (msg.type === 'CALL') {
-      // 화면 상단 토스트
       showToast(
-        `테이블 ${msg.table || '-'} 직원 호출${
-          msg.note ? ' - ' + msg.note : ''
-        }`,
+        `테이블 ${msg.table || '-'} 직원 호출${msg.note ? ' - ' + msg.note : ''}`,
         'info'
       );
-      // notify.js 쪽으로도 이벤트 전달
-      notifyEvent({
-        ...msg,
-        kind: 'call',
-      });
-      // 호출 로그 새로고침
+      notifyEvent({ ...msg, kind: 'call' });
       safeRenderNotifyLogs();
       return;
     }
 
     if (msg.type === 'NEW_ORDER') {
       showToast('새 주문이 도착했습니다.', 'success');
-      notifyEvent({
-        ...msg,
-        kind: 'order',
-      });
+      notifyEvent({ ...msg, kind: 'order' });
       safeRenderStore();
       safeRenderDeliv();
       return;
     }
 
     if (msg.type === 'NEW_ORDER_PAID') {
-      showToast(
-        `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-        'success'
-      );
-
+      showToast(`주문 결제 완료 - 주문번호 ${msg.orderId || ''}`, 'success');
       notifyEvent(msg);
-
-      // 매장/배달 주문 목록 새로고침
       safeRenderStore();
       safeRenderDeliv();
     }
