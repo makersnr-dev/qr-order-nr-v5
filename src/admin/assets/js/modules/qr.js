@@ -1,23 +1,30 @@
 // /src/admin/assets/js/modules/qr.js
-import { patch, get } from './store.js';
+// 매장별 QR 리스트 관리: admin.qrList[storeId] = [{ name, mode, value }, ...]
+
+import { get, patch } from './store.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 
-// ===== 매장 식별 =====
+// 현재 매장 ID (URL은 신뢰하지 않고, admin.js 에서 세팅한 값 사용)
 function currentStoreId() {
-  // admin.js에서 설정한 값 우선
   if (window.qrnrStoreId) return window.qrnrStoreId;
-  // URL 파라미터는 신뢰하지 않는다 (보안상)
+
+  try {
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
+  } catch (e) {
+    console.error('[qr] currentStoreId localStorage error', e);
+  }
+
   return 'store1';
 }
 
-// 공통 저장 위치 : ['admin', 'qrList']
-//  - key: storeId
-//  - value: 해당 매장의 QR 리스트 배열
+// 전체 구조: { [storeId]: QR[] }
 const ROOT_PATH = ['admin', 'qrList'];
 
 function loadAll() {
-  return get(ROOT_PATH) || {};
+  const all = get(ROOT_PATH);
+  return all && typeof all === 'object' ? all : {};
 }
 
 function saveAll(updater) {
@@ -27,31 +34,41 @@ function saveAll(updater) {
   });
 }
 
+// 현재 매장 QR 목록
 function currentList() {
   const storeId = currentStoreId();
   const all = loadAll();
-  const arr = Array.isArray(all[storeId]) ? all[storeId] : [];
-  return { storeId, list: arr };
+  const list = Array.isArray(all[storeId]) ? all[storeId] : [];
+  return { storeId, list };
 }
 
+// ─────────────────────────────
+// 렌더링 & 바인딩
+// ─────────────────────────────
 export function initQR() {
-  const tbody = $('#tbody-qr');
-  const addBtn = $('#qr-add');
-  const resetBtn = $('#qr-reset');
-  const storeLabel = $('#qr-store-label');
+  const tbody       = $('#tbody-qr');
+  const addBtn      = $('#qr-add');
+  const resetBtn    = $('#qr-reset');
+  const storeLabel  = $('#qr-store-label');
+
+  if (!tbody) return;
 
   const { storeId, list } = currentList();
+  console.log('[qr] initQR storeId =', storeId, 'items =', list.length);
+
   if (storeLabel) {
     storeLabel.textContent = storeId;
   }
 
-  if (!tbody) return;
   tbody.innerHTML = '';
 
   if (!list.length) {
     const tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td colspan="4" class="small text-muted">등록된 QR 없음</td>';
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.className = 'small text-muted text-center';
+    td.textContent = '등록된 QR이 없습니다.';
+    tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
     list.forEach((q, idx) => {
@@ -83,6 +100,7 @@ export function initQR() {
             arr.splice(idx, 1);
             return { ...all, [storeId]: arr };
           });
+
           initQR();
         };
       }
@@ -91,9 +109,13 @@ export function initQR() {
 
   if (addBtn) {
     addBtn.onclick = () => {
-      const name = (document.getElementById('qr-name')?.value || '').trim();
-      const mode = document.getElementById('qr-mode')?.value || 'table';
-      const value = (document.getElementById('qr-value')?.value || '').trim();
+      const nameInput  = document.getElementById('qr-name');
+      const modeSelect = document.getElementById('qr-mode');
+      const valueInput = document.getElementById('qr-value');
+
+      const name  = (nameInput?.value || '').trim();
+      const mode  = modeSelect?.value || 'table';
+      const value = (valueInput?.value || '').trim();
 
       if (!name || !value) {
         alert('QR 이름과 값은 필수입니다.');
@@ -124,12 +146,14 @@ export function initQR() {
   }
 }
 
-// (필요하다면 openPreview 구현은 기존 파일 내용 그대로 사용)
+// ─────────────────────────────
+// 미리보기: 현재 매장 + 옵션으로 URL 열기
+// ─────────────────────────────
 function openPreview(q) {
   const storeId = currentStoreId();
 
-  let url = '/order/select';
-  const u = new URL(url, location.origin);
+  // 기본 주문 선택 페이지
+  const u = new URL('/order/select', location.origin);
   u.searchParams.set('store', storeId);
 
   if (q.mode === 'table' && q.value) {
