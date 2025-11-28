@@ -16,7 +16,7 @@ import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
-import { get } from './modules/store.js'; // ✅ 매장 관리자 매핑용
+import { get } from './modules/store.js'; // 매장 관리자 매핑용
 
 // ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
 if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -51,11 +51,11 @@ const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 함수 =====
-// 1) 매장 관리자 매핑에서 adminId → storeId
-// 2) localStorage에 남아 있던 storeId
-// 3) 마지막 fallback: 'store1'
+// 1) 매장 관리자 매핑에서 adminId → storeId (가장 우선)
+// 2) 매핑이 없을 때만 localStorage 값을 참고
+// 3) 둘 다 없으면 store1
 function resolveStoreId(adminId) {
-  // 1) 매장 관리자 매핑에서 adminId → storeId 찾기
+  // 🔒 1) 매장 관리자 매핑에서 adminId → storeId 찾기 (가장 우선)
   if (adminId && typeof get === 'function') {
     try {
       const map = get(['system', 'storeAdmins']) || {};
@@ -69,7 +69,6 @@ function resolveStoreId(adminId) {
         sid = mapped;
       } else if (mapped && typeof mapped === 'object') {
         // 예: storeAdmins["admin1"] = { storeId:"korea", ... } 형태
-        // ⚠️ 매장 ID로 쓸만한 필드만 본다.
         sid =
           mapped.storeId ||
           mapped.store ||
@@ -79,7 +78,6 @@ function resolveStoreId(adminId) {
       }
 
       if (sid) {
-        localStorage.setItem('qrnr.storeId', sid);
         console.log('[admin] storeId from mapping:', adminId, '->', sid);
         return sid;
       } else {
@@ -90,7 +88,8 @@ function resolveStoreId(adminId) {
     }
   }
 
-  // 2) 로컬스토리지에 기억된 storeId
+  // 2) 매핑이 없다면, 로컬 스토리지 값(예전에 선택한 매장)을 참고
+  //    → 보안상 강제 매핑이 없는 계정에서만 의미 있음
   try {
     const stored = localStorage.getItem('qrnr.storeId');
     if (stored) {
@@ -98,7 +97,7 @@ function resolveStoreId(adminId) {
       return stored;
     }
   } catch (e) {
-    console.error('[admin] resolveStoreId localStorage error', e);
+    console.error('[admin] resolveStoreId localStorage read error', e);
   }
 
   // 3) 아무것도 없으면 기본값
@@ -200,13 +199,11 @@ async function main() {
   localStorage.setItem('qrnr.storeId', sid);
   console.log('[admin] final storeId =', sid);
 
-  // 3) 주소창에 ?store= 없으면 한 번 넣어주기
+  // 3) 주소창의 ?store= 값을 "내 매장 ID"로 덮어쓰기
   try {
     const u = new URL(location.href);
-    if (!u.searchParams.get('store')) {
-      u.searchParams.set('store', sid);
-      history.replaceState(null, '', u.toString());
-    }
+    u.searchParams.set('store', sid);
+    history.replaceState(null, '', u.toString());
   } catch (e) {
     console.error('[admin] URL store param set error', e);
   }
@@ -259,15 +256,17 @@ async function main() {
     };
   }
 
-  // 주문 내보내기
-  const exportBtn = document.getElementById('export-orders');
-  if (exportBtn) {
-    exportBtn.onclick = () => {
-      exportOrders();
-    };
+  // 엑셀 export
+  const storeExportBtn = document.getElementById('store-export');
+  if (storeExportBtn) {
+    storeExportBtn.onclick = () => exportOrders('store');
+  }
+  const delivExportBtn = document.getElementById('deliv-export');
+  if (delivExportBtn) {
+    delivExportBtn.onclick = () => exportOrders('delivery');
   }
 
-  // 메뉴 관리 / 코드 / 계좌 / 알림 / QR 초기화
+  // 메뉴/결제코드/계좌/알림/QR 초기화
   renderMenu();
   bindMenu();
   renderCode();
@@ -278,31 +277,22 @@ async function main() {
   bindNotify();
   initQR();
 
-  // 호출 로그: 초기 렌더 + 바인딩
-  safeRenderNotifyLogs();
+  // 호출 로그
+  renderNotifyLogs();
   bindNotifyLogs();
 
-  // 🔹 개인정보 처리방침
+  // 개인정보 처리방침
   renderPolicy();
   bindPolicy();
 
-  // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
-  const notifyLogRefresh = document.getElementById('notify-log-refresh');
-  if (notifyLogRefresh) {
-    notifyLogRefresh.onclick = () => {
-      safeRenderNotifyLogs();
-    };
-  }
-
-  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
-  adminChannel.onmessage = async (event) => {
+  // 🔔 BroadcastChannel 기반 실시간 알림
+  adminChannel.onmessage = (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
 
     // 현재 관리자 페이지가 바라보는 매장 ID
     const currentStoreId =
       window.qrnrStoreId ||
-      localStorage.getItem('qrnr.storeId') ||
       'store1';
 
     // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
@@ -311,32 +301,53 @@ async function main() {
       msg.store ||
       msg.store_id ||
       msg.sid ||
-      msg.storeCode ||
       null;
 
-    // ✅ 매장 ID가 있고, 현재 매장과 다르면 무시 (다른 매장 알림)
-    if (msgStoreId && msgStoreId !== currentStoreId) {
-      console.log(
-        '[admin] ignore broadcast from another store:',
+    // 🔒 매장별 필터: "내 매장"이 아닌 것은 아예 무시
+    if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
+      console.log('[admin] ignore message for other store', {
         msgStoreId,
-        '≠',
-        currentStoreId
-      );
+        currentStoreId,
+      });
       return;
     }
 
-    console.log('[admin] broadcast message:', msg);
+    console.log('[admin] accepted message', {
+      msgStoreId,
+      currentStoreId,
+      msg,
+    });
 
-    if (msg.type === 'order') {
+    if (msg.type === 'CALL') {
+      // 화면 상단 토스트
+      showToast(
+        `테이블 ${msg.table || '-'} 직원 호출${
+          msg.note ? ' - ' + msg.note : ''
+        }`,
+        'info'
+      );
+      // notify.js 쪽으로도 이벤트 전달
+      notifyEvent({
+        ...msg,
+        kind: 'call',
+      });
+      // 호출 로그 새로고침
+      safeRenderNotifyLogs();
+      return;
+    }
+
+    if (msg.type === 'NEW_ORDER') {
       showToast('새 주문이 도착했습니다.', 'success');
-      notifyEvent(msg);
+      notifyEvent({
+        ...msg,
+        kind: 'order',
+      });
       safeRenderStore();
       safeRenderDeliv();
-    } else if (msg.type === 'call') {
-      showToast(msg.message || '호출 알림이 들어왔습니다.', 'info');
-      notifyEvent(msg);
-      safeRenderNotifyLogs();
-    } else if (msg.type === 'payment-success') {
+      return;
+    }
+
+    if (msg.type === 'NEW_ORDER_PAID') {
       showToast(
         `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
         'success'
