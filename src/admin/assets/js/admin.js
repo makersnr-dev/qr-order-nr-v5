@@ -14,62 +14,42 @@ import { initQR } from './modules/qr.js';
 import { renderMenu, bindMenu } from './modules/menu.js';
 import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
-import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
-import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
-import { get } from './modules/store.js'; // ✅ 매장 관리자 매핑용
+import { renderNotifyLogs } from './modules/notify-logs.js';
+import {
+  initNotify,
+  bindNotifyControls,
+  initDesktopNotify,
+  notifyEvent,
+} from './modules/notify.js';
 
-// ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
-if (typeof window !== 'undefined' && 'Notification' in window) {
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => {});
-  }
-}
+// 단축 select
+const $ = (s, r = document) => r.querySelector(s);
 
-// ===== 새로고침 폭탄 방지용 공통 유틸 =====
-const REFRESH_COOLDOWN_MS = 5000; // 5초 안에 여러 번 호출돼도 실제 실행은 1번만
-
+// 폭탄 방지: 렌더링 여러 번 눌러도 직전 작업 끝난 뒤에만 실행
 function makeSafeRefresher(realFn) {
-  let last = 0;
+  let running = false;
   return async function safeRefresher(...args) {
-    const now = Date.now();
-    if (now - last < REFRESH_COOLDOWN_MS) {
-      console.log('[safeRefresh] skip (cooldown):', realFn.name || 'fn');
-      return;
-    }
-    last = now;
+    if (running) return;
+    running = true;
     try {
-      return await realFn(...args);
-    } catch (e) {
-      console.error('[safeRefresh] error in', realFn.name || 'fn', e);
+      await realFn(...args);
+    } finally {
+      running = false;
     }
   };
 }
 
-// 탭 3종(매장 / 배달·예약 / 호출로그)에 대한 안전 새로고침 래퍼
+// 안전 래퍼 적용된 렌더러들
 const safeRenderStore      = makeSafeRefresher(renderStore);
 const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
 // ===== storeId 결정 함수 =====
-// 1) URL ?store= 우선
-// 2) 매장 관리자 매핑에서 adminId → storeId
-// 3) localStorage에 남아 있던 storeId
-// 4) 마지막 fallback: 'store1'
+// 1) 매장 관리자 매핑에서 adminId → storeId
+// 2) localStorage에 남아 있던 storeId
+// 3) 마지막 fallback: 'store1'
 function resolveStoreId(adminId) {
-  // 1) URL ?store= 우선
-  try {
-    const u = new URL(location.href);
-    const fromUrl = u.searchParams.get('store');
-    if (fromUrl) {
-      localStorage.setItem('qrnr.storeId', fromUrl);
-      console.log('[admin] storeId from URL:', fromUrl);
-      return fromUrl;
-    }
-  } catch (e) {
-    console.error('[admin] resolveStoreId URL parse error', e);
-  }
-
-  // 2) 매장 관리자 매핑에서 adminId → storeId 찾기
+  // 1) 매장 관리자 매핑에서 adminId → storeId 찾기
   if (adminId && typeof get === 'function') {
     try {
       const map = get(['system', 'storeAdmins']) || {};
@@ -104,57 +84,92 @@ function resolveStoreId(adminId) {
     }
   }
 
-  // 3) 로컬스토리지에 기억된 storeId
-  const stored = localStorage.getItem('qrnr.storeId');
-  if (stored) {
-    console.log('[admin] storeId from localStorage:', stored);
-    return stored;
+  // 2) 로컬스토리지에 기억된 storeId
+  try {
+    const stored = localStorage.getItem('qrnr.storeId');
+    if (stored) {
+      console.log('[admin] storeId from localStorage:', stored);
+      return stored;
+    }
+  } catch (e) {
+    console.error('[admin] resolveStoreId localStorage error', e);
   }
 
-  // 4) 아무것도 없으면 기본값
+  // 3) 아무것도 없으면 기본값
   console.log('[admin] storeId fallback: store1');
   return 'store1';
 }
 
-const adminChannel = new BroadcastChannel('qrnr-admin');
+// ===== admin 진입 시 초기 렌더링 =====
 
-function ensureToastContainer() {
-  let box = document.getElementById('admin-toast-box');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'admin-toast-box';
-    box.style.position = 'fixed';
-    box.style.top = '16px';
-    box.style.right = '16px';
-    box.style.zIndex = '9999';
-    box.style.display = 'flex';
-    box.style.flexDirection = 'column';
-    box.style.gap = '8px';
-    document.body.appendChild(box);
-  }
-  return box;
+function bindLogout() {
+  const btn = document.getElementById('btn-logout');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const ok = confirm('로그아웃 하시겠습니까?');
+    if (!ok) return;
+    await clearToken('admin');
+    location.href = '/admin/login';
+  });
 }
 
-function showToast(message, variant = 'info') {
-  const box = ensureToastContainer();
+// 공통 토스트
+function showToast(message, type = 'info') {
+  let wrap = document.getElementById('toast-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'toast-wrap';
+    wrap.style.position = 'fixed';
+    wrap.style.right = '16px';
+    wrap.style.bottom = '16px';
+    wrap.style.zIndex = '9999';
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+    wrap.style.gap = '8px';
+    document.body.appendChild(wrap);
+  }
+
   const toast = document.createElement('div');
-
-  toast.textContent = message;
-  toast.style.padding = '10px 14px';
-  toast.style.borderRadius = '6px';
+  toast.className = `toast toast-${type}`;
+  toast.style.minWidth = '240px';
+  toast.style.padding = '8px 12px';
+  toast.style.borderRadius = '8px';
   toast.style.fontSize = '13px';
-  toast.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
   toast.style.background =
-    variant === 'error'
-      ? '#ff4d4f'
-      : variant === 'success'
-        ? '#52c41a'
-        : '#333';
-  toast.style.color = '#fff';
-  toast.style.opacity = '0.95';
-  toast.style.transition = 'opacity 0.3s ease';
+    type === 'error'
+      ? '#fee2e2'
+      : type === 'success'
+      ? '#dcfce7'
+      : '#e5e7eb';
+  toast.style.color =
+    type === 'error'
+      ? '#991b1b'
+      : type === 'success'
+      ? '#166534'
+      : '#111827';
+  toast.style.boxShadow =
+    '0 4px 10px rgba(0,0,0,0.15)';
+  toast.style.display = 'flex';
+  toast.style.alignItems = 'center';
+  toast.style.justifyContent = 'space-between';
+  toast.style.gap = '12px';
 
-  box.appendChild(toast);
+  const span = document.createElement('span');
+  span.textContent = message;
+  toast.appendChild(span);
+
+  const close = document.createElement('button');
+  close.textContent = '×';
+  close.style.border = 'none';
+  close.style.background = 'transparent';
+  close.style.cursor = 'pointer';
+  close.style.fontSize = '16px';
+  close.style.lineHeight = '1';
+  close.style.marginLeft = '4px';
+  close.onclick = () => toast.remove();
+  toast.appendChild(close);
+
+  wrap.appendChild(toast);
 
   setTimeout(() => {
     toast.style.opacity = '0';
@@ -181,19 +196,17 @@ async function main() {
   console.log('[admin] session from verify:', session);
   console.log('[admin] resolved adminId:', adminId);
 
-  // 2) 최종 storeId 결정 (URL / 매핑 / localStorage)
+  // 2) 최종 storeId 결정 (매핑 / localStorage)
   const sid = resolveStoreId(adminId);
   window.qrnrStoreId = sid;
   localStorage.setItem('qrnr.storeId', sid);
   console.log('[admin] final storeId =', sid);
 
-  // 3) 주소창에 ?store= 없으면 한 번 넣어주기
+  // 3) 주소창의 ?store= 값을 현재 매장으로 강제 동기화
   try {
     const u = new URL(location.href);
-    if (!u.searchParams.get('store')) {
-      u.searchParams.set('store', sid);
-      history.replaceState(null, '', u.toString());
-    }
+    u.searchParams.set('store', sid);
+    history.replaceState(null, '', u.toString());
   } catch (e) {
     console.error('[admin] URL store param set error', e);
   }
@@ -208,146 +221,106 @@ async function main() {
       const tab = btn.dataset.tab;
       if (tab === 'store') {
         safeRenderStore();
-      } else if (tab === 'delivery') {
+      } else if (tab === 'deliv') {
         safeRenderDeliv();
-      } else if (tab === 'notify-log') {
+      } else if (tab === 'qr') {
+        initQR();
+      } else if (tab === 'menu') {
+        renderMenu();
+      } else if (tab === 'code') {
+        renderCode();
+      } else if (tab === 'mybank') {
+        renderMyBank();
+      } else if (tab === 'policy') {
+        renderPolicy();
+      } else if (tab === 'notifyLogs') {
         safeRenderNotifyLogs();
       }
     });
   });
 
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      clearToken();
-      location.href = '/admin';
-    };
-  }
-
-  // 기본 세팅
-  bindFilters();
-  // 초회 로딩도 안전 래퍼로 (한 번만 실행됨)
+  // 최초 진입시 매장 주문 탭 렌더
   safeRenderStore();
-  safeRenderDeliv();
+
+  // 각 모듈 바인딩
+  bindFilters();
+  bindMenu();
+  bindCode();
+  bindMyBank();
+  bindPolicy();
+  bindNotifyControls();
   attachGlobalHandlers();
 
-  // 🔹 탭별 새로고침 버튼 연결 (안전 래퍼 사용)
-  const storeRefresh = document.getElementById('store-refresh');
-  if (storeRefresh) {
-    storeRefresh.onclick = () => {
-      safeRenderStore(); // 매장 주문 테이블 새로고침
-    };
-  }
+  // 알림 초기화
+  initNotify();
+  initDesktopNotify();
 
-  const delivRefresh = document.getElementById('deliv-refresh');
-  if (delivRefresh) {
-    delivRefresh.onclick = () => {
-      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
-    };
-  }
+  bindLogout();
 
-  // 엑셀 export
-  const storeExportBtn = document.getElementById('store-export');
-  if (storeExportBtn) {
-    storeExportBtn.onclick = () => exportOrders('ordersStore');
-  }
-
-  const delivExportBtn = document.getElementById('deliv-export');
-  if (delivExportBtn) {
-    delivExportBtn.onclick = () => exportOrders('ordersDelivery');
-  }
-
-  // 나머지 설정들
-  renderMenu();
-  bindMenu();
-  renderCode();
-  bindCode();
-  renderMyBank();
-  bindMyBank();
-  renderNotify();
-  bindNotify();
-  initQR();
-
-  // 호출 로그: 초기 렌더 + 바인딩
-  safeRenderNotifyLogs();
-  bindNotifyLogs();
-
-  // 🔹 개인정보 처리방침
-  renderPolicy();
-  bindPolicy();
-
-  // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
-  const notifyRefresh = document.getElementById('notify-log-refresh');
-  if (notifyRefresh) {
-    notifyRefresh.onclick = () => {
-      safeRenderNotifyLogs();
-    };
-  }
-
-  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
-  adminChannel.onmessage = async (event) => {
-  const msg = event.data;
-  if (!msg || !msg.type) return;
-
-  // 현재 관리자 페이지가 바라보는 매장 ID
-  const currentStoreId =
-    window.qrnrStoreId ||
-    localStorage.getItem('qrnr.storeId') ||
-    'store1';
-
-  // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
-  const msgStoreId =
-    msg.storeId ||
-    msg.store ||
-    msg.store_id ||
-    msg.sid ||
-    null;
-
-  // 🔒 매장별 필터: "내 매장"이 아닌 것은 아예 무시
-  if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
-    console.log('[admin] ignore message for other store', {
-      msgStoreId,
-      currentStoreId,
-      msg,
+  // "주문 내역 내보내기" 버튼
+  const btnExport = document.getElementById('btn-export');
+  if (btnExport) {
+    btnExport.addEventListener('click', () => {
+      exportOrders();
     });
-    return;
   }
 
-  console.log('[admin] accepted message', {
-    msgStoreId,
-    currentStoreId,
-    msg,
-  });
-
-  if (msg.type === 'CALL') {
-    // 화면 상단 토스트
-    showToast(
-      `테이블 ${msg.table || '-'} 직원 호출${
-        msg.note ? ' - ' + msg.note : ''
-      }`,
-      'info'
-    );
-
-    // 🔔 소리 + 데스크탑 알림 (notify.js 쪽에서 실행)
-    notifyEvent(msg);
-
-    // 호출 로그 새로고침
-    safeRenderNotifyLogs();
+  // SSE 등에서 들어오는 이벤트와 연결 (예: 새 주문/상태변경 시 알림)
+  if (window.EventSource) {
+    try {
+      const es = new EventSource('/api/orders-stream');
+      es.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data || '{}');
+          console.log('[admin] SSE message:', msg);
+          if (msg.type === 'notify') {
+            notifyEvent(msg);
+          }
+          if (msg.type === 'refresh-orders') {
+            safeRenderStore();
+            safeRenderDeliv();
+            safeRenderNotifyLogs();
+          }
+        } catch (e) {
+          console.error('[admin] SSE message parse error', e);
+        }
+      };
+      es.onerror = (e) => {
+        console.warn('[admin] SSE error', e);
+      };
+    } catch (e) {
+      console.warn('[admin] SSE init error', e);
+    }
   }
 
-  if (msg.type === 'NEW_ORDER_PAID') {
-    showToast(
-      `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-      'success'
-    );
-
-    notifyEvent(msg);
-
-    // 매장/배달 주문 목록 새로고침
-    safeRenderStore();
-    safeRenderDeliv();
+  // 예시: 결제 성공 알림 전용 채널 (WebSocket 또는 SSE)
+  if (window.EventSource) {
+    try {
+      const payEs = new EventSource('/api/pay-stream');
+      payEs.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data || '{}');
+          console.log('[admin] pay-stream message:', msg);
+          if (msg.type === 'payment-success') {
+            showToast(
+              `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
+              'success'
+            );
+            notifyEvent(msg);
+            safeRenderStore();
+            safeRenderDeliv();
+          }
+        } catch (e) {
+          console.error('[admin] pay-stream message parse error', e);
+        }
+      };
+      payEs.onerror = (e) => {
+        console.warn('[admin] pay-stream SSE error', e);
+      };
+    } catch (e) {
+      console.warn('[admin] pay-stream SSE init error', e);
+    }
   }
-};
 }
 
 main();
