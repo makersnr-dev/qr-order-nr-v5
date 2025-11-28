@@ -9,11 +9,12 @@ import { get, patch, fmt } from './store.js';
 function currentStoreId() {
   if (window.qrnrStoreId) return window.qrnrStoreId;
   try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
   } catch (e) {
-    return 'store1';
+    console.error('[notify] currentStoreId localStorage error', e);
   }
+  return 'store1';
 }
 
 // 매장별 알림 설정 경로: ['admin', 'notify', storeId]
@@ -25,253 +26,188 @@ const PATH = () => ['admin', 'notify', currentStoreId()];
 function loadNotifyConfig() {
   const raw = get(PATH()) || {};
   return {
-    useBeep: raw.useBeep !== false,                       // 기본 true
+    useBeep: raw.useBeep !== false,
     beepVolume:
       typeof raw.beepVolume === 'number' ? raw.beepVolume : 0.7,
-    desktop: !!raw.desktop,                               // 기본 false
-    webhookUrl: raw.webhookUrl || '',
+    desktop: !!raw.desktop,
   };
 }
 
-function saveNotifyConfig(updater) {
-  patch(PATH(), (cur = {}) => {
-    const base = {
-      useBeep: true,
-      beepVolume: 0.7,
-      desktop: false,
-      webhookUrl: '',
-      ...cur,
-    };
-    const next = updater(base) || base;
-    return next;
-  });
+function saveNotifyConfig(cfg) {
+  patch(PATH(), () => ({
+    useBeep: cfg.useBeep,
+    beepVolume: cfg.beepVolume,
+    desktop: cfg.desktop,
+  }));
 }
 
 // ─────────────────────────────
-// Web Audio 기반 비프음 (쿨타임 포함)
+// 사운드 관련
 // ─────────────────────────────
 let audioCtx = null;
-let lastBeepAt = 0;
-const BEEP_COOLDOWN_MS = 3000; // 3초에 한 번만
+let beepOsc  = null;
+
+function ensureAudioContext() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      console.warn('[notify] AudioContext 생성 실패', e);
+    }
+  }
+  return audioCtx;
+}
 
 function playBeep(volume = 0.7) {
-  const now = Date.now();
-  if (now - lastBeepAt < BEEP_COOLDOWN_MS) {
-    return;
-  }
-  lastBeepAt = now;
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
 
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    if (!audioCtx) {
-      audioCtx = new AC();
-    }
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = 880; // A5 음
-    gain.gain.value = volume;
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.2);
-  } catch (e) {
-    console.error('[notify] beep error', e);
-  }
-}
-
-// ─────────────────────────────
-// 데스크탑 알림 (Notification API, 쿨타임 포함)
-// ─────────────────────────────
-let lastDesktopAt = 0;
-const DESKTOP_COOLDOWN_MS = 3000; // 3초에 한 번
-
-async function showDesktopNotification(title, body) {
-  const now = Date.now();
-  if (now - lastDesktopAt < DESKTOP_COOLDOWN_MS) {
-    return;
-  }
-  lastDesktopAt = now;
-
-  if (!('Notification' in window)) return;
-
-  if (Notification.permission === 'denied') {
-    return;
-  }
-  if (Notification.permission === 'default') {
+  if (beepOsc) {
     try {
-      const p = await Notification.requestPermission();
-      if (p !== 'granted') return;
-    } catch (e) {
-      console.error('[notify] permission error', e);
-      return;
-    }
+      beepOsc.stop();
+    } catch {}
+    beepOsc = null;
   }
 
-  try {
-    new Notification(title, {
-      body,
-      tag: 'qrnr-admin', // 동일 tag이면 묶어서 표시
-      renotify: true,
-      // icon: '/favicon.ico', // 필요하면 아이콘 경로 추가
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'square';
+  osc.frequency.value = 880;
+  gain.gain.value = volume;
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start();
+
+  setTimeout(() => {
+    try {
+      osc.stop();
+    } catch {}
+  }, 180);
+
+  beepOsc = osc;
+}
+
+// ─────────────────────────────
+// 데스크탑 알림
+// ─────────────────────────────
+let desktopEnabled = false;
+
+export function initDesktopNotify() {
+  const cfg = loadNotifyConfig();
+  desktopEnabled = cfg.desktop;
+
+  if (!('Notification' in window)) {
+    console.log('[notify] Notification API 미지원');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    return;
+  }
+
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then((perm) => {
+      console.log('[notify] Notification permission:', perm);
     });
-  } catch (e) {
-    console.error('[notify] notification error', e);
+  }
+}
+
+function showDesktopNotification(title, body) {
+  if (!desktopEnabled) return;
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  const n = new Notification(title, {
+    body,
+    silent: false,
+  });
+
+  setTimeout(() => {
+    n.close();
+  }, 5000);
+}
+
+// ─────────────────────────────
+// 새 이벤트가 들어왔을 때 (주문, 상태 변경 등)
+// ─────────────────────────────
+export function notifyEvent(ev) {
+  const cfg = loadNotifyConfig();
+
+  if (cfg.useBeep) {
+    playBeep(cfg.beepVolume);
+  }
+
+  if (ev.type === 'order') {
+    const title = '새 주문이 도착했습니다.';
+    const body  = `[${ev.storeName || currentStoreId()}] ${ev.message || ''}`;
+    showDesktopNotification(title, body);
+  } else if (ev.type === 'payment-success') {
+    const title = '결제가 완료되었습니다.';
+    const body  = `[${ev.storeName || currentStoreId()}] 주문번호 ${ev.orderId || ''}`;
+    showDesktopNotification(title, body);
+  } else if (ev.type === 'status-change') {
+    const title = '주문 상태가 변경되었습니다.';
+    const body  = `[${ev.storeName || currentStoreId()}] ${ev.message || ''}`;
+    showDesktopNotification(title, body);
   }
 }
 
 // ─────────────────────────────
-// 관리자 알림 패널(설정 UI)
+// 설정 패널 바인딩
 // ─────────────────────────────
-export function renderNotify() {
-  const n = loadNotifyConfig();
-
-  const beepEl    = document.getElementById('n-beep');
-  const volEl     = document.getElementById('n-vol');
-  const desktopEl = document.getElementById('n-desktop');
-  const hookEl    = document.getElementById('n-webhook');
-
-  if (beepEl)    beepEl.checked    = !!n.useBeep;
-  if (volEl)     volEl.value       = n.beepVolume ?? 0.7;
-  if (desktopEl) desktopEl.checked = !!n.desktop;
-  if (hookEl)    hookEl.value      = n.webhookUrl || "";
-}
-
-export function bindNotify() {
-  const saveBtn = document.getElementById('n-save');
-  if (!saveBtn) return;
-
-  saveBtn.onclick = async () => {
-    const useBeep = document.getElementById('n-beep')?.checked || false;
-    const volRaw  = document.getElementById('n-vol')?.value;
-    const vol     = isNaN(Number(volRaw)) ? 0.7 : Number(volRaw);
-    const desktop = document.getElementById('n-desktop')?.checked || false;
-    const webhook = (document.getElementById('n-webhook')?.value || '').trim();
-
-    const cfg = {
-      useBeep,
-      beepVolume: vol,
-      desktop,
-      webhookUrl: webhook,
-    };
-
-    saveNotifyConfig(() => cfg);
-
-    // 데스크탑 알림 켰으면 권한 요청
-    if (desktop && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        try {
-          await Notification.requestPermission();
-        } catch (e) {
-          console.error('[notify] permission request error', e);
-        }
-      }
-    }
-
-    alert('저장되었습니다.');
-  };
-}
-
-// ─────────────────────────────
-// 관리자 이벤트 → 알림/소리 트리거
-// (admin.js의 BroadcastChannel.onmessage 에서 호출)
-// ─────────────────────────────
-export function notifyEvent(msg) {
-  if (!msg || !msg.type) return;
+export function bindNotifyControls() {
+  const chkBeep      = document.getElementById('notify-use-beep');
+  const rangeVolume  = document.getElementById('notify-beep-volume');
+  const chkDesktop   = document.getElementById('notify-desktop');
 
   const cfg = loadNotifyConfig();
 
-  const isCall =
-    msg.type === 'CALL';
-  const isPaid =
-    msg.type === 'NEW_ORDER_PAID' || msg.type === 'NEW_ORDER';
+  if (chkBeep) {
+    chkBeep.checked = cfg.useBeep;
+  }
+  if (rangeVolume) {
+    rangeVolume.value = String(
+      Math.round((cfg.beepVolume || 0.7) * 100)
+    );
+  }
+  if (chkDesktop) {
+    chkDesktop.checked = cfg.desktop;
+  }
 
-  if (!isCall && !isPaid) return;
+  if (chkBeep) {
+    chkBeep.addEventListener('change', () => {
+      const next = loadNotifyConfig();
+      next.useBeep = !!chkBeep.checked;
+      saveNotifyConfig(next);
+    });
+  }
 
-  let title = '';
-  let body  = '';
+  if (rangeVolume) {
+    rangeVolume.addEventListener('input', () => {
+      const v = Number(rangeVolume.value || '70');
+      const next = loadNotifyConfig();
+      next.beepVolume = Math.min(1, Math.max(0, v / 100));
+      saveNotifyConfig(next);
+    });
+  }
 
-  if (isCall) {
-    // 직원 호출
-    title = '직원 호출';
-    const table = msg.table || '-';
-    const note  = msg.note || msg.message || '';
-    body = `테이블 ${table}${note ? ' - ' + note : ''}`;
-  } else if (isPaid) {
-    // ── 주문 알림 ─────────────────────
-    // 1) 주문 타입 결정: orderType이 없으면 필드 보고 추론
-    let orderType = msg.orderType || '';
-
-    if (!orderType) {
-      const hasTable    = !!msg.table;
-      const hasCustomer = !!msg.customer;
-      const hasReserve  = !!(msg.customer && msg.reserveDate);
-
-      if (hasTable && !hasCustomer) {
-        orderType = 'store';
-      } else if (hasReserve) {
-        orderType = 'reserve';
-      } else if (hasCustomer) {
-        orderType = 'delivery';
+  if (chkDesktop) {
+    chkDesktop.addEventListener('change', () => {
+      const next = loadNotifyConfig();
+      next.desktop = !!chkDesktop.checked;
+      saveNotifyConfig(next);
+      desktopEnabled = next.desktop;
+      if (next.desktop) {
+        initDesktopNotify();
       }
-    }
-
-    // 2) 공통: 주문내역 텍스트 만들기
-    let itemsText = '';
-    if (Array.isArray(msg.cart) && msg.cart.length) {
-      itemsText = msg.cart
-        .map((i) => `${i.name} x${i.qty}`)
-        .join(', ');
-    } else if (msg.orderName) {
-      itemsText = msg.orderName;
-    }
-
-    // 3) 타입별 제목/내용
-    if (orderType === 'store') {
-      // ✅ 매장 주문
-      title = '매장 주문 완료';
-      const table = msg.table || '-';
-      body = `테이블 ${table}${itemsText ? ' · ' + itemsText : ''}`;
-    } else if (orderType === 'delivery') {
-      // ✅ 배달 주문
-      title = '배달 주문 완료';
-      const name =
-        (msg.customer && msg.customer.name) ||
-        msg.customerName ||
-        '-';
-      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
-    } else if (orderType === 'reserve') {
-      // ✅ 예약 주문
-      title = '예약 주문 완료';
-      const name =
-        (msg.customer && msg.customer.name) ||
-        msg.customerName ||
-        '-';
-      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
-    } else {
-      // 정보 부족할 때 기존 형식으로 fallback
-      title = '새 주문 결제 완료';
-      const orderId = msg.orderId || '';
-      const amount  =
-        typeof msg.amount === 'number'
-          ? fmt(msg.amount) + '원'
-          : '';
-      body = `주문번호 ${orderId}${amount ? ' / ' + amount : ''}`;
-    }
+    });
   }
+}
 
-  // 소리
-  if (cfg.useBeep) {
-    playBeep(cfg.beepVolume ?? 0.7);
-  }
-
-  // 데스크탑 알림
-  if (cfg.desktop) {
-    showDesktopNotification(title, body);
-  }
+// 필요시 초기화용
+export function initNotify() {
+  loadNotifyConfig();
 }
