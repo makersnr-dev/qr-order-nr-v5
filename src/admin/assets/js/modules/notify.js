@@ -7,13 +7,17 @@ import { get, patch, fmt } from './store.js';
 // 공통: 현재 storeId
 // ─────────────────────────────
 function currentStoreId() {
+  // admin.js 에서 로그인 시점에 세팅해 둔 값 우선
   if (window.qrnrStoreId) return window.qrnrStoreId;
+
+  // 혹시 모를 초기 상황 대비용 (보안상 민감 데이터는 아님: 알림 설정만 해당)
   try {
     const saved = localStorage.getItem('qrnr.storeId');
     if (saved) return saved;
   } catch (e) {
     console.error('[notify] currentStoreId localStorage error', e);
   }
+
   return 'store1';
 }
 
@@ -26,10 +30,10 @@ const PATH = () => ['admin', 'notify', currentStoreId()];
 function loadNotifyConfig() {
   const raw = get(PATH()) || {};
   return {
-    useBeep: raw.useBeep !== false,                       // 기본 true
+    useBeep: raw.useBeep !== false, // 기본 true
     beepVolume:
       typeof raw.beepVolume === 'number' ? raw.beepVolume : 0.7,
-    desktop: !!raw.desktop,                               // 기본 false
+    desktop: !!raw.desktop, // 기본 false
     webhookUrl: raw.webhookUrl || '',
   };
 }
@@ -43,7 +47,8 @@ function saveNotifyConfig(updater) {
       desktop: !!cur.desktop,
       webhookUrl: cur.webhookUrl || '',
     };
-    const next = updater(base) || base;
+    const next =
+      typeof updater === 'function' ? updater(base) || base : base;
     return next;
   });
 }
@@ -65,8 +70,7 @@ function playBeep(volume = 0.7) {
 
   try {
     if (!audioCtx) {
-      const AC =
-        window.AudioContext || window.webkitAudioContext;
+      const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       audioCtx = new AC();
     }
@@ -144,7 +148,7 @@ export function renderNotify() {
   if (beepEl)    beepEl.checked    = !!n.useBeep;
   if (volEl)     volEl.value       = n.beepVolume ?? 0.7;
   if (desktopEl) desktopEl.checked = !!n.desktop;
-  if (hookEl)    hookEl.value      = n.webhookUrl || "";
+  if (hookEl)    hookEl.value      = n.webhookUrl || '';
 }
 
 export function bindNotify() {
@@ -159,10 +163,10 @@ export function bindNotify() {
     const desktopEl = document.getElementById('n-desktop');
     const hookEl    = document.getElementById('n-webhook');
 
-    const useBeep = !!(beepEl && beepEl.checked);
-    const vol = volEl ? Number(volEl.value || 0.7) : 0.7;
-    const desktop = !!(desktopEl && desktopEl.checked);
-    const webhookUrl = hookEl ? (hookEl.value || "") : "";
+    const useBeep   = !!(beepEl && beepEl.checked);
+    const vol       = volEl ? Number(volEl.value || 0.7) : 0.7;
+    const desktop   = !!(desktopEl && desktopEl.checked);
+    const webhookUrl = hookEl ? (hookEl.value || '') : '';
 
     saveNotifyConfig((cur) => ({
       ...cur,
@@ -172,7 +176,7 @@ export function bindNotify() {
       webhookUrl,
     }));
 
-    alert('저장되었습니다.');
+    alert('알림 설정이 저장되었습니다.');
   };
 }
 
@@ -191,6 +195,7 @@ export function notifyEvent(msg) {
     msg.kind === 'call';
 
   const isPaid =
+    msg.type === 'NEW_ORDER_PAID' ||
     msg.type === 'payment-success' ||
     msg.type === 'PAID' ||
     msg.kind === 'paid';
@@ -201,7 +206,7 @@ export function notifyEvent(msg) {
   if (isCall) {
     // 직원 호출
     title = '직원 호출';
-    const table = msg.table || '-';
+    const table = msg.table || msg.tableNo || '-';
     const note  = msg.note || msg.message || '';
     body = `테이블 ${table}${note ? ' - ' + note : ''}`;
   } else if (isPaid) {
@@ -230,12 +235,12 @@ export function notifyEvent(msg) {
       .join(', ');
 
     if (orderType === 'store') {
-      // ✅ 매장 주문
+      // 매장 주문
       title = '매장 주문 결제 완료';
       const table = msg.tableNo || msg.table || '-';
       body = `테이블 ${table}${itemsText ? ' · ' + itemsText : ''}`;
     } else if (orderType === 'delivery') {
-      // ✅ 배달 주문
+      // 배달 주문
       title = '배달 주문 결제 완료';
       const name =
         (msg.customer && msg.customer.name) ||
@@ -243,7 +248,7 @@ export function notifyEvent(msg) {
         '-';
       body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
     } else if (orderType === 'reserve') {
-      // ✅ 예약 주문
+      // 예약 주문
       title = '예약 주문 완료';
       const name =
         (msg.customer && msg.customer.name) ||
@@ -260,6 +265,14 @@ export function notifyEvent(msg) {
           : '';
       body = `주문번호 ${orderId}${amount ? ' / ' + amount : ''}`;
     }
+  } else if (msg.type === 'NEW_ORDER') {
+    // 결제 전 "새 주문" 이벤트를 따로 쓰고 싶을 때
+    title = '새 주문이 접수되었습니다.';
+    const table = msg.tableNo || msg.table || '';
+    body = table ? `테이블 ${table}` : '';
+  } else {
+    // 기타 타입은 일단 무시
+    return;
   }
 
   // 소리
@@ -271,4 +284,8 @@ export function notifyEvent(msg) {
   if (cfg.desktop) {
     showDesktopNotification(title, body);
   }
+
+  // webhookUrl 이 있으면, 나중에 필요하면 여기서 fetch 로 외부 훅 호출 가능
+  // (지금은 실제 호출은 하지 않음. 무료 서버 부담 고려해서 주석 처리.)
+  // if (cfg.webhookUrl) { ... }
 }
