@@ -16,206 +16,256 @@ const SAMPLE_MENU = [
 function currentStoreId() {
   if (window.qrnrStoreId) return window.qrnrStoreId;
   try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
   } catch (e) {
-    return 'store1';
+    console.error('[menu] currentStoreId localStorage error', e);
   }
+  return 'store1';
 }
 
 // 매장별 메뉴 경로
 const PER_STORE_PATH = () => ['admin', 'menuByStore', currentStoreId()];
 
-/**
- * 관리자에서 사용할 "현재 매장의 메뉴" 로딩 규칙
- *
- * 1) admin.menuByStore[storeId] 가 배열이면 그대로 사용 (빈 배열도 허용)
- * 2) 아니면 한 번만 초기화:
- *    - admin.menu (공용 템플릿)이 있으면 그걸 복사
- *    - 없으면 SAMPLE_MENU 복사
- *    그리고 복사본을 admin.menuByStore[storeId]에 저장
- */
-function loadMenuForAdmin() {
-  const storeId = currentStoreId();
+// 공용 템플릿 경로 (예: '카페 기본 메뉴')
+const TEMPLATE_PATH   = ['admin', 'menu'];
 
-  const perStore = get(['admin', 'menuByStore', storeId]);
-  if (Array.isArray(perStore)) return perStore;
+// DOM 헬퍼
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
-  const global = get(['admin', 'menu']);
-  let base = [];
-
-  if (Array.isArray(global) && global.length) base = global;
-  else base = SAMPLE_MENU;
-
-  const cloned = base.map(m => ({ ...m }));
-  patch(['admin', 'menuByStore', storeId], () => cloned);
-  return cloned;
-}
-
-/**
- * 메뉴 관리 테이블 렌더링
- *
- * - 이름/가격/표시/일시품절 은 행 안에서 직접 수정
- * - "상세" 버튼으로 이미지 URL / 설명 수정 (prompt)
- */
-export function renderMenu() {
-  const menu = loadMenuForAdmin();
-  const body = document.getElementById('m-body');
-  if (!body) return;
-
-  body.innerHTML = '';
-
-  if (!menu.length) {
-    body.innerHTML = '<tr><td colspan="5" class="small">메뉴 없음</td></tr>';
-    return;
-  }
-
-  menu.forEach((m, idx) => {
-    const tr = document.createElement('tr');
-    const active = m.active !== false;
-    const soldOut = !!m.soldOut;
-
-    tr.innerHTML = `
-      <td>${m.id}</td>
-      <td><input class="input" value="${m.name || ''}" data-k="name"></td>
-      <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
-      <td style="min-width:160px">
-        <label class="small" style="display:block;margin-bottom:4px">
-          <input type="checkbox" ${active ? 'checked' : ''} data-k="active">
-          판매중(표시)
-        </label>
-        <label class="small" style="display:block">
-          <input type="checkbox" ${soldOut ? 'checked' : ''} data-k="soldOut">
-          일시품절
-        </label>
-      </td>
-      <td class="right">
-        <button class="btn small" data-act="detail">상세</button>
-        <button class="btn small" data-act="save">저장</button>
-        <button class="btn small" data-act="del">삭제</button>
-      </td>
-    `;
-    body.appendChild(tr);
-
-    const saveBtn   = tr.querySelector('[data-act="save"]');
-    const delBtn    = tr.querySelector('[data-act="del"]');
-    const detailBtn = tr.querySelector('[data-act="detail"]');
-
-    // 💾 저장: 이름/가격/표시/일시품절
-    if (saveBtn) {
-      saveBtn.onclick = () => {
-        const arr = loadMenuForAdmin().slice();
-        const target = arr[idx] || { id: m.id };
-
-        tr.querySelectorAll('input[data-k]').forEach((input) => {
-          const k = input.getAttribute('data-k');
-          if (k === 'active') {
-            target.active = input.checked;
-          } else if (k === 'soldOut') {
-            target.soldOut = input.checked;
-          } else if (k === 'price') {
-            target.price = Number(input.value || 0);
-          } else if (k === 'name') {
-            target.name = input.value || '';
-          }
-        });
-
-        arr[idx] = target;
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
+// 메뉴 정렬: active 우선, id 기준
+function sortMenu(list) {
+  return [...list].sort((a, b) => {
+    if (!!a.active !== !!b.active) {
+      return a.active ? -1 : 1;
     }
-
-    // 📝 상세(이미지 / 설명)
-    if (detailBtn) {
-      detailBtn.onclick = () => {
-        const arr = loadMenuForAdmin().slice();
-        const target = arr[idx] || { id: m.id };
-
-        const currentImg  = target.img || '';
-        const currentDesc = target.desc || '';
-
-        const newImg = window.prompt('이미지 URL (선택)', currentImg);
-        if (newImg !== null) {
-          target.img = newImg.trim();
-        }
-
-        const newDesc = window.prompt('메뉴 설명 (선택, 여러 줄 가능)', currentDesc);
-        if (newDesc !== null) {
-          target.desc = newDesc.trim();
-        }
-
-        arr[idx] = target;
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
-    }
-
-    // 🗑 삭제
-    if (delBtn) {
-      delBtn.onclick = () => {
-        if (!confirm('삭제할까요?')) return;
-        const arr = loadMenuForAdmin().slice();
-        arr.splice(idx, 1);
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
-    }
+    return (a.id || '').localeCompare(b.id || '');
   });
 }
 
-/**
- * 상단 "추가" 버튼 바인딩
- * - ID / 이름 / 가격만 입력 → 나머지 필드는 기본값으로
- */
+// 현재 매장 메뉴 불러오기 (없으면 공용/샘플에서 복사)
+function loadCurrentStoreMenu() {
+  const storeMenu = get(PER_STORE_PATH());
+  if (Array.isArray(storeMenu) && storeMenu.length > 0) {
+    return sortMenu(storeMenu);
+  }
+
+  const template = get(TEMPLATE_PATH);
+  if (Array.isArray(template) && template.length > 0) {
+    return sortMenu(template);
+  }
+
+  return SAMPLE_MENU.slice();
+}
+
+function saveCurrentStoreMenu(menu) {
+  const sorted = sortMenu(Array.isArray(menu) ? menu : []);
+  patch(PER_STORE_PATH(), () => sorted);
+}
+
+// 행 렌더링
+function createRow(item) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = item.id || '';
+
+  const tdId = document.createElement('td');
+  tdId.textContent = item.id || '';
+  tdId.className = 'text-center';
+
+  const tdName = document.createElement('td');
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.value = item.name || '';
+  nameInput.className = 'menu-name-input';
+  tdName.appendChild(nameInput);
+
+  const tdPrice = document.createElement('td');
+  const priceInput = document.createElement('input');
+  priceInput.type = 'number';
+  priceInput.min = '0';
+  priceInput.value = item.price || 0;
+  priceInput.className = 'menu-price-input';
+  tdPrice.appendChild(priceInput);
+
+  const tdActive = document.createElement('td');
+  tdActive.className = 'text-center';
+  const activeCheckbox = document.createElement('input');
+  activeCheckbox.type = 'checkbox';
+  activeCheckbox.checked = item.active !== false;
+  tdActive.appendChild(activeCheckbox);
+
+  const tdSoldOut = document.createElement('td');
+  tdSoldOut.className = 'text-center';
+  const soldOutCheckbox = document.createElement('input');
+  soldOutCheckbox.type = 'checkbox';
+  soldOutCheckbox.checked = !!item.soldOut;
+  tdSoldOut.appendChild(soldOutCheckbox);
+
+  const tdActions = document.createElement('td');
+  tdActions.className = 'text-center';
+  const btnDelete = document.createElement('button');
+  btnDelete.textContent = '삭제';
+  btnDelete.className = 'btn btn-sm btn-danger';
+  tdActions.appendChild(btnDelete);
+
+  tr.appendChild(tdId);
+  tr.appendChild(tdName);
+  tr.appendChild(tdPrice);
+  tr.appendChild(tdActive);
+  tr.appendChild(tdSoldOut);
+  tr.appendChild(tdActions);
+
+  btnDelete.addEventListener('click', () => {
+    const ok = confirm(`메뉴 "${item.name}" 를 삭제할까요?`);
+    if (!ok) return;
+
+    const tbody = $('#tbody-menu');
+    if (!tbody) return;
+    const id = tr.dataset.id;
+    const list = loadCurrentStoreMenu().filter((m) => m.id !== id);
+    saveCurrentStoreMenu(list);
+    renderMenu();
+  });
+
+  return tr;
+}
+
+// 메뉴 전체 렌더
+export function renderMenu() {
+  const tbody = $('#tbody-menu');
+  if (!tbody) return;
+
+  const list = loadCurrentStoreMenu();
+  tbody.innerHTML = '';
+
+  if (!list.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 6;
+    td.className = 'text-center text-muted';
+    td.textContent = '메뉴가 없습니다. "행 추가" 버튼으로 메뉴를 추가하세요.';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+
+  list.forEach((item) => {
+    tbody.appendChild(createRow(item));
+  });
+}
+
+// 이벤트 바인딩
 export function bindMenu() {
-  const addBtn = document.getElementById('m-add');
-  if (!addBtn) return;
+  const btnAdd = document.getElementById('btn-menu-add');
+  const btnSave = document.getElementById('btn-menu-save');
+  const btnCopyFromTemplate = document.getElementById(
+    'btn-menu-copy-from-template'
+  );
+  const btnSaveAsTemplate = document.getElementById(
+    'btn-menu-save-as-template'
+  );
 
-  addBtn.onclick = () => {
-    const idEl    = document.getElementById('m-id');
-    const nameEl  = document.getElementById('m-name');
-    const priceEl = document.getElementById('m-price');
+  if (btnAdd) {
+    btnAdd.addEventListener('click', () => {
+      const tbody = $('#tbody-menu');
+      if (!tbody) return;
 
-    const id    = (idEl?.value || '').trim();
-    const name  = (nameEl?.value || '').trim();
-    const price = Number((priceEl?.value || '').trim() || 0);
+      const list = loadCurrentStoreMenu();
+      let maxIndex = 0;
+      list.forEach((item) => {
+        const m = /^M(\d+)$/.exec(item.id || '');
+        if (m) {
+          const v = parseInt(m[1], 10);
+          if (v > maxIndex) maxIndex = v;
+        }
+      });
+      const nextId = `M${String(maxIndex + 1).padStart(2, '0')}`;
 
-    if (!id || !name || !price) {
-      alert('ID, 이름, 가격을 모두 입력하세요.');
-      return;
-    }
-
-    const arr = loadMenuForAdmin().slice();
-    const existingIdx = arr.findIndex((it) => it.id === id);
-
-    if (existingIdx >= 0) {
-      if (!confirm('이미 존재하는 ID입니다. 덮어쓸까요?')) return;
-      arr[existingIdx] = {
-        ...arr[existingIdx],
-        id,
-        name,
-        price,
-        active: true,
-        soldOut: !!arr[existingIdx].soldOut,
-      };
-    } else {
-      arr.push({
-        id,
-        name,
-        price,
+      const newItem = {
+        id: nextId,
+        name: '',
+        price: 0,
         active: true,
         soldOut: false,
-      });
-    }
+      };
 
-    patch(PER_STORE_PATH(), () => arr);
-
-    ['m-id', 'm-name', 'm-price'].forEach((fieldId) => {
-      const el = document.getElementById(fieldId);
-      if (el) el.value = '';
+      const newList = [...list, newItem];
+      saveCurrentStoreMenu(newList);
+      renderMenu();
     });
+  }
 
-    renderMenu();
-  };
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      const tbody = $('#tbody-menu');
+      if (!tbody) return;
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const next = [];
+
+      for (const tr of rows) {
+        const id = tr.dataset.id || '';
+        if (!id) continue;
+
+        const nameInput = tr.querySelector('.menu-name-input');
+        const priceInput = tr.querySelector('.menu-price-input');
+        const activeCheckbox = tr.querySelector('input[type="checkbox"]:nth-of-type(1)');
+        const soldOutCheckbox = tr.querySelector('input[type="checkbox"]:nth-of-type(2)');
+
+        const name = (nameInput && nameInput.value.trim()) || '';
+        const price = priceInput ? Number(priceInput.value || 0) : 0;
+        const active = activeCheckbox ? activeCheckbox.checked : true;
+        const soldOut = soldOutCheckbox ? soldOutCheckbox.checked : false;
+
+        next.push({
+          id,
+          name,
+          price,
+          active,
+          soldOut,
+        });
+      }
+
+      saveCurrentStoreMenu(next);
+      alert('메뉴가 저장되었습니다.');
+      renderMenu();
+    });
+  }
+
+  if (btnCopyFromTemplate) {
+    btnCopyFromTemplate.addEventListener('click', () => {
+      const template = get(TEMPLATE_PATH);
+      if (!Array.isArray(template) || !template.length) {
+        alert('공용 템플릿이 없습니다.');
+        return;
+      }
+
+      const ok = confirm(
+        '공용 템플릿 메뉴를 이 매장 메뉴로 복사할까요?\n(기존 매장 메뉴는 덮어쓰기됩니다.)'
+      );
+      if (!ok) return;
+
+      saveCurrentStoreMenu(template);
+      renderMenu();
+    });
+  }
+
+  if (btnSaveAsTemplate) {
+    btnSaveAsTemplate.addEventListener('click', () => {
+      const list = loadCurrentStoreMenu();
+      if (!list.length) {
+        alert('현재 매장 메뉴가 없습니다.');
+        return;
+      }
+
+      const ok = confirm(
+        '현재 매장 메뉴를 공용 템플릿으로 저장할까요?\n(기존 공용 템플릿은 덮어쓰기됩니다.)'
+      );
+      if (!ok) return;
+
+      patch(TEMPLATE_PATH, () => sortMenu(list));
+      alert('공용 템플릿이 저장되었습니다.\n다른 매장에서 "공용 템플릿 복사" 버튼으로 불러올 수 있습니다.');
+    });
+  }
 }
