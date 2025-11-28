@@ -12,6 +12,16 @@ const SAMPLE_MENU = [
   { id: 'B1', name: '크로와상',   price: 3500, active: true },
 ];
 
+if (!window.qrnrStoreId) {
+  // 강제 보정
+  const storeAdmins = get(['system', 'storeAdmins']) || {};
+  const user = Object.keys(storeAdmins)[0];
+  if (user) {
+    window.qrnrStoreId = storeAdmins[user].storeId || 'store1';
+    console.log('[menu] fallback storeId:', window.qrnrStoreId);
+  }
+}
+
 // 현재 storeId 가져오기 (URL은 신뢰하지 않음)
 function currentStoreId() {
   if (window.qrnrStoreId) return window.qrnrStoreId;
