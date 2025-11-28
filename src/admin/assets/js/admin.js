@@ -158,4 +158,197 @@ function showToast(message, variant = 'info') {
   closeBtn.style.cursor = 'pointer';
   closeBtn.style.fontSize = '16px';
   closeBtn.style.lineHeight = '1';
-  closeBtn.s
+  closeBtn.style.marginLeft = '8px';
+
+  closeBtn.onclick = () => {
+    toast.remove();
+  };
+
+  toast.appendChild(closeBtn);
+  box.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 2500);
+}
+
+// ===== 메인 진입 =====
+async function main() {
+  // 1) 관리자 인증 (토큰 검증)
+  const session = await requireAuth('admin');
+  if (!session) return;
+
+  // verify 응답에서 adminId 추출 (여러 케이스 방어적으로 처리)
+  const adminId =
+    session.uid ||
+    session.sub ||
+    (session.user && (session.user.uid || session.user.id)) ||
+    (session.payload &&
+      (session.payload.uid || session.payload.sub)) ||
+    null;
+
+  console.log('[admin] session from verify:', session);
+  console.log('[admin] resolved adminId:', adminId);
+
+  // 2) 최종 storeId 결정 (매핑 / localStorage)
+  const sid = resolveStoreId(adminId);
+  window.qrnrStoreId = sid;
+  localStorage.setItem('qrnr.storeId', sid);
+  console.log('[admin] final storeId =', sid);
+
+  // 3) 주소창에 ?store= 없으면 한 번 넣어주기
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.get('store')) {
+      u.searchParams.set('store', sid);
+      history.replaceState(null, '', u.toString());
+    }
+  } catch (e) {
+    console.error('[admin] URL store param set error', e);
+  }
+
+  // 4) 서버에서 매장 관련 설정/데이터 동기화
+  await syncStoreFromServer();
+  initTabs();
+
+  // 🔹 탭 클릭 시: 해당 탭 내용 새로고침 (폭탄 방지 래퍼 사용)
+  document.querySelectorAll('.tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (tab === 'store') {
+        safeRenderStore();
+      } else if (tab === 'delivery') {
+        safeRenderDeliv();
+      } else if (tab === 'notify-log') {
+        safeRenderNotifyLogs();
+      }
+    });
+  });
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      clearToken();
+      location.href = '/admin';
+    };
+  }
+
+  // 기본 세팅
+  bindFilters();
+  // 초회 로딩도 안전 래퍼로 (한 번만 실행됨)
+  safeRenderStore();
+  safeRenderDeliv();
+  attachGlobalHandlers();
+
+  // 🔹 탭별 새로고침 버튼 연결 (안전 래퍼 사용)
+  const storeRefresh = document.getElementById('store-refresh');
+  if (storeRefresh) {
+    storeRefresh.onclick = () => {
+      safeRenderStore(); // 매장 주문 테이블 새로고침
+    };
+  }
+
+  const delivRefresh = document.getElementById('deliv-refresh');
+  if (delivRefresh) {
+    delivRefresh.onclick = () => {
+      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
+    };
+  }
+
+  // 주문 내보내기
+  const exportBtn = document.getElementById('export-orders');
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      exportOrders();
+    };
+  }
+
+  // 메뉴 관리 / 코드 / 계좌 / 알림 / QR 초기화
+  renderMenu();
+  bindMenu();
+  renderCode();
+  bindCode();
+  renderMyBank();
+  bindMyBank();
+  renderNotify();
+  bindNotify();
+  initQR();
+
+  // 호출 로그: 초기 렌더 + 바인딩
+  safeRenderNotifyLogs();
+  bindNotifyLogs();
+
+  // 🔹 개인정보 처리방침
+  renderPolicy();
+  bindPolicy();
+
+  // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
+  const notifyLogRefresh = document.getElementById('notify-log-refresh');
+  if (notifyLogRefresh) {
+    notifyLogRefresh.onclick = () => {
+      safeRenderNotifyLogs();
+    };
+  }
+
+  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
+  adminChannel.onmessage = async (event) => {
+    const msg = event.data;
+    if (!msg || !msg.type) return;
+
+    // 현재 관리자 페이지가 바라보는 매장 ID
+    const currentStoreId =
+      window.qrnrStoreId ||
+      localStorage.getItem('qrnr.storeId') ||
+      'store1';
+
+    // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
+    const msgStoreId =
+      msg.storeId ||
+      msg.store ||
+      msg.store_id ||
+      msg.sid ||
+      msg.storeCode ||
+      null;
+
+    // ✅ 매장 ID가 있고, 현재 매장과 다르면 무시 (다른 매장 알림)
+    if (msgStoreId && msgStoreId !== currentStoreId) {
+      console.log(
+        '[admin] ignore broadcast from another store:',
+        msgStoreId,
+        '≠',
+        currentStoreId
+      );
+      return;
+    }
+
+    console.log('[admin] broadcast message:', msg);
+
+    if (msg.type === 'order') {
+      showToast('새 주문이 도착했습니다.', 'success');
+      notifyEvent(msg);
+      safeRenderStore();
+      safeRenderDeliv();
+    } else if (msg.type === 'call') {
+      showToast(msg.message || '호출 알림이 들어왔습니다.', 'info');
+      notifyEvent(msg);
+      safeRenderNotifyLogs();
+    } else if (msg.type === 'payment-success') {
+      showToast(
+        `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
+        'success'
+      );
+
+      notifyEvent(msg);
+
+      // 매장/배달 주문 목록 새로고침
+      safeRenderStore();
+      safeRenderDeliv();
+    }
+  };
+}
+
+main();
