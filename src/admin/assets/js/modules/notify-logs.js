@@ -16,7 +16,18 @@ export function renderNotifyLogs() {
   const tbody = $('#tbody-notify-logs');
   if (!tbody) return;
 
-  const currentStoreId = window.qrnrStoreId || 'store1';
+  let currentStoreId = 'store1';
+  if (window.qrnrStoreId) {
+    currentStoreId = window.qrnrStoreId;
+  } else {
+    try {
+      const saved = localStorage.getItem('qrnr.storeId');
+      if (saved) currentStoreId = saved;
+    } catch (e) {
+      console.error('[notify-logs] currentStoreId localStorage error', e);
+    }
+  }
+
   const all = get(['admin', 'notifyLogs']) || [];
 
   // 현재 매장 로그만 필터 (과거 storeId 없는 데이터는 공통으로 표시)
@@ -30,63 +41,58 @@ export function renderNotifyLogs() {
     return;
   }
 
-  list.forEach((n) => {
-    const d = n.ts ? new Date(n.ts) : null;
-    const time = fmtDateTime(n.ts);
-
-    const status = n.status || '대기';
-
+  for (const n of list) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${time}</td>
-      <td>${n.table || '-'}</td>
-      <td>${n.message || ''}</td>
-      <td>
-        <select
-          class="input"
-          data-call-id="${n.id}"
-          data-call-status
-          style="width:90px"
-        >
-          <option value="대기" ${status === '대기' ? 'selected' : ''}>대기</option>
-          <option value="완료" ${status === '완료' ? 'selected' : ''}>완료</option>
-        </select>
-      </td>
-    `;
+
+    const tdTime = document.createElement('td');
+    tdTime.textContent = fmtDateTime(n.ts);
+
+    const tdKind = document.createElement('td');
+    tdKind.textContent = n.kind || '-';
+
+    const tdMsg = document.createElement('td');
+    tdMsg.textContent = n.message || '';
+
+    const tdStatus = document.createElement('td');
+    tdStatus.textContent = n.status || '-';
+
+    tr.appendChild(tdTime);
+    tr.appendChild(tdKind);
+    tr.appendChild(tdMsg);
+    tr.appendChild(tdStatus);
+
     tbody.appendChild(tr);
-  });
-}
+  }
 
+  const clearBtn = document.getElementById('notify-log-clear');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      const ok = confirm('현재 매장 알림 로그를 모두 삭제할까요?');
+      if (!ok) return;
 
-/**
- * 상태 드롭다운 변경 핸들러
- * - select[data-call-status] 변경 시 notifyLogs 배열에서 해당 id 찾아 status 업데이트
- */
-export function bindNotifyLogs() {
-  const tbody = $('#tbody-notify-logs');
-  if (!tbody) return;
+      patch(['admin', 'notifyLogs'], (prev) => {
+        const arr = Array.isArray(prev) ? prev : [];
+        return arr.filter(n => n.storeId && n.storeId !== currentStoreId);
+      });
 
-  // 1) 상태 드롭다운 변경 → notifyLogs 배열 상태 업데이트
-  tbody.addEventListener('change', (e) => {
-    const target = e.target;
-    if (!target || target.tagName !== 'SELECT' || !target.dataset.callId) return;
+      renderNotifyLogs();
+    };
+  }
 
-    const id = target.dataset.callId;
-    const nextStatus = target.value === '완료' ? '완료' : '대기';
+  const markReadBtn = document.getElementById('notify-log-mark-read');
+  if (markReadBtn) {
+    markReadBtn.onclick = () => {
+      patch(['admin', 'notifyLogs'], (prev) => {
+        const arr = Array.isArray(prev) ? prev : [];
+        return arr.map((n) => {
+          if (!n.storeId || n.storeId !== currentStoreId) return n;
+          return { ...n, status: 'read' };
+        });
+      });
+      renderNotifyLogs();
+    };
+  }
 
-    patch(['admin', 'notifyLogs'], (list) => {
-      const arr = Array.isArray(list) ? [...list] : [];
-      const idx = arr.findIndex((n) => String(n.id) === String(id));
-      if (idx === -1) return arr;
-      arr[idx] = {
-        ...arr[idx],
-        status: nextStatus,
-      };
-      return arr;
-    });
-  });
-
-  // 2) 새로고침 버튼 → 현재 매장 기준으로 다시 그리기
   const refreshBtn = document.getElementById('notify-log-refresh');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
@@ -94,4 +100,3 @@ export function bindNotifyLogs() {
     });
   }
 }
-
