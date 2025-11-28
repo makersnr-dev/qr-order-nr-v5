@@ -15,6 +15,10 @@ const SAMPLE_MENU = [
 // 현재 storeId 가져오기 (URL은 신뢰하지 않음)
 function currentStoreId() {
   if (window.qrnrStoreId) return window.qrnrStoreId;
+  try {
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
+  } catch (e) {}
   return 'store1';
 }
 
