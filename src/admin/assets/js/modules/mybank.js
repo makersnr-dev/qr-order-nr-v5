@@ -1,7 +1,14 @@
 import { get, patch } from './store.js';
 
 function currentStoreId() {
-  return window.qrnrStoreId || 'store1';
+  if (window.qrnrStoreId) return window.qrnrStoreId;
+  try {
+    const saved = localStorage.getItem('qrnr.storeId');
+    if (saved) return saved;
+  } catch (e) {
+    console.error('[mybank] currentStoreId localStorage error', e);
+  }
+  return 'store1';
 }
 
 // 매장별 계좌 저장 위치: ['admin', 'ownerBank', storeId]
@@ -15,33 +22,43 @@ export function renderMyBank() {
   const currentSpan = document.getElementById('mb-current');
 
   if (bankInput)   bankInput.value   = b.bank   || '';
-  if (acctInput)   acctInput.value   = b.number || '';
+  if (acctInput)   acctInput.value   = b.acct   || '';
   if (holderInput) holderInput.value = b.holder || '';
 
   if (currentSpan) {
-    currentSpan.textContent =
-      (b.bank && b.number && b.holder)
-        ? `${b.bank} ${b.number} (${b.holder})`
-        : '(저장된 정보 없음)';
+    if (b.bank || b.acct || b.holder) {
+      currentSpan.textContent =
+        `은행: ${b.bank || '-'} | 계좌: ${b.acct || '-'} | 예금주: ${b.holder || '-'}`;
+    } else {
+      currentSpan.textContent = '저장된 계좌 정보 없음';
+    }
   }
 }
 
 export function bindMyBank() {
-  const saveBtn = document.getElementById('mb-save');
+  const form   = document.getElementById('mb-form');
   const copyBtn = document.getElementById('mb-copy');
+  const storeSpan = document.getElementById('mb-store-id');
 
-  if (saveBtn) {
-    saveBtn.onclick = () => {
-      const bank   = (document.getElementById('mb-bank')?.value || '').trim();
-      const number = (document.getElementById('mb-acct')?.value || '').trim();
-      const holder = (document.getElementById('mb-holder')?.value || '').trim();
+  if (storeSpan) {
+    storeSpan.textContent = currentStoreId();
+  }
 
-      if (!bank || !number || !holder) {
-        alert('은행 / 계좌번호 / 예금주를 모두 입력해주세요.');
-        return;
-      }
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const bankInput   = document.getElementById('mb-bank');
+      const acctInput   = document.getElementById('mb-acct');
+      const holderInput = document.getElementById('mb-holder');
 
-      patch(PATH(), () => ({ bank, number, holder }));
+      const next = {
+        bank:   bankInput?.value.trim()   || '',
+        acct:   acctInput?.value.trim()   || '',
+        holder: holderInput?.value.trim() || '',
+      };
+
+      patch(PATH(), () => next);
+      alert('입금 계좌 정보가 저장되었습니다.');
       renderMyBank();
     };
   }
