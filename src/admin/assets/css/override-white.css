@@ -1,0 +1,6 @@
+
+/* auto override for admin white text */
+html, body, .container, .card, .panel, .tab, .table, .toolbar { color:#fff !important; }
+h1,h2,h3,h4,h5,h6,p,span,small,label,legend,th,td,li,dt,dd { color:#fff !important; }
+input, select, textarea, button { color:#fff !important; }
+::placeholder { color:#ddd !important; opacity:1; }
