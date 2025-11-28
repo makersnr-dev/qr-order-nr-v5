@@ -26,188 +26,249 @@ const PATH = () => ['admin', 'notify', currentStoreId()];
 function loadNotifyConfig() {
   const raw = get(PATH()) || {};
   return {
-    useBeep: raw.useBeep !== false,
+    useBeep: raw.useBeep !== false,                       // 기본 true
     beepVolume:
       typeof raw.beepVolume === 'number' ? raw.beepVolume : 0.7,
-    desktop: !!raw.desktop,
+    desktop: !!raw.desktop,                               // 기본 false
+    webhookUrl: raw.webhookUrl || '',
   };
 }
 
-function saveNotifyConfig(cfg) {
-  patch(PATH(), () => ({
-    useBeep: cfg.useBeep,
-    beepVolume: cfg.beepVolume,
-    desktop: cfg.desktop,
-  }));
+function saveNotifyConfig(updater) {
+  patch(PATH(), (cur = {}) => {
+    const base = {
+      useBeep: cur.useBeep !== false,
+      beepVolume:
+        typeof cur.beepVolume === 'number' ? cur.beepVolume : 0.7,
+      desktop: !!cur.desktop,
+      webhookUrl: cur.webhookUrl || '',
+    };
+    const next = updater(base) || base;
+    return next;
+  });
 }
 
 // ─────────────────────────────
-// 사운드 관련
+// Web Audio 기반 비프음 (쿨타임 포함)
 // ─────────────────────────────
 let audioCtx = null;
-let beepOsc  = null;
-
-function ensureAudioContext() {
-  if (!audioCtx) {
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {
-      console.warn('[notify] AudioContext 생성 실패', e);
-    }
-  }
-  return audioCtx;
-}
+let lastBeepAt = 0;
+const BEEP_COOLDOWN_MS = 3000; // 3초에 한 번만
 
 function playBeep(volume = 0.7) {
-  const ctx = ensureAudioContext();
-  if (!ctx) return;
-
-  if (beepOsc) {
-    try {
-      beepOsc.stop();
-    } catch {}
-    beepOsc = null;
+  const now = Date.now();
+  if (now - lastBeepAt < BEEP_COOLDOWN_MS) {
+    // 너무 자주 울리면 귀 아프니까 쿨타임
+    return;
   }
+  lastBeepAt = now;
 
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  try {
+    if (!audioCtx) {
+      const AC =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+    }
+    const ctx = audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-  osc.type = 'square';
-  osc.frequency.value = 880;
-  gain.gain.value = volume;
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    gain.gain.value = volume;
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
 
-  osc.start();
-
-  setTimeout(() => {
-    try {
-      osc.stop();
-    } catch {}
-  }, 180);
-
-  beepOsc = osc;
+    setTimeout(() => {
+      try {
+        osc.stop();
+      } catch {}
+    }, 200);
+  } catch (e) {
+    console.error('[notify] beep error', e);
+  }
 }
 
 // ─────────────────────────────
 // 데스크탑 알림
 // ─────────────────────────────
-let desktopEnabled = false;
+async function ensureNotificationPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission !== 'default') return false;
 
-export function initDesktopNotify() {
-  const cfg = loadNotifyConfig();
-  desktopEnabled = cfg.desktop;
-
-  if (!('Notification' in window)) {
-    console.log('[notify] Notification API 미지원');
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    return;
-  }
-
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().then((perm) => {
-      console.log('[notify] Notification permission:', perm);
-    });
+  try {
+    const p = await Notification.requestPermission();
+    return p === 'granted';
+  } catch (e) {
+    console.error('[notify] permission error', e);
+    return false;
   }
 }
 
-function showDesktopNotification(title, body) {
-  if (!desktopEnabled) return;
+async function showDesktopNotification(title, body) {
   if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
-
-  const n = new Notification(title, {
-    body,
-    silent: false,
-  });
-
-  setTimeout(() => {
-    n.close();
-  }, 5000);
-}
-
-// ─────────────────────────────
-// 새 이벤트가 들어왔을 때 (주문, 상태 변경 등)
-// ─────────────────────────────
-export function notifyEvent(ev) {
-  const cfg = loadNotifyConfig();
-
-  if (cfg.useBeep) {
-    playBeep(cfg.beepVolume);
+  if (Notification.permission === 'default') {
+    const ok = await ensureNotificationPermission();
+    if (!ok) return;
+  } else if (Notification.permission !== 'granted') {
+    return;
   }
 
-  if (ev.type === 'order') {
-    const title = '새 주문이 도착했습니다.';
-    const body  = `[${ev.storeName || currentStoreId()}] ${ev.message || ''}`;
-    showDesktopNotification(title, body);
-  } else if (ev.type === 'payment-success') {
-    const title = '결제가 완료되었습니다.';
-    const body  = `[${ev.storeName || currentStoreId()}] 주문번호 ${ev.orderId || ''}`;
-    showDesktopNotification(title, body);
-  } else if (ev.type === 'status-change') {
-    const title = '주문 상태가 변경되었습니다.';
-    const body  = `[${ev.storeName || currentStoreId()}] ${ev.message || ''}`;
-    showDesktopNotification(title, body);
+  try {
+    new Notification(title, {
+      body,
+      tag: 'qrnr-admin', // 동일 tag이면 묶어서 표시
+      renotify: true,
+      // icon: '/favicon.ico', // 필요하면 아이콘 경로 추가
+    });
+  } catch (e) {
+    console.error('[notify] notification error', e);
   }
 }
 
 // ─────────────────────────────
-// 설정 패널 바인딩
+// 관리자 알림 패널(설정 UI)
 // ─────────────────────────────
-export function bindNotifyControls() {
-  const chkBeep      = document.getElementById('notify-use-beep');
-  const rangeVolume  = document.getElementById('notify-beep-volume');
-  const chkDesktop   = document.getElementById('notify-desktop');
+export function renderNotify() {
+  const n = loadNotifyConfig();
+
+  const beepEl    = document.getElementById('n-beep');
+  const volEl     = document.getElementById('n-vol');
+  const desktopEl = document.getElementById('n-desktop');
+  const hookEl    = document.getElementById('n-webhook');
+
+  if (beepEl)    beepEl.checked    = !!n.useBeep;
+  if (volEl)     volEl.value       = n.beepVolume ?? 0.7;
+  if (desktopEl) desktopEl.checked = !!n.desktop;
+  if (hookEl)    hookEl.value      = n.webhookUrl || "";
+}
+
+export function bindNotify() {
+  const saveBtn = document.getElementById('n-save');
+  if (!saveBtn) return;
+
+  saveBtn.onclick = (e) => {
+    e.preventDefault();
+
+    const beepEl    = document.getElementById('n-beep');
+    const volEl     = document.getElementById('n-vol');
+    const desktopEl = document.getElementById('n-desktop');
+    const hookEl    = document.getElementById('n-webhook');
+
+    const useBeep = !!(beepEl && beepEl.checked);
+    const vol = volEl ? Number(volEl.value || 0.7) : 0.7;
+    const desktop = !!(desktopEl && desktopEl.checked);
+    const webhookUrl = hookEl ? (hookEl.value || "") : "";
+
+    saveNotifyConfig((cur) => ({
+      ...cur,
+      useBeep,
+      beepVolume: isFinite(vol) ? vol : 0.7,
+      desktop,
+      webhookUrl,
+    }));
+
+    alert('저장되었습니다.');
+  };
+}
+
+// ─────────────────────────────
+// 관리자 이벤트 → 알림/소리 트리거
+// (admin.js의 BroadcastChannel.onmessage 에서 호출)
+// ─────────────────────────────
+export function notifyEvent(msg) {
+  if (!msg || !msg.type) return;
 
   const cfg = loadNotifyConfig();
 
-  if (chkBeep) {
-    chkBeep.checked = cfg.useBeep;
-  }
-  if (rangeVolume) {
-    rangeVolume.value = String(
-      Math.round((cfg.beepVolume || 0.7) * 100)
-    );
-  }
-  if (chkDesktop) {
-    chkDesktop.checked = cfg.desktop;
-  }
+  const isCall =
+    msg.type === 'CALL' ||
+    msg.type === 'call' ||
+    msg.kind === 'call';
 
-  if (chkBeep) {
-    chkBeep.addEventListener('change', () => {
-      const next = loadNotifyConfig();
-      next.useBeep = !!chkBeep.checked;
-      saveNotifyConfig(next);
-    });
-  }
+  const isPaid =
+    msg.type === 'payment-success' ||
+    msg.type === 'PAID' ||
+    msg.kind === 'paid';
 
-  if (rangeVolume) {
-    rangeVolume.addEventListener('input', () => {
-      const v = Number(rangeVolume.value || '70');
-      const next = loadNotifyConfig();
-      next.beepVolume = Math.min(1, Math.max(0, v / 100));
-      saveNotifyConfig(next);
-    });
-  }
+  let title = '';
+  let body  = '';
 
-  if (chkDesktop) {
-    chkDesktop.addEventListener('change', () => {
-      const next = loadNotifyConfig();
-      next.desktop = !!chkDesktop.checked;
-      saveNotifyConfig(next);
-      desktopEnabled = next.desktop;
-      if (next.desktop) {
-        initDesktopNotify();
+  if (isCall) {
+    // 직원 호출
+    title = '직원 호출';
+    const table = msg.table || '-';
+    const note  = msg.note || msg.message || '';
+    body = `테이블 ${table}${note ? ' - ' + note : ''}`;
+  } else if (isPaid) {
+    // ── 주문 알림 ─────────────────────
+    // 1) 주문 타입 결정: orderType이 없으면 필드 보고 추론
+    let orderType = msg.orderType || '';
+
+    if (!orderType) {
+      if (msg.delivery === true || msg.type === 'delivery') {
+        orderType = 'delivery';
+      } else if (msg.reserve === true || msg.type === 'reserve') {
+        orderType = 'reserve';
+      } else {
+        orderType = 'store';
       }
-    });
-  }
-}
+    }
 
-// 필요시 초기화용
-export function initNotify() {
-  loadNotifyConfig();
+    // 2) 주문 내용 텍스트
+    const items = msg.items || [];
+    const itemsText = items
+      .map((it) => {
+        const name = it.name || it.menuName || it.menuId || '';
+        const qty  = it.qty || it.quantity || 1;
+        return `${name} x${qty}`;
+      })
+      .join(', ');
+
+    if (orderType === 'store') {
+      // ✅ 매장 주문
+      title = '매장 주문 결제 완료';
+      const table = msg.tableNo || msg.table || '-';
+      body = `테이블 ${table}${itemsText ? ' · ' + itemsText : ''}`;
+    } else if (orderType === 'delivery') {
+      // ✅ 배달 주문
+      title = '배달 주문 결제 완료';
+      const name =
+        (msg.customer && msg.customer.name) ||
+        msg.customerName ||
+        '-';
+      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
+    } else if (orderType === 'reserve') {
+      // ✅ 예약 주문
+      title = '예약 주문 완료';
+      const name =
+        (msg.customer && msg.customer.name) ||
+        msg.customerName ||
+        '-';
+      body = `${name}${itemsText ? ' · ' + itemsText : ''}`;
+    } else {
+      // 정보 부족할 때 기존 형식으로 fallback
+      title = '새 주문 결제 완료';
+      const orderId = msg.orderId || '';
+      const amount  =
+        typeof msg.amount === 'number'
+          ? fmt.number(msg.amount) + '원'
+          : '';
+      body = `주문번호 ${orderId}${amount ? ' / ' + amount : ''}`;
+    }
+  }
+
+  // 소리
+  if (cfg.useBeep) {
+    playBeep(cfg.beepVolume ?? 0.7);
+  }
+
+  // 데스크탑 알림
+  if (cfg.desktop) {
+    showDesktopNotification(title, body);
+  }
 }
