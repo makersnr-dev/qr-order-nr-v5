@@ -1,134 +1,86 @@
 // /api/orders.js
-// 주문 조회 / 생성 / 상태 변경 (Node 런타임 버전)
-// Vercel 런타임: nodejs (fs 사용 가능)
+// Node.js 런타임에서 동작해야 /tmp 사용 가능
+export const config = { runtime: 'nodejs' };
 
-export const config = {
-  runtime: "nodejs",
-};
+import fs from 'fs/promises';
 
-import fs from "fs/promises";
-
-const ORDERS_FILE = "/tmp/qrnr_orders.json";
-
-/* ============================================================
-   스토리지 레이어
-============================================================ */
+const ORDERS_FILE = '/tmp/qrnr_orders.json';
 
 async function loadOrders() {
   try {
-    const txt = await fs.readFile(ORDERS_FILE, "utf8");
+    const txt = await fs.readFile(ORDERS_FILE, 'utf8');
     const parsed = JSON.parse(txt);
 
     if (parsed && Array.isArray(parsed.orders)) return parsed.orders;
     if (Array.isArray(parsed)) return parsed;
     return [];
   } catch (err) {
-    if (err?.code === "ENOENT") return []; // 파일 없음 = 0건
-    console.error("[orders] load error:", err);
+    if (err.code === 'ENOENT') return [];
+    console.error('[orders] loadOrders error:', err);
     return [];
   }
 }
 
-async function saveOrders(arr) {
+async function saveOrders(orders) {
   try {
-    const obj = { orders: Array.isArray(arr) ? arr : [] };
     await fs.writeFile(
       ORDERS_FILE,
-      JSON.stringify(obj, null, 2),
-      "utf8"
+      JSON.stringify({ orders }, null, 2),
+      'utf8'
     );
   } catch (err) {
-    console.error("[orders] save error:", err);
+    console.error('[orders] saveOrders error:', err);
     throw err;
   }
 }
 
-/* ============================================================
-   날짜/시간(KST)
-============================================================ */
-
-function makeKSTTimeMeta() {
+function makeTimeMeta() {
   const ts = Date.now();
-  const offset = 9 * 60 * 60 * 1000;
-  const kst = new Date(ts + offset);
+  const KST_OFFSET = 9 * 60 * 60 * 1000;
+  const kstDate = new Date(ts + KST_OFFSET);
 
-  const yyyy = kst.getUTCFullYear();
-  const mm = String(kst.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(kst.getUTCDate()).padStart(2, "0");
-  const HH = String(kst.getUTCHours()).padStart(2, "0");
-  const MM = String(kst.getUTCMinutes()).padStart(2, "0");
+  const y = kstDate.getUTCFullYear();
+  const m = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(kstDate.getUTCDate()).padStart(2, '0');
+  const hh = String(kstDate.getUTCHours()).padStart(2, '0');
+  const mm = String(kstDate.getUTCMinutes()).padStart(2, '0');
 
   return {
     ts,
-    date: `${yyyy}-${mm}-${dd}`,
-    dateTime: `${yyyy}-${mm}-${dd} ${HH}:${MM}`,
+    date: `${y}-${m}-${d}`,
+    dateTime: `${y}-${m}-${d} ${hh}:${mm}`,
   };
 }
 
-/* ============================================================
-   API 엔트리
-============================================================ */
-
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") return handleGet(req, res);
-    if (req.method === "POST") return handlePost(req, res);
-    if (req.method === "PUT") return handlePut(req, res);
+    if (req.method === 'GET') return handleGet(req, res);
+    if (req.method === 'POST') return handlePost(req, res);
+    if (req.method === 'PUT') return handlePut(req, res);
 
-    res.setHeader("Allow", "GET,POST,PUT");
-    return res.status(405).json({ ok: false, error: "METHOD_NOT_ALLOWED" });
+    res.setHeader('Allow', 'GET,POST,PUT');
+    return res.status(405).json({ ok: false });
   } catch (err) {
-    console.error("[orders] top-level err:", err);
-    return res
-      .status(500)
-      .json({ ok: false, error: "INTERNAL_ERROR", detail: err?.message });
+    console.error('[orders] handler error:', err);
+    return res.status(500).json({ ok: false, error: 'INTERNAL' });
   }
 }
-
-/* ============================================================
-   GET /api/orders
-============================================================ */
 
 async function handleGet(req, res) {
-  const { type, from, to, storeId } = req.query || {};
+  const { type, storeId } = req.query || {};
+  const all = await loadOrders();
+  let list = [...all];
 
-  let orders = await loadOrders();
-  orders = orders.slice(); // copy
+  if (type) list = list.filter(o => o.type === type);
+  if (storeId) list = list.filter(o => o.storeId === storeId);
 
-  if (type) orders = orders.filter((o) => o.type === type);
-  if (storeId) orders = orders.filter((o) => o.storeId === storeId);
+  list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-  // 날짜 필터링
-  let fromTs = from ? Date.parse(from) : null;
-  let toTs = to ? Date.parse(to) : null;
-
-  if (!Number.isNaN(fromTs) && fromTs != null) {
-    orders = orders.filter((o) => {
-      const ts = o.ts || Date.parse(o.dateTime || 0);
-      return !Number.isNaN(ts) && ts >= fromTs;
-    });
-  }
-
-  if (!Number.isNaN(toTs) && toTs != null) {
-    orders = orders.filter((o) => {
-      const ts = o.ts || Date.parse(o.dateTime || 0);
-      return !Number.isNaN(ts) && ts <= toTs;
-    });
-  }
-
-  // 최신순 정렬
-  orders.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-  return res.status(200).json({ ok: true, orders });
+  return res.status(200).json({ ok: true, orders: list });
 }
 
-/* ============================================================
-   POST /api/orders  (주문 저장)
-============================================================ */
-
 async function handlePost(req, res) {
-  const body = await getBody(req);
-
+  const body = req.body || {};
   let {
     orderId,
     type,
@@ -146,64 +98,48 @@ async function handlePost(req, res) {
     agreePrivacy,
   } = body;
 
-  const amt = typeof amount === "number" ? amount : Number(amount);
-
+  const amt = Number(amount);
   if (!type || Number.isNaN(amt)) {
-    return res.status(400).json({
-      ok: false,
-      error: "INVALID_ORDER_PARAMS",
-      detail: { type, amount },
-    });
+    return res.status(400).json({ ok: false, error: 'INVALID_ORDER_PARAMS' });
   }
 
-  /* ----------------------------
-     storeId 추출 강화
-  ----------------------------- */
+  const orders = await loadOrders();
+
+  const id =
+    body.id ||
+    orderId ||
+    `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const { ts, date, dateTime } = makeTimeMeta();
+
   let finalStoreId = storeId || null;
 
-  if (!finalStoreId && req.headers["x-store-id"]) {
-    finalStoreId = req.headers["x-store-id"];
-  }
-
   if (!finalStoreId) {
-    const ref = req.headers?.referer || req.headers?.referrer;
+    const ref = req.headers?.referer;
     if (ref) {
       try {
         const u = new URL(ref);
-        const s = u.searchParams.get("store");
-        if (s) finalStoreId = s;
-      } catch {}
+        const qs = u.searchParams.get('store');
+        if (qs) finalStoreId = qs;
+      } catch (_) {}
     }
   }
 
-  if (!finalStoreId) finalStoreId = "store1";
-
-  /* ----------------------------
-     orderId 생성
-  ----------------------------- */
-
-  const internalId =
-    body.id ||
-    orderId ||
-    `ord-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-  const finalOrderId = orderId || internalId;
-
-  const { ts, date, dateTime } = makeKSTTimeMeta();
+  if (!finalStoreId) finalStoreId = 'store1';
 
   const newOrder = {
-    id: internalId,
-    orderId: finalOrderId,
+    id,
+    orderId: orderId || id,
     type,
     amount: amt,
-    orderName: orderName || "",
-    cart: Array.isArray(cart) ? cart : [],
-    customer: customer || null,
-    table: table || null,
-    status: status || "paid",
+    orderName,
+    cart: cart || [],
+    customer,
+    table,
+    status: status || 'paid',
     reserveDate: reserveDate || null,
     reserveTime: reserveTime || null,
-    memo: memo || "",
+    memo: memo || '',
     meta: meta || {},
     storeId: finalStoreId,
     ts,
@@ -212,73 +148,37 @@ async function handlePost(req, res) {
     agreePrivacy: !!agreePrivacy,
   };
 
-  const list = await loadOrders();
-  list.push(newOrder);
-  await saveOrders(list);
+  orders.push(newOrder);
+  await saveOrders(orders);
 
   return res.status(200).json({ ok: true, order: newOrder });
 }
 
-/* ============================================================
-   PUT /api/orders  (상태 변경)
-============================================================ */
-
 async function handlePut(req, res) {
-  const body = await getBody(req);
-  const { id, orderId, status, meta } = body;
+  const { id, orderId, status, meta } = req.body || {};
 
   if (!id && !orderId) {
-    return res.status(400).json({
-      ok: false,
-      error: "MISSING_ID",
-    });
+    return res.status(400).json({ ok: false, error: 'MISSING_ID' });
   }
 
-  const list = await loadOrders();
-
-  const idx = list.findIndex((o) => {
-    if (id && o.id === id) return true;
-    if (orderId && o.orderId === orderId) return true;
-    return false;
-  });
+  const orders = await loadOrders();
+  const idx = orders.findIndex(
+    (o) => o.id === id || o.orderId === orderId
+  );
 
   if (idx === -1) {
-    return res.status(404).json({
-      ok: false,
-      error: "ORDER_NOT_FOUND",
-    });
+    return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND' });
   }
 
-  const target = { ...list[idx] };
+  const target = { ...orders[idx] };
 
-  if (typeof status === "string") target.status = status;
-
-  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+  if (typeof status === 'string') target.status = status;
+  if (meta && typeof meta === 'object') {
     target.meta = { ...(target.meta || {}), ...meta };
   }
 
-  list[idx] = target;
-  await saveOrders(list);
+  orders[idx] = target;
+  await saveOrders(orders);
 
   return res.status(200).json({ ok: true, order: target });
-}
-
-/* ============================================================
-   req.json() 대체 (Node 런타임)
-============================================================ */
-
-function getBody(req) {
-  return new Promise((resolve) => {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(body || "{}"));
-      } catch {
-        resolve({});
-      }
-    });
-  });
 }
