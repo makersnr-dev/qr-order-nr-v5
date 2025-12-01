@@ -2,7 +2,7 @@
 // 관리자 로그인 (Edge + Web Crypto)
 // 요청:  POST { uid, pwd }
 // 환경변수 예시:
-//   ADMIN_USERS_JSON = [{"id":"admin","pw":"1234","name":"관리자이름","provider":"local"}]
+//   ADMIN_USERS_JSON = [{"id":"admin","pw":"1234","name":"관리자이름","provider":"local","storeId":"cafe"}]
 //   JWT_SECRET       = "아무 문자열 (길게)"
 
 export const config = { runtime: 'edge' };
@@ -78,7 +78,7 @@ export default async function handler(req) {
   // 3) 환경변수에서 관리자 계정 목록 읽기
   const raw =
     process.env.ADMIN_USERS_JSON ||
-    '[{"id":"admin","pw":"1234","name":"관리자","provider":"local"}]';
+    '[{"id":"admin","pw":"1234","name":"관리자","provider":"local","storeId":"store1"}]';
 
   let users;
   try {
@@ -96,23 +96,37 @@ export default async function handler(req) {
     users.find((u) => u && u.id === uid && u.pw === pwd);
 
   if (!user) {
-    // 아이디/비번 틀림 → 401
     return json({ ok: false }, 401);
   }
 
-  // 4) 토큰 payload 구성 (나중에 소셜 로그인까지 재사용하기 좋은 형태)
+  // 🔥 4) storeId 반드시 환경변수 JSON에서 받아야 함
+  const storeId =
+    user.storeId ||
+    user.store ||
+    user.store_id ||
+    null;
+
+  if (!storeId) {
+    return json(
+      { ok: false, error: 'STORE_ID_NOT_SET_FOR_ADMIN' },
+      500
+    );
+  }
+
+  // 5) 토큰 payload 구성 (storeId 추가)
   const payload = {
-    sub: uid,                       // 내부용 고유 ID
-    uid,                            // 기존 코드 호환용
-    realm: 'admin',                 // 관리자 역할
+    sub: uid,
+    uid,
+    realm: 'admin',
     provider: user.provider || 'local',
-    name: user.name || uid,         // 화면에 보여줄 이름
+    name: user.name || uid,
+    storeId: storeId,              // ★ 핵심: 서버가 관리자의 매장ID를 강제 지정
     iat: Math.floor(Date.now() / 1000),
   };
 
   const token = await sign(payload);
 
-  // 5) 최종 응답
+  // 6) 최종 응답
   return json({
     ok: true,
     token,
