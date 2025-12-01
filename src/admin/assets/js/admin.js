@@ -16,108 +16,29 @@ import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
 import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
-import { get } from './modules/store.js'; // ✅ 매장 관리자 매핑용
 
-// ===== 데스크탑 알림 권한 (브라우저에 한 번 요청) =====
-if (typeof window !== 'undefined' && 'Notification' in window) {
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => {});
-  }
-}
 
-// ===== 새로고침 폭탄 방지용 공통 유틸 =====
-const REFRESH_COOLDOWN_MS = 5000; // 5초 안에 여러 번 호출돼도 실제 실행은 1번만
+// ============================================================
+//  ⭐  storeId는 오직 "JWT"에서 온 값만 신뢰한다.
+// ============================================================
+// URL ?store= 로 storeId를 변경하는 기능은 반드시 차단해야 한다.
+// localStorage 값은 표시용/백업용이며 판단 기준이 아니다.
 
-function makeSafeRefresher(realFn) {
-  let last = 0;
-  return async function safeRefresher(...args) {
-    const now = Date.now();
-    if (now - last < REFRESH_COOLDOWN_MS) {
-      console.log('[safeRefresh] skip (cooldown):', realFn.name || 'fn');
-      return;
-    }
-    last = now;
-    try {
-      return await realFn(...args);
-    } catch (e) {
-      console.error('[safeRefresh] error in', realFn.name || 'fn', e);
-    }
-  };
-}
+// JWT는 requireAuth() → payload 반환 시 이미 storeId가 저장되어 있음.
+// admin.js에서는 "읽기"만 한다.
+function getSafeStoreId() {
+  // 최우선: localStorage에 저장된 값 (auth.js에서 세팅)
+  const sid = localStorage.getItem('qrnr.storeId');
+  if (sid) return sid;
 
-// 탭 3종(매장 / 배달·예약 / 호출로그)에 대한 안전 새로고침 래퍼
-const safeRenderStore      = makeSafeRefresher(renderStore);
-const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
-const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
-
-// ===== storeId 결정 함수 =====
-// 1) URL ?store= 우선
-// 2) 매장 관리자 매핑에서 adminId → storeId
-// 3) localStorage에 남아 있던 storeId
-// 4) 마지막 fallback: 'store1'
-function resolveStoreId(adminId) {
-  // 1) URL ?store= 우선
-  try {
-    const u = new URL(location.href);
-    const fromUrl = u.searchParams.get('store');
-    if (fromUrl) {
-      localStorage.setItem('qrnr.storeId', fromUrl);
-      console.log('[admin] storeId from URL:', fromUrl);
-      return fromUrl;
-    }
-  } catch (e) {
-    console.error('[admin] resolveStoreId URL parse error', e);
-  }
-
-  // 2) 매장 관리자 매핑에서 adminId → storeId 찾기
-  if (adminId && typeof get === 'function') {
-    try {
-      const map = get(['system', 'storeAdmins']) || {};
-      const mapped = map[adminId];
-      console.log('[admin] storeAdmins map for', adminId, ':', mapped);
-
-      let sid = null;
-
-      if (typeof mapped === 'string') {
-        // 예: storeAdmins["admin1"] = "korea"
-        sid = mapped;
-      } else if (mapped && typeof mapped === 'object') {
-        // 예: storeAdmins["admin1"] = { storeId:"korea", ... } 형태
-        // ⚠️ 매장 ID로 쓸만한 필드만 본다. (id/이름 같은 건 절대 안 씀)
-        sid =
-          mapped.storeId ||
-          mapped.store ||
-          mapped.storeCode ||
-          mapped.store_id ||
-          null;
-      }
-
-      if (sid) {
-        localStorage.setItem('qrnr.storeId', sid);
-        console.log('[admin] storeId from mapping:', adminId, '->', sid);
-        return sid;
-      } else {
-        console.log('[admin] no usable storeId in mapping for', adminId);
-      }
-    } catch (e) {
-      console.error('[admin] resolveStoreId mapping error', e);
-    }
-  }
-
-  // 3) 로컬스토리지에 기억된 storeId
-  const stored = localStorage.getItem('qrnr.storeId');
-  if (stored) {
-    console.log('[admin] storeId from localStorage:', stored);
-    return stored;
-  }
-
-  // 4) 아무것도 없으면 기본값
-  console.log('[admin] storeId fallback: store1');
+  // 최후 fallback
   return 'store1';
 }
 
-const adminChannel = new BroadcastChannel('qrnr-admin');
 
+// ============================================================
+//  알림 토스트
+// ============================================================
 function ensureToastContainer() {
   let box = document.getElementById('admin-toast-box');
   if (!box) {
@@ -161,89 +82,82 @@ function showToast(message, variant = 'info') {
     setTimeout(() => {
       toast.remove();
     }, 300);
-  }, 2500);
+  }, 2300);
 }
 
+
+// ============================================================
+// 새로고침 폭탄 방지
+// ============================================================
+const REFRESH_COOLDOWN_MS = 5000;
+
+function makeSafeRefresher(realFn) {
+  let last = 0;
+  return async (...args) => {
+    const now = Date.now();
+    if (now - last < REFRESH_COOLDOWN_MS) {
+      console.log('[safeRefresh] skip:', realFn.name);
+      return;
+    }
+    last = now;
+    try {
+      return await realFn(...args);
+    } catch (e) {
+      console.error('[safeRefresh] error in', realFn.name, e);
+    }
+  };
+}
+
+const safeRenderStore      = makeSafeRefresher(renderStore);
+const safeRenderDeliv      = makeSafeRefresher(renderDeliv);
+const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
+
+
+// ============================================================
+// 메인
+// ============================================================
 async function main() {
-  // 1) 관리자 인증 (토큰 검증)
+  // 1) 인증 (JWT 검증)
   const session = await requireAuth('admin');
   if (!session) return;
 
-  // verify 응답에서 adminId 추출 (여러 케이스 방어적으로 처리)
-  const adminId =
-    session.uid ||
-    session.sub ||
-    (session.user && (session.user.uid || session.user.id)) ||
-    (session.payload &&
-      (session.payload.uid || session.payload.sub)) ||
-    null;
+  console.log('[admin] session', session);
 
-  console.log('[admin] session from verify:', session);
-  console.log('[admin] resolved adminId:', adminId);
-
-  // 2) 최종 storeId 결정 (URL / 매핑 / localStorage)
-  const sid = resolveStoreId(adminId);
+  // 2) storeId 가져오기 (JWT 기반)
+  const sid = getSafeStoreId();
   window.qrnrStoreId = sid;
-  localStorage.setItem('qrnr.storeId', sid);
   console.log('[admin] final storeId =', sid);
 
-  // 3) 주소창에 ?store= 없으면 한 번 넣어주기
+  // 3) URL 표시용으로 storeId 주입 (판단 기준 아님)
   try {
     const u = new URL(location.href);
-    if (!u.searchParams.get('store')) {
+    if (u.searchParams.get('store') !== sid) {
       u.searchParams.set('store', sid);
       history.replaceState(null, '', u.toString());
     }
   } catch (e) {
-    console.error('[admin] URL store param set error', e);
+    console.error('[admin] URL set store error', e);
   }
 
-  // 4) 서버에서 매장 관련 설정/데이터 동기화
+  // 4) 매장별 설정 동기화
   await syncStoreFromServer();
   initTabs();
 
-  // 🔹 탭 클릭 시: 해당 탭 내용 새로고침 (폭탄 방지 래퍼 사용)
-  document.querySelectorAll('.tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      if (tab === 'store') {
-        safeRenderStore();
-      } else if (tab === 'delivery') {
-        safeRenderDeliv();
-      } else if (tab === 'notify-log') {
-        safeRenderNotifyLogs();
-      }
-    });
-  });
-
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      clearToken();
-      location.href = '/admin';
-    };
-  }
-
-  // 기본 세팅
+  // 기본 렌더
   bindFilters();
-  // 초회 로딩도 안전 래퍼로 (한 번만 실행됨)
   safeRenderStore();
   safeRenderDeliv();
   attachGlobalHandlers();
 
-  // 🔹 탭별 새로고침 버튼 연결 (안전 래퍼 사용)
+  // 새로고침 버튼
   const storeRefresh = document.getElementById('store-refresh');
   if (storeRefresh) {
-    storeRefresh.onclick = () => {
-      safeRenderStore(); // 매장 주문 테이블 새로고침
-    };
+    storeRefresh.onclick = () => safeRenderStore();
   }
 
   const delivRefresh = document.getElementById('deliv-refresh');
   if (delivRefresh) {
-    delivRefresh.onclick = () => {
-      safeRenderDeliv(); // 배달/예약 주문 테이블 새로고침
-    };
+    delivRefresh.onclick = () => safeRenderDeliv();
   }
 
   // 엑셀 export
@@ -251,13 +165,12 @@ async function main() {
   if (storeExportBtn) {
     storeExportBtn.onclick = () => exportOrders('ordersStore');
   }
-
   const delivExportBtn = document.getElementById('deliv-export');
   if (delivExportBtn) {
     delivExportBtn.onclick = () => exportOrders('ordersDelivery');
   }
 
-  // 나머지 설정들
+  // 메뉴/QR/계좌/코드/알림 초기화
   renderMenu();
   bindMenu();
   renderCode();
@@ -268,86 +181,60 @@ async function main() {
   bindNotify();
   initQR();
 
-  // 호출 로그: 초기 렌더 + 바인딩
+  // 호출 로그
   safeRenderNotifyLogs();
   bindNotifyLogs();
 
-  // 🔹 개인정보 처리방침
+  // 개인정보 처리방침
   renderPolicy();
   bindPolicy();
 
-  // 호출 로그 새로고침 버튼도 안전 래퍼로 덮어쓰기
-  const notifyRefresh = document.getElementById('notify-log-refresh');
-  if (notifyRefresh) {
-    notifyRefresh.onclick = () => {
+
+  // ============================================================
+  // 실시간 알림
+  // ============================================================
+  const bc = new BroadcastChannel('qrnr-admin');
+  bc.onmessage = (event) => {
+    const msg = event.data;
+    if (!msg || !msg.type) return;
+
+    const currentStore = window.qrnrStoreId || sid;
+
+    const msgStore =
+      msg.storeId ||
+      msg.store ||
+      msg.store_id ||
+      msg.sid ||
+      null;
+
+    // 내 매장이 아니면 무시
+    if (msgStore && msgStore !== currentStore) {
+      console.log('[admin] skip foreign msg', msgStore);
+      return;
+    }
+
+    if (msg.type === 'CALL') {
+      showToast(`테이블 ${msg.table || '-'} 호출`, 'info');
+      notifyEvent(msg);
       safeRenderNotifyLogs();
+    }
+
+    if (msg.type === 'NEW_ORDER_PAID') {
+      showToast(`결제완료 주문 ${msg.orderId || ''}`, 'success');
+      notifyEvent(msg);
+      safeRenderStore();
+      safeRenderDeliv();
+    }
+  };
+
+  // 로그아웃
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      clearToken();
+      location.href = '/admin';
     };
   }
-
-  // 🔔 실시간 알림 (주문/호출 들어올 때도 안전 새로고침 + 사운드/데스크탑 알림)
-  adminChannel.onmessage = async (event) => {
-  const msg = event.data;
-  if (!msg || !msg.type) return;
-
-  // 현재 관리자 페이지가 바라보는 매장 ID
-  const currentStoreId =
-    window.qrnrStoreId ||
-    localStorage.getItem('qrnr.storeId') ||
-    'store1';
-
-  // 👉 메시지 안에서 매장 ID 후보를 최대한 뽑아서 통일
-  const msgStoreId =
-    msg.storeId ||
-    msg.store ||
-    msg.store_id ||
-    msg.sid ||
-    null;
-
-  // 🔒 매장별 필터: "내 매장"이 아닌 것은 아예 무시
-  if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
-    console.log('[admin] ignore message for other store', {
-      msgStoreId,
-      currentStoreId,
-      msg,
-    });
-    return;
-  }
-
-  console.log('[admin] accepted message', {
-    msgStoreId,
-    currentStoreId,
-    msg,
-  });
-
-  if (msg.type === 'CALL') {
-    // 화면 상단 토스트
-    showToast(
-      `테이블 ${msg.table || '-'} 직원 호출${
-        msg.note ? ' - ' + msg.note : ''
-      }`,
-      'info'
-    );
-
-    // 🔔 소리 + 데스크탑 알림 (notify.js 쪽에서 실행)
-    notifyEvent(msg);
-
-    // 호출 로그 새로고침
-    safeRenderNotifyLogs();
-  }
-
-  if (msg.type === 'NEW_ORDER_PAID') {
-    showToast(
-      `주문 결제 완료 - 주문번호 ${msg.orderId || ''}`,
-      'success'
-    );
-
-    notifyEvent(msg);
-
-    // 매장/배달 주문 목록 새로고침
-    safeRenderStore();
-    safeRenderDeliv();
-  }
-};
 }
 
 main();
