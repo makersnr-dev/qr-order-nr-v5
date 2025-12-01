@@ -1,14 +1,29 @@
-import { get, patch } from './store.js';
+// /src/admin/assets/js/modules/mybank.js
+// v5 다점포 구조 완전 대응 버전
 
+import { get, patch, ensureStoreInitialized } from './store.js';
+
+// 현재 storeId 가져오기 (admin.js에서 세팅됨)
 function currentStoreId() {
-  return window.qrnrStoreId || 'store1';
+  return (
+    window.qrnrStoreId ||
+    localStorage.getItem('qrnr.storeId') ||
+    'store1'
+  );
 }
 
-// 매장별 계좌 저장 위치: ['admin', 'ownerBank', storeId]
+// PATH: ['admin', 'ownerBank', storeId]
 const PATH = () => ['admin', 'ownerBank', currentStoreId()];
 
+/**
+ * 계좌 정보 렌더링
+ */
 export function renderMyBank() {
+  const storeId = currentStoreId();
+  ensureStoreInitialized(storeId);
+
   const b = get(PATH()) || {};
+
   const bankInput   = document.getElementById('mb-bank');
   const acctInput   = document.getElementById('mb-acct');
   const holderInput = document.getElementById('mb-holder');
@@ -19,17 +34,22 @@ export function renderMyBank() {
   if (holderInput) holderInput.value = b.holder || '';
 
   if (currentSpan) {
-    currentSpan.textContent =
-      (b.bank && b.number && b.holder)
-        ? `${b.bank} ${b.number} (${b.holder})`
-        : '(저장된 정보 없음)';
+    if (b.bank && b.number && b.holder) {
+      currentSpan.textContent = `${b.bank} ${b.number} (${b.holder})`;
+    } else {
+      currentSpan.textContent = '(저장된 정보 없음)';
+    }
   }
 }
 
+/**
+ * 저장 & 복사 버튼 바인딩
+ */
 export function bindMyBank() {
   const saveBtn = document.getElementById('mb-save');
   const copyBtn = document.getElementById('mb-copy');
 
+  // ---- 저장 ----
   if (saveBtn) {
     saveBtn.onclick = () => {
       const bank   = (document.getElementById('mb-bank')?.value || '').trim();
@@ -43,17 +63,24 @@ export function bindMyBank() {
 
       patch(PATH(), () => ({ bank, number, holder }));
       renderMyBank();
+      alert('저장되었습니다.');
     };
   }
 
+  // ---- 복사 ----
   if (copyBtn) {
     copyBtn.onclick = () => {
       const cur = document.getElementById('mb-current')?.textContent || '';
+
       if (!cur || cur.includes('저장된 정보 없음')) {
         alert('저장된 계좌 정보가 없습니다.');
         return;
       }
-      navigator.clipboard.writeText(cur);
+
+      navigator.clipboard
+        .writeText(cur)
+        .then(() => alert('복사되었습니다.'))
+        .catch(() => alert('복사 실패. 브라우저 권한을 확인해주세요.'));
     };
   }
 }
