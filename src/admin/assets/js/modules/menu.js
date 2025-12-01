@@ -1,63 +1,60 @@
 // /src/admin/assets/js/modules/menu.js
-// 다점포용 메뉴 관리: admin.menuByStore[storeId] 를 매장별 메뉴로 사용
-// 없으면 admin.menu(공용 템플릿) 또는 샘플에서 복사해서 초기화
-// 필드: id, name, price, active, soldOut, img, desc
+// 매장별(menuByStore[storeId]) 메뉴 관리 모듈 (보안 강화 버전)
 
-import { get, patch } from './store.js';
+import { get, patch, ensureStoreInitialized } from './store.js';
 
-// 샘플 기본 메뉴 (공용 템플릿이 아예 없을 때만 사용)
+// 기본 템플릿이 전혀 없을 때만 사용하는 샘플 메뉴
 const SAMPLE_MENU = [
   { id: 'A1', name: '아메리카노', price: 3000, active: true },
   { id: 'A2', name: '라떼',       price: 4000, active: true },
   { id: 'B1', name: '크로와상',   price: 3500, active: true },
 ];
 
-// 현재 storeId 가져오기
+// ==============================
+//  storeId는 무조건 JWT/localStorage 기반
+// ==============================
 function currentStoreId() {
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
-  }
+  const sid =
+    window.qrnrStoreId ||
+    localStorage.getItem('qrnr.storeId') ||
+    'store1';
+
+  return sid;
 }
 
-// 매장별 메뉴 경로
+// 매장별 메뉴 저장 경로
 const PER_STORE_PATH = () => ['admin', 'menuByStore', currentStoreId()];
 
-/**
- * 관리자에서 사용할 "현재 매장의 메뉴" 로딩 규칙
- *
- * 1) admin.menuByStore[storeId] 가 배열이면 그대로 사용 (빈 배열도 허용)
- * 2) 아니면 한 번만 초기화:
- *    - admin.menu (공용 템플릿)이 있으면 그걸 복사
- *    - 없으면 SAMPLE_MENU 복사
- *    그리고 복사본을 admin.menuByStore[storeId]에 저장
- */
+// ==============================
+// 매장 메뉴 로딩 + 자동 초기화
+// ==============================
 function loadMenuForAdmin() {
   const storeId = currentStoreId();
 
-  const perStore = get(['admin', 'menuByStore', storeId]);
-  if (Array.isArray(perStore)) return perStore;
+  // ⭐ store.js에서 매장 데이터가 초기화 되었는지 보장
+  ensureStoreInitialized(storeId);
 
-  const global = get(['admin', 'menu']);
+  const perStore = get(['admin', 'menuByStore', storeId]);
+  if (Array.isArray(perStore)) {
+    return perStore;
+  }
+
+  // 메뉴 템플릿 불러오기
+  const globalMenu = get(['admin', 'menu']);
   let base = [];
 
-  if (Array.isArray(global) && global.length) base = global;
+  if (Array.isArray(globalMenu) && globalMenu.length) base = globalMenu;
   else base = SAMPLE_MENU;
 
-  const cloned = base.map(m => ({ ...m }));
+  const cloned = base.map((m) => ({ ...m }));
   patch(['admin', 'menuByStore', storeId], () => cloned);
+
   return cloned;
 }
 
-/**
- * 메뉴 관리 테이블 렌더링
- *
- * - 이름/가격/표시/일시품절 은 행 안에서 직접 수정
- * - "상세" 버튼으로 이미지 URL / 설명 수정 (prompt)
- */
+// ==============================
+// 메뉴 테이블 렌더링
+// ==============================
 export function renderMenu() {
   const menu = loadMenuForAdmin();
   const body = document.getElementById('m-body');
@@ -66,7 +63,7 @@ export function renderMenu() {
   body.innerHTML = '';
 
   if (!menu.length) {
-    body.innerHTML = '<tr><td colspan="5" class="small">메뉴 없음</td></tr>';
+    body.innerHTML = `<tr><td colspan="5" class="small">메뉴 없음</td></tr>`;
     return;
   }
 
@@ -95,13 +92,14 @@ export function renderMenu() {
         <button class="btn small" data-act="del">삭제</button>
       </td>
     `;
+
     body.appendChild(tr);
 
     const saveBtn   = tr.querySelector('[data-act="save"]');
     const delBtn    = tr.querySelector('[data-act="del"]');
     const detailBtn = tr.querySelector('[data-act="detail"]');
 
-    // 💾 저장: 이름/가격/표시/일시품절
+    // 💾 저장
     if (saveBtn) {
       saveBtn.onclick = () => {
         const arr = loadMenuForAdmin().slice();
@@ -109,15 +107,10 @@ export function renderMenu() {
 
         tr.querySelectorAll('input[data-k]').forEach((input) => {
           const k = input.getAttribute('data-k');
-          if (k === 'active') {
-            target.active = input.checked;
-          } else if (k === 'soldOut') {
-            target.soldOut = input.checked;
-          } else if (k === 'price') {
-            target.price = Number(input.value || 0);
-          } else if (k === 'name') {
-            target.name = input.value || '';
-          }
+          if (k === 'active') target.active = input.checked;
+          else if (k === 'soldOut') target.soldOut = input.checked;
+          else if (k === 'price') target.price = Number(input.value || 0);
+          else if (k === 'name') target.name = input.value || '';
         });
 
         arr[idx] = target;
@@ -126,24 +119,20 @@ export function renderMenu() {
       };
     }
 
-    // 📝 상세(이미지 / 설명)
+    // 📝 상세 정보 (이미지/설명)
     if (detailBtn) {
       detailBtn.onclick = () => {
         const arr = loadMenuForAdmin().slice();
         const target = arr[idx] || { id: m.id };
 
-        const currentImg  = target.img || '';
+        const currentImg  = target.img  || '';
         const currentDesc = target.desc || '';
 
         const newImg = window.prompt('이미지 URL (선택)', currentImg);
-        if (newImg !== null) {
-          target.img = newImg.trim();
-        }
+        if (newImg !== null) target.img = newImg.trim();
 
-        const newDesc = window.prompt('메뉴 설명 (선택, 여러 줄 가능)', currentDesc);
-        if (newDesc !== null) {
-          target.desc = newDesc.trim();
-        }
+        const newDesc = window.prompt('메뉴 설명 (선택)', currentDesc);
+        if (newDesc !== null) target.desc = newDesc.trim();
 
         arr[idx] = target;
         patch(PER_STORE_PATH(), () => arr);
@@ -164,10 +153,9 @@ export function renderMenu() {
   });
 }
 
-/**
- * 상단 "추가" 버튼 바인딩
- * - ID / 이름 / 가격만 입력 → 나머지 필드는 기본값으로
- */
+// ==============================
+// "추가" 버튼
+// ==============================
 export function bindMenu() {
   const addBtn = document.getElementById('m-add');
   if (!addBtn) return;
