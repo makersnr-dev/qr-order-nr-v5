@@ -1,8 +1,9 @@
 // /api/orders.js
-// 주문 조회 / 생성 / 상태 변경 (다점포 + Node 런타임 안정 버전)
+// 주문 조회 / 생성 / 상태 변경 (Node 런타임 버전)
+// Vercel 런타임: nodejs (fs 사용 가능)
 
 export const config = {
-  runtime: "nodejs18.x",
+  runtime: "nodejs",
 };
 
 import fs from "fs/promises";
@@ -10,7 +11,7 @@ import fs from "fs/promises";
 const ORDERS_FILE = "/tmp/qrnr_orders.json";
 
 /* ============================================================
-   스토리지 레이어 (나중에 DB로 교체할 구간)
+   스토리지 레이어
 ============================================================ */
 
 async function loadOrders() {
@@ -22,7 +23,7 @@ async function loadOrders() {
     if (Array.isArray(parsed)) return parsed;
     return [];
   } catch (err) {
-    if (err?.code === "ENOENT") return []; // 파일 없음 = 주문 0
+    if (err?.code === "ENOENT") return []; // 파일 없음 = 0건
     console.error("[orders] load error:", err);
     return [];
   }
@@ -43,12 +44,11 @@ async function saveOrders(arr) {
 }
 
 /* ============================================================
-   날짜/시간 헬퍼(KST)
+   날짜/시간(KST)
 ============================================================ */
 
 function makeKSTTimeMeta() {
   const ts = Date.now();
-
   const offset = 9 * 60 * 60 * 1000;
   const kst = new Date(ts + offset);
 
@@ -66,7 +66,7 @@ function makeKSTTimeMeta() {
 }
 
 /* ============================================================
-   메인 핸들러
+   API 엔트리
 ============================================================ */
 
 export default async function handler(req, res) {
@@ -93,7 +93,7 @@ async function handleGet(req, res) {
   const { type, from, to, storeId } = req.query || {};
 
   let orders = await loadOrders();
-  orders = orders.slice(); // 카피
+  orders = orders.slice(); // copy
 
   if (type) orders = orders.filter((o) => o.type === type);
   if (storeId) orders = orders.filter((o) => o.storeId === storeId);
@@ -127,7 +127,7 @@ async function handleGet(req, res) {
 ============================================================ */
 
 async function handlePost(req, res) {
-  const body = await req.json().catch(() => ({}));
+  const body = await getBody(req);
 
   let {
     orderId,
@@ -161,12 +161,10 @@ async function handlePost(req, res) {
   ----------------------------- */
   let finalStoreId = storeId || null;
 
-  // 1) 클라이언트에서 헤더로 전송했을 때
   if (!finalStoreId && req.headers["x-store-id"]) {
     finalStoreId = req.headers["x-store-id"];
   }
 
-  // 2) referer에서 추출
   if (!finalStoreId) {
     const ref = req.headers?.referer || req.headers?.referrer;
     if (ref) {
@@ -178,11 +176,10 @@ async function handlePost(req, res) {
     }
   }
 
-  // 3) 기본값
   if (!finalStoreId) finalStoreId = "store1";
 
   /* ----------------------------
-     orderId 자동 생성
+     orderId 생성
   ----------------------------- */
 
   const internalId =
@@ -227,7 +224,7 @@ async function handlePost(req, res) {
 ============================================================ */
 
 async function handlePut(req, res) {
-  const body = await req.json().catch(() => ({}));
+  const body = await getBody(req);
   const { id, orderId, status, meta } = body;
 
   if (!id && !orderId) {
@@ -254,19 +251,34 @@ async function handlePut(req, res) {
 
   const target = { ...list[idx] };
 
-  if (typeof status === "string") {
-    target.status = status;
-  }
+  if (typeof status === "string") target.status = status;
 
   if (meta && typeof meta === "object" && !Array.isArray(meta)) {
-    target.meta = {
-      ...(target.meta || {}),
-      ...meta,
-    };
+    target.meta = { ...(target.meta || {}), ...meta };
   }
 
   list[idx] = target;
   await saveOrders(list);
 
   return res.status(200).json({ ok: true, order: target });
+}
+
+/* ============================================================
+   req.json() 대체 (Node 런타임)
+============================================================ */
+
+function getBody(req) {
+  return new Promise((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body || "{}"));
+      } catch {
+        resolve({});
+      }
+    });
+  });
 }
