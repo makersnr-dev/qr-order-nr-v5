@@ -4,7 +4,8 @@
 // - JWT_SECRET 환경변수 사용
 // - JSON 바디 { token } 또는 raw text 토큰 모두 지원됨
 
-export const config = { runtime: 'edge' };
+export const config = { runtime: "nodejs" };
+
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
