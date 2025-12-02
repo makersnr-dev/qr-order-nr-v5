@@ -46,12 +46,11 @@ export function decodeToken(t) {
 }
 
 // 고객 로그인 인증 필요 페이지에서 호출
-// ex: await requireCust();
 export async function requireCust() {
   const here = location.pathname;
   const loginPath = '/src/order/login.html';
 
-  let t = getToken();
+  const t = getToken();
 
   if (!t) {
     if (!here.startsWith(loginPath)) location.href = loginPath;
@@ -59,25 +58,26 @@ export async function requireCust() {
   }
 
   try {
-    // admin 구조와 동일하게 JSON 토큰 전송
+    // ⭐⭐ 수정 반영: verify는 반드시 header 기반으로 호출해야 정상 작동
     const r = await fetch('/api/verify', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: t }),
-      cache: 'no-store',
+      headers: {
+        'x-auth-token': t,
+        'cache-control': 'no-store',
+      }
     });
 
     const p = await r.json().catch(() => null);
+
     console.log('[cust-auth] verify response', r.status, p);
 
-    // verify 실패 시 처리
     if (!p || p.ok === false || !p.realm) {
       clearToken();
       if (!here.startsWith(loginPath)) location.href = loginPath;
       return null;
     }
 
-    // 고객 realm으로 제한
+    // 고객은 cust realm 필요
     if (p.realm !== 'cust') {
       clearToken();
       if (!here.startsWith(loginPath)) location.href = loginPath;
@@ -85,6 +85,7 @@ export async function requireCust() {
     }
 
     return p;
+
   } catch (e) {
     console.error('[cust-auth] requireCust error', e);
     clearToken();
