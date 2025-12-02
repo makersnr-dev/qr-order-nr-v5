@@ -47,10 +47,9 @@ export function decodeToken(t) {
   }
 }
 
-// =====================================================
-// ⭐ payload.storeId → localStorage.storeId 반영하는 핵심 로직
-// =====================================================
-
+// -------------------------------
+// storeId 동기화
+// -------------------------------
 function hydrateAdminInfoAndStore(t, realmHint) {
   try {
     const decoded = decodeToken(t);
@@ -67,48 +66,19 @@ function hydrateAdminInfoAndStore(t, realmHint) {
 
     localStorage.setItem('qrnr.adminInfo', JSON.stringify(info));
 
-    // 1) JWT payload.storeId가 최우선
     if (decoded.storeId) {
       localStorage.setItem('qrnr.storeId', decoded.storeId);
       console.log('[auth] storeId from TOKEN =', decoded.storeId);
       return;
-    }
-
-    // 2) JWT에 없으면 storeAdmins 매핑 보조 적용
-    if (info.realm === 'admin' && typeof get === 'function') {
-      try {
-        const map = get(['system', 'storeAdmins']) || {};
-        const mapped = map[info.id];
-
-        let sid = null;
-
-        if (typeof mapped === 'string') {
-          sid = mapped;
-        } else if (mapped && typeof mapped === 'object') {
-          sid =
-            mapped.storeId ||
-            mapped.store ||
-            mapped.storeCode ||
-            null;
-        }
-
-        if (sid) {
-          localStorage.setItem('qrnr.storeId', sid);
-          console.log('[auth] storeId hydrated from mapping:', sid);
-        }
-      } catch (e) {
-        console.error('[auth] storeAdmins hydrate error', e);
-      }
     }
   } catch (e) {
     console.error('[auth] hydrateAdminInfoAndStore error', e);
   }
 }
 
-// =====================================================
-// 로그인 페이지에서 사용할 requireAuth()
-// =====================================================
-
+// -------------------------------
+// ⭐ 핵심: verify 호출 방식 수정됨
+// -------------------------------
 export async function requireAuth(realm) {
   const here = location.pathname;
   const loginPath = '/admin/login';
@@ -123,11 +93,13 @@ export async function requireAuth(realm) {
       return null;
     }
 
+    // ⭐ Body → 헤더 방식으로 변경
     const r = await fetch('/api/verify', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: t }),
-      cache: 'no-store',
+      headers: {
+        'x-auth-token': t,
+        'cache-control': 'no-store'
+      }
     });
 
     const p = await r.json().catch(() => null);
@@ -135,38 +107,30 @@ export async function requireAuth(realm) {
 
     if (!p || p.ok === false || !p.realm) {
       clearToken();
-      if (!here.startsWith(loginPath)) {
-        location.href = loginPath;
-      }
+      if (!here.startsWith(loginPath)) location.href = loginPath;
       return null;
     }
 
     const need = realm || 'admin';
     if (p.realm !== need) {
       clearToken();
-      if (!here.startsWith(loginPath)) {
-        location.href = loginPath;
-      }
+      if (!here.startsWith(loginPath)) location.href = loginPath;
       return null;
     }
 
-    // ⭐ storeId 저장
     hydrateAdminInfoAndStore(t, p.realm);
-
     return p;
+
   } catch (e) {
     console.error('[auth] requireAuth error', e);
-    if (!here.startsWith(loginPath)) {
-      location.href = loginPath;
-    }
+    if (!here.startsWith(loginPath)) location.href = loginPath;
     return null;
   }
 }
 
-// =====================================================
-// 로그인 화면에서 이미 로그인된 경우 redirect
-// =====================================================
-
+// -------------------------------
+// 로그인 화면 자동 리디렉트
+// -------------------------------
 export function redirectIfLoggedIn() {
   const here = location.pathname;
   const t = getToken();
@@ -177,15 +141,8 @@ export function redirectIfLoggedIn() {
 
   if (here.startsWith('/admin/login')) {
     let target = '/admin';
-
     const sid = localStorage.getItem('qrnr.storeId');
     if (sid) target = `/admin?store=${encodeURIComponent(sid)}`;
-
-    try {
-      history.replaceState(null, '', target);
-    } catch (e) {
-      console.error('[auth] redirectIfLoggedIn history error', e);
-    }
     location.href = target;
   }
 }
