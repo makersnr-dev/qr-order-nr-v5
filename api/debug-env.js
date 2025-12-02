@@ -1,6 +1,7 @@
 // /api/debug-env.js
 // Edge Runtime에서 환경변수 파싱 에러를 확인하기 위한 디버그용 API
-export const config = { runtime: "edge" };
+export const config = { runtime: "nodejs" };
+
 
 export default async function handler(req) {
   const raw = process.env.ADMIN_USERS_JSON;
