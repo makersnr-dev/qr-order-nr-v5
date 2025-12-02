@@ -1,5 +1,6 @@
 // /api/login-admin.js
 // 관리자 로그인 (Node.js 런타임)
+console.log('[login-admin] handler start1');
 
 export const config = { runtime: 'nodejs' };
 
@@ -9,6 +10,7 @@ function json(body, status = 200) {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }
+console.log('[login-admin] handler start2');
 
 async function sign(payload) {
   const enc = new TextEncoder();
