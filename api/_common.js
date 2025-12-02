@@ -1,3 +1,4 @@
+export const config = { runtime: "nodejs" };
 
 async function sign(payload){
   const enc=new TextEncoder(); const secret=(process.env.JWT_SECRET||'dev-secret-please-change');
