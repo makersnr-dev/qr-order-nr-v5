@@ -1,67 +1,65 @@
 // /api/super-login.js
-import { signJWT } from "../src/shared/jwt.js";
-
 export const config = { runtime: "edge" };
 
-function json(body, status = 200, headers = {}) {
+function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      ...headers,
-    },
+    headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
 
+// base64url 인코딩
+function b64url(str) {
+  return btoa(str).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function sign(payload, secret) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(JSON.stringify(payload));
+  const data = `${head}.${body}`;
+
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  let s = "";
+  const bytes = new Uint8Array(sig);
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return `${data}.${b64url(s)}`;
+}
+
 export default async function handler(req) {
-  if (req.method !== "POST") {
-    return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
-  }
+  if (req.method !== "POST") return json({ ok: false }, 405);
 
-  let body;
+  const body = await req.json().catch(() => ({}));
+  const uid = (body.uid || "").trim();
+  const pwd = (body.pwd || "").trim();
+
+  // 환경변수 SUPER_ADMINS_JSON (원래 구조)
+  let admins = [];
   try {
-    body = await req.json();
+    admins = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
   } catch {
-    return json({ ok: false, error: "BAD_JSON" }, 400);
+    return json({ ok: false, error: "BAD_SUPER_ADMINS_JSON" });
   }
 
-  const uid = (body?.uid || "").trim();
-  const pwd = (body?.pwd || "").trim();
+  const user = admins.find((u) => u.id === uid && u.pw === pwd);
+  if (!user) return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
 
-  if (!uid || !pwd) {
-    return json({ ok: false, error: "ID_PW_REQUIRED" }, 400);
-  }
-
-  // SUPER 관리자 목록 불러오기
-  let list = [];
-  try {
-    list = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
-  } catch {
-    return json({ ok: false, error: "BAD_SUPER_ADMINS_JSON_PARSE" }, 500);
-  }
-
-  const user = list.find((u) => u.id === uid && u.pw === pwd);
-
-  if (!user) {
-    return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
-  }
-
-  // JWT 생성
   const payload = {
-    superId: uid,
-    role: "super",
-    iat: Math.floor(Date.now() / 1000),
+    uid,
+    realm: "super",
+    iat: Date.now(),
   };
 
-  const secret = process.env.JWT_SUPER_SECRET || "super-secret";
-  const token = await signJWT(payload, secret);
+  const secret = process.env.JWT_SECRET || "dev-secret";
+  const token = await sign(payload, secret);
 
-  // ⭐ 쿠키로 저장
-  return json(
-    { ok: true },
-    200,
-    {
-      "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`,
-    }
-  );
+  return json({ ok: true, token });
 }
