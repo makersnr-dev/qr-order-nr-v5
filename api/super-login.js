@@ -1,68 +1,66 @@
 // /api/super-login.js
-import { signJWT } from "../src/shared/jwt.js";
+import { signHS256 } from "../src/shared/jwt.js";
 
 export const config = { runtime: "edge" };
 
-export default async function handler(req) {
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json;charset=utf-8" },
+  });
+}
+
+function loadSuperAdmins() {
   try {
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ ok: false, error: "METHOD" }), {
-        status: 405,
-      });
-    }
-
-    const { uid, pwd } = await req.json().catch(() => ({}));
-
-    if (!uid || !pwd) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "ID_AND_PASSWORD_REQUIRED" }),
-        { status: 400 }
-      );
-    }
-
-    // SUPER 계정 로드
-    const raw = process.env.SUPER_ADMINS_JSON || "{}";
-    let admins = {};
-    try {
-      admins = JSON.parse(raw);
-    } catch {
-      return new Response(
-        JSON.stringify({ ok: false, error: "BAD_SUPER_ADMINS_JSON" }),
-        { status: 500 }
-      );
-    }
-
-    const savedPw = admins[uid];
-    if (!savedPw || savedPw !== pwd) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "INVALID_CREDENTIALS" }),
-        { status: 401 }
-      );
-    }
-
-    // SUPER JWT 발급
-    const payload = {
-      role: "super",
-      superId: uid,
-      iat: Math.floor(Date.now() / 1000),
-    };
-
-    const secret = process.env.SUPER_JWT_SECRET || "super-secret-dev";
-    const token = await signJWT(payload, secret);
-
-    return new Response(
-      JSON.stringify({ ok: true, token }),
-      {
-        status: 200,
-        headers: {
-          "content-type": "application/json",
-          "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
-        },
-      }
-    );
-  } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
-      status: 500,
-    });
+    const raw = process.env.SUPER_ADMINS_JSON || '[]';
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr;
+  } catch {
+    return [];
   }
+}
+
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+  }
+
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ ok: false, error: "BAD_JSON" }, 400);
+  }
+
+  const uid = (body?.uid || "").trim();
+  const pw  = (body?.pwd || "").trim();
+
+  if (!uid || !pw) {
+    return json({ ok: false, error: "REQUIRED" }, 400);
+  }
+
+  const admins = loadSuperAdmins();
+  const found = admins.find(a => a.id === uid && a.pw === pw);
+
+  if (!found) {
+    return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
+  }
+
+  const payload = {
+    role: "super",
+    superId: uid,
+    iat: Math.floor(Date.now() / 1000),
+  };
+
+  const secret = process.env.SUPER_JWT_SECRET || "super-secret";
+  const token = await signHS256(payload, secret);
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json",
+      "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`,
+    },
+  });
 }
