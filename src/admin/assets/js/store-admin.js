@@ -225,7 +225,7 @@ async function init() {
             return;
           }
 
-          setSuperToken(data.token);
+          
 
           const me2 = decodeToken(data.token);
           if (me2 && me2.realm === 'super') {
