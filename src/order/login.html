@@ -1,0 +1,27 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+<title>배달/예약 로그인</title>
+</head><body>
+<div class="container">
+  <h1>배달/예약 로그인</h1>
+  <div class="card vstack" style="max-width:520px;margin:0 auto">
+    <input id="uid" class="input" placeholder="아이디">
+    <input id="pwd" class="input" placeholder="비밀번호" type="password">
+    <button id="login" class="btn primary">로그인</button>
+    <div class="hstack small" style="justify-content:space-between">
+      <a>아이디 찾기</a><a>비밀번호 찾기</a><a href="/src/order/join.html">회원가입</a>
+    </div>
+  </div>
+</div>
+<script type="module">
+import {saveToken} from '/src/order/assets/js/modules/cust-auth.js';
+document.getElementById('login').onclick=async()=>{
+  const uid=document.getElementById('uid').value.trim();
+  const pwd=document.getElementById('pwd').value.trim();
+  const r=await fetch('/api/login-cust',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,pwd})});
+  if(!r.ok){ alert('로그인 실패'); return; }
+  const {token}=await r.json(); saveToken(token); location.href='/src/order/delivery.html';
+};
+</script>
+</body></html>
