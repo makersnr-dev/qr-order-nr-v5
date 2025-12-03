@@ -20,13 +20,12 @@ export default async function handler(req) {
       );
     }
 
-    // SUPER 계정은 환경변수 SUPER_ADMINS_JSON에서 읽음
+    // SUPER 계정 로드
     const raw = process.env.SUPER_ADMINS_JSON || "{}";
     let admins = {};
-
     try {
       admins = JSON.parse(raw);
-    } catch (e) {
+    } catch {
       return new Response(
         JSON.stringify({ ok: false, error: "BAD_SUPER_ADMINS_JSON" }),
         { status: 500 }
@@ -34,7 +33,6 @@ export default async function handler(req) {
     }
 
     const savedPw = admins[uid];
-
     if (!savedPw || savedPw !== pwd) {
       return new Response(
         JSON.stringify({ ok: false, error: "INVALID_CREDENTIALS" }),
@@ -42,21 +40,26 @@ export default async function handler(req) {
       );
     }
 
-    // JWT payload
+    // SUPER JWT 발급
     const payload = {
       role: "super",
       superId: uid,
       iat: Math.floor(Date.now() / 1000),
     };
 
-    // SUPER 전용 비밀키 사용
     const secret = process.env.SUPER_JWT_SECRET || "super-secret-dev";
     const token = await signJWT(payload, secret);
 
-    return new Response(JSON.stringify({ ok: true, token }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, token }),
+      {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+        },
+      }
+    );
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
