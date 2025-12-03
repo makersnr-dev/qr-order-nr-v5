@@ -7,85 +7,162 @@
   <style>
     :root { --bg:#02040a; --card-bg:#0d1117; --text-main:#fff; --text-sub:#9ca3af; --radius:24px; }
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,system-ui,-sans-serif;color:var(--text-main)}
-    .fail-card{padding:28px 34px;max-width:720px;width:calc(100% - 40px);background:radial-gradient(circle at top left,rgba(255,0,0,.05),transparent),var(--card-bg);border-radius:var(--radius);box-shadow:0 18px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);display:flex;flex-direction:column;gap:8px}
+    body{
+      margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,system-ui,-sans-serif;color:var(--text-main)
+    }
+    .fail-card{
+      padding:28px 34px;max-width:720px;width:calc(100% - 40px);
+      background:radial-gradient(circle at top left,rgba(255,0,0,.05),transparent),var(--card-bg);
+      border-radius:var(--radius);
+      box-shadow:0 18px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);
+      display:flex;flex-direction:column;gap:8px
+    }
     .fail-title{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#f97373}
     .fail-text{font-size:14px;color:var(--text-sub)}
     .fail-actions{display:flex;justify-content:flex-end;margin-top:16px;gap:8px}
-    .fail-btn{padding:8px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--text-main);font-size:13px;cursor:pointer;transition:all .18s ease}
-    .fail-btn:hover{background:rgba(255,255,255,.06);border-color:#f97373;box-shadow:0 0 14px rgba(249,115,129,.35)}
+    .fail-btn{
+      padding:8px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.18);
+      background:transparent;color:var(--text-main);font-size:13px;cursor:pointer;
+      transition:all .18s ease
+    }
+    .fail-btn:hover{
+      background:rgba(255,255,255,.06);border-color:#f97373;
+      box-shadow:0 0 14px rgba(249,115,129,.35)
+    }
     #debug{display:none;font-size:10px;color:#6b7280;margin-top:4px;word-break:break-all}
   </style>
 </head>
-<body>
-  <div class="fail-card">
-    <div class="fail-title">결제가 완료되지 않았습니다.</div>
-    <div class="fail-text">결제가 취소되었거나 오류가 발생했어요.<br/>잠시 후 원래 화면으로 돌아갑니다.</div>
-    <div id="debug"></div>
-    <div class="fail-actions">
-      <button class="fail-btn" id="btn-retry">다시 시도</button>
-      <button class="fail-btn" id="btn-back">이전 화면으로</button>
-    </div>
+
+<body data-store-id="">
+
+
+<!-- ⭐ storeId 안정화: 성공 페이지와 동일 -->
+<script type="module">
+  import { ensureStoreInitialized } from '/src/shared/store.js';
+
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+
+  const url = new URL(location.href);
+  if (!url.searchParams.get("store")) {
+    url.searchParams.set("store", storeId);
+    history.replaceState(null, '', url.toString());
+  }
+</script>
+
+
+<div class="fail-card">
+  <div class="fail-title">결제가 완료되지 않았습니다.</div>
+  <div class="fail-text">
+    결제가 취소되었거나 오류가 발생했어요.<br/>
+    잠시 후 원래 화면으로 돌아갑니다.
   </div>
 
-  <script type="module">
-    import { getPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  <div id="debug"></div>
 
-    // ✅ 실패 후 돌아갈 경로 계산: returnTo > storeId(+type) > 기본값
-    function resolveReturnPath() {
-      try {
-        const pending = getPendingOrder && getPendingOrder();
-        if (pending?.returnTo) return pending.returnTo;
+  <div class="fail-actions">
+    <button class="fail-btn" id="btn-retry">다시 시도</button>
+    <button class="fail-btn" id="btn-back">이전 화면으로</button>
+  </div>
+</div>
 
-        const storeId = pending?.storeId || 'store1';
-        if (pending?.type === 'delivery' || pending?.type === 'reserve') {
-          return `/order/delivery?store=${encodeURIComponent(storeId)}`;
-        }
-        const table = pending?.table ? `&table=${encodeURIComponent(pending.table)}` : '';
-        return `/order/store?store=${encodeURIComponent(storeId)}${table}`;
-      } catch {
-        return '/order/store';
-      }
-    }
 
-    function goBack() {
-      location.replace(resolveReturnPath());
-    }
+<script type="module">
+  import { getPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-    async function retryNow() {
-      // 같은 페이지에서 다시 결제 트리거 (불가하면 원래 페이지로 보내 재시도)
-      try {
-        const pending = getPendingOrder && getPendingOrder();
-        if (!pending) return goBack();
-        const orderId = (pending.orderId && String(pending.orderId)) || ('RETRY-' + Date.now());
-        const amount  = Number(pending.amount || 0);
-        const orderName = pending.orderName || '주문';
-        await startPayment({ orderId, amount, orderName });
-      } catch {
-        goBack();
-      }
-    }
-
-    // 버튼 바인딩
-    document.getElementById('btn-back').onclick = goBack;
-    document.getElementById('btn-retry').onclick = retryNow;
-
-    // 디버그(선택)
-    (function showDebug() {
+  /* ----------------------------------------------------
+   * ⭐ 실패 후 돌아갈 경로 계산 (성공 페이지 우선순위와 동일)
+   *    1) pending.returnTo
+   *    2) 쿼리 returnTo
+   *    3) 타입별 기본 경로
+   * ---------------------------------------------------- */
+  function resolveReturnPath() {
+    try {
+      const pending = getPendingOrder && getPendingOrder();
       const qs = new URLSearchParams(location.search);
-      const parts = [];
-      const code = qs.get('code') || qs.get('errorCode');
-      const msg  = qs.get('message') || qs.get('reason');
-      if (code) parts.push(`code=${code}`);
-      if (msg)  parts.push(`message=${msg}`);
-      if (!parts.length) return;
-      const box = document.getElementById('debug');
-      box.textContent = parts.join(' | ');
-      box.style.display = 'block';
-    })();
 
-    // 자동 복귀
-    setTimeout(goBack, 3000);
-  </script>
+      // 1) pending.returnTo
+      if (pending?.returnTo) return pending.returnTo;
+
+      // 2) ?returnTo=...
+      const qRet = qs.get('returnTo');
+      if (qRet) return qRet;
+
+      // 3) 타입별 기본 페이지
+      const storeId = pending?.storeId || window.qrnrStoreId || 'default';
+
+      if (pending?.type === 'delivery' || pending?.type === 'reserve') {
+        return `/src/order/delivery.html?store=${encodeURIComponent(storeId)}`;
+      }
+
+      const table = pending?.table ? `&table=${encodeURIComponent(pending.table)}` : '';
+      return `/src/order/store.html?store=${encodeURIComponent(storeId)}${table}`;
+    } catch (err) {
+      console.error('resolveReturnPath ERR:', err);
+      return '/src/order/store.html';
+    }
+  }
+
+
+  /* ----------------------------------------------------
+   * ⭐ 이전 화면으로 돌아가기
+   * ---------------------------------------------------- */
+  function goBack() {
+    location.replace(resolveReturnPath());
+  }
+
+
+  /* ----------------------------------------------------
+   * ⭐ 결제 다시 시도
+   * ---------------------------------------------------- */
+  async function retryNow() {
+    try {
+      const pending = getPendingOrder && getPendingOrder();
+      if (!pending) return goBack();
+
+      const orderId   = 'RETRY-' + Date.now();
+      const amount    = Number(pending.amount || 0);
+      const orderName = pending.orderName || '주문';
+
+      await startPayment({ orderId, amount, orderName });
+    } catch (err) {
+      console.error('retryNow ERR:', err);
+      goBack();
+    }
+  }
+
+
+  // 버튼 설정
+  document.getElementById('btn-back').onclick  = goBack;
+  document.getElementById('btn-retry').onclick = retryNow;
+
+
+  /* ----------------------------------------------------
+   * 디버그 표시
+   * ---------------------------------------------------- */
+  (function showDebug() {
+    const qs = new URLSearchParams(location.search);
+    const parts = [];
+    const code = qs.get('code') || qs.get('errorCode');
+    const msg  = qs.get('message') || qs.get('reason');
+
+    if (code) parts.push(`code=${code}`);
+    if (msg)  parts.push(`msg=${msg}`);
+
+    if (!parts.length) return;
+
+    const box = document.getElementById('debug');
+    box.textContent = parts.join(' | ');
+    box.style.display = 'block';
+  })();
+
+
+  /* ----------------------------------------------------
+   * ⭐ 자동 복귀 (3초 후)
+   * ---------------------------------------------------- */
+  setTimeout(goBack, 3000);
+</script>
+
 </body>
 </html>
