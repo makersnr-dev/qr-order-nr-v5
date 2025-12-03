@@ -5,50 +5,29 @@ export const config = { runtime: "edge" };
 
 export default async function handler(req) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { id, password } = body;
+    const { id, password } = await req.json().catch(() => ({}));
 
-    if (!id || !password) {
-      return new Response(JSON.stringify({ ok: false, error: "EMPTY" }), {
-        status: 400,
-      });
-    }
-
-    // 환경변수에서 SUPER 계정 읽기
     const raw = process.env.SUPER_ADMINS_JSON || "{}";
-    let admins = {};
-    try {
-      admins = JSON.parse(raw);
-    } catch (_) {}
-
-    const correctPw = admins[id];
+    const map = JSON.parse(raw);
+    const correctPw = map[id];
 
     if (!correctPw || correctPw !== password) {
-      return new Response(JSON.stringify({ ok: false, error: "INVALID" }), {
-        status: 401,
-      });
+      return new Response(JSON.stringify({ ok:false, error:"INVALID" }), { status:401 });
     }
 
-    const secret = process.env.JWT_SUPER_SECRET || "super-secret";
-    const token = await signJWT(
-      {
-        role: "super",
-        superId: id,
-      },
-      secret,
-      2 * 3600 // 2시간 유효
-    );
+    const secret = process.env.JWT_SECRET;
 
-    return new Response(JSON.stringify({ ok: true, token }), {
+    // ⭐ 여기서 role="super" 로 로그인 역할 지정
+    const token = await signJWT({ role: "super", id }, secret, 7200);
+
+    return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: {
-        "content-type": "application/json",
-        "set-cookie": `super_token=${token}; Max-Age=${
-          2 * 3600
-        }; Path=/; HttpOnly; Secure; SameSite=Lax`,
-      },
+        "set-cookie": `auth_token=${token}; Path=/; Max-Age=7200; HttpOnly; Secure; SameSite=Lax`,
+        "content-type": "application/json"
+      }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false }), { status: 500 });
+    return new Response(JSON.stringify({ ok:false }), { status:500 });
   }
 }
