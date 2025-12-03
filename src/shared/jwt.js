@@ -1,49 +1,41 @@
 // /src/shared/jwt.js
-//---------------------------------------------
-// Base64URL helpers
-//---------------------------------------------
-function toBase64Url(uint8) {
-  let str = "";
-  for (let i = 0; i < uint8.length; i++) {
-    str += String.fromCharCode(uint8[i]);
-  }
-  return btoa(str)
+// Vercel Edge 호환 HS256 JWT (Base64URL + Unicode safe)
+
+function base64UrlEncode(buf) {
+  return btoa(String.fromCharCode(...buf))
     .replace(/=/g, "")
     .replace(/\+/g, "-")
     .replace(/\//g, "_");
 }
 
-function jsonToBase64Url(obj) {
-  return btoa(JSON.stringify(obj))
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
+function base64UrlEncodeText(str) {
+  const utf8 = new TextEncoder().encode(str);
+  return base64UrlEncode(utf8);
 }
 
-function base64UrlToUint8(str) {
-  const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = base64.length % 4;
-  const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
-  const bin = atob(padded);
+function base64UrlDecodeToBytes(b64url) {
+  const base64 = b64url.replace(/-/g, "+").replace(/_/g, "/") +
+    "=".repeat((4 - (b64url.length % 4)) % 4);
+
+  const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
 }
 
-//---------------------------------------------
-// signJWT (HS256)
-//---------------------------------------------
+// ----------------------------------------------------
+// HS256 SIGN
+// ----------------------------------------------------
 export async function signJWT(payload, secret, expiresInSec = 3600) {
   const header = { alg: "HS256", typ: "JWT" };
   const exp = Math.floor(Date.now() / 1000) + expiresInSec;
 
   const fullPayload = { ...payload, exp };
 
-  // base64url header / payload
-  const headerB64 = jsonToBase64Url(header);
-  const payloadB64 = jsonToBase64Url(fullPayload);
+  const headerBase = base64UrlEncodeText(JSON.stringify(header));
+  const payloadBase = base64UrlEncodeText(JSON.stringify(fullPayload));
 
-  const data = `${headerB64}.${payloadB64}`;
+  const data = `${headerBase}.${payloadBase}`;
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -53,19 +45,20 @@ export async function signJWT(payload, secret, expiresInSec = 3600) {
     ["sign"]
   );
 
-  const sigBuf = await crypto.subtle.sign(
+  const sig = await crypto.subtle.sign(
     "HMAC",
     key,
     new TextEncoder().encode(data)
   );
 
-  const sigB64 = toBase64Url(new Uint8Array(sigBuf));
-  return `${data}.${sigB64}`;
+  const sigBase = base64UrlEncode(new Uint8Array(sig));
+
+  return `${data}.${sigBase}`;
 }
 
-//---------------------------------------------
-// verifyJWT (HS256)
-//---------------------------------------------
+// ----------------------------------------------------
+// JWT VERIFY
+// ----------------------------------------------------
 export async function verifyJWT(token, secret) {
   try {
     const parts = token.split(".");
@@ -74,7 +67,6 @@ export async function verifyJWT(token, secret) {
     const [headerB64, payloadB64, sigB64] = parts;
 
     const data = `${headerB64}.${payloadB64}`;
-    const sig = base64UrlToUint8(sigB64);
 
     const key = await crypto.subtle.importKey(
       "raw",
@@ -84,29 +76,30 @@ export async function verifyJWT(token, secret) {
       ["verify"]
     );
 
+    const sigBytes = base64UrlDecodeToBytes(sigB64);
+
     const ok = await crypto.subtle.verify(
       "HMAC",
       key,
-      sig,
+      sigBytes,
       new TextEncoder().encode(data)
     );
 
     if (!ok) return null;
 
-    // 디코드
-    const padded = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
-    const pad = padded.length % 4;
-    const base64 = pad ? padded + "=".repeat(4 - pad) : padded;
-    const json = atob(base64);
-    const payload = JSON.parse(json);
+    const payloadJson = new TextDecoder().decode(
+      base64UrlDecodeToBytes(payloadB64)
+    );
 
-    // exp 체크
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
+    const payload = JSON.parse(payloadJson);
+
+    // exp expired?
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) return null;
+
     return payload;
-  } catch (e) {
-    console.error("[verifyJWT] error:", e);
+  } catch (err) {
+    console.error("[verifyJWT error]", err);
     return null;
   }
 }
