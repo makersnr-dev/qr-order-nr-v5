@@ -6,14 +6,35 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>배달/예약</title>
 </head>
-<body>
+<body data-store-id="">
+
+<!-- ⭐ storeId 초기화: 반드시 body 최상단에서 실행 -->
+<script type="module">
+  import { ensureStoreInitialized } from '/src/shared/store.js';
+
+  // 1) storeId 초기화
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+  document.body.setAttribute("data-store-id", storeId);
+
+  // 2) URL 파라미터 보정
+  //    → URL에 storeId가 없다면 자동으로 붙여줌
+  const url = new URL(location.href);
+  if (!url.searchParams.get("store")) {
+    url.searchParams.set("store", storeId);
+    location.replace(url.toString());
+  }
+
+  // 3) 마이페이지 버튼에 storeId 부여
+  const mp = document.getElementById("btn-mypage");
+  if (mp) mp.href = `/src/order/mypage.html?store=${storeId}`;
+</script>
+
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
     <h1>배달/예약</h1>
     <div class="hstack" style="gap:8px">
-      <a class="btn" href="/src/order/mypage.html">마이페이지</a>
-      <!-- 주문 유형 선택 페이지는 나중에 제거 예정이니 일단 주석 -->
-      <!-- <a class="btn" href="/src/order/select.html">주문 유형</a> -->
+      <a id="btn-mypage" class="btn" href="#">마이페이지</a>
     </div>
   </div>
 
@@ -28,26 +49,26 @@
     <div class="vstack" style="gap:10px">
       <!-- 배송지 -->
       <div class="field-row">
-        <div class="field-label addr-label">배송지</div>
+        <div class="field-label addr-label clickable-label">배송지</div>
         <div class="addr-wrap">
-          <input id="addr" class="input" />
-          <input id="addr-detail" class="input addr-detail" placeholder="상세주소" />
+          <input id="addr" class="input"/>
+          <input id="addr-detail" class="input addr-detail" placeholder="상세주소"/>
         </div>
       </div>
 
       <!-- 주문자명 -->
       <div class="field-row">
         <div class="field-label">주문자명</div>
-        <input id="cust" class="input" />
+        <input id="cust" class="input"/>
       </div>
 
       <!-- 연락처 -->
       <div class="field-row">
         <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
+        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric"/>
       </div>
 
-      <!-- 일자 + 예약시간 (예약에서만 사용) -->
+      <!-- 일자 + 예약시간 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
         <div class="date-time-row">
@@ -65,14 +86,14 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- 예약(무결제)일 때만 보이는 계좌 안내 -->
+      <!-- 계좌 정보 (예약 전용) -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
         <div class="hstack" style="gap:6px;flex-wrap:wrap">
           <span id="bank-text"></span>
           <button class="btn" id="bank-copy" type="button">복사</button>
         </div>
-        <div class="small" style="margin-top:4px; color:#f97316;">
+        <div class="small" style="margin-top:4px;color:#f97316;">
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
@@ -105,22 +126,23 @@
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-  // ✅ 로그인한 회원만 접근
+  // ⭐ storeId는 이미 위에서 초기화된 값만 사용한다
+  const storeId = window.qrnrStoreId;
+
+  // 로그인 필요
   await requireCust();
 
-  // URL 파라미터
   const url = new URL(location.href);
-  const storeId = url.searchParams.get('store') || 'store1';
 
-  // 시간 선택 셋업 (예약에서만 사용하지만 미리 채워두기)
+  // 시간 선택 드롭다운 세팅
   fillTimeSelectors('time');
 
-  // 장바구니 / 메뉴
+  // 장바구니/메뉴
   const cart = makeCart('cart-box', 'total');
   cart.render();
   renderMenu('menu-grid', cart);
 
-  // ✅ 토스트 UI: 복사되었습니다 표기용
+  // Toast 메시지
   let copyToastTimer = null;
   function showCopyToast(message = '복사되었습니다.') {
     let box = document.getElementById('copy-toast');
@@ -143,10 +165,7 @@
     }
     box.textContent = message;
 
-    if (copyToastTimer) {
-      clearTimeout(copyToastTimer);
-      copyToastTimer = null;
-    }
+    if (copyToastTimer) clearTimeout(copyToastTimer);
 
     requestAnimationFrame(() => {
       box.style.opacity = '1';
@@ -156,11 +175,11 @@
     });
   }
 
-  // 탭 전환 UI
+  // 탭 UI 전환
   function updateTab() {
     const isResv = document.getElementById('tab-resv').checked;
 
-    // 매장별 계좌정보 (신규 구조) → 없으면 구 구조 fallback
+    // 계좌 정보 (storeId 기반 신규 구조 → fallback 포함)
     const bank =
       get(['admin', 'ownerBank', storeId]) ||
       get(['admin', 'ownerBank']) ||
@@ -174,18 +193,15 @@
         ? `${bank.bank} ${bank.number} (${bank.holder || ''})`
         : '(관리자에 계좌 정보가 없습니다)';
 
-    const dateRow = document.getElementById('date-row');
-    if (dateRow) {
-      dateRow.style.display = isResv ? '' : 'none';
-    }
+    document.getElementById('date-row').style.display = isResv ? '' : 'none';
   }
 
-  ['tab-deliv','tab-resv'].forEach(id => {
-    document.getElementById(id).addEventListener('change', updateTab);
-  });
+  ['tab-deliv','tab-resv'].forEach(id =>
+    document.getElementById(id).addEventListener('change', updateTab)
+  );
   updateTab();
 
-  // ✅ 계좌 복사 + 토스트
+  // 계좌 복사
   const bankCopyBtn = document.getElementById('bank-copy');
   if (bankCopyBtn) {
     bankCopyBtn.onclick = async () => {
@@ -206,14 +222,13 @@
 
   // 주소 검색
   function openAddrSearch() {
-    if (!window.daum || !window.daum.Postcode) {
-      alert('주소 검색 서비스를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+    if (!window.daum?.Postcode) {
+      alert('주소 검색 서비스를 불러오지 못했습니다.');
       return;
     }
     new window.daum.Postcode({
-      oncomplete: function (data) {
+      oncomplete(data) {
         const addrInput = document.getElementById('addr');
-        if (!addrInput) return;
         const addr = data.roadAddress || data.jibunAddress || data.address || '';
         addrInput.value = addr;
         addrInput.focus();
@@ -221,19 +236,12 @@
     }).open();
   }
 
-  const addrLabel = document.querySelector('.addr-label');
-  if (addrLabel) {
-    addrLabel.addEventListener('click', openAddrSearch);
-    addrLabel.classList.add('clickable-label');
-  }
+  document.querySelector('.addr-label').addEventListener('click', openAddrSearch);
+  document.getElementById('addr').addEventListener('click', () => {
+    if (!document.getElementById('addr').value) openAddrSearch();
+  });
 
-  const addrInput = document.getElementById('addr');
-  if (addrInput) {
-    addrInput.addEventListener('click', () => {
-      if (!addrInput.value) openAddrSearch();
-    });
-  }
-
+  // 연락처 포맷팅
   function formatPhone(raw) {
     const digits = String(raw || '').replace(/\D/g, '');
     if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
@@ -242,18 +250,14 @@
   }
 
   const phoneInput = document.getElementById('phone');
-  if (phoneInput) {
-    phoneInput.addEventListener('input', () => {
-      const digits = phoneInput.value.replace(/\D/g, '');
-      phoneInput.value = digits;
-    });
-    phoneInput.addEventListener('blur', () => {
-      const formatted = formatPhone(phoneInput.value);
-      phoneInput.value = formatted || phoneInput.value;
-    });
-  }
+  phoneInput.addEventListener('input', () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, '');
+  });
+  phoneInput.addEventListener('blur', () => {
+    phoneInput.value = formatPhone(phoneInput.value);
+  });
 
-  // 합계 계산
+  // 합계 금액
   function totalAmount() {
     if (typeof cart.total === 'function') return cart.total();
     if (Array.isArray(cart.items)) {
@@ -265,23 +269,20 @@
     return 0;
   }
 
-  // 메인 버튼(결제/예약)
+  // 메인 버튼 클릭
   document.getElementById('action-btn').onclick = async (e) => {
     e.preventDefault();
 
     const addrBase    = document.getElementById('addr').value.trim();
-    const addrDetail  = (document.getElementById('addr-detail')?.value || '').trim();
+    const addrDetail  = document.getElementById('addr-detail').value.trim();
     const addr        = addrDetail ? `${addrBase} ${addrDetail}` : addrBase;
-
     const cust        = document.getElementById('cust').value.trim();
     const rawPhone    = document.getElementById('phone').value.trim();
     const digitsPhone = rawPhone.replace(/\D/g, '');
-
     const dateInput   = document.getElementById('date').value;
     const memo        = document.getElementById('memo').value.trim();
     const isResv      = document.getElementById('tab-resv').checked;
-
-    const items = cart.items || [];
+    const items       = cart.items || [];
 
     if (!items.length) {
       alert('장바구니가 비어 있습니다.');
@@ -292,23 +293,17 @@
       return;
     }
     if (digitsPhone.length < 10) {
-      alert('연락처를 확인해주세요. 숫자 10자리 이상 입력해주세요.');
+      alert('연락처를 확인해주세요.');
       document.getElementById('phone').focus();
       return;
     }
 
     const phone = formatPhone(rawPhone);
-
     const { ap, hh, mm } = getTimeValue('time') || {};
-    const hasTime =
-      ap && hh && mm &&
-      hh !== '시' && mm !== '분' &&
-      hh !== '' && mm !== '';
 
-    let reserveDate = null;
-    let reserveTime = null;
+    const hasTime = ap && hh && mm && hh !== '시' && mm !== '분';
 
-    // 🔹 예약(무결제)
+    // 예약(무결제)
     if (isResv) {
       if (!dateInput) {
         alert('예약 날짜를 선택해주세요.');
@@ -319,8 +314,8 @@
         return;
       }
 
-      reserveDate = dateInput;
-      reserveTime = `${ap} ${hh}:${mm}`;
+      const reserveDate = dateInput;
+      const reserveTime = `${ap} ${hh}:${mm}`;
 
       const payload = {
         type: 'reserve',
@@ -331,9 +326,7 @@
         reserveDate,
         reserveTime,
         status: '대기',
-        storeId,
-        // 회원은 동의 UI 없이, 나중에 소셜 가입에서 따로 동의 받을 계획 → 여기서는 굳이 flag 안 써도 됨
-        // agreePrivacy: true,
+        storeId
       };
 
       try {
@@ -346,7 +339,9 @@
         if (!data.ok) throw new Error('save failed');
 
         const back = location.pathname + location.search;
-        location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
+        location.replace(
+          `/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`
+        );
       } catch (err) {
         console.error('reserve save err', err);
         alert('예약 정보를 저장하지 못했습니다. 다시 시도해주세요.');
@@ -354,7 +349,7 @@
       return;
     }
 
-    // 🔹 배달(결제)
+    // 배달 결제
     const total = totalAmount();
     if (!total) {
       alert('결제 금액이 올바르지 않습니다.');
@@ -371,8 +366,6 @@
       cart: items,
       customer: { name: cust, phone, addr, req: memo },
       storeId,
-      // 마찬가지로 여기서도 개인정보 동의는 따로 관리 예정
-      // agreePrivacy: true,
       returnTo: location.pathname + location.search
     };
 
@@ -386,5 +379,6 @@
     }
   };
 </script>
+
 </body>
 </html>
