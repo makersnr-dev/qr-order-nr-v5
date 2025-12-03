@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>매장 주문</title>
 </head>
-<body>
+<body data-store-id="">
 <div class="container">
   <h1>QR Order - 주문</h1>
 
@@ -61,12 +61,15 @@
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  import { ensureStoreInitialized } from '/src/shared/store.js';
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
 
   // ───────────────────────────────────────────────────────────
   // 초기 파라미터
   // ───────────────────────────────────────────────────────────
   const url = new URL(location.href);
-  const storeId = url.searchParams.get('store') || 'store1';
+ 
   const tableParam = url.searchParams.get('table') || '';
   const tableInput = document.getElementById('tableNo');
   if (tableParam && tableInput) tableInput.value = tableParam;
@@ -268,6 +271,7 @@
   }
 
   bindPay();
+  document.body.setAttribute("data-store-id", storeId);
 </script>
 </body>
 </html>
