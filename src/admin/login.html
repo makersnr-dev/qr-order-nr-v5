@@ -1,24 +1,34 @@
-<!doctype html><html lang="ko"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-<title>관리자 로그인</title>  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
-</head><body>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
+  <title>관리자 로그인</title>
+</head>
+<body>
 <div class="container">
   <h1>관리자 로그인</h1>
+
   <div class="card vstack" style="max-width:520px;margin:0 auto">
     <input id="uid" class="input" placeholder="아이디">
     <input id="pwd" class="input" type="password" placeholder="비밀번호">
     <button id="login" class="btn primary">로그인</button>
   </div>
+
   <div class="small" style="text-align:center;margin-top:10px">
     고객 로그인은 <a href="/order/login">/order/login</a>
   </div>
 </div>
+
 <script type="module">
   import { get } from '/src/admin/assets/js/modules/store.js';
   import { saveToken } from '/src/admin/assets/js/modules/auth.js';
 
-  document.getElementById('login').onclick = async () => {
+  const loginBtn = document.getElementById('login');
+
+  loginBtn.onclick = async () => {
     const uid = document.getElementById('uid').value.trim();
     const pwd = document.getElementById('pwd').value.trim();
 
@@ -27,32 +37,53 @@
       return;
     }
 
-    const res = await fetch('/api/login-admin', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ uid, pwd })
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !data.token) {
-      alert('로그인 실패');
+    // ─────────────────────────────
+    // 1) API 로그인 요청
+    // ─────────────────────────────
+    let data = {};
+    let res;
+    try {
+      res = await fetch('/api/login-admin', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uid, pwd })
+      });
+      data = await res.json();
+    } catch (e) {
+      console.error('login error', e);
+      alert('서버에 연결할 수 없습니다.');
       return;
     }
 
-    // 토큰 저장 (기존 그대로)
+    if (!res.ok || !data.token) {
+      alert('로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.');
+      return;
+    }
+
+    // ─────────────────────────────
+    // 2) JWT 토큰 저장 (기존 구조 유지)
+    // ─────────────────────────────
     saveToken(data.token);
 
-    // 🔹 매장 매핑 조회: store-admin 페이지에서 저장한 값
+    // ─────────────────────────────
+    // 3) 매장 관리자 매핑 확인
+    // ─────────────────────────────
+    // 예: { "admin1": "narae", "admin2": "storeA" }
     const map = get(['admin', 'storeAdmins']) || {};
-    const storeId = map[uid];   // 예: { "admin1": "narae", "admin2": "korea" }
+    const storeId = map[uid];
 
-    // 🔹 매핑이 있으면 해당 매장으로, 없으면 기본 /admin
+    // ─────────────────────────────
+    // 4) 매장 매핑 여부에 따라 이동
+    // ─────────────────────────────
     if (storeId) {
+      // 관리자별 매장 컨텍스트 유지
       location.href = `/admin?store=${encodeURIComponent(storeId)}`;
     } else {
+      // 매핑되지 않은 관리자 (슈퍼관리자 등)
       location.href = '/admin';
     }
   };
 </script>
-</body></html>
+
+</body>
+</html>
