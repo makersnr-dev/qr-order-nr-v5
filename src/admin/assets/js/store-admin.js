@@ -8,7 +8,7 @@ import { get, patch } from './modules/store.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const SUPER_TOKEN_KEY = 'qrnr.super.jwt';
-const MAP_PATH = ['system', 'storeAdmins'];
+const MAP_PATH = ['admin', 'storeAdmins'];
 
 // ----- SUPER 토큰 유틸 -----
 function getSuperToken() {
