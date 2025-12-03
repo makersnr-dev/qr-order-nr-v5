@@ -28,17 +28,27 @@ import { get } from './modules/store.js';
 // STORE ID NORMALIZER (핵심 버그 해결)
 //------------------------------------------------------------
 function normalizeStoreId(value) {
-  // 이미 문자열이면 정상
-  if (typeof value === "string") return value;
+  if (!value) return null;
 
-  // 객체라면 storeId 관련 필드만 추출
-  if (value && typeof value === "object") {
+  // 1) 문자열이면 "[object Object]" 같은 잘못된 케이스를 제거
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    // 문자열인데 잘못된 값인 경우 무효 처리
+    if (trimmed === "[object Object]" || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      return null;
+    }
+
+    return trimmed;
+  }
+
+  // 2) 객체면 storeId 필드 추출
+  if (typeof value === "object") {
     const sid =
       value.storeId ||
       value.store ||
       value.storeCode ||
       value.store_id ||
-      value.sid ||
       null;
 
     return typeof sid === "string" ? sid : null;
@@ -46,6 +56,7 @@ function normalizeStoreId(value) {
 
   return null;
 }
+
 
 //------------------------------------------------------------
 // resolveStoreId(adminId) — 완전 안정화 버전
