@@ -6,13 +6,13 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>마이페이지</title>
 </head>
-<body>
+<body data-store-id="">
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
     <h1>마이페이지</h1>
-    <!-- ✅ JS에서 storeId를 붙이기 위해 id 부여 -->
     <a id="btn-back" class="btn" href="#">← 주문으로 돌아가기</a>
   </div>
+
   <div class="card vstack">
     <h3>내 주문 내역</h3>
     <div id="list"></div>
@@ -21,31 +21,35 @@
 
 <script type="module">
 import { get } from '/src/order/assets/js/modules/cust-store.js';
+import { ensureStoreInitialized } from '/src/shared/store.js';
 
-// ===== 1) 현재 storeId 결정 =====
+// ⭐ 1) storeId 초기화
+const storeId = ensureStoreInitialized();
+window.qrnrStoreId = storeId;
+document.body.setAttribute("data-store-id", storeId);
+
+// ⭐ 2) URL storeId 자동 보정
 const url = new URL(location.href);
-
-let storeId =
-  url.searchParams.get('store') ||                    // 우선: ?store= 에서
-  localStorage.getItem('qrnr.lastStoreId') ||         // 없으면: 마지막으로 본 매장
-  localStorage.getItem('qrnr.storeId') ||             // 그래도 없으면: 기본 storeId
-  'store1';
-
-// 혹시라도 나중에 다시 쓸 수 있게 갱신
-try {
-  localStorage.setItem('qrnr.lastStoreId', storeId);
-} catch (_) {}
-
-// "주문으로 돌아가기" 버튼 href 세팅
-const btnBack = document.getElementById('btn-back');
-if (btnBack) {
-  btnBack.href =
-    '/src/order/delivery.html?store=' + encodeURIComponent(storeId);
+if (!url.searchParams.get("store")) {
+  url.searchParams.set("store", storeId);
+  location.replace(url.toString());
 }
 
-// ===== 2) 내 주문 내역 표시 (기존 로직 유지) =====
+// ⭐ 3) "돌아가기" 버튼 — 회원/비회원 자동 감지
+const btnBack = document.getElementById('btn-back');
+
+// 비회원 접근 여부 감지: cust-store.js 에 customer 정보 없음
+const isGuest = !get(['customer','phone']);
+
+if (btnBack) {
+  btnBack.href = isGuest
+    ? `/src/order/delivery-guest.html?store=${storeId}`
+    : `/src/order/delivery.html?store=${storeId}`;
+}
+
+// ⭐ 4) 주문 내역 불러오기 (기존 로직 유지)
 const list = document.getElementById('list');
-const orders = (get(['admin','ordersDelivery']) || []);
+const orders = get(['admin','ordersDelivery']) || [];
 
 if (!orders.length) {
   list.innerHTML = '<div class="small">주문 내역이 없습니다.</div>';
@@ -61,7 +65,6 @@ orders.slice().reverse().forEach(o => {
 
   const items = (o.items || []).map(i => i.name + 'x' + i.qty).join(', ');
 
-  // 타입 표시는 기존 그대로 유지 (나중에 서버 타입 'reserve'/'delivery'에 맞춰 바꿔도 됨)
   const typeLabel = (o.type === 'RESV' || o.type === 'reserve') ? '예약' : '배달';
 
   const timeStr = o.time
