@@ -124,4 +124,22 @@ export default async function handler(req) {
   }
 
   try {
-    const pay
+    const payload = await verifyToken(token);
+
+    // 필수 정보 포함 (realm, uid 등)
+    return json({
+      ok: true,
+      ...payload,
+    });
+  } catch (e) {
+    console.error("[verify] error:", e.message);
+    return json(
+      {
+        ok: false,
+        error: "INVALID_TOKEN",
+        detail: e?.message || String(e),
+      },
+      401
+    );
+  }
+}
