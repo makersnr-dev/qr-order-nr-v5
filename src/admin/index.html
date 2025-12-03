@@ -4,9 +4,10 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <title>관리자 콘솔</title>
   <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
+  <title>관리자 콘솔</title>
 </head>
+
 <body>
 <div class="container">
   <div class="hstack">
@@ -16,19 +17,17 @@
     <button id="logoutBtn" class="btn">로그아웃</button>
   </div>
 
+  <!-- ================= TAB BAR ================= -->
   <div class="tabbar">
     <button class="tab active" data-tab="store">매장</button>
     <button class="tab" data-tab="delivery">배달/예약</button>
-    <!-- 🔹 기존 QR 배포 → 매장QR -->
     <button class="tab" data-tab="qr-store">매장QR</button>
-    <!-- 🔹 새 배달/예약QR 탭 -->
     <button class="tab" data-tab="qr-deliv">배달/예약QR</button>
     <button class="tab" data-tab="menu">메뉴 관리</button>
     <button class="tab" data-tab="code">결제 코드</button>
     <button class="tab" data-tab="mybank">내 계좌정보</button>
     <button class="tab" data-tab="notify-log">호출 알림</button>
     <button class="tab" data-tab="notify">알림 설정</button>
-    <!-- 🔹 개인정보 처리방침 탭 -->
     <button class="tab" data-tab="privacy">개인정보 처리방침</button>
   </div>
 
@@ -38,20 +37,23 @@
       <h3>매장 주문</h3>
       <button id="store-refresh" class="btn small">새로고침</button>
     </div>
+
     <div class="hstack" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <input type="date" class="input" style="width:150px" id="store-from">
-      <input type="date" class="input" style="width:150px" id="store-to">
-      <select class="input" style="width:140px" id="store-status">
+      <input type="date" class="input" id="store-from" style="width:150px">
+      <input type="date" class="input" id="store-to"   style="width:150px">
+      <select class="input" id="store-status" style="width:140px">
         <option value="">상태 전체</option>
         <option>대기</option>
         <option>조리중</option>
         <option>완료</option>
       </select>
-      <input class="input" style="width:200px" placeholder="검색(테이블/메뉴 등)" id="store-search">
-      <button class="btn" id="store-filter">필터</button>
-      <button class="btn" id="store-reset">초기화</button>
+      <input class="input" id="store-search" placeholder="검색(테이블/메뉴 등)" style="width:200px">
+      <button id="store-filter" class="btn">필터</button>
+      <button id="store-reset" class="btn">초기화</button>
     </div>
+
     <button id="store-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
+
     <table class="table">
       <thead>
         <tr>
@@ -74,20 +76,23 @@
       <h3>배달/예약 주문</h3>
       <button id="deliv-refresh" class="btn small">새로고침</button>
     </div>
+
     <div class="hstack" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <input type="date" class="input" style="width:150px" id="deliv-from">
-      <input type="date" class="input" style="width:150px" id="deliv-to">
-      <select class="input" style="width:140px" id="deliv-status">
+      <input type="date" class="input" id="deliv-from" style="width:150px">
+      <input type="date" class="input" id="deliv-to"   style="width:150px">
+      <select class="input" id="deliv-status" style="width:140px">
         <option value="">상태 전체</option>
         <option>대기</option>
         <option>조리중</option>
         <option>완료</option>
       </select>
-      <input class="input" style="width:200px" placeholder="검색(이름/주소/메뉴 등)" id="deliv-search">
-      <button class="btn" id="deliv-filter">필터</button>
-      <button class="btn" id="deliv-reset">초기화</button>
+      <input class="input" id="deliv-search" placeholder="검색(이름/주소/메뉴 등)" style="width:200px">
+      <button id="deliv-filter" class="btn">필터</button>
+      <button id="deliv-reset" class="btn">초기화</button>
     </div>
+
     <button id="deliv-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
+
     <table class="table">
       <thead>
         <tr>
@@ -110,7 +115,7 @@
     </table>
   </div>
 
-  <!-- ================= 매장 QR (기존 QR 배포) ================= -->
+  <!-- ================= 매장 QR ================= -->
   <div class="card" data-panel="qr-store" style="display:none">
     <h3>매장 QR</h3>
     <p class="small">
@@ -120,7 +125,7 @@
 
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <input id="qr-table" class="input" placeholder="테이블 번호 (예: 1, 2, A1)" style="max-width:140px">
-      <input id="qr-label" class="input" placeholder="라벨 (선택, 출력시 표시될 이름)" style="max-width:260px">
+      <input id="qr-label" class="input" placeholder="라벨 (선택)" style="max-width:260px">
       <button id="qr-generate" class="btn primary">QR 생성 & 저장</button>
       <button id="qr-clear" class="btn">전체 삭제</button>
     </div>
@@ -128,16 +133,16 @@
     <div id="qr-grid" class="grid" style="gap:12px"></div>
   </div>
 
-  <!-- ================= 배달/예약 QR (새로 추가) ================= -->
+  <!-- ================= 배달/예약 QR ================= -->
   <div class="card" data-panel="qr-deliv" style="display:none">
     <h3>배달/예약 QR</h3>
     <p class="small">
       이 QR은 <b>배달/예약 주문 진입 페이지</b>로 연결됩니다.<br/>
-      손님이 스캔하면 해당 매장의 배달/예약 주문 화면(회원/비회원 선택 포함)으로 이동하게 구성할 수 있습니다.
+      고객이 스캔하면 회원/비회원 선택 화면으로 이동합니다.
     </p>
 
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <input id="qr-deliv-label" class="input" placeholder="라벨 (예: 배달/예약 주문용)" style="max-width:260px">
+      <input id="qr-deliv-label" class="input" placeholder="라벨 (예: 배달/예약 주문)" style="max-width:260px">
       <button id="qr-deliv-generate" class="btn primary">QR 생성 & 저장</button>
       <button id="qr-deliv-clear" class="btn">전체 삭제</button>
     </div>
@@ -148,12 +153,14 @@
   <!-- ================= 메뉴 관리 ================= -->
   <div class="card" data-panel="menu" style="display:none">
     <h3>메뉴 관리</h3>
+
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <input id="m-id" class="input" placeholder="id" style="width:120px">
       <input id="m-name" class="input" placeholder="이름" style="width:220px">
       <input id="m-price" type="number" class="input" placeholder="가격" style="width:160px">
       <button id="m-add" class="btn">추가</button>
     </div>
+
     <table class="table">
       <thead>
         <tr><th>ID</th><th>이름</th><th>가격</th><th>활성</th><th></th></tr>
@@ -164,11 +171,11 @@
 
   <!-- ================= 결제 코드 ================= -->
   <div class="card" data-panel="code" style="display:none">
-    <h3>
-      오늘의 결제 코드
-      <span class="badge" id="code-date"></span>
-      <span class="small" id="code-left"></span>
+    <h3>오늘의 결제 코드
+      <span id="code-date" class="badge"></span>
+      <span id="code-left" class="small"></span>
     </h3>
+
     <div class="hstack" style="gap:8px">
       <input id="code-input" class="input" style="max-width:160px">
       <button id="code-copy" class="btn">복사</button>
@@ -177,16 +184,18 @@
     </div>
   </div>
 
-  <!-- ================= 내 계좌정보 ================= -->
+  <!-- ================= 내 계좌 정보 ================= -->
   <div class="card" data-panel="mybank" style="display:none">
     <h3>내 계좌정보</h3>
+
     <div class="hstack" style="gap:12px;flex-wrap:wrap">
-      <input id="mb-bank" class="input" placeholder="은행명" style="max-width:200px">
-      <input id="mb-acct" class="input" placeholder="계좌번호" style="max-width:320px">
-      <input id="mb-holder" class="input" placeholder="예금주" style="max-width:220px">
+      <input id="mb-bank"   class="input" placeholder="은행명" style="max-width:200px">
+      <input id="mb-acct"   class="input" placeholder="계좌번호" style="max-width:320px">
+      <input id="mb-holder" class="input" placeholder="예금주"   style="max-width:220px">
       <button id="mb-save" class="btn primary">저장</button>
       <button id="mb-copy" class="btn">현재값 복사</button>
     </div>
+
     <div class="small" style="margin-top:10px">
       현재 저장값: <span id="mb-current">(저장된 정보 없음)</span>
     </div>
@@ -198,19 +207,18 @@
       <h3>호출 알림 로그</h3>
       <button id="notify-log-refresh" class="btn small">새로고침</button>
     </div>
+
     <table class="table">
       <thead>
         <tr>
           <th>일시</th>
           <th>테이블</th>
-          <th>요청내용</th>
+          <th>내용</th>
           <th>상태</th>
         </tr>
       </thead>
       <tbody id="tbody-notify-logs">
-        <tr>
-          <td colspan="4" class="small">알림 없음</td>
-        </tr>
+        <tr><td colspan="4" class="small">알림 없음</td></tr>
       </tbody>
     </table>
   </div>
@@ -218,9 +226,10 @@
   <!-- ================= 알림 설정 ================= -->
   <div class="card" data-panel="notify" style="display:none">
     <h3>알림 설정</h3>
+
     <div class="hstack" style="gap:12px;flex-wrap:wrap">
       <label class="hstack" style="gap:6px">
-        <input id="n-beep" type="checkbox"> 새 주문 소리 재생
+        <input id="n-beep" type="checkbox"> 새 주문 소리
       </label>
       <label class="hstack" style="gap:6px">
         볼륨
@@ -237,27 +246,22 @@
   <!-- ================= 개인정보 처리방침 ================= -->
   <div class="card" data-panel="privacy" style="display:none">
     <h3>개인정보 처리방침</h3>
+
     <p class="small" style="margin-bottom:8px">
-      이 내용은 배달/예약 주문 페이지의
-      <b>「개인정보 처리방침 전문 보기」 모달</b>에 그대로 노출됩니다.<br/>
-      매장 사정에 맞게 수정 후 <b>저장</b> 버튼을 눌러주세요.
+      이 내용은 배달/예약 주문 페이지의<br/>
+      <b>「개인정보 처리방침 보기」 모달</b>에 그대로 표시됩니다.
     </p>
-    <textarea
-      id="privacy-text"
-      class="input"
-      style="width:100%;min-height:260px;white-space:pre-wrap"
-    ></textarea>
+
+    <textarea id="privacy-text" class="input" style="width:100%;min-height:260px;white-space:pre-wrap"></textarea>
+
     <div class="hstack" style="gap:8px;margin-top:8px">
-      <button id="privacy-save" class="btn primary">저장</button>
+      <button id="privacy-save"  class="btn primary">저장</button>
       <button id="privacy-reset" class="btn small" type="button">기본 예시 불러오기</button>
     </div>
-    <p class="small" style="margin-top:6px;color:#9ca3af">
-      ※ 저장된 내용은 브라우저/로컬 저장소 또는 추후 DB에 보관되며,
-      법적 효력을 갖는지 여부는 별도의 법률 검토가 필요할 수 있습니다.
-    </p>
   </div>
 </div>
 
+<!-- 주문 상세 모달 -->
 <div id="order-modal" class="modal">
   <div class="content">
     <h3>주문 상세</h3>
@@ -266,7 +270,26 @@
   </div>
 </div>
 
+<!-- QR Code 라이브러리 -->
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+
+<!-- ================= storeId 안정화 핵심 코드 ================= -->
+<script type="module">
+  import { ensureStoreInitialized } from '/src/shared/store.js';
+
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+  document.body.dataset.storeId = storeId;
+
+  const url = new URL(location.href);
+  if (!url.searchParams.get('store')) {
+    url.searchParams.set('store', storeId);
+    history.replaceState(null, '', url.toString());
+  }
+</script>
+
+<!-- 관리자 메인 스크립트 -->
 <script type="module" src="/src/admin/assets/js/admin.js"></script>
+
 </body>
 </html>
