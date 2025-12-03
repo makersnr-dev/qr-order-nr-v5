@@ -1,65 +1,65 @@
 // /api/super-login.js
+import { signJWT } from "../src/shared/jwt.js";
+
 export const config = { runtime: "edge" };
 
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
-
-// base64url 인코딩
-function b64url(str) {
-  return btoa(str).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-async function sign(payload, secret) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const head = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const body = b64url(JSON.stringify(payload));
-  const data = `${head}.${body}`;
-
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
-  let s = "";
-  const bytes = new Uint8Array(sig);
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return `${data}.${b64url(s)}`;
-}
-
 export default async function handler(req) {
-  if (req.method !== "POST") return json({ ok: false }, 405);
-
-  const body = await req.json().catch(() => ({}));
-  const uid = (body.uid || "").trim();
-  const pwd = (body.pwd || "").trim();
-
-  // 환경변수 SUPER_ADMINS_JSON (원래 구조)
-  let admins = [];
   try {
-    admins = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
-  } catch {
-    return json({ ok: false, error: "BAD_SUPER_ADMINS_JSON" });
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ ok: false, error: "METHOD" }), {
+        status: 405,
+      });
+    }
+
+    const { uid, pwd } = await req.json().catch(() => ({}));
+
+    if (!uid || !pwd) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "ID_AND_PASSWORD_REQUIRED" }),
+        { status: 400 }
+      );
+    }
+
+    // SUPER 계정은 환경변수 SUPER_ADMINS_JSON에서 읽음
+    const raw = process.env.SUPER_ADMINS_JSON || "{}";
+    let admins = {};
+
+    try {
+      admins = JSON.parse(raw);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "BAD_SUPER_ADMINS_JSON" }),
+        { status: 500 }
+      );
+    }
+
+    const savedPw = admins[uid];
+
+    if (!savedPw || savedPw !== pwd) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "INVALID_CREDENTIALS" }),
+        { status: 401 }
+      );
+    }
+
+    // JWT payload
+    const payload = {
+      role: "super",
+      superId: uid,
+      iat: Math.floor(Date.now() / 1000),
+    };
+
+    // SUPER 전용 비밀키 사용
+    const secret = process.env.SUPER_JWT_SECRET || "super-secret-dev";
+    const token = await signJWT(payload, secret);
+
+    return new Response(JSON.stringify({ ok: true, token }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
+      status: 500,
+    });
   }
-
-  const user = admins.find((u) => u.id === uid && u.pw === pwd);
-  if (!user) return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
-
-  const payload = {
-    uid,
-    realm: "super",
-    iat: Date.now(),
-  };
-
-  const secret = process.env.JWT_SECRET || "dev-secret";
-  const token = await sign(payload, secret);
-
-  return json({ ok: true, token });
 }
