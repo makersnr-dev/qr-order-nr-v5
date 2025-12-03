@@ -42,7 +42,7 @@
     }
   </style>
 </head>
-<body>
+<body data-store-id="">
   <div class="card">
     <div class="title">예약이 완료되었습니다.</div>
     <div class="msg">
@@ -54,26 +54,49 @@
     </div>
   </div>
 
-  <script>
-    (function () {
-      try {
-        const url = new URL(location.href);
-        const returnTo =
-          url.searchParams.get('returnTo') ||
-          '/src/order/select.html';
+<script type="module">
+import { ensureStoreInitialized } from '/src/shared/store.js';
 
-        // 2.5초 후 자동 이동
-        setTimeout(function () {
-          location.replace(returnTo);
-        }, 2500);
-      } catch (e) {
-        console.error('reserve-success returnTo parse error', e);
-        const fallback = '/src/order/select.html';
-        setTimeout(function () {
-          location.replace(fallback);
-        }, 2500);
-      }
-    })();
-  </script>
+// ⭐ storeId 확보
+const storeId = ensureStoreInitialized();
+document.body.setAttribute("data-store-id", storeId);
+
+// ⭐ URL 보정
+const url = new URL(location.href);
+if (!url.searchParams.get("store")) {
+  url.searchParams.set("store", storeId);
+  location.replace(url.toString());
+}
+
+try {
+  // returnTo 원본 가져오기
+  let returnTo = url.searchParams.get("returnTo");
+
+  // returnTo가 없으면 기본값
+  if (!returnTo) {
+    returnTo = `/src/order/select.html?store=${storeId}`;
+  } else {
+    // returnTo 안에 store= 이 없다면 자동적으로 storeId 채움
+    const rt = new URL(returnTo, location.origin);
+    if (!rt.searchParams.get("store")) {
+      rt.searchParams.set("store", storeId);
+      returnTo = rt.toString();
+    }
+  }
+
+  // 2.5초 후 자동 이동
+  setTimeout(() => {
+    location.replace(returnTo);
+  }, 2500);
+
+} catch (err) {
+  console.error("reserve-success returnTo error", err);
+  // fallback도 storeId 포함
+  setTimeout(() => {
+    location.replace(`/src/order/select.html?store=${storeId}`);
+  }, 2500);
+}
+</script>
+
 </body>
 </html>
