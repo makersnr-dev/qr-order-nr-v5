@@ -14,34 +14,33 @@ function loadSuperAdmins() {
   try {
     const raw = process.env.SUPER_ADMINS_JSON || '[]';
     const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr;
+    return Array.isArray(arr) ? arr : [];
   } catch {
     return [];
   }
 }
 
 export default async function handler(req) {
-  if (req.method !== 'POST') {
+  if (req.method !== "POST") {
     return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
   }
 
-  let body;
+  let body = {};
   try {
     body = await req.json();
   } catch {
     return json({ ok: false, error: "BAD_JSON" }, 400);
   }
 
-  const uid = (body?.uid || "").trim();
-  const pw  = (body?.pwd || "").trim();
+  const uid = (body.uid || "").trim();
+  const pwd = (body.pwd || "").trim();
 
-  if (!uid || !pw) {
+  if (!uid || !pwd) {
     return json({ ok: false, error: "REQUIRED" }, 400);
   }
 
   const admins = loadSuperAdmins();
-  const found = admins.find(a => a.id === uid && a.pw === pw);
+  const found = admins.find((a) => a.id === uid && a.pw === pwd);
 
   if (!found) {
     return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
@@ -50,13 +49,16 @@ export default async function handler(req) {
   const payload = {
     role: "super",
     superId: uid,
+    realm: "super",
+    uid,
     iat: Math.floor(Date.now() / 1000),
   };
 
-  const secret = process.env.SUPER_JWT_SECRET || "super-secret";
-  const token = await signHS256(payload, secret);
+  const secret = process.env.SUPER_JWT_SECRET || "super-secret-dev";
+  const token = await signJWT(payload, secret);
 
-  return new Response(JSON.stringify({ ok: true }), {
+  // ★ token도 JSON으로 내려보내야 localStorage 저장이 가능함 ★
+  return new Response(JSON.stringify({ ok: true, token }), {
     status: 200,
     headers: {
       "content-type": "application/json",
