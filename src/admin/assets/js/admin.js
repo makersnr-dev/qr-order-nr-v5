@@ -90,7 +90,7 @@ function resolveStoreId(adminId) {
 
   // 2) 매장 관리자 매핑
   try {
-    const map = get(['system', 'storeAdmins']) || {};
+    const map = get(['admin', 'storeAdmins']) || {};
     const mapped = map[adminId];
 
     if (typeof mapped === 'string') {
