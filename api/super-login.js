@@ -1,5 +1,5 @@
 // /api/super-login.js
-import { signHS256 } from "../src/shared/jwt.js";
+import { signJWT } from "../src/shared/jwt.js";
 
 export const config = { runtime: "edge" };
 
