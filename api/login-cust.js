@@ -1,69 +1,69 @@
 // /api/login-cust.js
-// 고객용 로그인 (Edge + Web Crypto)
-// 지금은 CUST_USERS_JSON(아이디/비번)으로 로그인.
-// 나중에 소셜 로그인으로 바뀌면, 이 파일 대신
-// /api/oauth-kakao-callback 등에서 같은 형태의 payload를 만들어 주면 됨.
-//
-// 요청:  POST { uid, pwd }   (테스트용 로컬 로그인)
-// 환경변수 예시:
-//   CUST_USERS_JSON=[
-//     {"id":"user1@example.com","pw":"1234","name":"손님1","provider":"local"}
-//   ]
-//
-// 성공 응답 예:
-//   {
-//     ok: true,
-//     token: "....",
-//     user: {
-//       sub: "user1@example.com",
-//       uid: "user1@example.com",
-//       realm: "cust",
-//       provider: "local",
-//       name: "손님1",
-//       iat: 1234567890
-//     }
-//   }
+// 고객 로그인 (HS256 WebCrypto, base64url 표준화)
+// verify.js 와 100% 호환되는 JWT 서명 적용
 
-export const config = { runtime: 'edge' };
+export const config = { runtime: "edge" };
 
+// JSON 응답
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json;charset=utf-8' },
+    headers: { "content-type": "application/json;charset=utf-8" },
   });
 }
 
-async function sign(payload) {
-  const enc = new TextEncoder();
-  const secret =
-    process.env.JWT_SECRET || 'dev-secret-please-change';
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-
-  const head = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = btoa(JSON.stringify(payload));
-  const data = `${head}.${body}`;
-
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-  const bytes = new Uint8Array(sig);
-  let sigStr = '';
-  for (let i = 0; i < bytes.length; i += 1) {
-    sigStr += String.fromCharCode(bytes[i]);
-  }
-  const b64 = btoa(sigStr)
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-
-  return `${data}.${b64}`;
+/* ---------------------------------------------
+ * base64url 인코더 (verify.js와 동일한 규칙)
+ * --------------------------------------------- */
+function base64url(str) {
+  return btoa(str)
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
 }
 
+function base64urlBytes(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) {
+    s += String.fromCharCode(bytes[i]);
+  }
+  return btoa(s)
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+/* ---------------------------------------------
+ * JWT HS256 서명 (Edge WebCrypto)
+ * --------------------------------------------- */
+async function signJwt(payload) {
+  const enc = new TextEncoder();
+  const secret = process.env.JWT_SECRET || "dev-secret-please-change";
+
+  // 헤더 + 바디(base64url)
+  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = base64url(JSON.stringify(payload));
+  const data = `${header}.${body}`;
+
+  // HMAC SHA-256 WebCrypto 서명
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  const sigBytes = new Uint8Array(signature);
+  const sigUrl = base64urlBytes(sigBytes);
+
+  return `${data}.${sigUrl}`;
+}
+
+/* ---------------------------------------------
+ * 저장된 고객 목록 파싱 (CUST_USERS_JSON)
+ * --------------------------------------------- */
 function getCustUsers() {
   const raw =
     process.env.CUST_USERS_JSON ||
@@ -73,94 +73,90 @@ function getCustUsers() {
   try {
     parsed = JSON.parse(raw);
   } catch (_e) {
-    return { error: 'BAD_CUST_USERS_JSON_PARSE', users: [] };
+    return { error: "BAD_CUST_USERS_JSON_PARSE", users: [] };
   }
 
-  const norm = [];
+  const users = [];
 
+  // 배열 형태: [{id:"", pw:""}]
   if (Array.isArray(parsed)) {
-    for (const item of parsed) {
-      if (!item || typeof item !== 'object') continue;
-      const id = item.id || item.uid || item.email;
-      const pw = item.pw || item.password;
+    for (const u of parsed) {
+      if (!u || typeof u !== "object") continue;
+      const id = u.id || u.uid || u.email;
+      const pw = u.pw || u.password;
       if (!id || !pw) continue;
-      norm.push({
+      users.push({
         id: String(id),
         pw: String(pw),
-        name: item.name || item.displayName || String(id),
-        provider: item.provider || 'local',
+        name: u.name || u.displayName || String(id),
+        provider: u.provider || "local",
       });
     }
-  } else if (parsed && typeof parsed === 'object') {
-    // {"user1@example.com":"1234"} 형태도 허용
+  }
+
+  // 객체 형태: {"user@example.com":"1234"}
+  else if (parsed && typeof parsed === "object") {
     for (const [k, v] of Object.entries(parsed)) {
       if (v == null) continue;
-      norm.push({
+      users.push({
         id: String(k),
         pw: String(v),
         name: String(k),
-        provider: 'local',
+        provider: "local",
       });
     }
   }
 
-  if (!norm.length) {
-    return { error: 'NO_VALID_CUST_USERS', users: [] };
-  }
-
-  return { error: null, users: norm };
+  return { error: null, users };
 }
 
+/* ---------------------------------------------
+ * 메인 핸들러
+ * --------------------------------------------- */
 export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return json({ error: 'Method' }, 405);
+  if (req.method !== "POST") {
+    return json({ error: "Method" }, 405);
   }
 
   let body;
   try {
     body = await req.json();
   } catch (_e) {
-    return json({ ok: false, error: 'BAD_JSON' }, 400);
+    return json({ ok: false, error: "BAD_JSON" }, 400);
   }
 
-  const uid = (body?.uid || '').trim();
-  const pwd = (body?.pwd || '').trim();
+  const uid = (body?.uid || "").trim();
+  const pwd = (body?.pwd || "").trim();
 
   if (!uid || !pwd) {
-    return json(
-      { ok: false, error: 'ID_AND_PASSWORD_REQUIRED' },
-      400,
-    );
+    return json({ ok: false, error: "ID_AND_PASSWORD_REQUIRED" }, 400);
   }
 
+  // 저장된 고객 찾기
   const { error, users } = getCustUsers();
   if (error && users.length === 0) {
-    console.error('[login-cust] config error:', error);
+    console.error("[login-cust] config error:", error);
     return json({ ok: false, error }, 500);
   }
 
-  const user =
-    Array.isArray(users) &&
-    users.find(
-      (u) => u && u.id === uid && u.pw === pwd,
-    );
+  const user = users.find((u) => u.id === uid && u.pw === pwd);
 
   if (!user) {
-    // 아이디/비번 틀린 경우
-    return json({ ok: false, error: 'INVALID_CREDENTIALS' }, 401);
+    return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
   }
 
-  // ★ 여기 payload 구조를 "미래 소셜 로그인"까지 포함해서 통일
+  // payload 구성 (super/admin 과 동일한 구조 유지)
   const payload = {
-    sub: user.id,                      // 내부 고유 ID (소셜이면 'kakao:12345' 이런 식 가능)
-    uid: user.id,                      // 표면상 ID (이메일 등)
-    realm: 'cust',                     // 고객 역할
-    provider: user.provider || 'local',// local / kakao / google ...
-    name: user.name || user.id,        // 화면에 표시할 이름
+    sub: user.id,                   // 내부 고유 ID
+    uid: user.id,                   // 화면 표시용
+    realm: "cust",                  // 고객 영역
+    provider: user.provider || "local",
+    name: user.name || user.id,
     iat: Math.floor(Date.now() / 1000),
   };
 
-  const token = await sign(payload);
+  // JWT 생성
+  const token = await signJwt(payload);
 
   return json({
     ok: true,
