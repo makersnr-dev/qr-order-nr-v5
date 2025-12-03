@@ -29,7 +29,7 @@ export default async function handler(req) {
     return json({ ok: false, error: "REQUIRED" }, 400);
   }
 
-  // 🔥 환경변수 이름 올바르게 수정
+  // 🔥 관리자 계정 목록 (환경변수)
   const raw = process.env.ADMIN_USERS_JSON || "[]";
   let admins = [];
 
@@ -44,19 +44,16 @@ export default async function handler(req) {
     return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
   }
 
-  // 🔥 SUPER 계정도 관리자 페이지 로그인 허용
-  const isSuper = (process.env.SUPER_ADMINS_JSON || "[]").includes(uid);
-
+  // 🔥 SUPER도 관리자 페이지 로그인 가능하도록 처리
   const payload = {
-    realm: isSuper ? "super" : "admin",
+    realm: "admin",
     uid,
     iat: Math.floor(Date.now() / 1000),
   };
 
   const secret = process.env.JWT_SECRET || "dev-secret";
-
   const token = await signJWT(payload, secret, 7200);
 
-  // 🔥 localStorage 저장 기반 구조에 맞게 token만 반환
+  // 로그인 페이지는 localStorage 기반 → 토큰만 리턴
   return json({ ok: true, token });
 }
