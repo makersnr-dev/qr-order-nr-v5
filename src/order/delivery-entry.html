@@ -53,7 +53,8 @@
     }
   </style>
 </head>
-<body>
+<body data-store-id="">
+
 <div class="container">
   <div class="entry-wrap">
     <div class="entry-card">
@@ -71,7 +72,7 @@
       </button>
 
       <div class="entry-note">
-        · 회원 주문: 로그인 &amp; 마이페이지 연동<br/>
+        · 회원 주문: 로그인 & 마이페이지 연동<br/>
         · 비회원 주문: 전화번호/주소만으로 빠르게 주문 가능<br/>
       </div>
     </div>
@@ -79,29 +80,42 @@
 </div>
 
 <script type="module">
-  // URL에서 storeId 유지
-  const url = new URL(location.href);
-  const storeId = url.searchParams.get('store') || 'store1';
+  import { ensureStoreInitialized } from '/src/shared/store.js';
 
+  // ⭐ 1) storeId 초기화
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+
+  // ⭐ 2) body에 storeId 표시
+  document.body.setAttribute("data-store-id", storeId);
+
+  // ⭐ 3) URL 자동 보정: storeId가 없으면 붙이고 재로드
+  const url = new URL(location.href);
+  if (!url.searchParams.get("store")) {
+    url.searchParams.set("store", storeId);
+    location.replace(url.toString());
+  }
+
+  // ⭐ 4) 링크 생성 유틸리티
   const makeUrl = (path) =>
     `${path}?store=${encodeURIComponent(storeId)}`;
 
   const btnMember = document.getElementById('btn-member');
   const btnGuest  = document.getElementById('btn-guest');
 
+  // ⭐ 5) 버튼에 스토어 유지 링크 적용
   if (btnMember) {
     btnMember.onclick = () => {
-      // 기존 회원 전용 배달/예약 페이지 (requireCust 유지)
       location.href = makeUrl('/src/order/delivery.html');
     };
   }
 
   if (btnGuest) {
     btnGuest.onclick = () => {
-      // 비회원 전용 배달/예약 페이지 (requireCust 없는 버전)
       location.href = makeUrl('/src/order/delivery-guest.html');
     };
   }
 </script>
+
 </body>
 </html>
