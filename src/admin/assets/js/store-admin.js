@@ -1,23 +1,13 @@
 // /src/admin/assets/js/store-admin.js
-// SUPER용 JWT를 사용해 매장 관리자 매핑을 관리하는 스크립트
-// 저장 구조: ['system','storeAdmins']
-// 반드시 storeId는 문자열로 저장되도록 고정 처리됨
-
 import { get, patch } from './modules/store.js';
 
-const $ = (sel, root = document) => root.querySelector(sel);
+const $ = (s, r=document) => r.querySelector(s);
 const SUPER_TOKEN_KEY = 'qrnr.super.jwt';
 const MAP_PATH = ['system', 'storeAdmins'];
 
-// ======================================================
-// SUPER 토큰 유틸
-// ======================================================
 function getSuperToken() {
-  try {
-    return localStorage.getItem(SUPER_TOKEN_KEY) || '';
-  } catch {
-    return '';
-  }
+  try { return localStorage.getItem(SUPER_TOKEN_KEY) || ''; }
+  catch { return ''; }
 }
 
 function setSuperToken(token) {
@@ -32,16 +22,10 @@ function decodeToken(token) {
   const p = token.split('.');
   if (p.length < 2) return null;
 
-  try {
-    return JSON.parse(atob(p[1]));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(atob(p[1])); }
+  catch { return null; }
 }
 
-// ======================================================
-// 매장 관리자 매핑 로드/저장
-// ======================================================
 function loadMap() {
   const raw = get(MAP_PATH);
   return raw && typeof raw === 'object' ? { ...raw } : {};
@@ -51,16 +35,13 @@ function saveMap(map) {
   patch(MAP_PATH, () => map);
 }
 
-// ======================================================
-// 매핑 UI 렌더링
-// ======================================================
 function renderMapTable() {
   const tbody = $('#map-body');
   const map = loadMap();
 
   tbody.innerHTML = '';
-
   const entries = Object.entries(map);
+
   if (!entries.length) {
     tbody.innerHTML = `<tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>`;
     return;
@@ -97,9 +78,6 @@ function renderMapTable() {
   });
 }
 
-// ======================================================
-// 매핑 추가 UI
-// ======================================================
 function bindMappingUI() {
   $('#map-add').onclick = () => {
     const adminId = $('#map-admin').value.trim();
@@ -112,13 +90,7 @@ function bindMappingUI() {
     }
 
     const map = loadMap();
-
-    // 🔥 storeId를 반드시 문자열로 강제 저장
-    map[adminId] = {
-      storeId: String(storeId),
-      note: String(note || "")
-    };
-
+    map[adminId] = { storeId, note };
     saveMap(map);
     renderMapTable();
 
@@ -128,9 +100,6 @@ function bindMappingUI() {
   };
 }
 
-// ======================================================
-// SUPER API
-// ======================================================
 async function fetchSuperMe() {
   try {
     const r = await fetch('/api/super-me');
@@ -146,6 +115,7 @@ async function superLogin(uid, pwd) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ uid, pwd }),
   });
+
   return r.json();
 }
 
@@ -155,16 +125,12 @@ async function superLogout() {
   } catch {}
 }
 
-// ======================================================
-// 페이지 초기화
-// ======================================================
 async function init() {
   const statusText = $('#super-status-text');
   const logoutBtn = $('#super-logout');
   const loginCard = $('#super-login-card');
   const mappingCard = $('#mapping-card');
 
-  // 로그인 상태 확인
   const me = await fetchSuperMe();
 
   if (me.ok && me.isSuper) {
@@ -172,18 +138,15 @@ async function init() {
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
     mappingCard.style.display = 'block';
-
     renderMapTable();
     bindMappingUI();
   } else {
-    statusText.textContent =
-      'SUPER 로그인 필요: SUPER_ADMINS_JSON 환경변수를 확인하세요.';
+    statusText.textContent = '';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
     mappingCard.style.display = 'none';
   }
 
-  // 로그인 버튼
   $('#super-login-btn').onclick = async () => {
     const uid = $('#super-id').value.trim();
     const pw = $('#super-pw').value.trim();
@@ -206,9 +169,13 @@ async function init() {
     }
   };
 
+  // 🔥 SUPER 로그아웃 버튼 — 쿠키 + localStorage 모두 삭제
   logoutBtn.onclick = async () => {
-    await superLogout();
-    setSuperToken('');
+    if (!confirm('로그아웃할까요?')) return;
+
+    await superLogout();      // super_token 쿠키 삭제
+    setSuperToken('');        // localStorage 삭제
+
     location.reload();
   };
 }
