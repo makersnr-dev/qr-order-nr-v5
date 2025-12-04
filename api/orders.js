@@ -2,10 +2,17 @@
 // 주문 조회 / 생성 / 상태 변경
 // 지금은 /tmp/qrnr_orders.json 파일을 사용하지만,
 // 나중에 DB로 바꿀 때는 아래 loadOrders / saveOrders 쪽만 수정하면 됨.
-
+import { rateLimit } from "../_lib/rate-limit.js";
 import fs from 'fs/promises';
 
 const ORDERS_FILE = '/tmp/qrnr_orders.json';
+const limit = rateLimit(req, "orders");
+if (!limit.ok) {
+  return new Response(JSON.stringify({ ok: false, error: limit.reason }), {
+    status: 429,
+    headers: { "content-type": "application/json" }
+  });
+}
 
 /**
  * ===== 스토리지 레이어 =====
