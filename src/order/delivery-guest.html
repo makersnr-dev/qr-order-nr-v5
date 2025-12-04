@@ -5,9 +5,45 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>배달/예약 (비회원)</title>
+
+  <style>
+    /* 🔹 개인정보 처리방침 버튼 스타일: 기존보다 약 30% 작게 */
+    #privacy-open {
+      font-size: 0.85rem;      /* 30% 작게 */
+      padding: 4px 8px;        /* 버튼 높이 축소 */
+      background: #1e293b;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* 🔹 체크박스 + 보기 버튼을 같은 줄에 정렬 */
+    .privacy-row-flex {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+    }
+
+    /* 🔹 개인정보 모달 스타일 */
+    #privacy-modal {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.55); z-index:9998;
+      align-items:center; justify-content:center;
+    }
+    #privacy-modal-inner {
+      background:#020617; padding:16px 18px;
+      border-radius:12px; max-width:520px;
+      width:calc(100% - 40px); max-height:80vh;
+      overflow:auto;
+    }
+  </style>
 </head>
+
 <body data-store-id="">
 <div class="container">
+
+  <!-- 상단 -->
   <div class="hstack" style="justify-content:space-between">
     <h1>배달/예약 (비회원)</h1>
     <div class="hstack" style="gap:8px">
@@ -16,15 +52,18 @@
     </div>
   </div>
 
+  <!-- 배달 / 예약 선택 -->
   <div class="card hstack" style="gap:8px">
     <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
+  <!-- 정보 입력 -->
   <div class="card vstack" id="form-box">
     <h3>배달/예약 정보 <span class="small">*</span></h3>
 
     <div class="vstack" style="gap:10px">
+
       <!-- 배송지 -->
       <div class="field-row">
         <div class="field-label addr-label">배송지</div>
@@ -64,19 +103,24 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- 개인정보 동의 -->
+      <!-- 🔹 개인정보 동의 + 보기 버튼 (레이아웃 완전 개선됨) -->
       <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+
+        <div class="privacy-row-flex">
+          <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
             <input type="checkbox" id="agree-privacy">
-            <span>(필수) 개인정보 수집·이용 동의</span>
+            <span>(필수) 수집·이용 동의</span>
           </label>
-          <button type="button" class="btn" id="privacy-open">개인정보 처리방침 보기</button>
+
+          <!-- 🔹 30% 작아진 버튼 -->
+          <button type="button" class="btn" id="privacy-open">
+            보기
+          </button>
         </div>
       </div>
 
-      <!-- 계좌 안내 (예약모드만) -->
+      <!-- 계좌 안내 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
         <div class="hstack" style="gap:6px;flex-wrap:wrap">
@@ -87,35 +131,32 @@
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
+
     </div>
   </div>
 
+  <!-- 메뉴 -->
   <div class="card vstack">
     <h3>메뉴</h3>
     <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
   </div>
 
+  <!-- 장바구니 -->
   <div class="card vstack">
     <h3>장바구니</h3>
     <div id="cart-box" class="vstack"></div>
   </div>
 
+  <!-- 결제 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
 </div>
 
-<!-- 개인정보 처리방침 모달 -->
-<div id="privacy-modal" style="
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:9998;
-  align-items:center; justify-content:center;">
-  <div style="
-    background:#020617; padding:16px 18px;
-    border-radius:12px; max-width:520px;
-    width:calc(100% - 40px); max-height:80vh;
-    overflow:auto;">
+<!-- 🔹 개인정보 처리방침 모달 -->
+<div id="privacy-modal">
+  <div id="privacy-modal-inner">
     <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
     <div class="hstack" style="justify-content:flex-end;margin-top:12px">
@@ -124,42 +165,61 @@
   </div>
 </div>
 
+<!-- 🔥 전체 스크립트 -->
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
-  import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
+  import { fillTimeSelectors } from '/src/order/assets/js/modules/time.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
 
-  // ⭐ storeId 초기화
+  /* ⭐ storeId 초기화 */
   const storeId = ensureStoreInitialized();
   window.qrnrStoreId = storeId;
   document.body.setAttribute('data-store-id', storeId);
 
-  // ⭐ URL에 storeId 없으면 자동 보정
+  /* URL 보정 */
   const url = new URL(location.href);
   if (!url.searchParams.get('store')) {
     url.searchParams.set('store', storeId);
-    location.replace(url.toString());
+    location.replace(url);
   }
 
-  // 버튼용 URL 함수
-  const makeUrl = (p) => `${p}?store=${storeId}`;
+  document.getElementById("btn-mypage").href = `/src/order/mypage.html?store=${storeId}`;
+  document.getElementById("btn-select").href = `/src/order/select.html?store=${storeId}`;
 
-  // 버튼 storeId 주입
-  document.getElementById("btn-mypage").href = makeUrl('/src/order/mypage.html');
-  document.getElementById("btn-select").href = makeUrl('/src/order/select.html');
-
-  // 메뉴/장바구니
   fillTimeSelectors('time');
   const cart = makeCart('cart-box', 'total');
   cart.render();
   renderMenu('menu-grid', cart);
 
-  // 계좌/개인정보 처리방침 관련 코드는 기존과 동일 (생략 없이 포함됨)
-  // [여기부터는 너가 제공한 코드 전체 유지됨 — 기능 100% 동일]
+  /* ==========================================================
+     🔥 개인정보 처리방침 보기 기능 (API + 모달)
+  ========================================================== */
+  const privacyOpen = document.getElementById("privacy-open");
+  const privacyClose = document.getElementById("privacy-close");
+  const modal = document.getElementById("privacy-modal");
+  const modalBody = document.getElementById("privacy-modal-body");
 
-  /* ... 기존 코드 그대로 유지됨 ... */
+  if (privacyOpen) {
+    privacyOpen.onclick = async () => {
+      try {
+        const r = await fetch("/api/policy");
+        const j = await r.json();
+
+        modalBody.textContent = j?.policy?.text || "(내용이 없습니다.)";
+        modal.style.display = "flex";
+      } catch (e) {
+        alert("개인정보 처리방침을 불러오지 못했습니다.");
+      }
+    };
+  }
+
+  if (privacyClose) {
+    privacyClose.onclick = () => {
+      modal.style.display = "none";
+    };
+  }
 </script>
 
 </body>
