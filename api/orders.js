@@ -1,171 +1,137 @@
-// api/orders.js
-// 주문 조회 / 생성 / 상태 변경
-// 지금은 /tmp/qrnr_orders.json 파일을 사용하지만,
-// 나중에 DB로 바꿀 때는 아래 loadOrders / saveOrders 쪽만 수정하면 됨.
-//import { rateLimit } from "../_lib/rate-limit.js";
-import fs from 'fs/promises';
+// /api/orders.js
+// 주문 조회 / 생성 / 상태 변경 API
+// 현재는 /tmp/qrnr_orders.json 파일 기반 저장소 사용
+// 나중에 DB로 바꾸려면 loadOrders / saveOrders만 수정하면 됨.
 
-const ORDERS_FILE = '/tmp/qrnr_orders.json';
-/*const limit = rateLimit(req, "orders");
-if (!limit.ok) {
-  return new Response(JSON.stringify({ ok: false, error: limit.reason }), {
-    status: 429,
-    headers: { "content-type": "application/json" }
-  });
-}*/
+import { rateLimit } from "../_lib/rate-limit.js";
+import fs from "fs/promises";
 
-/**
- * ===== 스토리지 레이어 =====
- * 나중에 DB로 교체할 부분은 이 두 함수(loadOrders, saveOrders)만 손보면 됨.
- */
+const ORDERS_FILE = "/tmp/qrnr_orders.json";
 
+/* ============================================================
+   스토리지 레이어
+   ============================================================ */
 async function loadOrders() {
   try {
-    const txt = await fs.readFile(ORDERS_FILE, 'utf8');
+    const txt = await fs.readFile(ORDERS_FILE, "utf8");
     const parsed = JSON.parse(txt);
 
-    // { orders: [...] } 형태를 기본으로 사용
     if (parsed && Array.isArray(parsed.orders)) {
       return parsed.orders;
     }
 
-    // 혹시 예전에 [ ... ] 만 저장된 적이 있다면 대비
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
+    // 혹시 예전에 [] 만 저장된 구조가 있으면 유지
+    if (Array.isArray(parsed)) return parsed;
 
     return [];
   } catch (err) {
-    // 파일이 아직 없으면(ENOENT) = 주문 0건
-    if (err && err.code === 'ENOENT') {
-      return [];
-    }
-    console.error('[orders] loadOrders error:', err);
+    if (err.code === "ENOENT") return []; // 파일 없으면 주문 0건
+    console.error("[orders] loadOrders error:", err);
     return [];
   }
 }
 
 async function saveOrders(orders) {
   try {
-    const data = {
-      // 나중에 메타데이터를 추가하고 싶으면 여기 확장
-      orders,
-    };
-    await fs.writeFile(ORDERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const data = { orders };
+    await fs.writeFile(
+      ORDERS_FILE,
+      JSON.stringify(data, null, 2),
+      "utf8"
+    );
   } catch (err) {
-    console.error('[orders] saveOrders error:', err);
+    console.error("[orders] saveOrders error:", err);
     throw err;
   }
 }
 
-/**
- * 날짜/시간 헬퍼
- */
-// KST(UTC+9) 기준으로 날짜/시간을 만들어주는 함수
+/* ============================================================
+   시간 헬퍼 (KST)
+   ============================================================ */
 function makeTimeMeta() {
-  // ts는 항상 UTC 기준 타임스탬프(밀리초)
   const ts = Date.now();
-
-  // KST = UTC + 9시간
   const KST_OFFSET = 9 * 60 * 60 * 1000;
+
   const kstDate = new Date(ts + KST_OFFSET);
 
-  const y  = kstDate.getUTCFullYear();
-  const m  = String(kstDate.getUTCMonth() + 1).padStart(2, '0');
-  const d  = String(kstDate.getUTCDate()).padStart(2, '0');
-  const hh = String(kstDate.getUTCHours()).padStart(2, '0');
-  const mm = String(kstDate.getUTCMinutes()).padStart(2, '0');
+  const y = kstDate.getUTCFullYear();
+  const m = String(kstDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(kstDate.getUTCDate()).padStart(2, "0");
+  const hh = String(kstDate.getUTCHours()).padStart(2, "0");
+  const mm = String(kstDate.getUTCMinutes()).padStart(2, "0");
 
-  const date = `${y}-${m}-${d}`;                 // 예: 2025-11-14
-  const dateTime = `${y}-${m}-${d} ${hh}:${mm}`; // 예: 2025-11-14 10:10
+  const date = `${y}-${m}-${d}`;
+  const dateTime = `${date} ${hh}:${mm}`;
 
   return { ts, date, dateTime };
 }
 
-
-/**
- * 메인 핸들러
- */
+/* ============================================================
+   메인 핸들러
+   ============================================================ */
 export default async function handler(req, res) {
-  try {
-    if (req.method === 'GET') {
-      return handleGet(req, res);
-    }
-    if (req.method === 'POST') {
-      return handlePost(req, res);
-    }
-    if (req.method === 'PUT') {
-      return handlePut(req, res);
-    }
+  // ⭐⭐⭐ RateLimit는 반드시 handler 내부 첫 줄에서 실행해야 함 ⭐⭐⭐
+  const limit = rateLimit(req, "orders");
+  if (!limit.ok) {
+    return new Response(
+      JSON.stringify({ ok: false, error: limit.reason }),
+      {
+        status: 429,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
 
-    res.setHeader('Allow', 'GET,POST,PUT');
-    return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
+  try {
+    if (req.method === "GET") return handleGet(req, res);
+    if (req.method === "POST") return handlePost(req, res);
+    if (req.method === "PUT") return handlePut(req, res);
+
+    res.setHeader("Allow", "GET,POST,PUT");
+    return res.status(405).json({
+      ok: false,
+      error: "METHOD_NOT_ALLOWED",
+    });
   } catch (err) {
-    console.error('[orders] handler top-level error:', err);
+    console.error("[orders] handler top-level error:", err);
     return res.status(500).json({
       ok: false,
-      error: 'INTERNAL_ERROR',
+      error: "INTERNAL_ERROR",
       detail: err?.message || String(err),
     });
   }
 }
 
-/**
- * GET /api/orders
- * 쿼리:
- *  - type: 'store' | 'delivery' | 'reserve' (선택)
- *  - from: ISO 날짜 문자열 (선택)
- *  - to:   ISO 날짜 문자열 (선택)
- *  - storeId: 매장 ID (선택)
- */
+/* ============================================================
+   GET /api/orders
+   ============================================================ */
 async function handleGet(req, res) {
-  const { type, from, to, storeId } = (req.query || {});
+  const { type, from, to, storeId } = req.query || {};
 
-  const allOrders = await loadOrders();
+  const all = await loadOrders();
+  let filtered = all.slice();
 
-  let filtered = allOrders.slice();
+  if (type) filtered = filtered.filter((o) => o.type === type);
+  if (storeId) filtered = filtered.filter((o) => o.storeId === storeId);
 
-  if (type) {
-    filtered = filtered.filter((o) => o.type === type);
-  }
+  let fromTs = from ? Date.parse(from) : null;
+  let toTs = to ? Date.parse(to) : null;
 
-  if (storeId) {
-    filtered = filtered.filter((o) => o.storeId === storeId);
-  }
-
-  let fromTs = null;
-  let toTs = null;
-
-  if (from) {
-    const t = Date.parse(from);
-    if (!Number.isNaN(t)) fromTs = t;
-  }
-
-  if (to) {
-    const t = Date.parse(to);
-    if (!Number.isNaN(t)) toTs = t;
-  }
-
-  if (fromTs != null) {
+  if (!Number.isNaN(fromTs) && fromTs != null) {
     filtered = filtered.filter((o) => {
-      const ts = o.ts || Date.parse(o.dateTime || o.date || 0);
-      return !Number.isNaN(ts) && ts >= fromTs;
+      const ts = o.ts || Date.parse(o.dateTime || o.date);
+      return ts >= fromTs;
     });
   }
 
-  if (toTs != null) {
+  if (!Number.isNaN(toTs) && toTs != null) {
     filtered = filtered.filter((o) => {
-      const ts = o.ts || Date.parse(o.dateTime || o.date || 0);
-      return !Number.isNaN(ts) && ts <= toTs;
+      const ts = o.ts || Date.parse(o.dateTime || o.date);
+      return ts <= toTs;
     });
   }
 
-  // 최신 주문이 위로 오도록 ts 기준 내림차순
-  filtered.sort((a, b) => {
-    const ats = a.ts || 0;
-    const bts = b.ts || 0;
-    return bts - ats;
-  });
+  filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
   return res.status(200).json({
     ok: true,
@@ -173,28 +139,10 @@ async function handleGet(req, res) {
   });
 }
 
-/**
- * POST /api/orders
- * body 예시:
- * {
- *   orderId,
- *   type,          // 'store' | 'delivery' | 'reserve'
- *   amount,
- *   orderName,
- *   cart,
- *   customer,
- *   table,
- *   status,        // 기본값 'paid' 등
- *   reserveDate,
- *   reserveTime,
- *   memo,
- *   meta,
- *   storeId,
- *   agreePrivacy   // ✅ 개인정보 동의 여부 (true/false)
- * }
- *
- * toss-success.html 에서 호출하는 구조를 그대로 유지
- */
+/* ============================================================
+   POST /api/orders
+   (toss-success.html에서 호출하는 주문 저장)
+   ============================================================ */
 async function handlePost(req, res) {
   const body = req.body || {};
 
@@ -215,26 +163,18 @@ async function handlePost(req, res) {
     agreePrivacy,
   } = body;
 
-  // amount가 문자열로 올 수 있으니 숫자로 한 번 변환
-  const amt =
-    typeof amount === 'number' ? amount : Number(amount);
+  const amt = typeof amount === "number" ? amount : Number(amount);
 
-  // 최소 필드 검증:
-  //  - type은 필수
-  //  - amount는 숫자여야 함
-  //  - orderId는 없어도 됨 (서버에서 자동 생성)
   if (!type || Number.isNaN(amt)) {
     return res.status(400).json({
       ok: false,
-      error: 'INVALID_ORDER_PARAMS',
-      detail: { orderId: orderId || null, type, amount },
+      error: "INVALID_ORDER_PARAMS",
+      detail: { type, amount },
     });
   }
 
   const orders = await loadOrders();
 
-  // 내부적으로 사용할 고유 id
-  // (기존 body.id가 있으면 우선 사용 → admin 쪽과 호환)
   const id =
     body.id ||
     orderId ||
@@ -242,52 +182,44 @@ async function handlePost(req, res) {
 
   const { ts, date, dateTime } = makeTimeMeta();
 
-  // 🔹 최종 storeId 결정
-  let finalStoreId = storeId || null;
+  /* -----------------------------
+     storeId 결정 규칙
+     ----------------------------- */
+  let finalStoreId = storeId;
 
-  // 1) body.storeId가 없다면, Referer 의 ?store= 에서 추출 시도
+  // 1) body.storeId 없음 → Referer ?store=에서 추출
   if (!finalStoreId) {
     const ref = req.headers?.referer || req.headers?.referrer;
     if (ref) {
       try {
         const u = new URL(ref);
-        const qsStore = u.searchParams.get('store');
-        if (qsStore) {
-          finalStoreId = qsStore;
-        }
-      } catch (e) {
-        console.error('[orders] parse referer error', e);
-      }
+        const qsStore = u.searchParams.get("store");
+        if (qsStore) finalStoreId = qsStore;
+      } catch {}
     }
   }
 
-  // 2) 그래도 없으면 기본값
-  if (!finalStoreId) {
-    finalStoreId = 'store1';
-  }
-
-  // 최종 orderId (없으면 id와 동일하게 자동 설정)
-  const finalOrderId = orderId || id;
+  // 2) 그래도 없으면 fallback
+  if (!finalStoreId) finalStoreId = "store1";
 
   const newOrder = {
     id,
-    orderId: finalOrderId,
+    orderId: orderId || id,
     type,
     amount: amt,
     orderName,
     cart: cart || [],
     customer: customer || null,
     table: table || null,
-    status: status || 'paid', // 결제 성공 화면에서 저장하므로 기본값 'paid'
+    status: status || "paid",
     reserveDate: reserveDate || null,
     reserveTime: reserveTime || null,
-    memo: memo || '',
+    memo: memo || "",
     meta: meta || {},
-    storeId: finalStoreId,
     ts,
     date,
     dateTime,
-    // ✅ 개인정보 동의 여부 저장 (기본 false)
+    storeId: finalStoreId,
     agreePrivacy: !!agreePrivacy,
   };
 
@@ -300,15 +232,10 @@ async function handlePost(req, res) {
   });
 }
 
-/**
- * PUT /api/orders
- * body 예시:
- * {
- *   id,                   // 필수 (or orderId)
- *   status,               // 선택
- *   meta: { ...patch... } // 선택
- * }
- */
+/* ============================================================
+   PUT /api/orders
+   주문 상태 변경
+   ============================================================ */
 async function handlePut(req, res) {
   const body = req.body || {};
   const { id, orderId, status, meta } = body;
@@ -316,7 +243,7 @@ async function handlePut(req, res) {
   if (!id && !orderId) {
     return res.status(400).json({
       ok: false,
-      error: 'MISSING_ID',
+      error: "MISSING_ID",
     });
   }
 
@@ -331,24 +258,18 @@ async function handlePut(req, res) {
   if (idx === -1) {
     return res.status(404).json({
       ok: false,
-      error: 'ORDER_NOT_FOUND',
+      error: "ORDER_NOT_FOUND",
     });
   }
 
   const target = { ...orders[idx] };
 
-  if (typeof status === 'string') {
-    target.status = status;
+  if (typeof status === "string") target.status = status;
+
+  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
+    target.meta = { ...(target.meta || {}), ...meta };
   }
 
-  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
-    target.meta = {
-      ...(target.meta || {}),
-      ...meta,
-    };
-  }
-
-  // 변경된 내용 반영
   orders[idx] = target;
   await saveOrders(orders);
 
