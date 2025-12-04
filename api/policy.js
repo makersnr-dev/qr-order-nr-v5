@@ -1,9 +1,13 @@
 // /api/policy.js
-import fs from 'fs/promises';
+// 개인정보 처리방침 저장/조회 API (파일 기반 저장)
 
-const POLICY_FILE = '/tmp/qrnr_policy.json';
+import fs from "fs/promises";
+import { rateLimit } from "./_lib/rate-limit.js";
 
-// 기본 문구 (없을 때 fallback)
+export const config = { runtime: "nodejs" };
+
+const POLICY_FILE = "/tmp/qrnr_policy.json";
+
 const DEFAULT_POLICY = `
 [개인정보 처리방침]
 
@@ -16,62 +20,92 @@ const DEFAULT_POLICY = `
 7. 문의처: 매장 운영자 연락처를 통해 문의 가능
 `.trim();
 
+/* ============================================================
+   Response Helper
+   ============================================================ */
+function json(res, body, status = 200) {
+  res.status(status).setHeader("content-type", "application/json");
+  return res.send(JSON.stringify(body));
+}
+
+/* ============================================================
+   Load / Save (파일 기반)
+   ============================================================ */
 async function loadPolicy() {
   try {
-    const txt = await fs.readFile(POLICY_FILE, 'utf8');
-    const parsed = JSON.parse(txt);
+    const text = await fs.readFile(POLICY_FILE, "utf8");
+    const parsed = JSON.parse(text);
+
     return {
       text: parsed.text || DEFAULT_POLICY,
       updatedAt: parsed.updatedAt || null,
     };
   } catch (err) {
-    if (err && err.code === 'ENOENT') {
-      // 파일이 아직 없으면 기본값
+    if (err.code === "ENOENT") {
       return { text: DEFAULT_POLICY, updatedAt: null };
     }
-    console.error('[policy] load error:', err);
+    console.error("[policy] load error:", err);
     return { text: DEFAULT_POLICY, updatedAt: null };
   }
 }
 
 async function savePolicy(text) {
-  const payload = {
+  const data = {
     text,
     updatedAt: new Date().toISOString(),
   };
-  await fs.writeFile(POLICY_FILE, JSON.stringify(payload, null, 2), 'utf8');
-  return payload;
+
+  await fs.writeFile(
+    POLICY_FILE,
+    JSON.stringify(data, null, 2),
+    "utf8"
+  );
+
+  return data;
 }
 
+/* ============================================================
+   Main Handler
+   ============================================================ */
 export default async function handler(req, res) {
+  // RATE LIMIT
+  const limit = rateLimit(req, "policy");
+  if (!limit.ok) return json(res, { ok: false, error: limit.reason }, 429);
+
   try {
-    if (req.method === 'GET') {
+    if (req.method === "GET") {
       const data = await loadPolicy();
-      return res.status(200).json({ ok: true, policy: data });
+      return json(res, { ok: true, policy: data });
     }
 
-    if (req.method === 'POST') {
-      const body = req.body || {};
-      const text = (body.text || '').trim();
+    if (req.method === "POST") {
+      let body = {};
 
+      // JSON 안전 파싱
+      try {
+        body = req.body || {};
+      } catch {
+        return json(res, { ok: false, error: "BAD_JSON" }, 400);
+      }
+
+      const text = (body.text || "").trim();
       if (!text) {
-        return res
-          .status(400)
-          .json({ ok: false, error: 'EMPTY_TEXT' });
+        return json(res, { ok: false, error: "EMPTY_TEXT" }, 400);
       }
 
       const saved = await savePolicy(text);
-      return res.status(200).json({ ok: true, policy: saved });
+      return json(res, { ok: true, policy: saved });
     }
 
-    res.setHeader('Allow', 'GET,POST');
-    return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
+    res.setHeader("Allow", "GET,POST");
+    return json(res, { ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+
   } catch (err) {
-    console.error('[policy] handler error:', err);
-    return res.status(500).json({
+    console.error("[policy] handler error:", err);
+    return json(res, {
       ok: false,
-      error: 'INTERNAL_ERROR',
+      error: "INTERNAL_ERROR",
       detail: err?.message || String(err),
-    });
+    }, 500);
   }
 }
