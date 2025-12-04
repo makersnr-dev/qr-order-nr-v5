@@ -1,6 +1,4 @@
 // /api/policy.js
-// 개인정보 처리방침 저장/조회 API (파일 기반 저장)
-
 import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
 
@@ -20,22 +18,15 @@ const DEFAULT_POLICY = `
 7. 문의처: 매장 운영자 연락처를 통해 문의 가능
 `.trim();
 
-/* ============================================================
-   Response Helper
-   ============================================================ */
 function json(res, body, status = 200) {
   res.status(status).setHeader("content-type", "application/json");
   return res.send(JSON.stringify(body));
 }
 
-/* ============================================================
-   Load / Save (파일 기반)
-   ============================================================ */
 async function loadPolicy() {
   try {
-    const text = await fs.readFile(POLICY_FILE, "utf8");
-    const parsed = JSON.parse(text);
-
+    const txt = await fs.readFile(POLICY_FILE, "utf8");
+    const parsed = JSON.parse(txt);
     return {
       text: parsed.text || DEFAULT_POLICY,
       updatedAt: parsed.updatedAt || null,
@@ -54,23 +45,19 @@ async function savePolicy(text) {
     text,
     updatedAt: new Date().toISOString(),
   };
-
-  await fs.writeFile(
-    POLICY_FILE,
-    JSON.stringify(data, null, 2),
-    "utf8"
-  );
-
+  await fs.writeFile(POLICY_FILE, JSON.stringify(data, null, 2), "utf8");
   return data;
 }
 
-/* ============================================================
-   Main Handler
-   ============================================================ */
 export default async function handler(req, res) {
-  // RATE LIMIT
-  const limit = rateLimit(req, "policy");
-  if (!limit.ok) return json(res, { ok: false, error: limit.reason }, 429);
+
+  // POST는 Rate Limit 적용
+  if (req.method === "POST") {
+    const limit = rateLimit(req, "policy-write");
+    if (!limit.ok) {
+      return json(res, { ok: false, error: limit.reason }, 429);
+    }
+  }
 
   try {
     if (req.method === "GET") {
@@ -79,19 +66,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      let body = {};
-
-      // JSON 안전 파싱
-      try {
-        body = req.body || {};
-      } catch {
-        return json(res, { ok: false, error: "BAD_JSON" }, 400);
-      }
-
-      const text = (body.text || "").trim();
-      if (!text) {
-        return json(res, { ok: false, error: "EMPTY_TEXT" }, 400);
-      }
+      const text = (req.body?.text || "").trim();
+      if (!text) return json(res, { ok: false, error: "EMPTY_TEXT" }, 400);
 
       const saved = await savePolicy(text);
       return json(res, { ok: true, policy: saved });
@@ -102,10 +78,14 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("[policy] handler error:", err);
-    return json(res, {
-      ok: false,
-      error: "INTERNAL_ERROR",
-      detail: err?.message || String(err),
-    }, 500);
+    return json(
+      res,
+      {
+        ok: false,
+        error: "INTERNAL_ERROR",
+        detail: err?.message || String(err),
+      },
+      500
+    );
   }
 }
