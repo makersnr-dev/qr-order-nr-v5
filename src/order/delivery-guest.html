@@ -7,40 +7,26 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* 개인정보 처리방침 버튼 30% 작게 */
+    /* 개인정보 보기 버튼 크기 30% 축소 */
     #privacy-open {
-      font-size: 0.85rem;
-      padding: 4px 8px;
-      background: #1e293b;
-      border-radius: 6px;
-      white-space: nowrap;
+      transform: scale(0.7);
+      transform-origin: left center;
+      margin-left: 4px;
     }
 
-    /* 개인정보 체크박스 + 버튼 한 줄 정렬 */
-    .privacy-row-flex {
-      display: flex;
-      align-items: center;
+    /* 개인정보 동의 오른쪽 정렬 */
+    #privacy-row .vstack {
+      flex-direction: row;
       justify-content: space-between;
-      gap: 10px;
-      width: 100%;
-    }
-
-    #privacy-modal {
-      display:none; position:fixed; inset:0;
-      background:rgba(0,0,0,0.55); z-index:9998;
-      align-items:center; justify-content:center;
-    }
-    #privacy-modal-inner {
-      background:#020617; padding:16px 18px;
-      border-radius:12px; max-width:520px;
-      width:calc(100% - 40px); max-height:80vh;
-      overflow:auto;
+      align-items: center;
     }
   </style>
 </head>
 
 <body data-store-id="">
-<!-- ⭐ storeId 초기화 -->
+<!-- ================================
+  ⭐ storeId 초기화 (회원 페이지 방식)
+  ================================ -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
 
@@ -48,16 +34,18 @@
   window.qrnrStoreId = storeId;
   document.body.dataset.storeId = storeId;
 
-  // storeId 없을 때 무한 리로드 방지 버전
+  // URL에 storeId 없으면 자동 추가 (무한루프 방지)
   const url = new URL(location.href);
   if (!url.searchParams.get("store")) {
     url.searchParams.set("store", storeId);
     history.replaceState(null, "", url.toString());
   }
 
-  // 마이페이지 버튼 storeId 적용
+  // 상단 버튼 storeId 반영
   const mp = document.getElementById("btn-mypage");
-  if (mp) mp.href = `/src/order/mypage-guest.html?store=${storeId}`;
+  const sel = document.getElementById("btn-select");
+  if (mp) mp.href = `/src/order/mypage.html?store=${storeId}`;
+  if (sel) sel.href = `/src/order/select.html?store=${storeId}`;
 </script>
 
 <div class="container">
@@ -65,22 +53,20 @@
     <h1>배달/예약 (비회원)</h1>
     <div class="hstack" style="gap:8px">
       <a id="btn-mypage" class="btn" href="#">마이페이지</a>
+      <a id="btn-select" class="btn" href="#">주문 유형</a>
     </div>
   </div>
 
-  <!-- 탭 -->
   <div class="card hstack" style="gap:8px">
     <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
-  <!-- 입력폼 -->
   <div class="card vstack" id="form-box">
     <h3>배달/예약 정보 <span class="small">*</span></h3>
 
     <div class="vstack" style="gap:10px">
-
-      <!-- 주소 -->
+      <!-- 배송지 -->
       <div class="field-row">
         <div class="field-label addr-label clickable-label">배송지</div>
         <div class="addr-wrap">
@@ -101,13 +87,13 @@
         <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric"/>
       </div>
 
-      <!-- 예약 날짜/시간 -->
+      <!-- 예약 일자 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
         <div class="date-time-row">
           <input id="date" type="date" class="input date-input">
           <span class="time-label">예약시간</span>
-          <select id="time-ap" class="input input-sm"></select>
+          <select id="time-ap" class="input input-sm time-ap"></select>
           <select id="time-hh" class="input input-sm"></select>
           <select id="time-mm" class="input input-sm"></select>
         </div>
@@ -119,30 +105,29 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- 개인정보 동의 + 보기 버튼 -->
-      <div class="field-row small">
+      <!-- 개인정보 처리방침 -->
+      <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="privacy-row-flex">
-          <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+        <div class="vstack" style="gap:4px; width:100%;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer; flex-grow:1;">
             <input type="checkbox" id="agree-privacy">
-            <span>(필수) 수집·이용 동의</span>
+            <span>(필수) 개인정보 수집·이용 동의</span>
           </label>
           <button type="button" class="btn" id="privacy-open">보기</button>
         </div>
       </div>
 
-      <!-- 계좌 정보(예약 전용) -->
+      <!-- 예약(무결제)일 때만 보이는 계좌 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
         <div class="hstack" style="gap:6px;flex-wrap:wrap">
           <span id="bank-text"></span>
-          <button id="bank-copy" class="btn" type="button">복사</button>
+          <button class="btn" id="bank-copy" type="button">복사</button>
         </div>
         <div class="small" style="margin-top:4px;color:#f97316;">
-          ※ 예약자명으로 입금해주세요!
+          ※ 주문자명으로 입금해주세요!
         </div>
       </div>
-
     </div>
   </div>
 
@@ -158,7 +143,7 @@
     <div id="cart-box" class="vstack"></div>
   </div>
 
-  <!-- 합계 -->
+  <!-- 금액/버튼 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
@@ -166,8 +151,15 @@
 </div>
 
 <!-- 개인정보 처리방침 모달 -->
-<div id="privacy-modal">
-  <div id="privacy-modal-inner">
+<div id="privacy-modal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:9998;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:#020617; padding:16px 18px;
+    border-radius:12px; max-width:520px;
+    width:calc(100% - 40px); max-height:80vh;
+    overflow:auto;">
     <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
     <div class="hstack" style="justify-content:flex-end;margin-top:12px">
@@ -176,10 +168,9 @@
   </div>
 </div>
 
-<!-- 다음 주소 검색 -->
+<!-- 다음 주소 검색 API -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
-<!-- 메인 로직 -->
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
@@ -188,34 +179,183 @@
 
   const storeId = window.qrnrStoreId;
 
-  /* ---------------- 시간 선택 ---------------- */
-  fillTimeSelectors("time");
+  /* =============================
+      개인정보 처리방침 로딩
+     ============================= */
+  const defaultPolicy = `
+[개인정보 처리방침]
 
-  /* ---------------- 메뉴/장바구니 ---------------- */
-  const cart = makeCart("cart-box", "total");
+이 서비스는 관련 법령을 준수하며 이용자의 개인정보를 보호합니다.
+관리자에서 별도 정책을 저장하지 않은 경우 이 기본 문구가 표시됩니다.
+  `.trim();
+
+  function applyPrivacyText() {
+    const el = document.getElementById('privacy-modal-body');
+    const fromAdmin =
+      get(['admin', 'privacyPolicy', storeId]) ||
+      get(['admin', 'privacyPolicy']) ||
+      get(['system', 'privacyPolicy', storeId]) ||
+      get(['system', 'privacyPolicy']);
+
+    el.textContent = fromAdmin || defaultPolicy;
+  }
+
+  /* =============================
+      시간 · 메뉴 · 장바구니
+     ============================= */
+  fillTimeSelectors('time');
+  const cart = makeCart('cart-box', 'total');
   cart.render();
-  renderMenu("menu-grid", cart);
+  renderMenu('menu-grid', cart);
 
-  /* ---------------- 탭 UI ---------------- */
+  /* =============================
+      전화번호 포맷팅
+     ============================= */
+  const phoneInput = document.getElementById("phone");
+  phoneInput.addEventListener("input", () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, "");
+  });
+  phoneInput.addEventListener("blur", () => {
+    const d = phoneInput.value.replace(/\D/g, "");
+    if (d.length === 10) phoneInput.value = d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
+    if (d.length === 11) phoneInput.value = d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
+  });
+
+  /* =============================
+      주소 검색
+     ============================= */
+  function openAddrSearch() {
+    if (!window.daum?.Postcode) return alert("주소 검색 서비스를 불러올 수 없습니다.");
+    new window.daum.Postcode({
+      oncomplete(data) {
+        document.getElementById("addr").value =
+          data.roadAddress || data.jibunAddress || data.address;
+      }
+    }).open();
+  }
+  document.querySelector(".addr-label").onclick = openAddrSearch;
+
+  /* =============================
+      개인정보 모달
+     ============================= */
+  const modal = document.getElementById("privacy-modal");
+  document.getElementById("privacy-open").onclick = () => {
+    applyPrivacyText();
+    modal.style.display = "flex";
+  };
+  document.getElementById("privacy-close").onclick = () =>
+    modal.style.display = "none";
+  modal.onclick = e => {
+    if (e.target === modal) modal.style.display = "none";
+  };
+
+  /* =============================
+      예약/결제 메인 버튼
+     ============================= */
+  document.getElementById("action-btn").onclick = async () => {
+
+    const addr1 = document.getElementById("addr").value.trim();
+    const addr2 = document.getElementById("addr-detail").value.trim();
+    const addr = addr2 ? `${addr1} ${addr2}` : addr1;
+
+    const cust = document.getElementById("cust").value.trim();
+    const phone = phoneInput.value.trim();
+    const memo = document.getElementById("memo").value.trim();
+
+    const agree = document.getElementById("agree-privacy").checked;
+
+    if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
+    if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
+
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) return alert("연락처를 확인해주세요.");
+
+    const items = cart.items || [];
+    if (!items.length) return alert("장바구니가 비어 있습니다.");
+
+    const isResv = document.getElementById("tab-resv").checked;
+    const { ap, hh, mm } = getTimeValue("time") || {};
+    const total = cart.total ? cart.total() : 0;
+
+    /* -------- 예약(무결제) -------- */
+    if (isResv) {
+      const date = document.getElementById("date").value;
+      if (!date) return alert("예약 날짜를 선택해주세요.");
+      if (!ap || !hh || !mm || hh === "시" || mm === "분")
+        return alert("예약 시간을 선택해주세요.");
+
+      const payload = {
+        type: "reserve",
+        amount: total,
+        orderName: "예약 주문",
+        cart: items,
+        customer: { name: cust, phone, addr, req: memo },
+        reserveDate: date,
+        reserveTime: `${ap} ${hh}:${mm}`,
+        status: "대기",
+        storeId,
+        agreePrivacy: true
+      };
+
+      try {
+        const r = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+        if (!j.ok) throw 0;
+
+        const back = location.pathname + location.search;
+        location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
+      } catch {
+        alert("예약 저장에 실패했습니다.");
+      }
+      return;
+    }
+
+    /* -------- 배달 결제 -------- */
+    const orderId = "DELIV-" + Date.now();
+    const orderName = "배달 주문";
+
+    setPendingOrder({
+      type: "delivery",
+      amount: total,
+      orderName,
+      cart: items,
+      customer: { name: cust, phone, addr, req: memo },
+      storeId,
+      agreePrivacy: true,
+      returnTo: location.pathname + location.search
+    });
+
+    try {
+      await startPayment({ orderId, amount: total, orderName });
+    } catch {
+      alert("결제를 시작할 수 없습니다.");
+    }
+  };
+
+  /* =============================
+      예약 전용 요소 업데이트
+     ============================= */
   function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
-
     const bank =
       get(["admin", "ownerBank", storeId]) ||
       get(["admin", "ownerBank"]) ||
-      { bank: "", number: "", holder: "" };
+      {};
 
     document.getElementById("bank-box").style.display = isResv ? "block" : "none";
-
-    document.getElementById("action-btn").textContent =
-      isResv ? "예약하기" : "결제하기";
+    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
 
     document.getElementById("bank-text").textContent =
       bank.bank && bank.number
         ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-        : "(관리자에 등록된 계좌 정보 없음)";
+        : "(관리자에 계좌 정보가 없습니다)";
 
-    document.getElementById("date-row").style.display = isResv ? "" : "none";
+    document.getElementById("date-row").style.display =
+      isResv ? "block" : "none";
   }
 
   ["tab-deliv", "tab-resv"].forEach(id =>
@@ -223,142 +363,18 @@
   );
   updateTab();
 
-  /* ---------------- 주소 검색 ---------------- */
-  function openAddrSearch() {
-    if (!window.daum?.Postcode) {
-      alert("주소 검색 로딩 실패");
-      return;
-    }
-    new window.daum.Postcode({
-      oncomplete(data) {
-        const addr = data.roadAddress || data.jibunAddress || "";
-        document.getElementById("addr").value = addr;
-        document.getElementById("addr").focus();
-      },
-    }).open();
-  }
-
-  document.querySelector(".addr-label").onclick = openAddrSearch;
-
-  /* ---------------- 전화번호 ---------------- */
-  const phoneInput = document.getElementById("phone");
-  phoneInput.addEventListener("input", () => {
-    phoneInput.value = phoneInput.value.replace(/\D/g, "");
-  });
-
-  function formatPhone(raw) {
-    const d = raw.replace(/\D/g, "");
-    if (d.length === 10) return d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
-    if (d.length === 11) return d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
-    return raw;
-  }
-
-  phoneInput.addEventListener("blur", () => {
-    phoneInput.value = formatPhone(phoneInput.value);
-  });
-
-  /* ---------------- 개인정보 처리방침 모달 ---------------- */
-  const modal = document.getElementById("privacy-modal");
-  const modalBody = document.getElementById("privacy-modal-body");
-
-  document.getElementById("privacy-open").onclick = async () => {
-    try {
-      const r = await fetch("/api/policy");
-      const j = await r.json();
-      modalBody.textContent = j?.policy?.text || "(내용 없음)";
-    } catch {
-      modalBody.textContent = "(불러오기 실패)";
-    }
-    modal.style.display = "flex";
-  };
-
-  document.getElementById("privacy-close").onclick = () => {
-    modal.style.display = "none";
-  };
-
-  /* ---------------- 계좌 복사 ---------------- */
+  /* =============================
+      계좌 복사 Toast
+     ============================= */
   document.getElementById("bank-copy").onclick = async () => {
     const txt = document.getElementById("bank-text").textContent.trim();
-    if (txt.startsWith("(")) return alert("복사할 계좌 정보가 없습니다.");
+    if (!txt || txt.startsWith("(")) return alert("복사할 계좌 정보가 없습니다.");
+
     try {
       await navigator.clipboard.writeText(txt);
-      alert("복사되었습니다.");
+      alert("계좌번호가 복사되었습니다.");
     } catch {
-      alert("복사 불가");
-    }
-  };
-
-  /* ---------------- 제출 버튼 ---------------- */
-  document.getElementById("action-btn").onclick = async () => {
-    const addr1 = document.getElementById("addr").value.trim();
-    const addr2 = document.getElementById("addr-detail").value.trim();
-    const addr = addr2 ? `${addr1} ${addr2}` : addr1;
-
-    const cust = document.getElementById("cust").value.trim();
-    const phone = formatPhone(document.getElementById("phone").value.trim());
-    const digitsPhone = phone.replace(/\D/g, "");
-    const memo = document.getElementById("memo").value.trim();
-    const items = cart.items;
-    const isReserve = document.getElementById("tab-resv").checked;
-
-    if (!addr || !cust) return alert("주소와 주문자명을 입력하세요.");
-    if (digitsPhone.length < 10) return alert("연락처를 확인하세요.");
-    if (!items.length) return alert("장바구니가 비어 있습니다.");
-    if (!document.getElementById("agree-privacy").checked)
-      return alert("개인정보 처리에 동의해야 합니다.");
-
-    /* --------- 예약 --------- */
-    if (isReserve) {
-      const date = document.getElementById("date").value;
-      if (!date) return alert("예약 날짜 선택");
-      const time = getTimeValue("time");
-      if (!time || time.hh === "시") return alert("예약 시간 선택");
-
-      const payload = {
-        type: "reserve",
-        amount: cart.total(),
-        orderName: "예약 주문",
-        cart: items,
-        customer: { name: cust, phone, addr, req: memo },
-        reserveDate: date,
-        reserveTime: `${time.ap} ${time.hh}:${time.mm}`,
-        status: "대기",
-        storeId,
-      };
-
-      try {
-        const r = await fetch("/api/orders", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const j = await r.json();
-        if (!j.ok) throw 0;
-        location.replace(`/src/order/reserve-success.html`);
-      } catch {
-        alert("예약 저장 실패");
-      }
-      return;
-    }
-
-    /* --------- 배달 결제 --------- */
-    const total = cart.total();
-    const orderId = "DELIV-" + Date.now();
-
-    setPendingOrder({
-      type: "delivery",
-      amount: total,
-      orderName: "배달 주문",
-      cart: items,
-      customer: { name: cust, phone, addr, req: memo },
-      storeId,
-      returnTo: location.pathname + location.search,
-    });
-
-    try {
-      await startPayment({ orderId, amount: total, orderName: "배달 주문" });
-    } catch {
-      alert("결제 시작 실패");
+      alert("복사 실패");
     }
   };
 </script>
