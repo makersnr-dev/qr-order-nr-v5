@@ -3,7 +3,7 @@
 // 현재는 /tmp/qrnr_orders.json 파일 기반 저장소 사용
 // 나중에 DB로 바꾸려면 loadOrders / saveOrders만 수정하면 됨.
 
-import { rateLimit } from "../_lib/rate-limit.js";
+
 import fs from "fs/promises";
 
 const ORDERS_FILE = "/tmp/qrnr_orders.json";
@@ -70,17 +70,6 @@ function makeTimeMeta() {
    메인 핸들러
    ============================================================ */
 export default async function handler(req, res) {
-  // ⭐⭐⭐ RateLimit는 반드시 handler 내부 첫 줄에서 실행해야 함 ⭐⭐⭐
-  const limit = rateLimit(req, "orders");
-  if (!limit.ok) {
-    return new Response(
-      JSON.stringify({ ok: false, error: limit.reason }),
-      {
-        status: 429,
-        headers: { "content-type": "application/json" },
-      }
-    );
-  }
 
   try {
     if (req.method === "GET") return handleGet(req, res);
