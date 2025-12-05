@@ -1,4 +1,4 @@
-//src/order/delivery-guest.html
+/*src/order/delivery-guest.html*/
 <!doctype html>
 <html lang="ko">
 <head>
@@ -186,9 +186,7 @@
 
   const storeId = window.qrnrStoreId;
 
-  /* ---------------------------
-      주소 검색 (강화 버전)
-  --------------------------- */
+  /* --------------------------- 주소 검색 --------------------------- */
   function openAddrSearch() {
     if (!window.daum?.Postcode) {
       alert("주소 검색 서비스를 불러올 수 없습니다.");
@@ -203,32 +201,23 @@
     }).open();
   }
 
-  // 라벨 클릭 가능
   document.querySelector(".addr-label")?.addEventListener("click", openAddrSearch);
-
-  // 주소 input 클릭 시도 → 무조건 검색창 열림
   document.getElementById("addr")?.addEventListener("click", openAddrSearch);
 
-  /* ---------------------------
-      전화번호
-  --------------------------- */
+  /* --------------------------- 전화번호 --------------------------- */
   const phoneInput = document.getElementById("phone");
   phoneInput.addEventListener("input", () => {
     phoneInput.value = phoneInput.value.replace(/\D/g, "");
   });
 
-  /* ---------------------------
-      메뉴/카트/시간
-  --------------------------- */
+  /* --------------------------- 메뉴/카트/시간 --------------------------- */
   fillTimeSelectors('time');
 
   const cart = makeCart('cart-box', 'total');
   cart.render();
   renderMenu('menu-grid', cart);
 
-  /* ---------------------------
-      개인정보 모달
-  --------------------------- */
+  /* --------------------------- 개인정보 모달 --------------------------- */
   const modal = document.getElementById("privacy-modal");
 
   document.getElementById("privacy-open").onclick = () => {
@@ -241,16 +230,14 @@
     modal.style.display = "flex";
   };
 
-  document.getElementById("privacy-close").onclick = () => {
+  document.getElementById("privacy-close").onclick = () =>
     modal.style.display = "none";
-  };
+
   modal.onclick = e => {
     if (e.target === modal) modal.style.display = "none";
   };
 
-  /* ---------------------------
-      탭 변경
-  --------------------------- */
+  /* --------------------------- 탭 변경 --------------------------- */
   function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
     document.getElementById("bank-box").style.display = isResv ? "block" : "none";
@@ -261,9 +248,7 @@
   document.getElementById("tab-resv").addEventListener("change", updateTab);
   updateTab();
 
-  /* ---------------------------
-      메인 버튼
-  --------------------------- */
+  /* --------------------------- 결제/예약 버튼 --------------------------- */
   document.getElementById("action-btn").onclick = async () => {
     const addr = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
@@ -271,6 +256,7 @@
 
     const cust = document.getElementById("cust").value.trim();
     const phone = phoneInput.value.trim();
+    const memo = document.getElementById("memo").value.trim();
     const agree = document.getElementById("agree-privacy").checked;
 
     if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
@@ -280,6 +266,7 @@
 
     const isResv = document.getElementById("tab-resv").checked;
 
+    /* ------------ 예약 (무결제) ------------ */
     if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time") || {};
@@ -293,7 +280,7 @@
         amount: cart.total(),
         orderName: "예약 주문",
         cart: cart.items,
-        customer: { name: cust, phone, addr: fullAddr },
+        customer: { name: cust, phone, addr: fullAddr, req: memo },
         reserveDate: date,
         reserveTime: `${ap} ${hh}:${mm}`,
         status: "대기",
@@ -315,24 +302,25 @@
       );
     }
 
-    // 결제
+    /* ------------ 배달 (결제) ------------ */
     const orderId = "DELIV-" + Date.now();
-    setPendingOrder({
-  type: "delivery",
-  amount: cart.total(),
-  orderName: "배달 주문",
-  cart: cart.items,
-  customer: { 
-    name: cust,
-    phone,
-    addr: fullAddr,
-    req: memo        // ⭐ 요청사항 추가!
-  },
-  storeId,
-  agreePrivacy: true,
-  returnTo: location.pathname + location.search
-});
 
+    setPendingOrder({
+      type: "delivery",
+      amount: cart.total(),
+      orderName: "배달 주문",
+      cart: cart.items,
+      customer: { 
+        name: cust,
+        phone,
+        addr: fullAddr,
+        req: memo
+      },
+      memo, 
+      storeId,
+      agreePrivacy: true,
+      returnTo: location.pathname + location.search
+    });
 
     await startPayment({
       orderId,
