@@ -190,6 +190,12 @@ async function handlePost(req, res) {
 
   if (!finalStoreId) finalStoreId = "store1";
 
+  /* ⭐ 요청사항 자동 통합 로직 (핵심) */
+  let finalCustomer = customer || {};
+  if (memo && !finalCustomer.req) {
+    finalCustomer.req = memo;
+  }
+
   const newOrder = {
     id,
     orderId: orderId || id,
@@ -197,7 +203,7 @@ async function handlePost(req, res) {
     amount: amt,
     orderName,
     cart: cart || [],
-    customer: customer || null,
+    customer: finalCustomer,
     table: table || null,
     status: status || "paid",
     reserveDate: reserveDate || null,
@@ -216,6 +222,7 @@ async function handlePost(req, res) {
 
   return json(res, { ok: true, order: newOrder });
 }
+
 
 /* ============================================================
    PUT /api/orders
