@@ -318,15 +318,21 @@
     // 결제
     const orderId = "DELIV-" + Date.now();
     setPendingOrder({
-      type: "delivery",
-      amount: cart.total(),
-      orderName: "배달 주문",
-      cart: cart.items,
-      customer: { name: cust, phone, addr: fullAddr },
-      storeId,
-      agreePrivacy: true,
-      returnTo: location.pathname + location.search
-    });
+  type: "delivery",
+  amount: cart.total(),
+  orderName: "배달 주문",
+  cart: cart.items,
+  customer: { 
+    name: cust,
+    phone,
+    addr: fullAddr,
+    req: memo        // ⭐ 요청사항 추가!
+  },
+  storeId,
+  agreePrivacy: true,
+  returnTo: location.pathname + location.search
+});
+
 
     await startPayment({
       orderId,
