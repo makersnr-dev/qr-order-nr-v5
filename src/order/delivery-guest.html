@@ -12,64 +12,47 @@
       transform-origin: left center;
       margin-left: 4px;
     }
-    #privacy-row .vstack {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
+    .clickable-label { cursor: pointer; user-select:none; }
+
+    /* 조회 비밀번호 라벨 줄바꿈 */
+    .label-multiline {
+      white-space: pre-line;
+      line-height: 1.2;
     }
-    .clickable-label { cursor: pointer; user-select: none; }
 
     /* 조회 모달 */
     #lookup-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.55);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.55);
+      display:none; align-items:center; justify-content:center;
+      z-index:9999;
     }
     #lookup-inner {
-      background: #0f172a;
-      padding: 20px;
-      width: calc(100% - 40px);
-      max-width: 450px;
-      border-radius: 14px;
-      max-height: 85vh;
-      overflow-y: auto;
-      border: 1px solid #1e293b;
+      background:#0f172a;
+      padding:20px;
+      width:calc(100% - 40px);
+      max-width:450px;
+      border-radius:14px;
+      max-height:85vh;
+      overflow-y:auto;
+      border:1px solid #1e293b;
     }
 
+    /* 주문 카드 */
     .order-card {
-      background: #1e293b;
-      padding: 12px;
-      border-radius: 12px;
-      margin-bottom: 12px;
+      background:#1e293b;
+      padding:12px;
+      border-radius:12px;
+      margin-bottom:12px;
+      cursor:pointer;
     }
-
-    .status {
-      padding: 3px 8px;
-      display: inline-block;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-bottom: 6px;
-    }
-    .st-wait { background:#334155;color:#e2e8f0; }
-    .st-accept { background:#0ea5e9;color:white; }
-    .st-cook { background:#f59e0b;color:black; }
-    .st-delivery { background:#10b981;color:white; }
-    .st-done { background:#475569;color:white; }
 
     /* 상세 모달 */
     #detail-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.55);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.55);
+      display:none; align-items:center; justify-content:center;
+      z-index:10000;
     }
     #detail-box {
       background:#020617;
@@ -86,6 +69,7 @@
 
 <body data-store-id="">
 
+<!-- Store ID 초기화 -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
   const storeId = ensureStoreInitialized();
@@ -102,16 +86,16 @@
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
     <h1>비회원 배달/예약</h1>
-
-    <!-- 주문 조회 버튼 -->
     <button id="btn-lookup" class="btn">주문조회</button>
   </div>
 
+  <!-- 배달/예약 선택 -->
   <div class="card hstack" style="gap:8px">
     <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
+  <!-- 입력폼 -->
   <div class="card vstack" id="form-box">
     <h3>주문 정보 <span class="small">*</span></h3>
 
@@ -138,7 +122,7 @@
         <input id="phone" class="input" placeholder="숫자만 입력" inputmode="numeric"/>
       </div>
 
-      <!-- 예약 일자 -->
+      <!-- 예약 일자 + 시간 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
         <div class="date-time-row">
@@ -158,8 +142,8 @@
 
       <!-- 조회 비밀번호 -->
       <div class="field-row">
-        <div class="field-label">조회 비밀번호</div>
-        <input id="pin" class="input" maxlength="4" inputmode="numeric" placeholder="4자리"/>
+        <div class="field-label label-multiline">조회\n비밀번호</div>
+        <input id="pin" class="input" maxlength="4" placeholder="4자리" inputmode="numeric"/>
       </div>
 
       <!-- 개인정보 처리방침 -->
@@ -174,7 +158,7 @@
         </div>
       </div>
 
-      <!-- 예약 계좌 -->
+      <!-- 예약 계좌 (복구됨) -->
       <div id="bank-box" class="field-row small" style="display:none;">
         <div class="field-label">입금계좌</div>
         <div class="hstack" style="gap:6px;flex-wrap:wrap">
@@ -185,6 +169,7 @@
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
+
     </div>
   </div>
 
@@ -200,32 +185,30 @@
     <div id="cart-box" class="vstack"></div>
   </div>
 
+  <!-- 결제 버튼 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
 </div>
 
-<!-- 조회 모달 -->
+<!-- 주문조회 모달 -->
 <div id="lookup-modal">
   <div id="lookup-inner">
     <h3>비회원 주문 조회</h3>
-
     <div class="vstack" style="gap:10px;margin-top:10px">
       <input id="lk-name" class="input" placeholder="이름"/>
-      <input id="lk-phone" class="input" placeholder="전화번호 (숫자만)" inputmode="numeric"/>
-      <input id="lk-pin" class="input" placeholder="비밀번호 4자리" maxlength="4" inputmode="numeric"/>
+      <input id="lk-phone" class="input" inputmode="numeric" placeholder="전화번호(숫자만)"/>
+      <input id="lk-pin" class="input" maxlength="4" inputmode="numeric" placeholder="조회 비밀번호"/>
       <button class="btn primary" id="lk-submit">조회하기</button>
       <button class="btn" id="lk-close">닫기</button>
     </div>
-
     <hr style="margin:16px 0;border-color:#1e293b"/>
-
     <div id="lk-result" class="vstack" style="gap:10px"></div>
   </div>
 </div>
 
-<!-- 상세보기 모달 -->
+<!-- 상세 모달 -->
 <div id="detail-modal">
   <div id="detail-box">
     <h3>주문 상세</h3>
@@ -234,7 +217,8 @@
   </div>
 </div>
 
-<!-- 다음 주소 API -->
+
+<!-- 다음 주소 검색 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
@@ -245,13 +229,13 @@
 
   const storeId = window.qrnrStoreId;
 
-  /* 주소 검색 */
-  function openAddrSearch() {
-    if (!window.daum?.Postcode) return alert("주소 검색을 불러올 수 없습니다.");
+  /* 주소검색 */
+  function openAddrSearch(){
+    if(!window.daum?.Postcode) return alert("주소 검색을 불러올 수 없습니다.");
     new window.daum.Postcode({
-      oncomplete(data) {
+      oncomplete(d){
         document.getElementById("addr").value =
-          data.roadAddress || data.jibunAddress || data.address;
+          d.roadAddress || d.jibunAddress || d.address;
         document.getElementById("addr-detail").focus();
       }
     }).open();
@@ -259,76 +243,83 @@
   document.querySelector(".addr-label").onclick = openAddrSearch;
   document.getElementById("addr").onclick = openAddrSearch;
 
-  /* 전화번호 */
+  /* 전화 */
   const phoneInput = document.getElementById("phone");
-  phoneInput.addEventListener("input", () => {
-    phoneInput.value = phoneInput.value.replace(/\D/g, "");
-  });
+  phoneInput.addEventListener("input", () =>
+    phoneInput.value = phoneInput.value.replace(/\D/g,"")
+  );
 
-  /* 메뉴/카드/시간 */
+  /* 메뉴 */
   fillTimeSelectors("time");
-  const cart = makeCart("cart-box", "total");
+  const cart = makeCart("cart-box","total");
   cart.render();
   renderMenu("menu-grid", cart);
 
-  /* 개인정보 모달 */
-  const modalPrivacy = document.getElementById("privacy-modal");
-  if (document.getElementById("privacy-open")) {
-    document.getElementById("privacy-open").onclick = () => {
-      const txt =
-        get(['admin','privacyPolicy',storeId]) ||
-        get(['admin','privacyPolicy']) ||
-        "관리자에서 등록된 정책이 없습니다.";
-      document.getElementById("privacy-modal-body").textContent = txt;
-      modalPrivacy.style.display = "flex";
-    };
-  }
-  document.getElementById("privacy-close").onclick = () => modalPrivacy.style.display="none";
+  /* 개인정보 보기 */
+  document.getElementById("privacy-open").onclick = () => {
+    const txt =
+      get(['admin','privacyPolicy',storeId]) ||
+      get(['admin','privacyPolicy']) ||
+      "등록된 정책이 없습니다.";
+    document.getElementById("privacy-modal-body").textContent = txt;
+    document.getElementById("privacy-modal").style.display="flex";
+  };
+  document.getElementById("privacy-close").onclick = () =>
+    document.getElementById("privacy-modal").style.display="none";
 
-  /* 예약 탭 변경 */
-  function updateTab() {
+  /* 탭 변경 */
+  function updateTab(){
     const isResv = document.getElementById("tab-resv").checked;
-    document.getElementById("bank-box").style.display = isResv ? "block" : "none";
+
+    // 배달 → 날짜/시간 숨김
     document.getElementById("date-row").style.display = isResv ? "block" : "none";
-    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
+
+    // 예약 → 계좌 보이기
+    document.getElementById("bank-box").style.display = isResv ? "block" : "none";
+
+    document.getElementById("action-btn").textContent =
+      isResv ? "예약하기" : "결제하기";
 
     const bank =
       get(["admin","ownerBank",storeId]) ||
       get(["admin","ownerBank"]) ||
       {};
+
     document.getElementById("bank-text").textContent =
-      bank.bank ? `${bank.bank} ${bank.number} (${bank.holder||""})` : "(등록된 계좌없음)";
+      bank.bank ? `${bank.bank} ${bank.number} (${bank.holder||""})`
+               : "(등록된 계좌 없음)";
   }
   document.getElementById("tab-deliv").onchange = updateTab;
   document.getElementById("tab-resv").onchange = updateTab;
   updateTab();
 
   /* 결제/예약 버튼 */
-  document.getElementById("action-btn").onclick = async () => {
+  document.getElementById("action-btn").onclick = async ()=>{
+
     const addr = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
     const fullAddr = addr2 ? `${addr} ${addr2}` : addr;
 
     const cust = document.getElementById("cust").value.trim();
-    const phone = phoneInput.value.trim();
     const memo = document.getElementById("memo").value.trim();
+    const phone = phoneInput.value.trim();
     const pin = document.getElementById("pin").value.trim();
 
-    if (!/^\d{4}$/.test(pin)) return alert("조회 비밀번호 4자리를 입력해주세요.");
-    if (!document.getElementById("agree-privacy").checked)
+    if(!/^\d{4}$/.test(pin)) return alert("조회 비밀번호 4자리를 입력해주세요.");
+    if(!document.getElementById("agree-privacy").checked)
       return alert("개인정보 동의가 필요합니다.");
-    if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
-    if (!cart.items.length) return alert("장바구니가 비어있습니다.");
+    if(!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
+    if(phone.replace(/\D/g,"").length < 10) return alert("연락처를 확인해주세요.");
+    if(!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
     const isResv = document.getElementById("tab-resv").checked;
 
     /* 예약 */
-    if (isResv) {
+    if(isResv){
       const date = document.getElementById("date").value;
-      const { ap, hh, mm } = getTimeValue("time") || {};
-      if (!date) return alert("예약 날짜를 선택해주세요.");
-      if (!ap || !hh || !mm || hh==="시" || mm==="분")
-        return alert("예약 시간을 선택해주세요.");
+      const {ap, hh, mm} = getTimeValue("time") || {};
+      if(!date) return alert("예약 일자를 선택해주세요.");
+      if(!ap||!hh||!mm||hh==="시"||mm==="분") return alert("예약 시간을 선택해주세요.");
 
       const payload = {
         type:"reserve",
@@ -343,13 +334,13 @@
         agreePrivacy:true
       };
 
-      const r = await fetch("/api/orders", {
+      const r=await fetch("/api/orders",{
         method:"POST",
-        headers:{ "content-type":"application/json" },
+        headers:{"content-type":"application/json"},
         body:JSON.stringify(payload)
       });
       const j = await r.json();
-      if (!j.ok) return alert("예약 저장 실패");
+      if(!j.ok) return alert("예약 저장 실패");
       return location.replace(`/src/order/reserve-success.html`);
     }
 
@@ -368,79 +359,66 @@
       returnTo:location.pathname + location.search
     });
 
-    await startPayment({ orderId, amount:cart.total(), orderName:"배달 주문" });
+    await startPayment({
+      orderId,
+      amount:cart.total(),
+      orderName:"배달 주문"
+    });
   };
 
-  /* 🔍 주문 조회 모달 */
-  const lkModal = document.getElementById("lookup-modal");
-  document.getElementById("btn-lookup").onclick = () => lkModal.style.display="flex";
-  document.getElementById("lk-close").onclick = () => lkModal.style.display="none";
+  /* 조회 모달 */
+  const lookupModal = document.getElementById("lookup-modal");
+  document.getElementById("btn-lookup").onclick = () =>
+    lookupModal.style.display="flex";
+  document.getElementById("lk-close").onclick = () =>
+    lookupModal.style.display="none";
 
-  document.getElementById("lk-submit").onclick = async () => {
+  document.getElementById("lk-submit").onclick = async ()=>{
     const n = document.getElementById("lk-name").value.trim();
     const p = document.getElementById("lk-phone").value.trim().replace(/\D/g,"");
     const pin = document.getElementById("lk-pin").value.trim();
-    if (!n || !p || !/^\d{4}$/.test(pin))
-      return alert("이름, 전화번호, 4자리 PIN을 정확히 입력해주세요.");
+
+    if(!n || !p || !/^\d{4}$/.test(pin))
+      return alert("이름/전화번호/비밀번호를 정확히 입력해주세요.");
 
     const r = await fetch(`/api/orders?storeId=${storeId}`);
     const j = await r.json();
-    if (!j.ok) return alert("조회 실패");
-
     const box = document.getElementById("lk-result");
-    box.innerHTML = "";
+    box.innerHTML="";
 
     const match = j.orders.filter(o =>
-      o.customer?.name === n &&
-      o.customer?.phone?.replace(/\D/g,"") === p &&
-      o.customer?.secretPin === pin
+      o.customer?.name===n &&
+      o.customer?.phone?.replace(/\D/g,"")===p &&
+      o.customer?.secretPin===pin
     );
 
-    if (!match.length) {
-      box.innerHTML = `<div class="small" style="color:#f87171">일치하는 주문이 없습니다.</div>`;
+    if(!match.length){
+      box.innerHTML=`<div class="small" style="color:#f87171">일치하는 주문이 없습니다.</div>`;
       return;
     }
 
-    for (const o of match) {
-      const st = {
-        "대기":"st-wait",
-        "접수":"st-accept",
-        "조리중":"st-cook",
-        "배달중":"st-delivery",
-        "완료":"st-done"
-      }[o.status] || "st-wait";
-
-      const div = document.createElement("div");
-      div.className = "order-card";
+    for(const o of match){
+      const div=document.createElement("div");
+      div.className="order-card";
       div.innerHTML = `
-        <div class="status ${st}">${o.status}</div>
-        <div><b>${o.orderName}</b></div>
-        <div class="small" style="color:#a1a1aa">${o.dateTime}</div>
-        <div class="small">${o.customer?.addr || ""}</div>
-        <div style="margin-top:6px;">총 금액: <b>${o.amount.toLocaleString()}원</b></div>
-        <div class="small" style="margin-top:4px;color:#cbd5e1">
-          메뉴: ${o.cart.map(i=>`${i.name}x${i.qty}`).join(", ")}
-        </div>
+        <b>${o.orderName}</b><br/>
+        <span class="small">${o.dateTime}</span><br/>
+        ${o.customer.addr}<br/>
+        총 금액: <b>${o.amount.toLocaleString()}원</b><br/>
+        <span class="small">메뉴: ${o.cart.map(i=>`${i.name}x${i.qty}`).join(", ")}</span>
       `;
-
-      div.style.cursor = "pointer";
       div.onclick = () => openDetail(o);
-
       box.appendChild(div);
     }
   };
 
-  /* 상세보기 모달 */
-  const detailModal = document.getElementById("detail-modal");
-  document.getElementById("detail-close").onclick = () => detailModal.style.display="none";
-
-  function openDetail(o) {
-    const body = `
+  /* 상세 모달 */
+  function openDetail(o){
+    const txt = `
 주문명: ${o.orderName}
-상태: ${o.status}
 시간: ${o.dateTime}
 
-[고객 정보]
+[고객정보]
 이름: ${o.customer?.name}
 전화: ${o.customer?.phone}
 주소: ${o.customer?.addr}
@@ -452,9 +430,13 @@ ${o.cart.map(i=>`- ${i.name} x ${i.qty}`).join("\n")}
 ${o.customer?.req || "(없음)"}
     `.trim();
 
-    document.getElementById("detail-body").textContent = body;
-    detailModal.style.display = "flex";
+    document.getElementById("detail-body").textContent = txt;
+    document.getElementById("detail-modal").style.display="flex";
   }
+
+  document.getElementById("detail-close").onclick = () =>
+    document.getElementById("detail-modal").style.display="none";
+
 </script>
 
 </body>
