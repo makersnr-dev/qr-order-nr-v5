@@ -7,7 +7,7 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* ----- 공통 정렬 ----- */
+    /* ----- 공통 ----- */
     .field-row {
       display: flex;
       align-items: center;
@@ -19,26 +19,24 @@
       flex-shrink: 0;
     }
 
-    /* 조회 비밀번호 라벨 단일 라인 */
+    /* 조회 비밀번호 라벨 */
     .label-lookup {
       width: 80px;
-      text-align: center;
       white-space: nowrap;
+      text-align: center;
     }
 
-    /* 오전/오후 드롭다운 크기 증가 */
-    #time-ap {
-      padding: 8px 16px;
-      min-width: 90px;
-    }
-
-    /* 날짜 + 예약시간 묶음 */
+    /* 날짜 + 시간 */
     .date-flex {
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-wrap: nowrap;
       width: 100%;
+    }
+
+    /* 날짜 input — 다른 입력창과 정확히 같은 x축에 정렬 */
+    #date {
+      width: 180px;
     }
 
     .time-group {
@@ -48,14 +46,20 @@
       flex-wrap: nowrap;
     }
 
-    /* 개인정보 보기 버튼 가로 유지 */
+    /* 오전 / 오후 드롭다운 더 넓게 */
+    #time-ap {
+      padding: 8px 20px;
+      min-width: 110px;
+    }
+
+    /* 개인정보 보기 버튼 */
     #privacy-open {
       transform: scale(0.9);
       transform-origin: right center;
       white-space: nowrap;
     }
 
-    /* 입금계좌 줄 한 줄 정렬 */
+    /* 계좌번호 */
     .bank-line {
       display: flex;
       align-items: center;
@@ -63,7 +67,7 @@
       flex-wrap: nowrap;
     }
 
-    /* 주소 클릭 가능 표시 */
+    /* 주소 라벨 클릭 */
     .clickable-label {
       cursor: pointer;
       user-select: none;
@@ -71,11 +75,11 @@
 
     /* ----- 모바일 반응형 ----- */
     @media (max-width: 640px) {
-
       .field-row {
         flex-direction: column;
         align-items: flex-start;
       }
+
       .field-label {
         margin-bottom: -4px;
       }
@@ -88,7 +92,6 @@
 
       .time-group {
         width: 100%;
-        display: flex;
         gap: 6px;
       }
 
@@ -110,6 +113,7 @@
 <body data-store-id="">
 
 
+<!-- storeId 초기화 -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
   const storeId = ensureStoreInitialized();
@@ -161,13 +165,13 @@
 
       <!-- 조회 비밀번호 -->
       <div class="field-row">
-        <div class="field-label label-lookup">조회비밀번호</div>
+        <div class="field-label label-lookup">조회 비밀번호</div>
         <input id="lookupPw" class="input" placeholder="4자리 숫자" maxlength="4" inputmode="numeric" style="flex:1"/>
       </div>
 
-      <!-- 일자 + 예약시간 -->
+      <!-- 예약일시 -->
       <div class="field-row" id="date-row">
-        <div class="field-label">일자</div>
+        <div class="field-label">예약일시</div>
 
         <div class="date-flex">
           <input id="date" type="date" class="input date-input">
@@ -186,7 +190,7 @@
         <textarea id="memo" class="input" rows="4" style="flex:1"></textarea>
       </div>
 
-      <!-- 개인정보 동의 -->
+      <!-- 개인정보 -->
       <div class="field-row" id="privacy-row">
         <div class="field-label">개인정보</div>
         <div class="hstack" style="gap:10px">
@@ -254,6 +258,7 @@
   </div>
 </div>
 
+
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
@@ -263,7 +268,6 @@
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
   const storeId = window.qrnrStoreId;
-
 
   /* 주소 검색 */
   function openAddrSearch() {
