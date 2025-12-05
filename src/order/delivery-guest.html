@@ -7,26 +7,53 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    #privacy-open {
-      transform: scale(0.7);
-      transform-origin: left center;
-      margin-left: 4px;
-    }
-    .clickable-label { cursor:pointer; user-select:none; }
-
-    /* 조회 비밀번호 라벨 → 줄바꿈 · 가운데 정렬 */
-    .label-multiline {
-      white-space: normal;
+    /* 조회 비밀번호 라벨 */
+    .pin-label {
       text-align: center;
-      display: block;
+      white-space: pre-line; /* 줄바꿈 처리 */
       line-height: 1.2;
+    }
+
+    /* 개인정보 처리방침 보기 버튼 작게 */
+    #privacy-open {
+      transform: scale(0.8);
+      transform-origin: right center;
+      margin-left: 8px;
+    }
+
+    /* 개인정보 라벨 줄 정렬 */
+    #privacy-row .row-wrap {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* 주소 라벨 */
+    .clickable-label {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* 계좌 영역 */
+    #bank-box .field-label {
+      min-width: 70px;
+    }
+
+    #bank-box .bank-wrap {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
     }
   </style>
 </head>
 
 <body data-store-id="">
 
-<!-- ⭐ Store ID 초기화 -->
+<!-- ================================ -->
+<!-- ⭐ storeId 초기화 -->
+<!-- ================================ -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
 
@@ -42,19 +69,24 @@
 </script>
 
 <div class="container">
+
   <div class="hstack" style="justify-content:space-between">
-    <h1>비회원 배달/예약</h1>
-    <button id="btn-lookup" class="btn">주문조회</button>
+    <h1>배달/예약 (비회원)</h1>
   </div>
 
-  <!-- 배달/예약 선택 -->
+  <!-- ===================================================== -->
+  <!-- 배달 / 예약 탭 -->
+  <!-- ===================================================== -->
   <div class="card hstack" style="gap:8px">
     <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
+  <!-- ===================================================== -->
+  <!-- 폼 영역 -->
+  <!-- ===================================================== -->
   <div class="card vstack" id="form-box">
-    <h3>주문 정보 <span class="small">*</span></h3>
+    <h3>배달/예약 정보 <span class="small">*</span></h3>
 
     <div class="vstack" style="gap:10px">
 
@@ -76,12 +108,19 @@
       <!-- 연락처 -->
       <div class="field-row">
         <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 입력" inputmode="numeric"/>
+        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric"/>
       </div>
 
-      <!-- 예약 일자 + 시간 (배달 시 숨김) -->
+      <!-- 조회 비밀번호 -->
+      <div class="field-row">
+        <div class="field-label pin-label">조회<br>비밀번호</div>
+        <input id="pin" class="input" maxlength="4" placeholder="4자리 숫자" inputmode="numeric"/>
+      </div>
+
+      <!-- 예약 날짜/시간 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
+
         <div class="date-time-row">
           <input id="date" type="date" class="input date-input">
           <span class="time-label">예약시간</span>
@@ -94,33 +133,34 @@
       <!-- 요청사항 -->
       <div class="field-row">
         <div class="field-label">요청사항</div>
-        <textarea id="memo" class="input" rows="3"></textarea>
+        <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- 조회 비밀번호 -->
-      <div class="field-row">
-        <div class="field-label label-multiline">조회 비밀번호</div>
-        <input id="pin" class="input" maxlength="4" placeholder="4자리" inputmode="numeric"/>
-      </div>
-
-      <!-- 개인정보 -->
+      <!-- 개인정보 처리방침 -->
       <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px;">
-          <label style="display:flex;align-items:center;gap:6px;">
+
+        <div class="row-wrap">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
             <input type="checkbox" id="agree-privacy">
             <span>(필수) 개인정보 수집·이용 동의</span>
           </label>
-          <button class="btn" id="privacy-open">보기</button>
+
+          <button type="button" class="btn" id="privacy-open">보기</button>
         </div>
       </div>
 
       <!-- 예약 계좌 -->
-      <div id="bank-box" class="field-row small" style="display:none;">
+      <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
-        <div class="hstack" style="gap:6px;flex-wrap:wrap">
+
+        <div class="bank-wrap">
           <span id="bank-text"></span>
-          <button class="btn" id="bank-copy">복사</button>
+          <button class="btn" id="bank-copy" type="button">복사</button>
+        </div>
+
+        <div class="small" style="margin-top:4px;color:#f97316;">
+          ※ 주문자명으로 입금해주세요!
         </div>
       </div>
 
@@ -139,148 +179,180 @@
     <div id="cart-box" class="vstack"></div>
   </div>
 
-  <!-- 결제 버튼 -->
+  <!-- 금액/버튼 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
 </div>
 
-<!-- 개인정보 모달 -->
-<div id="privacy-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
-  <div style="background:#020617;padding:16px;border-radius:12px;width:calc(100% - 40px);max-width:520px;max-height:80vh;overflow:auto;">
-    <h3>개인정보 처리방침</h3>
+<!-- 개인정보 처리방침 모달 -->
+<div id="privacy-modal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:9998;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:#020617; padding:16px 18px;
+    border-radius:12px; max-width:520px;
+    width:calc(100% - 40px); max-height:80vh;
+    overflow:auto;">
+    <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
-    <button id="privacy-close" class="btn" style="margin-top:12px;">닫기</button>
+    <div class="hstack" style="justify-content:flex-end;margin-top:12px">
+      <button type="button" id="privacy-close" class="btn">닫기</button>
+    </div>
   </div>
 </div>
 
-<!-- 다음 주소 검색 -->
+<!-- 다음 우편번호 API -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
+<!-- ===================== -->
+<!-- 메인 스크립트 -->
+<!-- ===================== -->
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
-  fillTimeSelectors("time");
-
-  const cart = makeCart("cart-box","total");
-  cart.render();
-  renderMenu("menu-grid", cart);
+  const storeId = window.qrnrStoreId;
 
   /* 주소 검색 */
-  function openAddrSearch(){
+  function openAddrSearch() {
+    if (!window.daum?.Postcode) return alert("주소 검색 서비스를 불러올 수 없습니다.");
     new window.daum.Postcode({
-      oncomplete(d){
-        document.getElementById("addr").value = d.roadAddress || d.jibunAddress || d.address;
+      oncomplete(data) {
+        document.getElementById("addr").value =
+          data.roadAddress || data.jibunAddress || data.address;
+        document.getElementById("addr-detail").focus();
       }
     }).open();
   }
-  document.querySelector(".addr-label").onclick = openAddrSearch;
-  document.getElementById("addr").onclick = openAddrSearch;
 
-  /* 개인정보 보기 */
+  document.querySelector(".addr-label")?.addEventListener("click", openAddrSearch);
+  document.getElementById("addr")?.addEventListener("click", openAddrSearch);
+
+  /* 전화번호 */
+  const phoneInput = document.getElementById("phone");
+  phoneInput.addEventListener("input", () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, "");
+  });
+
+  /* 메뉴/카트 */
+  fillTimeSelectors('time');
+  const cart = makeCart('cart-box', 'total');
+  cart.render();
+  renderMenu('menu-grid', cart);
+
+  /* 개인정보 모달 */
+  const modal = document.getElementById("privacy-modal");
+
   document.getElementById("privacy-open").onclick = () => {
-    const txt =
-      get(['admin','privacyPolicy',window.qrnrStoreId]) ||
-      get(['admin','privacyPolicy']) ||
-      "등록된 정책이 없습니다.";
-    document.getElementById("privacy-modal-body").textContent = txt;
-    document.getElementById("privacy-modal").style.display = "flex";
+    const text =
+      get(['admin', 'privacyPolicy', storeId]) ||
+      get(['admin', 'privacyPolicy']) ||
+      "관리자에서 정책이 등록되지 않았습니다.";
+
+    document.getElementById("privacy-modal-body").textContent = text;
+    modal.style.display = "flex";
   };
   document.getElementById("privacy-close").onclick = () =>
-    document.getElementById("privacy-modal").style.display = "none";
+    modal.style.display = "none";
 
-  /* 탭 변경 → 배달이면 날짜 숨김 */
-  function updateTab(){
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.style.display = "none";
+  };
+
+  /* 탭 변경 */
+  function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
 
-    document.getElementById("date-row").style.display = isResv ? "" : "none";
-
-    const bank =
-      get(["admin","ownerBank",window.qrnrStoreId]) ||
-      get(["admin","ownerBank"]) ||
-      {};
-
     document.getElementById("bank-box").style.display = isResv ? "block" : "none";
+    document.getElementById("date-row").style.display = isResv ? "block" : "none";
 
-    document.getElementById("bank-text").textContent =
-      bank.bank ? `${bank.bank} ${bank.number} (${bank.holder||""})`
-                : "(등록된 계좌 없음)";
+    document.getElementById("action-btn").textContent =
+      isResv ? "예약하기" : "결제하기";
   }
-  document.getElementById("tab-deliv").onchange = updateTab;
-  document.getElementById("tab-resv").onchange = updateTab;
-  updateTab();  // 초기 실행
+  document.getElementById("tab-deliv").addEventListener("change", updateTab);
+  document.getElementById("tab-resv").addEventListener("change", updateTab);
+  updateTab();
 
-  /* 결제 / 예약 */
+  /* 결제/예약 버튼 */
   document.getElementById("action-btn").onclick = async () => {
     const addr = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
+    const fullAddr = addr2 ? `${addr} ${addr2}` : addr;
+
     const cust = document.getElementById("cust").value.trim();
-    const phone = document.getElementById("phone").value.trim();
+    const phone = phoneInput.value.trim();
     const memo = document.getElementById("memo").value.trim();
     const pin = document.getElementById("pin").value.trim();
+    const agree = document.getElementById("agree-privacy").checked;
 
-    if (!/^\d{4}$/.test(pin)) return alert("조회 비밀번호 4자리를 입력해주세요.");
+    if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
     if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
-    if (!document.getElementById("agree-privacy").checked) return alert("개인정보 동의가 필요합니다.");
-    if (phone.replace(/\D/g,"").length < 10) return alert("전화번호를 확인해주세요.");
+    if (!/^\d{4}$/.test(pin)) return alert("조회 비밀번호는 4자리 숫자여야 합니다.");
+    if (phone.replace(/\D/g, "").length < 10) return alert("전화번호를 확인해주세요.");
     if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
-    const fullAddr = addr2 ? `${addr} ${addr2}` : addr;
     const isResv = document.getElementById("tab-resv").checked;
 
     /* 예약 */
     if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time") || {};
+
       if (!date) return alert("예약 날짜를 선택해주세요.");
-      if (!ap || !hh || !mm || hh === "시" || mm === "분")
-        return alert("예약 시간을 선택해주세요.");
+      if (!ap || !hh || !mm) return alert("예약 시간을 선택해주세요.");
 
       const payload = {
-        type:"reserve",
-        amount:cart.total(),
-        orderName:"예약 주문",
-        cart:cart.items,
-        customer:{ name:cust, phone, addr:fullAddr, req:memo, secretPin:pin },
-        reserveDate:date,
-        reserveTime:`${ap} ${hh}:${mm}`,
-        status:"대기",
-        storeId:window.qrnrStoreId,
-        agreePrivacy:true
+        type: "reserve",
+        amount: cart.total(),
+        orderName: "예약 주문",
+        cart: cart.items,
+        customer: { name: cust, phone, addr: fullAddr, req: memo, pin },
+        reserveDate: date,
+        reserveTime: `${ap} ${hh}:${mm}`,
+        status: "대기",
+        storeId,
+        agreePrivacy: true
       };
 
       const r = await fetch("/api/orders", {
-        method:"POST",
-        headers:{"content-type":"application/json"},
-        body:JSON.stringify(payload)
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
       });
       const j = await r.json();
-      if(!j.ok) return alert("예약 저장 실패");
-      return location.replace(`/src/order/reserve-success.html`);
+      if (!j.ok) return alert("예약 저장 실패");
+
+      return location.replace(
+        `/src/order/reserve-success.html?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+      );
     }
 
     /* 배달 결제 */
     const orderId = "DELIV-" + Date.now();
 
     setPendingOrder({
-      type:"delivery",
-      amount:cart.total(),
-      orderName:"배달 주문",
-      cart:cart.items,
-      customer:{ name:cust, phone, addr:fullAddr, req:memo, secretPin:pin },
+      type: "delivery",
+      amount: cart.total(),
+      orderName: "배달 주문",
+      cart: cart.items,
+      customer: { name: cust, phone, addr: fullAddr, req: memo, pin },
       memo,
-      storeId:window.qrnrStoreId,
-      agreePrivacy:true,
-      returnTo:location.pathname + location.search
+      storeId,
+      agreePrivacy: true,
+      returnTo: location.pathname + location.search
     });
 
-    await startPayment({ orderId, amount:cart.total(), orderName:"배달 주문" });
+    await startPayment({
+      orderId,
+      amount: cart.total(),
+      orderName: "배달 주문"
+    });
   };
-
 </script>
 
 </body>
