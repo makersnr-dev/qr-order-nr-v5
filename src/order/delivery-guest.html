@@ -7,75 +7,87 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* ========= 공통 필드 레이아웃 고정 (라벨 왼쪽 / 입력 오른쪽) ========= */
+
+    /* =======================
+       공통 필드 정렬
+    ==========================*/
     .field-row {
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-wrap: nowrap;     /* ⭐ 절대 줄바꿈 금지 */
+      flex-wrap: nowrap;
       width: 100%;
     }
+
     .field-row .field-label {
-      width: 110px;          /* ⭐ 모든 라벨 동일 너비 */
+      width: 110px;
       flex-shrink: 0;
     }
 
-    /* 조회 비밀번호 라벨(2줄, 가운데 정렬) */
+    /* 조회 비밀번호 라벨 세로 정렬 정확히 맞추기 */
     .label-multiline {
       display: flex;
       flex-direction: column;
       justify-content: center;
+      align-items: center;
       text-align: center;
-      line-height: 1.1;
       white-space: pre-line;
-      width: 110px !important;
+      line-height: 1.1;
+      height: 42px; /* input 높이와 동일 */
     }
 
-    /* 개인정보 보기 버튼 크기 축소 + 오른쪽 정렬 */
-    #privacy-row .vstack {
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-    }
-
-    #privacy-open {
-      transform: scale(0.75);
-      transform-origin: right center;
-    }
-
-    /* 입금계좌 한 줄 정렬 */
-    #bank-box .bank-inline {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: nowrap;    /* ⭐ 줄바꿈 없음 */
-    }
-
-    /* 예약시간 컨테이너 한 줄 고정 */
-    .time-inline {
+    /* 날짜 / 시간 */
+    .date-inline {
       display: flex;
       align-items: center;
       gap: 10px;
       flex-wrap: nowrap;
     }
 
-    /* 오전/오후 선택 박스 넓게 */
+    /* 오전/오후 dropdown 확장 + 정렬 깨지지 않도록 */
     #time-ap {
-      min-width: 80px;
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+    #time-hh, #time-mm {
+      flex-shrink: 0;
     }
 
-    /* 주소 라벨 클릭 가능 */
+    /* 개인정보 보기 버튼 */
+    #privacy-row .vstack {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+
+    #privacy-open {
+      white-space: nowrap;    /* 세로 변형 방지 */
+      flex-shrink: 0;         /* 크기 줄어들지 않게 */
+      transform: scale(0.85);
+      transform-origin: right center;
+    }
+
+    /* 입금계좌 라인 — 한 줄 유지 */
+    #bank-box .bank-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+
     .clickable-label {
       cursor: pointer;
       user-select: none;
     }
-
   </style>
 </head>
 
 <body data-store-id="">
-
 
 <!-- ⭐ storeId 초기화 -->
 <script type="module">
@@ -90,7 +102,6 @@
   }
 </script>
 
-
 <div class="container">
   <h1>배달/예약 (비회원)</h1>
 
@@ -102,14 +113,14 @@
   <div class="card vstack" id="form-box">
     <h3>배달/예약 정보 *</h3>
 
-    <div class="vstack" style="gap:14px;">
+    <div class="vstack" style="gap:10px">
 
       <!-- 배송지 -->
       <div class="field-row">
         <div class="field-label clickable-label addr-label">배송지</div>
-        <div style="display:flex; gap:10px; width:100%;">
+        <div class="addr-wrap">
           <input id="addr" class="input"/>
-          <input id="addr-detail" class="input" placeholder="상세주소"/>
+          <input id="addr-detail" class="input addr-detail" placeholder="상세주소"/>
         </div>
       </div>
 
@@ -131,16 +142,14 @@
         <input id="lookupPw" class="input" placeholder="4자리 숫자" maxlength="4" inputmode="numeric"/>
       </div>
 
-      <!-- 일자 -->
+      <!-- 예약 일자 & 시간 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
-        <input id="date" type="date" class="input date-input">
-      </div>
 
-      <!-- 예약시간 -->
-      <div class="field-row" id="time-row">
-        <div class="field-label">예약시간</div>
-        <div class="time-inline">
+        <div class="date-inline">
+          <input id="date" type="date" class="input date-input">
+
+          <span class="field-label" style="width:auto;">예약시간</span>
           <select id="time-ap" class="input input-sm"></select>
           <select id="time-hh" class="input input-sm"></select>
           <select id="time-mm" class="input input-sm"></select>
@@ -148,42 +157,39 @@
       </div>
 
       <!-- 요청사항 -->
-      <div class="field-row" style="align-items:flex-start;">
+      <div class="field-row">
         <div class="field-label">요청사항</div>
-        <textarea id="memo" class="input" rows="4" style="width:100%;"></textarea>
+        <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
       <!-- 개인정보 -->
       <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px; width:100%;">
-          <label style="display:flex;align-items:center;gap:6px;">
+        <div class="vstack">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
             <input type="checkbox" id="agree-privacy">
             (필수) 개인정보 수집·이용 동의
           </label>
+          <button type="button" class="btn" id="privacy-open">보기</button>
         </div>
-        <button id="privacy-open" class="btn" type="button">보기</button>
       </div>
 
       <!-- 입금계좌 -->
-      <div class="field-row small" id="bank-box" style="display:none;">
+      <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
-
         <div class="bank-inline">
           <span id="bank-text"></span>
-          <button id="bank-copy" class="btn" type="button">복사</button>
+          <button class="btn" id="bank-copy" type="button">복사</button>
         </div>
-
       </div>
 
     </div>
   </div>
 
-
   <!-- 메뉴 -->
   <div class="card vstack">
     <h3>메뉴</h3>
-    <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap;"></div>
+    <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
   </div>
 
   <!-- 장바구니 -->
@@ -192,8 +198,8 @@
     <div id="cart-box" class="vstack"></div>
   </div>
 
-  <!-- 금액/버튼 -->
-  <div class="card hstack" style="justify-content:space-between;">
+  <!-- 금액 -->
+  <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
@@ -212,16 +218,14 @@
     overflow:auto;">
     <h3>개인정보 처리방침</h3>
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
-    <div class="hstack" style="justify-content:flex-end;margin-top:12px;">
+    <div class="hstack" style="justify-content:flex-end;margin-top:12px">
       <button id="privacy-close" class="btn">닫기</button>
     </div>
   </div>
 </div>
 
 
-<!-- 다음 주소 검색 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
-
 
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
@@ -244,27 +248,25 @@
   document.querySelector(".addr-label").onclick = openAddrSearch;
   document.getElementById("addr").onclick = openAddrSearch;
 
-  /* 연락처 숫자 제한 */
+  /* 전화번호 */
   const phoneInput = document.getElementById("phone");
   phoneInput.addEventListener("input", () => {
     phoneInput.value = phoneInput.value.replace(/\D/g, "");
   });
 
-  /* 조회 비밀번호 숫자 제한 */
+  /* 조회 비밀번호 */
   const lookupPw = document.getElementById("lookupPw");
   lookupPw.addEventListener("input", () => {
     lookupPw.value = lookupPw.value.replace(/\D/g, "").slice(0, 4);
   });
 
-  /* 시간 드롭다운 */
+  /* 메뉴/카트 */
   fillTimeSelectors("time");
-
-  /* 메뉴 & 장바구니 */
   const cart = makeCart("cart-box", "total");
   cart.render();
   renderMenu("menu-grid", cart);
 
-  /* 개인정보 보기 */
+  /* 개인정보 */
   const modal = document.getElementById("privacy-modal");
   document.getElementById("privacy-open").onclick = () => {
     const text =
@@ -276,7 +278,6 @@
   };
   document.getElementById("privacy-close").onclick = () =>
     modal.style.display = "none";
-
   modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
   /* 탭 전환 */
@@ -284,9 +285,7 @@
     const resv = document.getElementById("tab-resv").checked;
 
     document.getElementById("date-row").style.display = resv ? "flex" : "none";
-    document.getElementById("time-row").style.display = resv ? "flex" : "none";
     document.getElementById("bank-box").style.display = resv ? "flex" : "none";
-
     document.getElementById("action-btn").textContent = resv ? "예약하기" : "결제하기";
 
     if (resv) {
@@ -295,11 +294,14 @@
         get(["admin", "ownerBank"]) ||
         {};
       const bankText = document.getElementById("bank-text");
-      bankText.textContent = bank.bank && bank.number
-        ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-        : "(관리자에 계좌 정보가 없습니다)";
+      if (bank.bank && bank.number) {
+        bankText.textContent = `${bank.bank} ${bank.number} (${bank.holder || ""})`;
+      } else {
+        bankText.textContent = "(관리자에 계좌 정보 없음)";
+      }
     }
   }
+
   document.getElementById("tab-deliv").onchange = updateTab;
   document.getElementById("tab-resv").onchange = updateTab;
   updateTab();
@@ -339,8 +341,8 @@
         customer: { name: cust, phone, addr: fullAddr, req: memo },
         reserveDate: date,
         reserveTime: `${ap} ${hh}:${mm}`,
-        status: "대기",
         lookupPw: pw,
+        status: "대기",
         storeId,
         agreePrivacy: true
       };
@@ -356,7 +358,7 @@
       return location.replace(`/src/order/reserve-success.html`);
     }
 
-    /* 배달 (결제) */
+    /* 배달 */
     const orderId = "DELIV-" + Date.now();
 
     setPendingOrder({
@@ -377,13 +379,6 @@
       amount: cart.total(),
       orderName: "배달 주문"
     });
-  };
-
-  /* 계좌 복사 기능 */
-  document.getElementById("bank-copy").onclick = () => {
-    const txt = document.getElementById("bank-text").textContent;
-    navigator.clipboard.writeText(txt);
-    alert("계좌번호가 복사되었습니다.");
   };
 </script>
 
