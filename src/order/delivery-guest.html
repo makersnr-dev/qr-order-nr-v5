@@ -1,3 +1,4 @@
+//src/order/delivery-guest.html
 <!doctype html>
 <html lang="ko">
 <head>
@@ -19,14 +20,22 @@
       flex-direction: row;
       justify-content: space-between;
       align-items: center;
+      width: 100%;
+    }
+
+    /* 주소 라벨 클릭 가능 표시 */
+    .clickable-label {
+      cursor: pointer;
+      user-select: none;
     }
   </style>
 </head>
 
 <body data-store-id="">
-<!-- ================================
-  ⭐ storeId 초기화 (회원 페이지 방식)
-  ================================ -->
+
+<!-- ================================ -->
+<!-- ⭐ storeId 초기화 -->
+<!-- ================================ -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
 
@@ -34,18 +43,12 @@
   window.qrnrStoreId = storeId;
   document.body.dataset.storeId = storeId;
 
-  // URL에 storeId 없으면 자동 추가 (무한루프 방지)
+  // URL 자동 보정
   const url = new URL(location.href);
   if (!url.searchParams.get("store")) {
     url.searchParams.set("store", storeId);
     history.replaceState(null, "", url.toString());
   }
-
-  // 상단 버튼 storeId 반영
-  const mp = document.getElementById("btn-mypage");
-  const sel = document.getElementById("btn-select");
-  if (mp) mp.href = `/src/order/mypage.html?store=${storeId}`;
-  if (sel) sel.href = `/src/order/select.html?store=${storeId}`;
 </script>
 
 <div class="container">
@@ -66,6 +69,7 @@
     <h3>배달/예약 정보 <span class="small">*</span></h3>
 
     <div class="vstack" style="gap:10px">
+
       <!-- 배송지 -->
       <div class="field-row">
         <div class="field-label addr-label clickable-label">배송지</div>
@@ -108,7 +112,7 @@
       <!-- 개인정보 처리방침 -->
       <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px; width:100%;">
+        <div class="vstack" style="gap:4px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer; flex-grow:1;">
             <input type="checkbox" id="agree-privacy">
             <span>(필수) 개인정보 수집·이용 동의</span>
@@ -117,10 +121,10 @@
         </div>
       </div>
 
-      <!-- 예약(무결제)일 때만 보이는 계좌 -->
+      <!-- 예약 계좌 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
-        <div class="hstack" style="gap:6px;flex-wrap:wrap">
+        <div class="hstack" style="gap:6px; flex-wrap:wrap">
           <span id="bank-text"></span>
           <button class="btn" id="bank-copy" type="button">복사</button>
         </div>
@@ -168,9 +172,12 @@
   </div>
 </div>
 
-<!-- 다음 주소 검색 API -->
+<!-- 다음 우편번호 API -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
+<!-- ===================== -->
+<!-- 메인 스크립트 -->
+<!-- ===================== -->
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
@@ -179,117 +186,114 @@
 
   const storeId = window.qrnrStoreId;
 
-  /* =============================
-      개인정보 처리방침 로딩
-     ============================= */
-  const defaultPolicy = `
-[개인정보 처리방침]
-
-이 서비스는 관련 법령을 준수하며 이용자의 개인정보를 보호합니다.
-관리자에서 별도 정책을 저장하지 않은 경우 이 기본 문구가 표시됩니다.
-  `.trim();
-
-  function applyPrivacyText() {
-    const el = document.getElementById('privacy-modal-body');
-    const fromAdmin =
-      get(['admin', 'privacyPolicy', storeId]) ||
-      get(['admin', 'privacyPolicy']) ||
-      get(['system', 'privacyPolicy', storeId]) ||
-      get(['system', 'privacyPolicy']);
-
-    el.textContent = fromAdmin || defaultPolicy;
-  }
-
-  /* =============================
-      시간 · 메뉴 · 장바구니
-     ============================= */
-  fillTimeSelectors('time');
-  const cart = makeCart('cart-box', 'total');
-  cart.render();
-  renderMenu('menu-grid', cart);
-
-  /* =============================
-      전화번호 포맷팅
-     ============================= */
-  const phoneInput = document.getElementById("phone");
-  phoneInput.addEventListener("input", () => {
-    phoneInput.value = phoneInput.value.replace(/\D/g, "");
-  });
-  phoneInput.addEventListener("blur", () => {
-    const d = phoneInput.value.replace(/\D/g, "");
-    if (d.length === 10) phoneInput.value = d.replace(/(\d{3})(\d{3})(\d{4})/, "$1-$2-$3");
-    if (d.length === 11) phoneInput.value = d.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
-  });
-
-  /* =============================
-      주소 검색
-     ============================= */
+  /* ---------------------------
+      주소 검색 (강화 버전)
+  --------------------------- */
   function openAddrSearch() {
-    if (!window.daum?.Postcode) return alert("주소 검색 서비스를 불러올 수 없습니다.");
+    if (!window.daum?.Postcode) {
+      alert("주소 검색 서비스를 불러올 수 없습니다.");
+      return;
+    }
     new window.daum.Postcode({
       oncomplete(data) {
         document.getElementById("addr").value =
           data.roadAddress || data.jibunAddress || data.address;
+        document.getElementById("addr-detail").focus();
       }
     }).open();
   }
-  document.querySelector(".addr-label").onclick = openAddrSearch;
 
-  /* =============================
+  // 라벨 클릭 가능
+  document.querySelector(".addr-label")?.addEventListener("click", openAddrSearch);
+
+  // 주소 input 클릭 시도 → 무조건 검색창 열림
+  document.getElementById("addr")?.addEventListener("click", openAddrSearch);
+
+  /* ---------------------------
+      전화번호
+  --------------------------- */
+  const phoneInput = document.getElementById("phone");
+  phoneInput.addEventListener("input", () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, "");
+  });
+
+  /* ---------------------------
+      메뉴/카트/시간
+  --------------------------- */
+  fillTimeSelectors('time');
+
+  const cart = makeCart('cart-box', 'total');
+  cart.render();
+  renderMenu('menu-grid', cart);
+
+  /* ---------------------------
       개인정보 모달
-     ============================= */
+  --------------------------- */
   const modal = document.getElementById("privacy-modal");
+
   document.getElementById("privacy-open").onclick = () => {
-    applyPrivacyText();
+    const text =
+      get(['admin', 'privacyPolicy', storeId]) ||
+      get(['admin', 'privacyPolicy']) ||
+      "관리자에서 정책이 등록되지 않았습니다.";
+
+    document.getElementById("privacy-modal-body").textContent = text;
     modal.style.display = "flex";
   };
-  document.getElementById("privacy-close").onclick = () =>
+
+  document.getElementById("privacy-close").onclick = () => {
     modal.style.display = "none";
+  };
   modal.onclick = e => {
     if (e.target === modal) modal.style.display = "none";
   };
 
-  /* =============================
-      예약/결제 메인 버튼
-     ============================= */
-  document.getElementById("action-btn").onclick = async () => {
+  /* ---------------------------
+      탭 변경
+  --------------------------- */
+  function updateTab() {
+    const isResv = document.getElementById("tab-resv").checked;
+    document.getElementById("bank-box").style.display = isResv ? "block" : "none";
+    document.getElementById("date-row").style.display = isResv ? "block" : "none";
+    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
+  }
+  document.getElementById("tab-deliv").addEventListener("change", updateTab);
+  document.getElementById("tab-resv").addEventListener("change", updateTab);
+  updateTab();
 
-    const addr1 = document.getElementById("addr").value.trim();
+  /* ---------------------------
+      메인 버튼
+  --------------------------- */
+  document.getElementById("action-btn").onclick = async () => {
+    const addr = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
-    const addr = addr2 ? `${addr1} ${addr2}` : addr1;
+    const fullAddr = addr2 ? `${addr} ${addr2}` : addr;
 
     const cust = document.getElementById("cust").value.trim();
     const phone = phoneInput.value.trim();
-    const memo = document.getElementById("memo").value.trim();
-
     const agree = document.getElementById("agree-privacy").checked;
 
     if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
     if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
-
-    const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) return alert("연락처를 확인해주세요.");
-
-    const items = cart.items || [];
-    if (!items.length) return alert("장바구니가 비어 있습니다.");
+    if (phone.replace(/\D/g, "").length < 10) return alert("전화번호를 확인해주세요.");
+    if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
     const isResv = document.getElementById("tab-resv").checked;
-    const { ap, hh, mm } = getTimeValue("time") || {};
-    const total = cart.total ? cart.total() : 0;
 
-    /* -------- 예약(무결제) -------- */
     if (isResv) {
       const date = document.getElementById("date").value;
+      const { ap, hh, mm } = getTimeValue("time") || {};
+
       if (!date) return alert("예약 날짜를 선택해주세요.");
       if (!ap || !hh || !mm || hh === "시" || mm === "분")
         return alert("예약 시간을 선택해주세요.");
 
       const payload = {
         type: "reserve",
-        amount: total,
+        amount: cart.total(),
         orderName: "예약 주문",
-        cart: items,
-        customer: { name: cust, phone, addr, req: memo },
+        cart: cart.items,
+        customer: { name: cust, phone, addr: fullAddr },
         reserveDate: date,
         reserveTime: `${ap} ${hh}:${mm}`,
         status: "대기",
@@ -297,85 +301,38 @@
         agreePrivacy: true
       };
 
-      try {
-        const r = await fetch("/api/orders", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const j = await r.json();
-        if (!j.ok) throw 0;
+      const r = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-        const back = location.pathname + location.search;
-        location.replace(`/src/order/reserve-success.html?returnTo=${encodeURIComponent(back)}`);
-      } catch {
-        alert("예약 저장에 실패했습니다.");
-      }
-      return;
+      const j = await r.json();
+      if (!j.ok) return alert("예약 저장 실패");
+
+      return location.replace(
+        `/src/order/reserve-success.html?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+      );
     }
 
-    /* -------- 배달 결제 -------- */
+    // 결제
     const orderId = "DELIV-" + Date.now();
-    const orderName = "배달 주문";
-
     setPendingOrder({
       type: "delivery",
-      amount: total,
-      orderName,
-      cart: items,
-      customer: { name: cust, phone, addr, req: memo },
+      amount: cart.total(),
+      orderName: "배달 주문",
+      cart: cart.items,
+      customer: { name: cust, phone, addr: fullAddr },
       storeId,
       agreePrivacy: true,
       returnTo: location.pathname + location.search
     });
 
-    try {
-      await startPayment({ orderId, amount: total, orderName });
-    } catch {
-      alert("결제를 시작할 수 없습니다.");
-    }
-  };
-
-  /* =============================
-      예약 전용 요소 업데이트
-     ============================= */
-  function updateTab() {
-    const isResv = document.getElementById("tab-resv").checked;
-    const bank =
-      get(["admin", "ownerBank", storeId]) ||
-      get(["admin", "ownerBank"]) ||
-      {};
-
-    document.getElementById("bank-box").style.display = isResv ? "block" : "none";
-    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
-
-    document.getElementById("bank-text").textContent =
-      bank.bank && bank.number
-        ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-        : "(관리자에 계좌 정보가 없습니다)";
-
-    document.getElementById("date-row").style.display =
-      isResv ? "block" : "none";
-  }
-
-  ["tab-deliv", "tab-resv"].forEach(id =>
-    document.getElementById(id).addEventListener("change", updateTab)
-  );
-  updateTab();
-
-  /* =============================
-      계좌 복사 Toast
-     ============================= */
-  document.getElementById("bank-copy").onclick = async () => {
-    const txt = document.getElementById("bank-text").textContent.trim();
-    if (!txt || txt.startsWith("(")) return alert("복사할 계좌 정보가 없습니다.");
-
-    try {
-      await navigator.clipboard.writeText(txt);
-      alert("계좌번호가 복사되었습니다.");
-    } catch {
-      alert("복사 실패");
-    }
+    await startPayment({
+      orderId,
+      amount: cart.total(),
+      orderName: "배달 주문"
+    });
   };
 </script>
 
