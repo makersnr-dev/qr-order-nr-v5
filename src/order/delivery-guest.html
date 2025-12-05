@@ -1,4 +1,3 @@
-/*src/order/delivery-guest.html*/
 <!doctype html>
 <html lang="ko">
 <head>
@@ -8,34 +7,33 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* 개인정보 보기 버튼 크기 30% 축소 */
     #privacy-open {
       transform: scale(0.7);
       transform-origin: left center;
       margin-left: 4px;
     }
-
-    /* 개인정보 동의 오른쪽 정렬 */
     #privacy-row .vstack {
       flex-direction: row;
       justify-content: space-between;
       align-items: center;
       width: 100%;
     }
-
-    /* 주소 라벨 클릭 가능 표시 */
     .clickable-label {
       cursor: pointer;
       user-select: none;
+    }
+    /* 계좌 복사 버튼 스타일 안정화 */
+    #bank-copy {
+      height: 28px;
+      padding: 0 10px;
+      margin-left: 8px;
     }
   </style>
 </head>
 
 <body data-store-id="">
 
-<!-- ================================ -->
 <!-- ⭐ storeId 초기화 -->
-<!-- ================================ -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
 
@@ -43,7 +41,6 @@
   window.qrnrStoreId = storeId;
   document.body.dataset.storeId = storeId;
 
-  // URL 자동 보정
   const url = new URL(location.href);
   if (!url.searchParams.get("store")) {
     url.searchParams.set("store", storeId);
@@ -132,6 +129,7 @@
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
+
     </div>
   </div>
 
@@ -188,10 +186,7 @@
 
   /* --------------------------- 주소 검색 --------------------------- */
   function openAddrSearch() {
-    if (!window.daum?.Postcode) {
-      alert("주소 검색 서비스를 불러올 수 없습니다.");
-      return;
-    }
+    if (!window.daum?.Postcode) return alert("주소 검색 로딩 실패");
     new window.daum.Postcode({
       oncomplete(data) {
         document.getElementById("addr").value =
@@ -200,7 +195,6 @@
       }
     }).open();
   }
-
   document.querySelector(".addr-label")?.addEventListener("click", openAddrSearch);
   document.getElementById("addr")?.addEventListener("click", openAddrSearch);
 
@@ -210,12 +204,40 @@
     phoneInput.value = phoneInput.value.replace(/\D/g, "");
   });
 
-  /* --------------------------- 메뉴/카트/시간 --------------------------- */
+  /* --------------------------- 메뉴/카트 --------------------------- */
   fillTimeSelectors('time');
 
   const cart = makeCart('cart-box', 'total');
   cart.render();
   renderMenu('menu-grid', cart);
+
+  /* --------------------------- 계좌 정보 로딩 --------------------------- */
+  function loadBankInfo() {
+    const bank =
+      get(['admin', 'ownerBank', storeId]) ||
+      get(['admin', 'ownerBank']) ||
+      { bank:"", number:"", holder:"" };
+
+    const bankText = document.getElementById("bank-text");
+
+    if (!bank.bank || !bank.number) {
+      bankText.textContent = "(관리자에 계좌 정보가 없습니다)";
+    } else {
+      bankText.textContent = `${bank.bank} ${bank.number} (${bank.holder || ""})`;
+    }
+  }
+
+  /* --------------------------- 계좌 복사 --------------------------- */
+  document.getElementById("bank-copy")?.addEventListener("click", async () => {
+    const txt = document.getElementById("bank-text").textContent.trim();
+    if (!txt || txt.startsWith("(")) return alert("복사할 계좌 정보가 없습니다.");
+    try {
+      await navigator.clipboard.writeText(txt);
+      alert("계좌번호가 복사되었습니다.");
+    } catch {
+      alert("복사를 지원하지 않는 브라우저입니다.");
+    }
+  });
 
   /* --------------------------- 개인정보 모달 --------------------------- */
   const modal = document.getElementById("privacy-modal");
@@ -230,19 +252,18 @@
     modal.style.display = "flex";
   };
 
-  document.getElementById("privacy-close").onclick = () =>
-    modal.style.display = "none";
-
-  modal.onclick = e => {
-    if (e.target === modal) modal.style.display = "none";
-  };
+  document.getElementById("privacy-close").onclick = () => modal.style.display = "none";
+  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
   /* --------------------------- 탭 변경 --------------------------- */
   function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
+
     document.getElementById("bank-box").style.display = isResv ? "block" : "none";
     document.getElementById("date-row").style.display = isResv ? "block" : "none";
     document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
+
+    if (isResv) loadBankInfo();
   }
   document.getElementById("tab-deliv").addEventListener("change", updateTab);
   document.getElementById("tab-resv").addEventListener("change", updateTab);
@@ -261,7 +282,7 @@
 
     if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
     if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
-    if (phone.replace(/\D/g, "").length < 10) return alert("전화번호를 확인해주세요.");
+    if (phone.replace(/\D/g, "").length < 10) return alert("전화번호 확인해주세요.");
     if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
     const isResv = document.getElementById("tab-resv").checked;
@@ -310,13 +331,8 @@
       amount: cart.total(),
       orderName: "배달 주문",
       cart: cart.items,
-      customer: { 
-        name: cust,
-        phone,
-        addr: fullAddr,
-        req: memo
-      },
-      memo, 
+      customer: { name: cust, phone, addr: fullAddr, req: memo },
+      memo,
       storeId,
       agreePrivacy: true,
       returnTo: location.pathname + location.search
