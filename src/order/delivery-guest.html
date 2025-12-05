@@ -7,26 +7,62 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
+    /* 개인정보 보기 버튼 크기 축소 */
     #privacy-open {
       transform: scale(0.7);
       transform-origin: left center;
       margin-left: 4px;
     }
+
+    /* 개인정보 동의 영역 정렬 */
     #privacy-row .vstack {
       flex-direction: row;
       justify-content: space-between;
       align-items: center;
       width: 100%;
     }
+
+    /* 주소 클릭 가능 표시 */
     .clickable-label {
       cursor: pointer;
       user-select: none;
     }
-    /* 계좌 복사 버튼 스타일 안정화 */
+
+    /* 예약 일자 + 시간 정렬 개선 */
+    .date-time-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .date-input {
+      width: 140px;
+    }
+
+    .time-label {
+      margin-left: 2px;
+      margin-right: 2px;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .input-sm {
+      width: 80px;
+    }
+
+    /* 계좌 복사 버튼 */
     #bank-copy {
       height: 28px;
       padding: 0 10px;
       margin-left: 8px;
+    }
+
+    /* 상단 버튼 우측 고정 */
+    .top-right-buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
   </style>
 </head>
@@ -51,17 +87,22 @@
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
     <h1>배달/예약 (비회원)</h1>
-    <div class="hstack" style="gap:8px">
-      <a id="btn-mypage" class="btn" href="#">마이페이지</a>
-      <a id="btn-select" class="btn" href="#">주문 유형</a>
+
+    <!-- 🔹 비회원 전용: 주문조회 버튼만 -->
+    <div class="top-right-buttons">
+      <a id="btn-lookup" class="btn" href="/src/order/lookup.html">주문 조회</a>
     </div>
   </div>
 
+  <!-- 🔹 배달/예약 탭 -->
   <div class="card hstack" style="gap:8px">
     <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
     <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
   </div>
 
+  <!-- ===========================
+       주문 정보 입력
+       =========================== -->
   <div class="card vstack" id="form-box">
     <h3>배달/예약 정보 <span class="small">*</span></h3>
 
@@ -88,13 +129,16 @@
         <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric"/>
       </div>
 
-      <!-- 예약 일자 -->
+      <!-- 예약 일자/시간 -->
       <div class="field-row" id="date-row">
         <div class="field-label">일자</div>
+
         <div class="date-time-row">
           <input id="date" type="date" class="input date-input">
-          <span class="time-label">예약시간</span>
-          <select id="time-ap" class="input input-sm time-ap"></select>
+
+          <span class="time-label">예약</span>
+
+          <select id="time-ap" class="input input-sm"></select>
           <select id="time-hh" class="input input-sm"></select>
           <select id="time-mm" class="input input-sm"></select>
         </div>
@@ -106,11 +150,11 @@
         <textarea id="memo" class="input" rows="4"></textarea>
       </div>
 
-      <!-- 개인정보 처리방침 -->
+      <!-- 개인정보 동의 -->
       <div class="field-row small" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="vstack" style="gap:4px;">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer; flex-grow:1;">
+        <div class="vstack">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
             <input type="checkbox" id="agree-privacy">
             <span>(필수) 개인정보 수집·이용 동의</span>
           </label>
@@ -121,12 +165,12 @@
       <!-- 예약 계좌 -->
       <div id="bank-box" class="field-row small" style="display:none">
         <div class="field-label">입금계좌</div>
-        <div class="hstack" style="gap:6px; flex-wrap:wrap">
+        <div class="hstack" style="gap:6px;flex-wrap:wrap">
           <span id="bank-text"></span>
           <button class="btn" id="bank-copy" type="button">복사</button>
         </div>
         <div class="small" style="margin-top:4px;color:#f97316;">
-          ※ 주문자명으로 입금해주세요!
+          ※ 예약자명으로 입금해주세요!
         </div>
       </div>
 
@@ -145,22 +189,26 @@
     <div id="cart-box" class="vstack"></div>
   </div>
 
-  <!-- 금액/버튼 -->
+  <!-- 결제 버튼 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
     <button id="action-btn" class="btn primary">결제하기</button>
   </div>
 </div>
 
-<!-- 개인정보 처리방침 모달 -->
+<!-- 개인정보 모달 -->
 <div id="privacy-modal" style="
   display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:9998;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
   align-items:center; justify-content:center;">
   <div style="
-    background:#020617; padding:16px 18px;
-    border-radius:12px; max-width:520px;
-    width:calc(100% - 40px); max-height:80vh;
+    background:#020617;
+    padding:16px 18px;
+    border-radius:12px;
+    max-width:520px;
+    width:calc(100% - 40px);
+    max-height:80vh;
     overflow:auto;">
     <h3 style="margin:0 0 8px 0;">개인정보 처리방침</h3>
     <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
@@ -170,7 +218,7 @@
   </div>
 </div>
 
-<!-- 다음 우편번호 API -->
+<!-- 다음 주소 검색 API -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <!-- ===================== -->
@@ -184,9 +232,11 @@
 
   const storeId = window.qrnrStoreId;
 
-  /* --------------------------- 주소 검색 --------------------------- */
+  /* ---------------- 주소 검색 ---------------- */
   function openAddrSearch() {
-    if (!window.daum?.Postcode) return alert("주소 검색 로딩 실패");
+    if (!window.daum?.Postcode)
+      return alert("주소 검색 로딩 실패. 새로고침 후 이용해주세요.");
+
     new window.daum.Postcode({
       oncomplete(data) {
         document.getElementById("addr").value =
@@ -198,20 +248,20 @@
   document.querySelector(".addr-label")?.addEventListener("click", openAddrSearch);
   document.getElementById("addr")?.addEventListener("click", openAddrSearch);
 
-  /* --------------------------- 전화번호 --------------------------- */
+  /* ---------------- 전화번호 ---------------- */
   const phoneInput = document.getElementById("phone");
   phoneInput.addEventListener("input", () => {
     phoneInput.value = phoneInput.value.replace(/\D/g, "");
   });
 
-  /* --------------------------- 메뉴/카트 --------------------------- */
+  /* ---------------- 메뉴 / 장바구니 ---------------- */
   fillTimeSelectors('time');
 
   const cart = makeCart('cart-box', 'total');
   cart.render();
   renderMenu('menu-grid', cart);
 
-  /* --------------------------- 계좌 정보 로딩 --------------------------- */
+  /* ---------------- 계좌 정보 로딩 ---------------- */
   function loadBankInfo() {
     const bank =
       get(['admin', 'ownerBank', storeId]) ||
@@ -227,19 +277,20 @@
     }
   }
 
-  /* --------------------------- 계좌 복사 --------------------------- */
+  /* ---------------- 계좌 복사 ---------------- */
   document.getElementById("bank-copy")?.addEventListener("click", async () => {
     const txt = document.getElementById("bank-text").textContent.trim();
     if (!txt || txt.startsWith("(")) return alert("복사할 계좌 정보가 없습니다.");
+
     try {
       await navigator.clipboard.writeText(txt);
-      alert("계좌번호가 복사되었습니다.");
+      alert("계좌번호 복사 완료");
     } catch {
-      alert("복사를 지원하지 않는 브라우저입니다.");
+      alert("브라우저에서 복사를 지원하지 않습니다.");
     }
   });
 
-  /* --------------------------- 개인정보 모달 --------------------------- */
+  /* ---------------- 개인정보 모달 ---------------- */
   const modal = document.getElementById("privacy-modal");
 
   document.getElementById("privacy-open").onclick = () => {
@@ -252,15 +303,17 @@
     modal.style.display = "flex";
   };
 
-  document.getElementById("privacy-close").onclick = () => modal.style.display = "none";
+  document.getElementById("privacy-close").onclick = () => {
+    modal.style.display = "none";
+  };
   modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
-  /* --------------------------- 탭 변경 --------------------------- */
+  /* ---------------- 탭 전환 ---------------- */
   function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
 
     document.getElementById("bank-box").style.display = isResv ? "block" : "none";
-    document.getElementById("date-row").style.display = isResv ? "block" : "none";
+    document.getElementById("date-row").style.display = isResv ? "flex" : "none";
     document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
 
     if (isResv) loadBankInfo();
@@ -269,7 +322,7 @@
   document.getElementById("tab-resv").addEventListener("change", updateTab);
   updateTab();
 
-  /* --------------------------- 결제/예약 버튼 --------------------------- */
+  /* ---------------- 결제/예약 버튼 ---------------- */
   document.getElementById("action-btn").onclick = async () => {
     const addr = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
@@ -280,9 +333,12 @@
     const memo = document.getElementById("memo").value.trim();
     const agree = document.getElementById("agree-privacy").checked;
 
-    if (!agree) return alert("개인정보 수집·이용에 동의해 주세요.");
+    if (!agree) return alert("개인정보 수집·이용 동의가 필요합니다.");
     if (!addr || !cust) return alert("주소와 주문자명을 입력해주세요.");
-    if (phone.replace(/\D/g, "").length < 10) return alert("전화번호 확인해주세요.");
+
+    if (phone.replace(/\D/g, "").length < 10)
+      return alert("전화번호를 확인해주세요.");
+
     if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
     const isResv = document.getElementById("tab-resv").checked;
@@ -314,7 +370,6 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const j = await r.json();
       if (!j.ok) return alert("예약 저장 실패");
 
