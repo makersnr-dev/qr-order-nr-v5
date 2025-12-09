@@ -146,25 +146,25 @@
 
     <!-- 배송지 -->
       <div class="field-row">
-        <div class="field-label clickable-label addr-label">배송지</div>
-        <div style="flex:1">
-          <input id="addr" class="input"/>
-          <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
+        <div class="field-label addr-label">배송지</div>
+        <div class="addr-wrap">
+          <input id="addr" class="input" />
+          <input id="addr-detail" class="input addr-detail" placeholder="상세주소" />
         </div>
       </div>
 
-      <!-- 주문자명 -->
+ <!-- 주문자명 -->
       <div class="field-row">
         <div class="field-label">주문자명</div>
-        <input id="cust" class="input" style="flex:1"/>
+        <input id="cust" class="input" />
       </div>
 
       <!-- 연락처 -->
       <div class="field-row">
         <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" style="flex:1"/>
+        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
       </div>
-
+      
       <!-- 조회 비밀번호 -->
       <div class="field-row">
         <div class="field-label label-lookup">조회 비밀번호</div>
@@ -172,21 +172,19 @@
       </div>
 
       <!-- 예약일시 (완전 정렬 적용본) -->
-      <div class="field-row" id="date-row">
+      <div class="field-row">
   <div class="field-label">예약일시</div>
 
   <!-- 조회 비밀번호와 동일한 flex item 구조 -->
-  <div class="datetime-wrap">
+ 
     <div class="datetime-row">
       <input id="date" type="date" class="input date-input">
 
-      <select id="time-ap" class="input input-sm"></select>
+      <select id="time-ap" class="input input-sm time-ap"></select>
       <select id="time-hh" class="input input-sm"></select>
       <select id="time-mm" class="input input-sm"></select>
     </div>
   </div>
-</div>
-
 
 
       <!-- 요청사항 -->
