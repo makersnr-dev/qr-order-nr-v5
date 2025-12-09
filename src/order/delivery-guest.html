@@ -26,30 +26,32 @@
       text-align: center;
     }
 
-    /* 날짜 + 시간 */
-    .date-flex {
+    /* 날짜/시간 입력 영역 (조회비밀번호 구조로 통일) */
+    .datetime-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
       width: 100%;
     }
 
-    /* 날짜 input — 다른 입력창과 정확히 같은 x축에 정렬 */
+    /* 날짜 input — 입력칸과 정확히 정렬 */
     #date {
-      width: 180px;
+      height: 40px;
+      padding: 0 10px;
+      min-width: 180px;
     }
 
-    .time-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: nowrap;
-    }
-
-    /* 오전 / 오후 드롭다운 더 넓게 */
+    /* 오전/오후 드롭다운 — 더 넓게 */
     #time-ap {
       padding: 8px 20px;
-      min-width: 110px;
+      min-width: 120px;
+    }
+
+    #time-hh,
+    #time-mm {
+      padding: 8px 12px;
+      min-width: 80px;
     }
 
     /* 개인정보 보기 버튼 */
@@ -59,7 +61,7 @@
       white-space: nowrap;
     }
 
-    /* 계좌번호 */
+    /* 입금 계좌 라인 */
     .bank-line {
       display: flex;
       align-items: center;
@@ -67,7 +69,7 @@
       flex-wrap: nowrap;
     }
 
-    /* 주소 라벨 클릭 */
+    /* 주소 라벨 */
     .clickable-label {
       cursor: pointer;
       user-select: none;
@@ -84,22 +86,18 @@
         margin-bottom: -4px;
       }
 
-      .date-flex {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-      }
-
-      .time-group {
+      .datetime-row {
+        flex-direction: row;
+        gap: 8px;
         width: 100%;
-        gap: 6px;
       }
 
+      #date,
       #time-ap,
       #time-hh,
       #time-mm {
         flex: 1;
-        min-width: 0;
+        min-width: 120px;
       }
 
       .bank-line {
@@ -169,18 +167,16 @@
         <input id="lookupPw" class="input" placeholder="4자리 숫자" maxlength="4" inputmode="numeric" style="flex:1"/>
       </div>
 
-      <!-- 예약일시 -->
+      <!-- 예약일시 (완전 정렬 적용본) -->
       <div class="field-row" id="date-row">
         <div class="field-label">예약일시</div>
 
-        <div class="date-flex">
+        <div class="datetime-row">
           <input id="date" type="date" class="input date-input">
 
-          <div class="time-group">
-            <select id="time-ap" class="input input-sm"></select>
-            <select id="time-hh" class="input input-sm"></select>
-            <select id="time-mm" class="input input-sm"></select>
-          </div>
+          <select id="time-ap" class="input input-sm"></select>
+          <select id="time-hh" class="input input-sm"></select>
+          <select id="time-mm" class="input input-sm"></select>
         </div>
       </div>
 
