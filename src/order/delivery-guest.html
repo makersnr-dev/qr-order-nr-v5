@@ -7,65 +7,67 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* ----- 공통 ----- */
+    /* ----- 공통 스타일 ----- */
     .field-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       width: 100%;
     }
+
     .field-label {
       width: 80px;
       flex-shrink: 0;
+      margin-top: 5px;
     }
 
-    /* 조회 비밀번호 라벨 */
     .label-lookup {
       width: 80px;
       white-space: nowrap;
       text-align: center;
+      margin-top: 5px;
     }
 
-    /* 날짜/시간 입력 영역 (조회비밀번호 구조로 통일) */
+    /* ------ 예약일시 라벨 + 입력칸 ------ */
     .datetime-wrap {
-  flex: 1;                  /* 조회비밀번호처럼 하나의 큰 input 영역처럼 보이게 됨 */
-}
+      flex: 1;
+      width: 100%;
+    }
 
-.datetime-row {
-  display: flex;
-  gap: 10px;
- 
-}
+    .datetime-row {
+      display: flex;
+      flex-wrap: wrap;   /* 데스크탑에서도 줄바꿈 허용 */
+      gap: 10px;
+      width: 100%;
+    }
 
-    
-
-    /* 날짜 input — 입력칸과 정확히 정렬 */
     #date {
       height: 40px;
       padding: 0 10px;
-      min-width: 180px;
+      min-width: 200px;
+      flex: 1;
     }
 
-    /* 오전/오후 드롭다운 — 더 넓게 */
     #time-ap {
       padding: 8px 20px;
-      min-width: 120px;
+      min-width: 150px;
+      flex: 1;
     }
 
     #time-hh,
     #time-mm {
       padding: 8px 12px;
-      min-width: 80px;
+      min-width: 120px;
+      flex: 1;
     }
 
-    /* 개인정보 보기 버튼 */
-    #privacy-open {
-      transform: scale(0.9);
-      transform-origin: right center;
-      white-space: nowrap;
+    /* ------ 주소 클릭 가능 ------ */
+    .clickable-label {
+      cursor: pointer;
+      user-select: none;
     }
 
-    /* 입금 계좌 라인 */
+    /* 계좌번호 */
     .bank-line {
       display: flex;
       align-items: center;
@@ -73,10 +75,10 @@
       flex-wrap: nowrap;
     }
 
-    /* 주소 라벨 */
-    .clickable-label {
-      cursor: pointer;
-      user-select: none;
+    /* 개인정보 보기 버튼 */
+    #privacy-open {
+      transform: scale(0.9);
+      white-space: nowrap;
     }
 
     /* ----- 모바일 반응형 ----- */
@@ -91,8 +93,7 @@
       }
 
       .datetime-row {
-
-        gap: 8px;
+        flex-direction: column;
         width: 100%;
       }
 
@@ -100,7 +101,8 @@
       #time-ap,
       #time-hh,
       #time-mm {
-        min-width: 120px;
+        width: 100%;
+        min-width: 0;
       }
 
       .bank-line {
@@ -113,8 +115,6 @@
 
 <body data-store-id="">
 
-
-<!-- storeId 초기화 -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
   const storeId = ensureStoreInitialized();
@@ -129,7 +129,6 @@
 
 
 <div class="container">
-
   <h1>배달/예약 (비회원)</h1>
 
   <div class="card hstack" style="gap:8px">
@@ -139,52 +138,52 @@
 
 
   <div class="card vstack">
-   <h3>배달/예약 정보 <span class="small">*</span></h3>
+    <h3>배달/예약 정보 *</h3>
 
     <div class="vstack" style="gap:14px">
 
-    <!-- 배송지 -->
+      <!-- 배송지 -->
       <div class="field-row">
-        <div class="field-label addr-label">배송지</div>
-        <div class="addr-wrap">
-          <input id="addr" class="input" />
-          <input id="addr-detail" class="input addr-detail" placeholder="상세주소" />
+        <div class="field-label clickable-label addr-label">배송지</div>
+
+        <div style="flex:1">
+          <input id="addr" class="input"/>
+          <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
         </div>
       </div>
 
- <!-- 주문자명 -->
+      <!-- 주문자명 -->
       <div class="field-row">
         <div class="field-label">주문자명</div>
-        <input id="cust" class="input" />
+        <input id="cust" class="input" style="flex:1"/>
       </div>
 
       <!-- 연락처 -->
       <div class="field-row">
         <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
+        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" style="flex:1"/>
       </div>
-      
+
       <!-- 조회 비밀번호 -->
       <div class="field-row">
         <div class="field-label label-lookup">조회 비밀번호</div>
         <input id="lookupPw" class="input" placeholder="4자리 숫자" maxlength="4" inputmode="numeric" style="flex:1"/>
       </div>
 
-      <!-- 예약일시 (완전 정렬 적용본) -->
+      <!-- 예약일시 -->
       <div class="field-row" id="date-row">
-  <div class="field-label">예약일시</div>
+        <div class="field-label">예약일시</div>
 
-  <!-- 조회 비밀번호와 동일한 flex item 구조 -->
- 
-    <div class="datetime-row">
-      <input id="date" type="date" class="input date-input">
+        <div class="datetime-wrap">
+          <div class="datetime-row">
+            <input id="date" type="date" class="input date-input">
 
-      <select id="time-ap" class="input input-sm time-ap"></select>
-      <select id="time-hh" class="input input-sm"></select>
-      <select id="time-mm" class="input input-sm"></select>
-    </div>
-  </div>
-
+            <select id="time-ap" class="input input-sm"></select>
+            <select id="time-hh" class="input input-sm"></select>
+            <select id="time-mm" class="input input-sm"></select>
+          </div>
+        </div>
+      </div>
 
       <!-- 요청사항 -->
       <div class="field-row">
@@ -241,7 +240,6 @@
 
 </div>
 
-
 <!-- 개인정보 모달 -->
 <div id="privacy-modal" style="
   display:none; position:fixed; inset:0;
@@ -259,7 +257,6 @@
     </div>
   </div>
 </div>
-
 
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
@@ -297,6 +294,7 @@
   const cart = makeCart("cart-box", "total");
   cart.render();
   renderMenu("menu-grid", cart);
+
 
   /* 개인정보 보기 */
   const modal = document.getElementById("privacy-modal");
