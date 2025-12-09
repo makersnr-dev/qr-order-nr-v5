@@ -7,9 +7,7 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* ================================
-       공통 input row 스타일
-    =================================*/
+    /* ----- 공통 ----- */
     .field-row {
       display: flex;
       align-items: center;
@@ -28,47 +26,41 @@
       text-align: center;
     }
 
-    /* ================================
-       예약일시 UI 개선
-       (간격 넓게 + 균형 + 모바일 대응)
-    =================================*/
+    /* 날짜/시간 전체 래퍼 */
     .datetime-row {
       display: flex;
-      align-items: center;
-      gap: 16px; /* ← 넉넉한 간격 */
-      flex-wrap: nowrap;
+      gap: 10px;
+      flex-wrap: wrap;
       flex: 1;
     }
 
+    /* 날짜 input — 데스크탑 정렬 */
     #date {
       height: 40px;
       padding: 0 10px;
-      min-width: 200px; /* 날짜칸 더 넓게 */
+      min-width: 180px;
     }
 
+    /* 오전/오후 드롭다운 — 넓게 */
     #time-ap {
-      min-width: 130px;
-      padding: 8px 16px;
+      padding: 8px 20px;
+      min-width: 120px;
     }
 
     #time-hh,
     #time-mm {
-      min-width: 90px;
       padding: 8px 12px;
+      min-width: 80px;
     }
 
-    /* ================================
-       개인정보 보기 버튼
-    =================================*/
+    /* 개인정보 보기 버튼 */
     #privacy-open {
       transform: scale(0.9);
       transform-origin: right center;
       white-space: nowrap;
     }
 
-    /* ================================
-       입금 계좌 라인
-    =================================*/
+    /* 입금 계좌 라인 */
     .bank-line {
       display: flex;
       align-items: center;
@@ -76,38 +68,60 @@
       flex-wrap: nowrap;
     }
 
-    /* ================================
-       주소 라벨
-    =================================*/
+    /* 조회비밀번호 구조처럼 flex:1 부여 */
+    #date-row .datetime-row {
+      flex: 1;
+    }
+
+    /* 주소 라벨 */
     .clickable-label {
       cursor: pointer;
       user-select: none;
     }
 
-    /* ================================
-       모바일 반응형
-    =================================*/
+    /* ----- 모바일 반응형 ----- */
     @media (max-width: 640px) {
+
       .field-row {
         flex-direction: column;
         align-items: flex-start;
       }
 
-      .field-label {
-        margin-bottom: -4px;
+      /* 라벨과 입력칸 간격 */
+      #date-row .field-label {
+        margin-bottom: 6px;
       }
 
-      .datetime-row {
-        flex-direction: column;
-        gap: 10px;
+      /* 모바일에서 날짜 input 왼쪽 정렬 + 힌트 표시 + 달력 표시 */
+      #date {
         width: 100%;
+        text-align: left !important;
+        padding-left: 10px;
+        appearance: auto !important;
+        -webkit-appearance: menulist !important;
       }
 
-      #date,
+      #date::placeholder {
+        color: #9ca3af !important;
+        opacity: 1 !important;
+      }
+
+      #date::-webkit-calendar-picker-indicator {
+        opacity: 1 !important;
+        display: block !important;
+      }
+
+      /* 시간 선택 박스 모바일 균형 조정 */
+      .datetime-row {
+        width: 100%;
+        gap: 8px;
+      }
+
       #time-ap,
       #time-hh,
       #time-mm {
-        width: 100%;
+        flex: 1;
+        min-width: 110px;
       }
 
       .bank-line {
@@ -146,31 +160,31 @@
 
 
   <div class="card vstack">
-   <h3>배달/예약 정보 <span class="small">*</span></h3>
+    <h3>배달/예약 정보 *</h3>
 
     <div class="vstack" style="gap:14px">
 
       <!-- 배송지 -->
       <div class="field-row">
-        <div class="field-label clickable-label addr-label">배송지</div>
-        <div class="addr-wrap">
-          <input id="addr" class="input" />
-          <input id="addr-detail" class="input addr-detail" placeholder="상세주소" />
+        <div class="field-label addr-label">배송지</div>
+        <div style="flex:1">
+          <input id="addr" class="input"/>
+          <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
         </div>
       </div>
 
       <!-- 주문자명 -->
       <div class="field-row">
         <div class="field-label">주문자명</div>
-        <input id="cust" class="input" />
+        <input id="cust" class="input" style="flex:1"/>
       </div>
 
       <!-- 연락처 -->
       <div class="field-row">
         <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" />
+        <input id="phone" class="input" placeholder="숫자만 기입" inputmode="numeric" style="flex:1"/>
       </div>
-      
+
       <!-- 조회 비밀번호 -->
       <div class="field-row">
         <div class="field-label label-lookup">조회 비밀번호</div>
@@ -182,9 +196,9 @@
         <div class="field-label">예약일시</div>
 
         <div class="datetime-row">
-          <input id="date" type="date" class="input date-input">
+          <input id="date" type="date" class="input date-input" placeholder="연도-월-일">
 
-          <select id="time-ap" class="input input-sm time-ap"></select>
+          <select id="time-ap" class="input input-sm"></select>
           <select id="time-hh" class="input input-sm"></select>
           <select id="time-mm" class="input input-sm"></select>
         </div>
@@ -212,12 +226,12 @@
       <div class="field-row" id="bank-box" style="display:none;">
         <div class="field-label">입금계좌</div>
 
-        <div class="bank-line" style="gap:10px">
+        <div class="bank-line">
           <span id="bank-text"></span>
           <button id="bank-copy" class="btn">복사</button>
         </div>
 
-        <div class="small" style="margin-top:4px; color:#f97316;">
+        <div class="small" style="color:#f97316;margin-left:80px;">
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
@@ -319,28 +333,21 @@
   function updateTab() {
     const isResv = document.getElementById("tab-resv").checked;
 
-    const dateRow = document.getElementById("date-row");
-    const bankBox = document.getElementById("bank-box");
-
-    if (dateRow) dateRow.style.display = isResv ? "block" : "none";
-    if (bankBox) bankBox.style.display = isResv ? "flex" : "none";
-
-    document.getElementById("action-btn").textContent = 
-      isResv ? "예약하기" : "결제하기";
+    document.getElementById("date-row").style.display = isResv ? "block" : "none";
+    document.getElementById("bank-box").style.display = isResv ? "flex" : "none";
+    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
 
     if (isResv) {
       const b =
         get(["admin", "ownerBank", storeId]) ||
         get(["admin", "ownerBank"]) ||
         {};
-
       const bt = document.getElementById("bank-text");
       bt.textContent = (b.bank && b.number)
         ? `${b.bank} ${b.number} (${b.holder || ""})`
         : "(관리자에 계좌 정보 없음)";
     }
   }
-
   document.getElementById("tab-deliv").onchange = updateTab;
   document.getElementById("tab-resv").onchange = updateTab;
   updateTab();
@@ -367,7 +374,6 @@
     if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time") || {};
-
       if (!date) return alert("예약 날짜를 선택해주세요.");
       if (!ap || !hh || !mm) return alert("예약 시간을 선택해주세요.");
 
@@ -390,7 +396,6 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const j = await r.json();
       if (!j.ok) return alert("예약 저장 실패");
 
