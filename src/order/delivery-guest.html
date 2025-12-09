@@ -169,16 +169,18 @@
 
       <!-- 예약일시 (완전 정렬 적용본) -->
       <div class="field-row" id="date-row">
-        <div class="field-label">예약일시</div>
+  <div class="field-label">예약일시</div>
 
-        <div class="datetime-row">
-          <input id="date" type="date" class="input date-input">
+  <!-- 이 부분이 '입력칸 하나' 역할을 하도록 flex:1 추가 -->
+  <div class="datetime-row" style="flex:1;">
+    <input id="date" type="date" class="input date-input">
 
-          <select id="time-ap" class="input input-sm"></select>
-          <select id="time-hh" class="input input-sm"></select>
-          <select id="time-mm" class="input input-sm"></select>
-        </div>
-      </div>
+    <select id="time-ap" class="input input-sm"></select>
+    <select id="time-hh" class="input input-sm"></select>
+    <select id="time-mm" class="input input-sm"></select>
+  </div>
+</div>
+
 
       <!-- 요청사항 -->
       <div class="field-row">
