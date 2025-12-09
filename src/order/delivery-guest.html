@@ -27,14 +27,17 @@
     }
 
     /* 날짜/시간 입력 영역 (조회비밀번호 구조로 통일) */
-    .datetime-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      width: 100%;
-      flex:1;
-    }
+    .datetime-wrap {
+  flex: 1;                  /* 조회비밀번호처럼 하나의 큰 input 영역처럼 보이게 됨 */
+}
+
+.datetime-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+    
 
     /* 날짜 input — 입력칸과 정확히 정렬 */
     #date {
@@ -172,15 +175,18 @@
       <div class="field-row" id="date-row">
   <div class="field-label">예약일시</div>
 
-  <!-- 이 부분이 '입력칸 하나' 역할을 하도록 flex:1 추가 -->
-  <div class="datetime-row" style="flex:1;">
-    <input id="date" type="date" class="input date-input">
+  <!-- 조회 비밀번호와 동일한 flex item 구조 -->
+  <div class="datetime-wrap">
+    <div class="datetime-row">
+      <input id="date" type="date" class="input date-input">
 
-    <select id="time-ap" class="input input-sm"></select>
-    <select id="time-hh" class="input input-sm"></select>
-    <select id="time-mm" class="input input-sm"></select>
+      <select id="time-ap" class="input input-sm"></select>
+      <select id="time-hh" class="input input-sm"></select>
+      <select id="time-mm" class="input input-sm"></select>
+    </div>
   </div>
 </div>
+
 
 
       <!-- 요청사항 -->
