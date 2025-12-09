@@ -7,50 +7,71 @@
   <title>배달/예약 (비회원)</title>
 
   <style>
-    /* ----- 공통 ----- */
+    /* ===== 공통 레이아웃 ===== */
     .field-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       width: 100%;
     }
+
     .field-label {
       width: 80px;
       flex-shrink: 0;
     }
 
-    /* 조회 비밀번호 라벨 */
+    /* 조회 비밀번호 라벨 센터정렬 */
     .label-lookup {
       width: 80px;
       white-space: nowrap;
       text-align: center;
     }
 
-    /* 날짜/시간 전체 래퍼 */
+    /* =============================== */
+    /* 날짜 입력 커스텀 (네이버 앱 대응) */
+    /* =============================== */
+    .date-box {
+      position: relative;
+      width: 100%;
+    }
+
+    .date-box .date-input {
+      width: 100%;
+      padding-right: 40px;
+      height: 40px;
+      text-align: left;
+    }
+
+    .date-box .date-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 17px;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    /* =============================== */
+    /* 예약시간 select UI */
+    /* =============================== */
     .datetime-row {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      flex: 1;
+      width: 100%;
     }
 
-    /* 날짜 input — 데스크탑 정렬 */
-    #date {
-      height: 40px;
-      padding: 0 10px;
-      min-width: 180px;
-    }
-
-    /* 오전/오후 드롭다운 — 넓게 */
-    #time-ap {
-      padding: 8px 20px;
-      min-width: 120px;
-    }
-
+    #time-ap,
     #time-hh,
     #time-mm {
-      padding: 8px 12px;
-      min-width: 80px;
+      text-align: left;
+      text-align-last: left; /* select 내부 글자 왼쪽 정렬 */
+      min-width: 100px;
+    }
+
+    #time-ap {
+      min-width: 120px;
     }
 
     /* 개인정보 보기 버튼 */
@@ -68,18 +89,7 @@
       flex-wrap: nowrap;
     }
 
-    /* 조회비밀번호 구조처럼 flex:1 부여 */
-    #date-row .datetime-row {
-      flex: 1;
-    }
-
-    /* 주소 라벨 */
-    .clickable-label {
-      cursor: pointer;
-      user-select: none;
-    }
-
-    /* ----- 모바일 반응형 ----- */
+    /* 모바일 반응형 */
     @media (max-width: 640px) {
 
       .field-row {
@@ -87,32 +97,12 @@
         align-items: flex-start;
       }
 
-      /* 라벨과 입력칸 간격 */
-      #date-row .field-label {
-        margin-bottom: 6px;
+      .field-label {
+        margin-bottom: -4px;
       }
 
-      /* 모바일에서 날짜 input 왼쪽 정렬 + 힌트 표시 + 달력 표시 */
-      #date {
-        width: 100%;
-        text-align: left !important;
-        padding-left: 10px;
-        appearance: auto !important;
-        -webkit-appearance: menulist !important;
-      }
-
-      #date::placeholder {
-        color: #9ca3af !important;
-        opacity: 1 !important;
-      }
-
-      #date::-webkit-calendar-picker-indicator {
-        opacity: 1 !important;
-        display: block !important;
-      }
-
-      /* 시간 선택 박스 모바일 균형 조정 */
       .datetime-row {
+        flex-direction: column;
         width: 100%;
         gap: 8px;
       }
@@ -120,20 +110,22 @@
       #time-ap,
       #time-hh,
       #time-mm {
-        flex: 1;
-        min-width: 110px;
+        width: 100%;
+        min-width: 100%;
       }
 
-      .bank-line {
-        flex-direction: column;
-        align-items: flex-start;
+      .date-box .date-input {
+        text-align: left;
+      }
+
+      .date-box {
+        margin-top: 4px;
       }
     }
   </style>
 </head>
 
 <body data-store-id="">
-
 
 <!-- storeId 초기화 -->
 <script type="module">
@@ -166,8 +158,8 @@
 
       <!-- 배송지 -->
       <div class="field-row">
-        <div class="field-label addr-label">배송지</div>
-        <div style="flex:1">
+        <div class="field-label addr-label clickable-label">배송지</div>
+        <div class="addr-wrap" style="flex:1">
           <input id="addr" class="input"/>
           <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
         </div>
@@ -195,12 +187,21 @@
       <div class="field-row" id="date-row">
         <div class="field-label">예약일시</div>
 
-        <div class="datetime-row">
-          <input id="date" type="date" class="input date-input" placeholder="연도-월-일">
+        <div style="flex:1">
 
-          <select id="time-ap" class="input input-sm"></select>
-          <select id="time-hh" class="input input-sm"></select>
-          <select id="time-mm" class="input input-sm"></select>
+          <!-- 날짜 입력 수정 (네이버 대응 버전) -->
+          <div class="date-box">
+            <input id="date" type="text" class="input date-input" placeholder="연도-월-일">
+            <span class="date-icon">📅</span>
+          </div>
+
+          <!-- 시간 선택 -->
+          <div class="datetime-row" style="margin-top:8px;">
+            <select id="time-ap" class="input input-sm"></select>
+            <select id="time-hh" class="input input-sm"></select>
+            <select id="time-mm" class="input input-sm"></select>
+          </div>
+
         </div>
       </div>
 
@@ -231,13 +232,14 @@
           <button id="bank-copy" class="btn">복사</button>
         </div>
 
-        <div class="small" style="color:#f97316;margin-left:80px;">
+        <div class="small" style="margin-top:4px; color:#f97316; margin-left:80px;">
           ※ 주문자명으로 입금해주세요!
         </div>
       </div>
 
     </div>
   </div>
+
 
   <!-- 메뉴 -->
   <div class="card vstack">
@@ -279,6 +281,7 @@
 </div>
 
 
+
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
@@ -302,21 +305,24 @@
   document.querySelector(".addr-label").onclick = openAddrSearch;
   document.getElementById("addr").onclick = openAddrSearch;
 
-  /* 입력 제한 */
+  /* 숫자 입력 제한 */
   document.getElementById("phone").addEventListener("input", e => {
     e.target.value = e.target.value.replace(/\D/g, "");
   });
+
   document.getElementById("lookupPw").addEventListener("input", e => {
     e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   });
 
-  /* 메뉴 & 장바구니 */
+  /* 예약 시간 selector 채우기 */
   fillTimeSelectors("time");
+
+  /* 장바구니 */
   const cart = makeCart("cart-box", "total");
   cart.render();
   renderMenu("menu-grid", cart);
 
-  /* 개인정보 보기 */
+  /* 개인정보 보기 모달 */
   const modal = document.getElementById("privacy-modal");
   document.getElementById("privacy-open").onclick = () => {
     const t =
@@ -352,11 +358,32 @@
   document.getElementById("tab-resv").onchange = updateTab;
   updateTab();
 
-  /* 주문 / 예약 처리 */
+
+
+  /* ===== 네이버 앱 대응 date-picker ===== */
+
+  const dateInput = document.getElementById("date");
+
+  dateInput.addEventListener("focus", () => {
+    dateInput.type = "date";
+    dateInput.showPicker?.();
+  });
+
+  dateInput.addEventListener("blur", () => {
+    if (!dateInput.value) {
+      dateInput.type = "text";
+    }
+  });
+
+
+
+  /* 주문/예약 처리 */
   document.getElementById("action-btn").onclick = async () => {
+
     const addr1 = document.getElementById("addr").value.trim();
     const addr2 = document.getElementById("addr-detail").value.trim();
     const fullAddr = addr2 ? addr1 + " " + addr2 : addr1;
+
     const cust = document.getElementById("cust").value.trim();
     const phone = document.getElementById("phone").value.trim();
     const memo = document.getElementById("memo").value.trim();
@@ -371,9 +398,11 @@
 
     const isResv = document.getElementById("tab-resv").checked;
 
+    /* 예약 */
     if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time") || {};
+
       if (!date) return alert("예약 날짜를 선택해주세요.");
       if (!ap || !hh || !mm) return alert("예약 시간을 선택해주세요.");
 
@@ -396,6 +425,7 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
       });
+
       const j = await r.json();
       if (!j.ok) return alert("예약 저장 실패");
 
