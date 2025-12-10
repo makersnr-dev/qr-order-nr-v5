@@ -67,6 +67,32 @@
       text-align: left;
     }
 
+    /* 연월일 힌트(placeholder)를 흰색으로 보이게 */
+input.date-input::placeholder {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+/* Chrome / 네이버 / 삼성브라우저 */
+input.date-input::-webkit-input-placeholder {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+/* iOS Safari (날짜 placeholder 영역) */
+input.date-input::-webkit-datetime-edit-fields-wrapper {
+  color: #ffffff !important;
+}
+
+/* 연/월/일 각각 placeholder 스타일 */
+input.date-input::-webkit-datetime-edit-year-field,
+input.date-input::-webkit-datetime-edit-month-field,
+input.date-input::-webkit-datetime-edit-day-field {
+  color: #ffffff !important;
+  opacity: 0.7;
+}
+
+
     /* 개인정보 보기 버튼 */
     #privacy-open {
       transform: scale(0.9);
