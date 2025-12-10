@@ -36,7 +36,7 @@
       align-items: center;
       gap: 10px;
       flex-wrap: nowrap;
-      /*width: 100%;*/
+      width: 100%;
     }
 
     input[type="text"].date-input {
@@ -86,7 +86,7 @@
     @media (max-width: 640px) {
       input[type="date"].date-input {
     /*width: 100%;       전체 라인 폭 사용 */
-    min-width: 180px; /* 지나치게 작아지는 것 방지 */
+    min-width: 200px; /* 지나치게 작아지는 것 방지 */
   }
       .field-row {
         flex-direction: column;
@@ -109,6 +109,36 @@
         flex: 1;
       }
     }
+    /* 공통 placeholder 스타일 */
+input[type="date"].date-input::placeholder {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+/* WebKit 브라우저 (Chrome, Navermobile, Samsung Browser, Android) */
+input[type="date"].date-input::-webkit-input-placeholder {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+/* iOS Safari */
+input[type="date"].date-input::-webkit-date-and-time-value {
+  color: #ffffff !important;
+}
+
+/* 안드로이드에서 날짜 placeholder 강제색 변경 */
+input[type="date"].date-input::-webkit-datetime-edit-fields-wrapper {
+  color: #ffffff !important;
+}
+
+/* 연/월/일 각각의 placeholder */
+input[type="date"].date-input::-webkit-datetime-edit-year-field,
+input[type="date"].date-input::-webkit-datetime-edit-month-field,
+input[type="date"].date-input::-webkit-datetime-edit-day-field {
+  color: #ffffff !important;
+  opacity: 0.75;
+}
+
   </style>
 </head>
 
