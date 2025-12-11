@@ -457,7 +457,9 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
       const j = await r.json();
       if (!j.ok) return alert("예약 저장 실패");
 
-      return location.replace(`/src/order/reserve-success.html`);
+      const originPage = location.pathname + location.search;  // 현재 페이지(비회원 주문 페이지)
+return location.replace(`/src/order/reserve-success.html?store=${storeId}&origin=${encodeURIComponent(originPage)}`);
+
     }
 
     /* ---- 배달 결제 ---- */
