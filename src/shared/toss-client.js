@@ -82,11 +82,12 @@ export async function startPayment({ orderId, amount, orderName, returnTo }) {
     `?orderId=${encodeURIComponent(orderId)}` +
     (finalReturnTo ? `&returnTo=${encodeURIComponent(finalReturnTo)}` : '');
 
-  return client.requestPayment({
-    amount: Number(amount),
-    orderId: String(orderId),
-    orderName: String(orderName || '주문'),
-    successUrl,
-    failUrl,
-  });
+  return client.requestPayment("카드", {
+  amount: Number(amount),
+  orderId: String(orderId),
+  orderName: String(orderName || '주문'),
+  successUrl,
+  failUrl,
+});
+
 }
