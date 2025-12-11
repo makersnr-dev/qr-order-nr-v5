@@ -69,20 +69,21 @@ if (!url.searchParams.get("store")) {
 }
 
 try {
-  // returnTo 원본 가져오기
-  let returnTo = url.searchParams.get("returnTo");
+  // origin 가져오기
+let returnTo = url.searchParams.get("origin");
 
-  // returnTo가 없으면 기본값
-  if (!returnTo) {
-    returnTo = `/src/order/select.html?store=${storeId}`;
-  } else {
-    // returnTo 안에 store= 이 없다면 자동적으로 storeId 채움
-    const rt = new URL(returnTo, location.origin);
-    if (!rt.searchParams.get("store")) {
-      rt.searchParams.set("store", storeId);
-      returnTo = rt.toString();
-    }
+// 기본값: 비회원 주문 페이지
+if (!returnTo) {
+  returnTo = `/src/order/delivery-guest.html?store=${storeId}`;
+} else {
+  // origin URL에도 storeId 보정
+  const rt = new URL(returnTo, location.origin);
+  if (!rt.searchParams.get("store")) {
+    rt.searchParams.set("store", storeId);
+    returnTo = rt.toString();
   }
+}
+
 
   // 2.5초 후 자동 이동
   setTimeout(() => {
