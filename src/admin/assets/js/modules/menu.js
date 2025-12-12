@@ -164,6 +164,127 @@ export function renderMenu() {
   });
 }
 
+// ==============================
+// 엑셀 → 메뉴 JSON 변환 유틸
+// ==============================
+
+// 1) 엑셀 한 행(row)을 메뉴 객체로 변환
+function convertRowToMenu(row) {
+  return {
+    id: String(row.id || '').trim(),
+    name: String(row.name || '').trim(),
+    price: Number(row.price || 0),
+    active: row.active === true || String(row.active).toUpperCase() === 'TRUE',
+    soldOut: row.soldOut === true || String(row.soldOut).toUpperCase() === 'TRUE',
+    category: (row.category || '').trim(),
+    img: (row.img || '').trim(),
+    desc: (row.desc || '').trim(),
+    options: parseOptions(row.options || '')
+  };
+}
+
+// 2) options 컬럼 문자열을 옵션 스키마로 변환
+// 예시: "사이즈:톨=0,그란데=500; 샷:1샷=500,2샷=1000"
+function parseOptions(str) {
+  if (!str || !String(str).trim()) return [];
+
+  const groups = String(str).split(';').map(s => s.trim()).filter(Boolean);
+
+  return groups.map((grp, gi) => {
+    const [namePart, itemsPart] = grp.split(':');
+    if (!itemsPart) return null;
+
+    const name = namePart.trim();
+    const items = itemsPart.split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map((it, ii) => {
+        const [labelPart, pricePart] = it.split('=');
+        return {
+          id: `g${gi}_i${ii}`,
+          label: (labelPart || '').trim(),
+          price: Number(pricePart || 0),
+        };
+      });
+
+    return {
+      id: `grp${gi}`,
+      name,
+      type: 'single', // 기본값: 단일 선택
+      items,
+    };
+  }).filter(Boolean);
+}
+
+// 3) 기존 메뉴 + 새 메뉴(엑셀)를 ID 기준으로 병합
+function mergeMenu(oldMenu, newMenu) {
+  const map = {};
+
+  oldMenu.forEach((m) => {
+    if (m && m.id) map[m.id] = m;
+  });
+
+  newMenu.forEach((m) => {
+    if (m && m.id) {
+      map[m.id] = m; // 같은 id 있으면 덮어쓰기
+    }
+  });
+
+  return Object.values(map);
+}
+// ==============================
+// 엑셀 메뉴 업로드 기능
+// ==============================
+function bindExcelUpload() {
+  const fileInput = document.getElementById('menu-excel');
+  const uploadBtn = document.getElementById('menu-excel-upload');
+  if (!fileInput || !uploadBtn) return;
+
+  uploadBtn.onclick = () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      alert('엑셀(.xlsx) 파일을 먼저 선택하세요.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet); // 1행은 헤더로 인식
+
+        if (!rows.length) {
+          alert('엑셀에 데이터가 없습니다.');
+          return;
+        }
+
+        // 엑셀 → 메뉴 배열로 변환
+        const newMenu = rows.map(convertRowToMenu).filter(m => m.id && m.name);
+
+        if (!newMenu.length) {
+          alert('유효한 메뉴 데이터가 없습니다. id, name 은 필수입니다.');
+          return;
+        }
+
+        const current = loadMenuForAdmin().slice();
+        const merged = mergeMenu(current, newMenu);
+
+        patch(PER_STORE_PATH(), () => merged);
+        renderMenu();
+        alert(`엑셀 업로드 완료! (총 ${newMenu.length}개 행 반영)`);
+      } catch (err) {
+        console.error('엑셀 파싱 오류:', err);
+        alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+}
+
+
 /**
  * 상단 "추가" 버튼 바인딩
  * - ID / 이름 / 가격만 입력 → 나머지 필드는 기본값으로
@@ -218,4 +339,5 @@ export function bindMenu() {
 
     renderMenu();
   };
+  bindExcelUpload();
 }
