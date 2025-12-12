@@ -75,26 +75,30 @@ export function renderMenu() {
     const active = m.active !== false;
     const soldOut = !!m.soldOut;
 
-    tr.innerHTML = `
-      <td>${m.id}</td>
-      <td><input class="input" value="${m.name || ''}" data-k="name"></td>
-      <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
-      <td style="min-width:160px">
-        <label class="small" style="display:block;margin-bottom:4px">
-          <input type="checkbox" ${active ? 'checked' : ''} data-k="active">
-          판매중(표시)
-        </label>
-        <label class="small" style="display:block">
-          <input type="checkbox" ${soldOut ? 'checked' : ''} data-k="soldOut">
-          일시품절
-        </label>
-      </td>
-      <td class="right">
-        <button class="btn small" data-act="detail">상세</button>
-        <button class="btn small" data-act="save">저장</button>
-        <button class="btn small" data-act="del">삭제</button>
-      </td>
-    `;
+   const category = m.category || '';
+
+tr.innerHTML = `
+  <td>${m.id}</td>
+  <td><input class="input" value="${m.name || ''}" data-k="name"></td>
+  <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
+  <td><input class="input" value="${category}" data-k="category"></td>
+  <td style="min-width:160px">
+    <label class="small" style="display:block;margin-bottom:4px">
+      <input type="checkbox" ${active ? 'checked' : ''} data-k="active">
+      판매중(표시)
+    </label>
+    <label class="small" style="display:block">
+      <input type="checkbox" ${soldOut ? 'checked' : ''} data-k="soldOut">
+      일시품절
+    </label>
+  </td>
+  <td class="right">
+    <button class="btn small" data-act="detail">상세</button>
+    <button class="btn small" data-act="save">저장</button>
+    <button class="btn small" data-act="del">삭제</button>
+  </td>
+`;
+
     body.appendChild(tr);
 
     const saveBtn   = tr.querySelector('[data-act="save"]');
@@ -117,7 +121,9 @@ export function renderMenu() {
             target.price = Number(input.value || 0);
           } else if (k === 'name') {
             target.name = input.value || '';
-          }
+          }else if (k === 'category') {
+    target.category = input.value || '';
+  }
         });
 
         arr[idx] = target;
