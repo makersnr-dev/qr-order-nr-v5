@@ -235,9 +235,10 @@ function renderOptions(container, options) {
       label.style.fontSize = '13px';
 
       label.innerHTML = `
-        <input type="${group.type === 'multi' ? 'checkbox' : 'radio'}"
-               name="opt-${group.id}">
-        <span>${opt.label}${opt.price ? ` (+${fmt(opt.price)}원)` : ''}</span>
+       <input type="${group.type === 'multi' ? 'checkbox' : 'radio'}"
+         name="opt-${group.id}"
+         data-price="${opt.price || 0}">
+  <span>${opt.label}${opt.price ? ` (+${fmt(opt.price)}원)` : ''}</span>
       `;
 
       box.appendChild(label);
@@ -247,9 +248,24 @@ function renderOptions(container, options) {
   });
 }
 
+function calcSelectedOptionPrice(container) {
+  let sum = 0;
+  if (!container) return 0;
+
+  const inputs = container.querySelectorAll('input:checked');
+  inputs.forEach(input => {
+    const price = Number(input.dataset.price || 0);
+    sum += price;
+  });
+
+  return sum;
+}
+
+
 // 특정 메뉴 아이템으로 모달 열기
 function openMenuModal(item, cart) {
   ensureMenuModal();
+  let currentUnitPrice = Number(item.price || 0);
   if (!modalBox || !modalName || !modalDesc || !modalPrice || !modalQtyInput || !modalAddBtn) return;
 
   const unitPrice = Number(item.price || 0);
@@ -264,6 +280,20 @@ function openMenuModal(item, cart) {
   modalBox._setImage(item.img || '');
   modalQtyInput.value = '1';
   modalBox._setUnitPrice(unitPrice);
+  const optionBox = modalBox.querySelector('#menu-detail-options');
+
+if (optionBox) {
+  optionBox.onchange = () => {
+  const optionPrice = calcSelectedOptionPrice(optionBox);
+  const base = Number(item.price || 0);
+  const newUnit = base + optionPrice;
+
+  currentUnitPrice = newUnit;          
+  modalBox._setUnitPrice(newUnit);
+};
+
+}
+
 
   // "장바구니 담기" 버튼 핸들러 재설정
   modalAddBtn.onclick = () => {
@@ -277,7 +307,7 @@ function openMenuModal(item, cart) {
       cart.items.push({
         id: item.id,
         name: item.name,
-        price: unitPrice,
+        price: currentUnitPrice,
         qty,
       });
     }
