@@ -126,30 +126,48 @@ export function renderMenu() {
       };
     }
 
-    // 📝 상세(이미지 / 설명)
-    if (detailBtn) {
-      detailBtn.onclick = () => {
-        const arr = loadMenuForAdmin().slice();
-        const target = arr[idx] || { id: m.id };
+   // 📝 상세(이미지 / 설명 / 카테고리 / 옵션텍스트)
+if (detailBtn) {
+  detailBtn.onclick = () => {
+    const arr = loadMenuForAdmin().slice();
+    const target = arr[idx] || { id: m.id };
 
-        const currentImg  = target.img || '';
-        const currentDesc = target.desc || '';
+    const currentImg       = target.img || '';
+    const currentDesc      = target.desc || '';
+    const currentCategory  = target.category || '';
+    const currentOptText   = target.optionsText || ''; // 사람이 보는 옵션 문자열 저장용
 
-        const newImg = window.prompt('이미지 URL (선택)', currentImg);
-        if (newImg !== null) {
-          target.img = newImg.trim();
-        }
-
-        const newDesc = window.prompt('메뉴 설명 (선택, 여러 줄 가능)', currentDesc);
-        if (newDesc !== null) {
-          target.desc = newDesc.trim();
-        }
-
-        arr[idx] = target;
-        patch(PER_STORE_PATH(), () => arr);
-        renderMenu();
-      };
+    const newImg = window.prompt('이미지 URL (선택)', currentImg);
+    if (newImg !== null) {
+      target.img = newImg.trim();
     }
+
+    const newDesc = window.prompt('메뉴 설명 (선택, 여러 줄 가능)', currentDesc);
+    if (newDesc !== null) {
+      target.desc = newDesc.trim();
+    }
+
+    const newCategory = window.prompt('카테고리 (선택, 예: 커피 / 디저트)', currentCategory);
+    if (newCategory !== null) {
+      target.category = newCategory.trim();
+    }
+
+    const newOptText = window.prompt(
+      '옵션 (선택)\n예: 사이즈:톨=0,그란데=500; 샷:1샷=500,2샷=1000',
+      currentOptText
+    );
+    if (newOptText !== null) {
+      const trimmed = newOptText.trim();
+      target.optionsText = trimmed;          // 사람이 손보기 쉬운 원문
+      target.options = trimmed ? parseOptions(trimmed) : []; // 실제 주문용 구조
+    }
+
+    arr[idx] = target;
+    patch(PER_STORE_PATH(), () => arr);
+    renderMenu();
+  };
+}
+
 
     // 🗑 삭제
     if (delBtn) {
