@@ -92,6 +92,7 @@ function ensureMenuModal() {
       <div id="menu-detail-name" style="font-size:17px;font-weight:600"></div>
       <div id="menu-detail-price" style="font-size:15px;color:#facc15"></div>
       <div id="menu-detail-desc" style="font-size:13px;color:#9ca3af;white-space:pre-wrap"></div>
+      <div id="menu-detail-options" style="margin-top:10px;display:flex;flex-direction:column;gap:10px"></div>
 
       <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div style="display:flex;align-items:center;gap:6px">
@@ -200,6 +201,52 @@ function hideMenuModal() {
   modalBackdrop.style.display = 'none';
 }
 
+//
+function renderOptions(container, options) {
+  container.innerHTML = '';
+
+  if (!Array.isArray(options) || options.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+
+  options.forEach(group => {
+    const box = document.createElement('div');
+    box.style.border = '1px solid #263241';
+    box.style.borderRadius = '10px';
+    box.style.padding = '8px';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.gap = '6px';
+
+    const title = document.createElement('div');
+    title.textContent = group.name;
+    title.style.fontSize = '13px';
+    title.style.fontWeight = '600';
+    box.appendChild(title);
+
+    (group.items || []).forEach(opt => {
+      const label = document.createElement('label');
+      label.style.display = 'flex';
+      label.style.alignItems = 'center';
+      label.style.gap = '6px';
+      label.style.fontSize = '13px';
+
+      label.innerHTML = `
+        <input type="${group.type === 'multi' ? 'checkbox' : 'radio'}"
+               name="opt-${group.id}">
+        <span>${opt.label}${opt.price ? ` (+${fmt(opt.price)}원)` : ''}</span>
+      `;
+
+      box.appendChild(label);
+    });
+
+    container.appendChild(box);
+  });
+}
+
 // 특정 메뉴 아이템으로 모달 열기
 function openMenuModal(item, cart) {
   ensureMenuModal();
@@ -209,6 +256,11 @@ function openMenuModal(item, cart) {
 
   modalName.textContent = item.name || '';
   modalDesc.textContent = item.desc || '';
+  renderOptions(
+  modalBox.querySelector('#menu-detail-options'),
+  item.options
+);
+
   modalBox._setImage(item.img || '');
   modalQtyInput.value = '1';
   modalBox._setUnitPrice(unitPrice);
@@ -287,6 +339,11 @@ export function renderMenu(gridId, cart) {
         <div style="font-size:13px;color:#facc15">
           ${fmt(item.price || 0)}원
         </div>
+        ${hasOptions
+  ? `<div style="font-size:11px;color:#22c55e">옵션 선택 가능</div>`
+  : ''
+}
+
         ${
           soldOut
             ? `<div style="font-size:11px;color:#f97316;">일시품절</div>`
