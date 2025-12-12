@@ -261,6 +261,27 @@ function calcSelectedOptionPrice(container) {
   return sum;
 }
 
+function getSelectedOptions(container) {
+  const result = [];
+  if (!container) return result;
+
+  container.querySelectorAll('input:checked').forEach(input => {
+    const groupBox = input.closest('div');
+    const groupName =
+      groupBox?.querySelector('div')?.textContent || '';
+
+    const labelText = input.nextElementSibling?.textContent || '';
+
+    result.push({
+      group: groupName,
+      label: labelText,
+      price: Number(input.dataset.price || 0)
+    });
+  });
+
+  return result;
+}
+
 
 // 특정 메뉴 아이템으로 모달 열기
 function openMenuModal(item, cart) {
@@ -304,12 +325,16 @@ if (optionBox) {
     if (idx >= 0) {
       cart.items[idx].qty += qty;
     } else {
-      cart.items.push({
-        id: item.id,
-        name: item.name,
-        price: currentUnitPrice,
-        qty,
-      });
+      const selectedOptions = getSelectedOptions(optionBox);
+
+cart.items.push({
+  id: item.id,
+  name: item.name,
+  price: currentUnitPrice,
+  qty,
+  options: selectedOptions
+});
+
     }
 
     cart.render();
@@ -418,14 +443,25 @@ export function makeCart(containerId, totalId) {
         row.style.gap = '8px';
         row.style.justifyContent = 'space-between';
         row.style.padding = '6px 0';
-        row.innerHTML =
-          `<div>${it.name} x ${it.qty}</div>
-           <div>${fmt(Number(it.price || 0) * Number(it.qty || 1))}원</div>
-           <div class="hstack" style="gap:6px">
-             <button class="btn" data-a="minus">-</button>
-             <button class="btn" data-a="plus">+</button>
-             <button class="btn" data-a="del">삭제</button>
-           </div>`;
+        row.innerHTML = `
+  <div>
+    <div>${it.name} x ${it.qty}</div>
+    ${
+      Array.isArray(it.options) && it.options.length
+        ? `<div class="small" style="color:#9ca3af">
+            ${it.options.map(o => `- ${o.label}`).join('<br>')}
+           </div>`
+        : ''
+    }
+  </div>
+  <div>${fmt(Number(it.price || 0) * Number(it.qty || 1))}원</div>
+  <div class="hstack" style="gap:6px">
+    <button class="btn" data-a="minus">-</button>
+    <button class="btn" data-a="plus">+</button>
+    <button class="btn" data-a="del">삭제</button>
+  </div>
+`;
+
         row.querySelector('[data-a="minus"]').onclick = () => {
           if (it.qty > 1) it.qty--;
           else this.items.splice(idx, 1);
