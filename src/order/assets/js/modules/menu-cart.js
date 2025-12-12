@@ -249,6 +249,9 @@ export function renderMenu(gridId, cart) {
   ensureMenuModal();
 
   list.forEach(item => {
+    const hasOptions =
+    Array.isArray(item.options) && item.options.length > 0;
+
     const btn = document.createElement('button');
     btn.className = 'btn';
     btn.style.cssText = [
