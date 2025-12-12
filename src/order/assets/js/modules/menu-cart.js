@@ -282,6 +282,59 @@ function getSelectedOptions(container) {
   return result;
 }
 
+function validateOptions(optionBox, optionGroups) {
+  // 옵션이 아예 없으면 항상 OK
+  if (!Array.isArray(optionGroups) || optionGroups.length === 0) {
+    return { ok: true };
+  }
+
+  // optionBox가 없는데 옵션 그룹은 있다? -> 화면 쪽 문제지만 일단 막기
+  if (!optionBox) {
+    return { ok: false, message: '옵션 영역을 찾지 못했습니다.' };
+  }
+
+  for (const group of optionGroups) {
+    const gid = group.id;
+    const gname = group.name || '옵션';
+
+    // 이 그룹에 속한 input들만 집기 (name=opt-그룹id 로 이미 만들고 있음)
+    const inputs = optionBox.querySelectorAll(`input[name="opt-${gid}"]`);
+    const checked = optionBox.querySelectorAll(`input[name="opt-${gid}"]:checked`);
+    const count = checked.length;
+
+    // 기본값: single이면 1개, multi면 0개~무한
+    const isMulti = group.type === 'multi';
+
+    // required / min / max 규칙 계산
+    const required = !!group.required;
+
+    // min/max가 명시되면 그걸 우선, 아니면 required/type 기반 기본값
+    let min = (group.min !== undefined && group.min !== null) ? Number(group.min) : (required ? 1 : 0);
+    let max = (group.max !== undefined && group.max !== null)
+      ? Number(group.max)
+      : (isMulti ? Number.POSITIVE_INFINITY : 1);
+
+    // single인데 max를 1보다 크게 줬다면 그래도 1로 고정하는게 안전
+    if (!isMulti) max = 1;
+
+    // input이 하나도 없으면(데이터가 이상) 스킵 또는 에러 처리 선택 가능
+    if (!inputs || inputs.length === 0) {
+      // 옵션 그룹 정의는 있는데 items가 없다 = 관리자 데이터 문제
+      return { ok: false, message: `[${gname}] 옵션 항목이 없습니다.` };
+    }
+
+    if (count < min) {
+      return { ok: false, message: `[${gname}] 최소 ${min}개 선택해야 합니다.` };
+    }
+    if (count > max) {
+      // max가 무한이면 안 걸림
+      return { ok: false, message: `[${gname}] 최대 ${max}개까지 선택 가능합니다.` };
+    }
+  }
+
+  return { ok: true };
+}
+
 
 // 특정 메뉴 아이템으로 모달 열기
 function openMenuModal(item, cart) {
@@ -318,10 +371,18 @@ if (optionBox) {
 
   // "장바구니 담기" 버튼 핸들러 재설정
   modalAddBtn.onclick = () => {
-    const qty = Math.max(1, Number(modalQtyInput.value || 1));
+    const selectedOptions = getSelectedOptions(optionBox);
+const optionKey = JSON.stringify(selectedOptions);
 
+    const qty = Math.max(1, Number(modalQtyInput.value || 1));
+const ruleCheck = validateOptions(optionBox, item.options);
+  if (!ruleCheck.ok) {
+    alert(ruleCheck.message);
+    return;
+  }
     // 이미 같은 id 항목 있으면 수량만 증가
-    const idx = cart.items.findIndex(x => x.id === item.id);
+    const idx = cart.items.findIndex(x => x.id === item.id && x.optionKey === optionKey);
+
     if (idx >= 0) {
       cart.items[idx].qty += qty;
     } else {
@@ -332,8 +393,10 @@ cart.items.push({
   name: item.name,
   price: currentUnitPrice,
   qty,
-  options: selectedOptions
+  options: selectedOptions,
+  optionKey
 });
+
 
     }
 
