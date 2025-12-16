@@ -371,8 +371,7 @@ if (optionBox) {
 
   // "장바구니 담기" 버튼 핸들러 재설정
   modalAddBtn.onclick = () => {
-    const selectedOptions = getSelectedOptions(optionBox);
-const optionKey = JSON.stringify(selectedOptions);
+   
 
     const qty = Math.max(1, Number(modalQtyInput.value || 1));
 const ruleCheck = validateOptions(optionBox, item.options);
@@ -380,13 +379,14 @@ const ruleCheck = validateOptions(optionBox, item.options);
     alert(ruleCheck.message);
     return;
   }
+     const selectedOptions = getSelectedOptions(optionBox);
+const optionKey = JSON.stringify(selectedOptions);
     // 이미 같은 id 항목 있으면 수량만 증가
     const idx = cart.items.findIndex(x => x.id === item.id && x.optionKey === optionKey);
 
     if (idx >= 0) {
       cart.items[idx].qty += qty;
     } else {
-      const selectedOptions = getSelectedOptions(optionBox);
 
 cart.items.push({
   id: item.id,
