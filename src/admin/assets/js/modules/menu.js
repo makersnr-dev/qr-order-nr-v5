@@ -134,51 +134,17 @@ tr.innerHTML = `
 
    // 📝 상세(이미지 / 설명 / 카테고리 / 옵션텍스트)
 if (detailBtn) {
-  detailBtn.onclick = () => {
-    const arr = loadMenuForAdmin().slice();
-    const target = arr[idx] || { id: m.id };
+ detailBtn.onclick = () => {
+  const arr = loadMenuForAdmin().slice();
+  const target = arr[idx];
 
-    const currentImg       = target.img || '';
-    const currentDesc      = target.desc || '';
-    const currentCategory  = target.category || '';
-    const currentOptText   = target.optionsText || ''; // 사람이 보는 옵션 문자열 저장용
-
-    const newImg = window.prompt('이미지 URL (선택)', currentImg);
-    if (newImg !== null) {
-      target.img = newImg.trim();
-    }
-
-    const newDesc = window.prompt('메뉴 설명 (선택, 여러 줄 가능)', currentDesc);
-    if (newDesc !== null) {
-      target.desc = newDesc.trim();
-    }
-
-    const newCategory = window.prompt('카테고리 (선택, 예: 커피 / 디저트)', currentCategory);
-    if (newCategory !== null) {
-      target.category = newCategory.trim();
-    }
-
-    const newOptText = window.prompt(
-      `옵션 (선택)
-형식:
-옵션명|type|required|min|max:항목=가격,항목=가격
-
-예시:
-사이즈|single|1|1|1:톨=0,그란데=500;
-샷|multi|0|0|2:1샷=500,2샷=1000
-`,
-      currentOptText
-    );
-    if (newOptText !== null) {
-      const trimmed = newOptText.trim();
-      target.optionsText = trimmed;          // 사람이 손보기 쉬운 원문
-      target.options = trimmed ? parseOptions(trimmed) : []; // 실제 주문용 구조
-    }
-
+  openMenuDetailModal(target, () => {
     arr[idx] = target;
     patch(PER_STORE_PATH(), () => arr);
     renderMenu();
-  };
+  });
+};
+
 }
 
 
@@ -211,7 +177,6 @@ function convertRowToMenu(row) {
     category: (row.category || '').trim(),
     img: (row.img || '').trim(),
     desc: (row.desc || '').trim(),
-    optionsText: optText,
     options: parseOptions(optText)
   };
 }
@@ -275,7 +240,6 @@ function mergeMenu(oldMenu, newMenu) {
       map[m.id] = {
         ...map[m.id],
         ...m,
-        optionsText: m.optionsText || map[m.id].optionsText,
         options: (m.options && m.options.length)
           ? m.options
           : map[m.id].options
@@ -397,3 +361,222 @@ export function bindMenu() {
   };
   bindExcelUpload();
 }
+
+function ensureMenuDetailModal() {
+  if (document.getElementById('menu-detail-modal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'menu-detail-modal';
+  modal.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center; z-index:9999;
+    padding:16px;
+  `;
+
+  modal.innerHTML = `
+    <div style="width:820px; max-width:100%; max-height:90vh; overflow:auto;
+                background:#fff; border-radius:12px; padding:16px">
+      <h3 style="margin:0 0 12px">메뉴 상세 설정</h3>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <div style="flex:1; min-width:240px">
+          <div class="small" style="margin-bottom:6px">이미지 URL</div>
+          <input id="md-img" class="input" placeholder="https://..." style="width:100%">
+        </div>
+
+        <div style="flex:1; min-width:240px">
+          <div class="small" style="margin-bottom:6px">카테고리</div>
+          <input id="md-category" class="input" placeholder="예: 커피 / 디저트" style="width:100%">
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="small" style="margin-bottom:6px">메뉴 설명</div>
+        <textarea id="md-desc" class="input" style="width:100%; min-height:90px; white-space:pre-wrap"></textarea>
+      </div>
+
+      <hr style="margin:16px 0">
+
+      <h4 style="margin:0 0 10px">옵션 관리</h4>
+      <div id="md-opt-groups"></div>
+      <button id="md-opt-add-group" class="btn small" type="button">옵션 그룹 추가</button>
+
+      <div class="hstack" style="justify-content:flex-end; margin-top:14px; gap:8px">
+        <button id="md-cancel" class="btn" type="button">취소</button>
+        <button id="md-save" class="btn primary" type="button">저장</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // 바깥 클릭 닫기
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+}
+
+
+
+
+function renderOptionGroups(groups, mountEl) {
+  const box = mountEl;
+  if (!box) return;
+
+  box.innerHTML = '';
+
+  groups.forEach((g, gi) => {
+    if (!Array.isArray(g.items)) g.items = [];
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'border:1px solid #ddd;padding:10px;margin-bottom:10px;border-radius:10px';
+
+    wrap.innerHTML = `
+      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:8px">
+        <input class="input" data-k="name" placeholder="옵션명" value="${g.name || ''}" style="min-width:180px">
+        <select class="input" data-k="type" style="width:120px">
+          <option value="single" ${g.type==='single'?'selected':''}>단일</option>
+          <option value="multi" ${g.type==='multi'?'selected':''}>복수</option>
+        </select>
+
+        <label class="small hstack" style="gap:6px">
+          <input type="checkbox" data-k="required" ${g.required?'checked':''}> 필수
+        </label>
+
+        <input class="input" data-k="min" type="number" placeholder="min" value="${g.min ?? ''}" style="width:90px">
+        <input class="input" data-k="max" type="number" placeholder="max" value="${g.max ?? ''}" style="width:90px">
+
+        <button class="btn small" data-act="del-group" type="button">그룹 삭제</button>
+      </div>
+
+      <div class="opt-items"></div>
+      <button class="btn small" data-act="add-item" type="button">항목 추가</button>
+    `;
+
+    // 그룹 값 반영
+    wrap.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.getAttribute('data-k');
+      el.oninput = () => {
+        if (k === 'required') g.required = !!el.checked;
+        else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
+        else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
+        else g[k] = el.value;
+      };
+      el.onchange = el.oninput;
+    });
+
+    // 그룹 삭제
+    wrap.querySelector('[data-act="del-group"]').onclick = () => {
+      groups.splice(gi, 1);
+      renderOptionGroups(groups, mountEl);
+    };
+
+    // 아이템 렌더
+    const itemsBox = wrap.querySelector('.opt-items');
+
+    g.items.forEach((it, ii) => {
+      const row = document.createElement('div');
+      row.className = 'hstack';
+      row.style.cssText = 'gap:8px; margin-bottom:6px; flex-wrap:wrap';
+
+      row.innerHTML = `
+        <input class="input" data-k="label" placeholder="라벨" value="${it.label || ''}" style="min-width:200px">
+        <input class="input" data-k="price" type="number" placeholder="가격" value="${Number(it.price || 0)}" style="width:120px">
+        <button class="btn small" data-act="del-item" type="button">삭제</button>
+      `;
+
+      row.querySelector('[data-k="label"]').oninput = (e) => it.label = e.target.value;
+      row.querySelector('[data-k="price"]').oninput = (e) => it.price = Number(e.target.value || 0);
+      row.querySelector('[data-act="del-item"]').onclick = () => {
+        g.items.splice(ii, 1);
+        renderOptionGroups(groups, mountEl);
+      };
+
+      itemsBox.appendChild(row);
+    });
+
+    // 항목 추가
+    wrap.querySelector('[data-act="add-item"]').onclick = () => {
+      g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
+      renderOptionGroups(groups, mountEl);
+    };
+
+    box.appendChild(wrap);
+  });
+}
+
+
+function openMenuDetailModal(target, onSave) {
+  if (!target) return;
+
+  ensureMenuDetailModal();
+
+  const modal = document.getElementById('menu-detail-modal');
+  const imgEl = document.getElementById('md-img');
+  const descEl = document.getElementById('md-desc');
+  const catEl = document.getElementById('md-category');
+  const groupsMount = document.getElementById('md-opt-groups');
+
+  const addGroupBtn = document.getElementById('md-opt-add-group');
+  const saveBtn = document.getElementById('md-save');
+  const cancelBtn = document.getElementById('md-cancel');
+
+  // 값 채우기
+  imgEl.value = target.img || '';
+  descEl.value = target.desc || '';
+  catEl.value = target.category || '';
+
+  // 옵션 그룹 복사본(모달에서 편집하다 취소하면 원본 유지)
+  let optionGroups = Array.isArray(target.options)
+    ? JSON.parse(JSON.stringify(target.options))
+    : [];
+
+  // 옵션 렌더
+  renderOptionGroups(optionGroups, groupsMount);
+
+  // 그룹 추가
+  addGroupBtn.onclick = () => {
+    optionGroups.push({
+      id: crypto.randomUUID(),
+      name: '',
+      type: 'single',
+      required: false,
+      min: undefined,
+      max: undefined,
+      items: []
+    });
+    renderOptionGroups(optionGroups, groupsMount);
+  };
+
+  // 취소
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  // 저장
+  saveBtn.onclick = () => {
+    target.img = imgEl.value.trim();
+    target.desc = descEl.value.trim();
+    target.category = catEl.value.trim();
+
+    // 옵션 최종 정리(빈 그룹/빈 항목 제거)
+    const cleaned = (optionGroups || [])
+      .map(g => ({
+        ...g,
+        name: String(g.name || '').trim(),
+        items: (g.items || []).filter(it => String(it.label || '').trim())
+      }))
+      .filter(g => g.name && g.items && g.items.length);
+
+    target.options = cleaned;
+
+    modal.style.display = 'none';
+    onSave && onSave();
+  };
+
+  modal.style.display = 'flex';
+}
+
+
+
+
