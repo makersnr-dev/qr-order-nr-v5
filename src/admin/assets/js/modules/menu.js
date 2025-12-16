@@ -420,6 +420,9 @@ function ensureMenuDetailModal() {
 
 
 function renderOptionGroups(groups, mountEl) {
+  if (!mountEl) return;
+  groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
   const box = mountEl;
   if (!box) return;
 
@@ -432,12 +435,18 @@ function renderOptionGroups(groups, mountEl) {
     wrap.style.cssText = 'border:1px solid #ddd;padding:10px;margin-bottom:10px;border-radius:10px';
 
     wrap.innerHTML = `
-      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:8px">
-        <input class="input" data-k="name" placeholder="옵션명" value="${g.name || ''}" style="min-width:180px">
-        <select class="input" data-k="type" style="width:120px">
-          <option value="single" ${g.type==='single'?'selected':''}>단일</option>
-          <option value="multi" ${g.type==='multi'?'selected':''}>복수</option>
-        </select>
+        <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:8px">
+          <button class="btn small" data-act="up">↑</button>
+          <button class="btn small" data-act="down">↓</button>
+      
+          <input class="input" data-k="name" placeholder="옵션명"
+            value="${g.name || ''}" style="min-width:180px">
+      
+          <select class="input" data-k="type" style="width:120px">
+            <option value="single" ${g.type==='single'?'selected':''}>단일</option>
+            <option value="multi" ${g.type==='multi'?'selected':''}>복수</option>
+          </select>
+
 
         <label class="small hstack" style="gap:6px">
           <input type="checkbox" data-k="required" ${g.required?'checked':''}> 필수
@@ -452,6 +461,21 @@ function renderOptionGroups(groups, mountEl) {
       <div class="opt-items"></div>
       <button class="btn small" data-act="add-item" type="button">항목 추가</button>
     `;
+
+    wrap.querySelector('[data-act="up"]').onclick = () => {
+      if (gi === 0) return;
+      [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
+      groups.forEach((g, i) => g.order = i + 1);
+      renderOptionGroups(groups, mountEl);
+    };
+    
+    wrap.querySelector('[data-act="down"]').onclick = () => {
+      if (gi === groups.length - 1) return;
+      [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
+      groups.forEach((g, i) => g.order = i + 1);
+      renderOptionGroups(groups, mountEl);
+    };
+
 
     // 그룹 값 반영
     wrap.querySelectorAll('[data-k]').forEach(el => {
@@ -479,11 +503,34 @@ function renderOptionGroups(groups, mountEl) {
       row.className = 'hstack';
       row.style.cssText = 'gap:8px; margin-bottom:6px; flex-wrap:wrap';
 
-      row.innerHTML = `
-        <input class="input" data-k="label" placeholder="라벨" value="${it.label || ''}" style="min-width:200px">
-        <input class="input" data-k="price" type="number" placeholder="가격" value="${Number(it.price || 0)}" style="width:120px">
-        <button class="btn small" data-act="del-item" type="button">삭제</button>
+       row.innerHTML = `
+        <button class="btn xs" data-act="up">↑</button>
+        <button class="btn xs" data-act="down">↓</button>
+      
+        <input class="input" data-k="label" placeholder="라벨"
+          value="${it.label || ''}" style="min-width:200px">
+      
+        <input class="input" data-k="price" type="number"
+          value="${Number(it.price || 0)}" style="width:120px">
+      
+        <button class="btn small" data-act="del-item">삭제</button>
       `;
+
+      
+      row.querySelector('[data-act="up"]').onclick = () => {
+        if (ii === 0) return;
+        [g.items[ii - 1], g.items[ii]] = [g.items[ii], g.items[ii - 1]];
+        g.items.forEach((it, i) => it.order = i + 1);
+        renderOptionGroups(groups, mountEl);
+      };
+      
+      row.querySelector('[data-act="down"]').onclick = () => {
+        if (ii === g.items.length - 1) return;
+        [g.items[ii], g.items[ii + 1]] = [g.items[ii + 1], g.items[ii]];
+        g.items.forEach((it, i) => it.order = i + 1);
+        renderOptionGroups(groups, mountEl);
+      };
+
 
       row.querySelector('[data-k="label"]').oninput = (e) => it.label = e.target.value;
       row.querySelector('[data-k="price"]').oninput = (e) => it.price = Number(e.target.value || 0);
@@ -497,7 +544,13 @@ function renderOptionGroups(groups, mountEl) {
 
     // 항목 추가
     wrap.querySelector('[data-act="add-item"]').onclick = () => {
-      g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
+      g.items.push({
+        id: crypto.randomUUID(),
+        label: '',
+        price: 0,
+        order: g.items.length + 1
+      });
+
       renderOptionGroups(groups, mountEl);
     };
 
@@ -543,8 +596,10 @@ function openMenuDetailModal(target, onSave) {
       required: false,
       min: undefined,
       max: undefined,
+      order: optionGroups.length + 1,
       items: []
     });
+
     renderOptionGroups(optionGroups, groupsMount);
   };
 
@@ -561,11 +616,18 @@ function openMenuDetailModal(target, onSave) {
 
     // 옵션 최종 정리(빈 그룹/빈 항목 제거)
     const cleaned = (optionGroups || [])
-      .map(g => ({
+      .map((g, gi) => ({
         ...g,
+        order: g.order ?? gi + 1,
         name: String(g.name || '').trim(),
-        items: (g.items || []).filter(it => String(it.label || '').trim())
+        items: (g.items || [])
+          .map((it, ii) => ({
+            ...it,
+            order: it.order ?? ii + 1
+          }))
+          .filter(it => String(it.label || '').trim())
       }))
+
       .filter(g => g.name && g.items && g.items.length);
 
     target.options = cleaned;
