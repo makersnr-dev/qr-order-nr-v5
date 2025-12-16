@@ -210,6 +210,15 @@ function renderOptions(container, options) {
     return;
   }
 
+  options = options
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  if (!Array.isArray(options) || options.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
   container.style.display = 'flex';
   container.style.flexDirection = 'column';
   container.style.gap = '10px';
@@ -237,7 +246,11 @@ function renderOptions(container, options) {
         ? Number(group.max)
         : Infinity;
 
-    (group.items || []).forEach(opt => {
+    (group.items || [])
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach(opt => {
+
       const label = document.createElement('label');
       label.style.display = 'flex';
       label.style.alignItems = 'center';
