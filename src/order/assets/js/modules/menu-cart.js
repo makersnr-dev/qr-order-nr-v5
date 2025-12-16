@@ -216,6 +216,8 @@ function renderOptions(container, options) {
 
   options.forEach(group => {
     const box = document.createElement('div');
+    box.dataset.groupName = group.name;   
+    box.dataset.groupId = group.id;      
     box.style.border = '1px solid #263241';
     box.style.borderRadius = '10px';
     box.style.padding = '8px';
@@ -259,10 +261,10 @@ function renderOptions(container, options) {
       // ⭐ max 도달 시 UI 제어
       if (isMulti && Number.isFinite(max)) {
         input.addEventListener('change', () => {
-          const all = container.querySelectorAll(
+          const all = box.querySelectorAll(
             `input[name="opt-${group.id}"]`
           );
-          const checked = container.querySelectorAll(
+          const checked = box.querySelectorAll(
             `input[name="opt-${group.id}"]:checked`
           );
 
@@ -278,6 +280,17 @@ function renderOptions(container, options) {
         });
       }
     });
+    // ⭐ 최초 렌더 시 max 상태 동기화
+if (isMulti && Number.isFinite(max)) {
+  const all = box.querySelectorAll(`input[name="opt-${group.id}"]`);
+  const checked = box.querySelectorAll(`input[name="opt-${group.id}"]:checked`);
+
+  if (checked.length >= max) {
+    all.forEach(i => {
+      if (!i.checked) i.disabled = true;
+    });
+  }
+}
 
     container.appendChild(box);
   });
@@ -302,21 +315,23 @@ function getSelectedOptions(container) {
   if (!container) return result;
 
   container.querySelectorAll('input:checked').forEach(input => {
-    const groupBox = input.closest('div');
-    const groupName =
-      groupBox?.querySelector('div')?.textContent || '';
+    const groupBox = input.closest('[data-group-name]');
+    const groupName = groupBox?.dataset.groupName || '';
 
     const labelText = input.nextElementSibling?.textContent || '';
 
-    result.push({
+     result.push({
+      groupId: groupBox?.dataset.groupId || '',
       group: groupName,
       label: labelText,
       price: Number(input.dataset.price || 0)
     });
+
   });
 
   return result;
 }
+
 
 function validateOptions(optionBox, optionGroups) {
   // 옵션이 아예 없으면 항상 OK
@@ -371,6 +386,35 @@ function validateOptions(optionBox, optionGroups) {
   return { ok: true };
 }
 
+function isOptionSatisfied(optionBox, optionGroups) {
+  if (!Array.isArray(optionGroups) || optionGroups.length === 0) {
+    return true; // 옵션 없으면 항상 OK
+  }
+
+  for (const group of optionGroups) {
+    const gid = group.id;
+
+    const required = !!group.required;
+    const min =
+      group.min !== undefined && group.min !== null
+        ? Number(group.min)
+        : (required ? 1 : 0);
+
+    if (min <= 0) continue;
+
+    const checked = optionBox.querySelectorAll(
+      `input[name="opt-${gid}"]:checked`
+    );
+
+    if (checked.length < min) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 
 // 특정 메뉴 아이템으로 모달 열기
 function openMenuModal(item, cart) {
@@ -390,17 +434,31 @@ function openMenuModal(item, cart) {
   modalBox._setImage(item.img || '');
   modalQtyInput.value = '1';
   modalBox._setUnitPrice(unitPrice);
+  
   const optionBox = modalBox.querySelector('#menu-detail-options');
+  function updateAddButtonState() {
+  if (!Array.isArray(item.options) || item.options.length === 0) {
+    modalAddBtn.disabled = false;
+    modalAddBtn.style.opacity = '1';
+    return;
+  }
 
-if (optionBox) {
-  optionBox.onchange = () => {
-  const optionPrice = calcSelectedOptionPrice(optionBox);
-  const base = Number(item.price || 0);
-  const newUnit = base + optionPrice;
+  const ok = isOptionSatisfied(optionBox, item.options);
+  modalAddBtn.disabled = !ok;
+  modalAddBtn.style.opacity = ok ? '1' : '0.4';
+}
 
-  currentUnitPrice = newUnit;          
-  modalBox._setUnitPrice(newUnit);
-};
+
+  if (optionBox) {
+    optionBox.onchange = () => {
+    const optionPrice = calcSelectedOptionPrice(optionBox);
+    const base = Number(item.price || 0);
+    const newUnit = base + optionPrice;
+
+    currentUnitPrice = newUnit;          
+    modalBox._setUnitPrice(newUnit);
+      updateAddButtonState();
+  };
 
 }
 
@@ -439,7 +497,7 @@ cart.items.push({
     cart.render();
     hideMenuModal();
   };
-
+  updateAddButtonState();
   showMenuModal();
 }
 
