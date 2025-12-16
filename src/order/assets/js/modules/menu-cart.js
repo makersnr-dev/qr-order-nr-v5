@@ -211,6 +211,8 @@ function renderOptions(container, options) {
   }
 
   container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '10px';
 
   options.forEach(group => {
     const box = document.createElement('div');
@@ -227,6 +229,12 @@ function renderOptions(container, options) {
     title.style.fontWeight = '600';
     box.appendChild(title);
 
+    const isMulti = group.type === 'multi';
+    const max =
+      group.max !== undefined && group.max !== null
+        ? Number(group.max)
+        : Infinity;
+
     (group.items || []).forEach(opt => {
       const label = document.createElement('label');
       label.style.display = 'flex';
@@ -234,19 +242,47 @@ function renderOptions(container, options) {
       label.style.gap = '6px';
       label.style.fontSize = '13px';
 
-      label.innerHTML = `
-       <input type="${group.type === 'multi' ? 'checkbox' : 'radio'}"
-         name="opt-${group.id}"
-         data-price="${opt.price || 0}">
-  <span>${opt.label}${opt.price ? ` (+${fmt(opt.price)}원)` : ''}</span>
-      `;
+      const input = document.createElement('input');
+      input.type = isMulti ? 'checkbox' : 'radio';
+      input.name = `opt-${group.id}`;
+      input.dataset.price = opt.price || 0;
 
+      const span = document.createElement('span');
+      span.textContent =
+        opt.label +
+        (opt.price ? ` (+${fmt(opt.price)}원)` : '');
+
+      label.appendChild(input);
+      label.appendChild(span);
       box.appendChild(label);
+
+      // ⭐ max 도달 시 UI 제어
+      if (isMulti && Number.isFinite(max)) {
+        input.addEventListener('change', () => {
+          const all = container.querySelectorAll(
+            `input[name="opt-${group.id}"]`
+          );
+          const checked = container.querySelectorAll(
+            `input[name="opt-${group.id}"]:checked`
+          );
+
+          if (checked.length >= max) {
+            all.forEach(i => {
+              if (!i.checked) i.disabled = true;
+            });
+          } else {
+            all.forEach(i => {
+              i.disabled = false;
+            });
+          }
+        });
+      }
     });
 
     container.appendChild(box);
   });
 }
+
 
 function calcSelectedOptionPrice(container) {
   let sum = 0;
