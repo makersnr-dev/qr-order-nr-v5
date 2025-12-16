@@ -159,7 +159,14 @@ if (detailBtn) {
     }
 
     const newOptText = window.prompt(
-      '옵션 (선택)\n예: 사이즈:톨=0,그란데=500; 샷:1샷=500,2샷=1000',
+      `옵션 (선택)
+형식:
+옵션명|type|required|min|max:항목=가격,항목=가격
+
+예시:
+사이즈|single|1|1|1:톨=0,그란데=500;
+샷|multi|0|0|2:1샷=500,2샷=1000
+`,
       currentOptText
     );
     if (newOptText !== null) {
@@ -194,6 +201,7 @@ if (detailBtn) {
 
 // 1) 엑셀 한 행(row)을 메뉴 객체로 변환
 function convertRowToMenu(row) {
+  const optText = String(row.options || '').trim();
   return {
     id: String(row.id || '').trim(),
     name: String(row.name || '').trim(),
@@ -203,7 +211,8 @@ function convertRowToMenu(row) {
     category: (row.category || '').trim(),
     img: (row.img || '').trim(),
     desc: (row.desc || '').trim(),
-    options: parseOptions(row.options || '')
+    optionsText: optText,
+    options: parseOptions(optText)
   };
 }
 
@@ -212,33 +221,44 @@ function convertRowToMenu(row) {
 function parseOptions(str) {
   if (!str || !String(str).trim()) return [];
 
-  const groups = String(str).split(';').map(s => s.trim()).filter(Boolean);
+  return String(str)
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map((grp, gi) => {
+      const [meta, itemsPart] = grp.split(':');
+      if (!itemsPart) return null;
 
-  return groups.map((grp, gi) => {
-    const [namePart, itemsPart] = grp.split(':');
-    if (!itemsPart) return null;
+      // meta: 옵션명|type|required|min|max
+      const [name, type, required, min, max] =
+        meta.split('|').map(s => s.trim());
 
-    const name = namePart.trim();
-    const items = itemsPart.split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map((it, ii) => {
-        const [labelPart, pricePart] = it.split('=');
-        return {
-          id: `g${gi}_i${ii}`,
-          label: (labelPart || '').trim(),
-          price: Number(pricePart || 0),
-        };
-      });
+      const items = itemsPart
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map((it, ii) => {
+          const [label, price] = it.split('=');
+          return {
+            id: `g${gi}_i${ii}`,
+            label: (label || '').trim(),
+            price: Number(price || 0),
+          };
+        });
 
-    return {
-      id: `grp${gi}`,
-      name,
-      type: 'single', // 기본값: 단일 선택
-      items,
-    };
-  }).filter(Boolean);
+      return {
+        id: `grp${gi}`,
+        name,
+        type: type === 'multi' ? 'multi' : 'single',
+        required: required === '1' || required === 'true',
+        min: Number(min || 0),
+        max: max ? Number(max) : undefined,
+        items,
+      };
+    })
+    .filter(Boolean);
 }
+
 
 // 3) 기존 메뉴 + 새 메뉴(엑셀)를 ID 기준으로 병합
 function mergeMenu(oldMenu, newMenu) {
@@ -249,13 +269,25 @@ function mergeMenu(oldMenu, newMenu) {
   });
 
   newMenu.forEach((m) => {
-    if (m && m.id) {
-      map[m.id] = m; // 같은 id 있으면 덮어쓰기
+    if (!m || !m.id) return;
+
+    if (map[m.id]) {
+      map[m.id] = {
+        ...map[m.id],
+        ...m,
+        optionsText: m.optionsText || map[m.id].optionsText,
+        options: (m.options && m.options.length)
+          ? m.options
+          : map[m.id].options
+      };
+    } else {
+      map[m.id] = m;
     }
   });
 
   return Object.values(map);
 }
+
 // ==============================
 // 엑셀 메뉴 업로드 기능
 // ==============================
