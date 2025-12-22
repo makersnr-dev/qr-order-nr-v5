@@ -689,19 +689,19 @@ function openMenuDetailModal(target, onSave) {
 
     // 옵션 최종 정리(빈 그룹/빈 항목 제거)
     const cleaned = (optionGroups || [])
-      .map((g, gi) => ({
-        ...g,
-        order: g.order ?? gi + 1,
-        name: String(g.name || '').trim(),
-        items: (g.items || [])
-          .map((it, ii) => ({
-            ...it,
-            order: it.order ?? ii + 1
-          }))
-          .filter(it => String(it.label || '').trim())
-      }))
+    .map((g, gi) => ({
+      ...g,
+      order: g.order ?? gi + 1,
+      name: String(g.name || '').trim(),
+      items: (g.items || [])
+        .map((it, ii) => ({
+          ...it,
+          order: it.order ?? ii + 1
+        }))
+        .filter(it => String(it.label || '').trim())
+    }))
+    .filter(g => g.name && g.items && g.items.length);
 
-      .filter(g => g.name && g.items && g.items.length);
 
     target.options = cleaned;
 
