@@ -447,7 +447,7 @@ function ensureMenuDetailModal() {
       <div id="md-opt-groups"></div>
 
       <button id="md-opt-add-group"
-        class="btn small"
+        class="btn xs"
         type="button"
         style="margin-top:9px">
         + 옵션 그룹 추가
