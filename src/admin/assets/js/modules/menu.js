@@ -473,7 +473,10 @@ function ensureMenuDetailModal() {
 
 function renderOptionGroups(groups, mountEl, onChange) {
   if (!mountEl) return;
-  const notifyChange = typeof onChange === 'function' ? onChange : () => {};
+
+  const notifyChange = typeof onChange === 'function'
+    ? onChange
+    : () => {};
 
   mountEl.innerHTML = '';
 
@@ -488,17 +491,17 @@ function renderOptionGroups(groups, mountEl, onChange) {
         background:#02040a;
         border:1px solid #263241;
         border-radius:14px;
-        padding:14px;
+        padding:16px;
         margin-bottom:18px;
       `;
 
       /* ================= 옵션 그룹 설정 ================= */
       wrap.innerHTML = `
-        <div style="font-size:12px;color:#9ca3af;margin-bottom:10px">
+        <div style="font-size:14px;color:#cbd5f5;margin-bottom:12px">
           옵션 그룹 설정
         </div>
 
-        <div class="hstack" style="gap:14px;align-items:flex-end;flex-wrap:wrap">
+        <div class="hstack" style="gap:16px;align-items:flex-end;flex-wrap:wrap">
 
           <!-- 접기 -->
           <button class="btn xs" data-act="toggle">
@@ -507,13 +510,13 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
           <!-- 옵션명 -->
           <div style="flex:1;min-width:160px">
-            <div style="font-size:11px;color:#9ca3af;text-align:center">옵션명</div>
+            <div style="font-size:13px;color:#9ca3af;text-align:center">옵션명</div>
             <input class="input" data-k="name" value="${g.name || ''}">
           </div>
 
           <!-- 선택 방식 -->
-          <div style="width:120px">
-            <div style="font-size:11px;color:#9ca3af;text-align:center">선택 방식</div>
+          <div style="width:130px">
+            <div style="font-size:13px;color:#9ca3af;text-align:center">선택 방식</div>
             <select class="input" data-k="type">
               <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
               <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
@@ -521,27 +524,27 @@ function renderOptionGroups(groups, mountEl, onChange) {
           </div>
 
           <!-- 필수 -->
-          <div style="width:90px;text-align:center">
-            <div style="font-size:11px;color:#9ca3af">필수 여부</div>
-            <label class="hstack" style="justify-content:center;gap:4px">
+          <div style="width:110px;text-align:center">
+            <div style="font-size:13px;color:#9ca3af">필수 여부</div>
+            <label class="hstack" style="justify-content:center;gap:6px">
               <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-              <span style="font-size:11px">필수</span>
+              <span style="font-size:13px">필수</span>
             </label>
           </div>
 
           <!-- 최소 -->
-          <div style="width:70px">
-            <div style="font-size:11px;color:#9ca3af;text-align:center">최소</div>
+          <div style="width:80px">
+            <div style="font-size:13px;color:#9ca3af;text-align:center">최소</div>
             <input class="input" data-k="min" value="${g.min ?? ''}">
           </div>
 
           <!-- 최대 -->
-          <div style="width:70px">
-            <div style="font-size:11px;color:#9ca3af;text-align:center">최대</div>
+          <div style="width:80px">
+            <div style="font-size:13px;color:#9ca3af;text-align:center">최대</div>
             <input class="input" data-k="max" value="${g.max ?? ''}">
           </div>
 
-          <!-- 정렬 + 삭제 (우측 끝) -->
+          <!-- 정렬 / 삭제 -->
           <div style="display:flex;gap:6px;margin-left:auto">
             <button class="btn xs" data-act="up">↑</button>
             <button class="btn xs" data-act="down">↓</button>
@@ -550,14 +553,18 @@ function renderOptionGroups(groups, mountEl, onChange) {
         </div>
 
         <!-- 옵션 항목 -->
-        <div class="opt-body" style="display:${g._collapsed ? 'none' : 'block'};margin-top:14px">
+        <div class="opt-body"
+          style="display:${g._collapsed ? 'none' : 'block'};margin-top:18px">
+
           <div class="opt-items"></div>
-          <button class="btn xs" data-act="add-item">+ 옵션 항목 추가</button>
+
+          <button class="btn xs" data-act="add-item">
+            + 옵션 항목 추가
+          </button>
         </div>
       `;
 
-      /* ===== 이벤트 바인딩 ===== */
-
+      /* ===== 그룹 이벤트 ===== */
       wrap.querySelector('[data-act="toggle"]').onclick = () => {
         g._collapsed = !g._collapsed;
         renderOptionGroups(groups, mountEl, notifyChange);
@@ -602,14 +609,14 @@ function renderOptionGroups(groups, mountEl, onChange) {
       header.className = 'hstack';
       header.style.cssText = `
         gap:8px;
-        margin-bottom:6px;
-        font-size:11px;
+        margin-bottom:8px;
+        font-size:12px;
         color:#9ca3af;
       `;
       header.innerHTML = `
         <div style="flex:1;text-align:center">항목명</div>
-        <div style="width:80px;text-align:center">추가금액</div>
-        <div style="width:48px;text-align:center">관리</div>
+        <div style="width:90px;text-align:center">추가금액</div>
+        <div style="width:60px;text-align:center">관리</div>
       `;
       itemsBox.appendChild(header);
 
@@ -626,7 +633,7 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
           <input class="input" type="number"
             value="${it.price || 0}"
-            style="width:80px;text-align:right">
+            style="width:90px;text-align:right">
 
           <button class="btn xs">삭제</button>
         `;
