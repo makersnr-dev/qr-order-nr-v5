@@ -225,6 +225,22 @@ function parseOptions(str) {
 }
 
 
+function validateOptionGroups(groups) {
+  if (!Array.isArray(groups)) return true;
+
+  return groups.every(g => {
+    if (!g.name || !String(g.name).trim()) return false;
+    if (!Array.isArray(g.items) || g.items.length === 0) return false;
+
+    return g.items.every(it =>
+      it.label && String(it.label).trim()
+    );
+  });
+}
+
+
+
+
 // 3) 기존 메뉴 + 새 메뉴(엑셀)를 ID 기준으로 병합
 function mergeMenu(oldMenu, newMenu) {
   const map = {};
@@ -453,182 +469,177 @@ function ensureMenuDetailModal() {
 
 
 
+
+
 function renderOptionGroups(groups, mountEl) {
   if (!mountEl) return;
-  groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   mountEl.innerHTML = '';
 
-  groups.forEach((g, gi) => {
-    if (!Array.isArray(g.items)) g.items = [];
+  groups
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .forEach((g, gi) => {
+      if (g._collapsed === undefined) g._collapsed = false;
+      if (!Array.isArray(g.items)) g.items = [];
 
-    const wrap = document.createElement('div');
-    wrap.style.cssText = `
-      background:#111827;
-      border:1px solid #1f2937;
-      border-radius:14px;
-      padding:14px;
-      margin-bottom:14px;
-      color:#e5e7eb;
-      font-size:13px; /* ⭐ 옵션 관리보다 살짝 작게 */
-    `;
-
-    wrap.innerHTML = `
-      <!-- 그룹 헤더 -->
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `
+        background:#02040a;
+        border:1px solid #263241;
+        border-radius:12px;
+        padding:12px;
         margin-bottom:12px;
-      ">
-        <div style="font-weight:600; color:#fff; font-size:14px">
-          옵션 그룹
+      `;
+
+      wrap.innerHTML = `
+        <!-- 옵션 그룹 헤더 -->
+        <div class="hstack"
+             style="gap:8px;align-items:center;margin-bottom:8px">
+
+          <button class="btn xs" data-act="toggle" title="접기/펼치기">
+            ${g._collapsed ? '▶' : '▼'}
+          </button>
+
+          <span class="small" style="color:#9ca3af">옵션 그룹</span>
+
+          <input class="input" data-k="name"
+            placeholder="옵션명"
+            value="${g.name || ''}"
+            style="flex:1;background:#0b1620;color:#e5e7eb">
+
+          <select class="input" data-k="type" style="width:90px">
+            <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
+            <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
+          </select>
+
+          <label class="small hstack" style="gap:4px">
+            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
+            필수
+          </label>
+
+          <input class="input" data-k="min"
+            placeholder="최소"
+            value="${g.min ?? ''}"
+            style="width:60px">
+
+          <input class="input" data-k="max"
+            placeholder="최대"
+            value="${g.max ?? ''}"
+            style="width:60px">
+
+          <button class="btn xs" data-act="up" title="정렬 위">↑</button>
+          <button class="btn xs" data-act="down" title="정렬 아래">↓</button>
+          <button class="btn xs" data-act="del-group">그룹 삭제</button>
         </div>
 
-        <div class="hstack" style="gap:6px">
-          <span class="small" style="color:#9ca3af; font-size:11px">정렬</span>
-          <button class="btn xs" data-act="up">↑</button>
-          <button class="btn xs" data-act="down">↓</button>
-          <button class="btn xs danger" data-act="del-group"
-            style="font-size:11px">
-            그룹 삭제
+        <!-- 옵션 항목 영역 -->
+        <div class="opt-body" style="display:${g._collapsed ? 'none' : 'block'}">
+          <div class="opt-items"></div>
+          <button class="btn xs" data-act="add-item">
+            + 옵션 항목 추가
           </button>
         </div>
-      </div>
-
-      <!-- 그룹 설정 -->
-      <div class="hstack"
-        style="gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:flex-end">
-
-        <div style="flex:1; min-width:200px">
-          <div class="small">옵션명</div>
-          <input class="input" data-k="name" value="${g.name || ''}">
-        </div>
-
-        <div>
-          <div class="small">선택 방식</div>
-          <select class="input" data-k="type">
-            <option value="single" ${g.type==='single'?'selected':''}>단일</option>
-            <option value="multi" ${g.type==='multi'?'selected':''}>복수</option>
-          </select>
-        </div>
-
-        <div>
-          <div class="small">필수</div>
-          <label class="hstack" style="gap:6px; height:38px; align-items:center">
-            <input type="checkbox" data-k="required" ${g.required?'checked':''}>
-          </label>
-        </div>
-
-        <div>
-          <div class="small">최소</div>
-          <input class="input" data-k="min" type="number"
-            value="${g.min ?? ''}" style="width:70px">
-        </div>
-
-        <div>
-          <div class="small">최대</div>
-          <input class="input" data-k="max" type="number"
-            value="${g.max ?? ''}" style="width:70px">
-        </div>
-      </div>
-
-      <!-- 옵션 항목 -->
-      <div style="font-weight:600; margin-bottom:8px; font-size:13px">
-        옵션 항목
-      </div>
-
-      <div class="opt-items"></div>
-
-      <button class="btn xs" data-act="add-item"
-        style="margin-top:6px; font-size:12px">
-        + 옵션 항목 추가
-      </button>
-    `;
-
-    // 정렬
-    wrap.querySelector('[data-act="up"]').onclick = () => {
-      if (gi === 0) return;
-      [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
-      groups.forEach((g, i) => g.order = i + 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
-    wrap.querySelector('[data-act="down"]').onclick = () => {
-      if (gi === groups.length - 1) return;
-      [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
-      groups.forEach((g, i) => g.order = i + 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
-    // 그룹 삭제
-    wrap.querySelector('[data-act="del-group"]').onclick = () => {
-      groups.splice(gi, 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
-    // 그룹 값 반영
-    wrap.querySelectorAll('[data-k]').forEach(el => {
-      const k = el.dataset.k;
-      el.oninput = () => {
-        if (k === 'required') g.required = el.checked;
-        else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
-        else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
-        else g[k] = el.value;
-      };
-    });
-
-    // 옵션 항목
-    const itemsBox = wrap.querySelector('.opt-items');
-
-    g.items.forEach((it, ii) => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        background:#0b1620;
-        border:1px solid #1f2937;
-        border-radius:10px;
-        padding:10px;
-        margin-bottom:6px;
-        display:flex;
-        gap:10px;
-        align-items:flex-end;
-        font-size:12px; /* ⭐ 옵션 항목 글씨 더 작게 */
       `;
 
-      row.innerHTML = `
-        <div style="flex:1; min-width:180px">
-          <div class="small">항목명</div>
-          <input class="input" value="${it.label || ''}">
-        </div>
-
-        <div>
-          <div class="small">추가 금액</div>
-          <input class="input" type="number"
-            value="${it.price || 0}" style="width:100px">
-        </div>
-
-        <button class="btn xs danger" style="font-size:11px">삭제</button>
-      `;
-
-      row.querySelector('.btn.danger').onclick = () => {
-        g.items.splice(ii, 1);
+      /* 접기 / 펼치기 */
+      wrap.querySelector('[data-act="toggle"]').onclick = () => {
+        g._collapsed = !g._collapsed;
         renderOptionGroups(groups, mountEl);
+        updateSaveButtonState();
       };
 
-      row.querySelectorAll('input')[0].oninput = e => it.label = e.target.value;
-      row.querySelectorAll('input')[1].oninput = e => it.price = Number(e.target.value || 0);
+      /* 값 바인딩 */
+      wrap.querySelectorAll('[data-k]').forEach(el => {
+        const k = el.dataset.k;
+        el.oninput = () => {
+          if (k === 'required') g.required = el.checked;
+          else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
+          else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
+          else g[k] = el.value;
 
-      itemsBox.appendChild(row);
+          updateSaveButtonState();
+        };
+      });
+
+      /* 정렬 */
+      wrap.querySelector('[data-act="up"]').onclick = () => {
+        if (gi === 0) return;
+        [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
+        renderOptionGroups(groups, mountEl);
+        updateSaveButtonState();
+      };
+
+      wrap.querySelector('[data-act="down"]').onclick = () => {
+        if (gi === groups.length - 1) return;
+        [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
+        renderOptionGroups(groups, mountEl);
+        updateSaveButtonState();
+      };
+
+      /* 그룹 삭제 */
+      wrap.querySelector('[data-act="del-group"]').onclick = () => {
+        groups.splice(gi, 1);
+        renderOptionGroups(groups, mountEl);
+        updateSaveButtonState();
+      };
+
+      /* 옵션 항목 렌더 */
+      const itemsBox = wrap.querySelector('.opt-items');
+
+      g.items.forEach((it, ii) => {
+        const row = document.createElement('div');
+        row.className = 'hstack';
+        row.style.cssText = `
+          gap:8px;
+          margin-bottom:6px;
+        `;
+
+        row.innerHTML = `
+          <input class="input"
+            placeholder="항목명"
+            value="${it.label || ''}"
+            style="flex:1;background:#0b1620;color:#e5e7eb">
+
+          <input class="input"
+            type="number"
+            value="${it.price || 0}"
+            style="width:80px">
+
+          <button class="btn xs">삭제</button>
+        `;
+
+        row.querySelector('input[type="text"]').oninput = e => {
+          it.label = e.target.value;
+          updateSaveButtonState();
+        };
+
+        row.querySelector('input[type="number"]').oninput = e => {
+          it.price = Number(e.target.value || 0);
+          updateSaveButtonState();
+        };
+
+        row.querySelector('button').onclick = () => {
+          g.items.splice(ii, 1);
+          renderOptionGroups(groups, mountEl);
+          updateSaveButtonState();
+        };
+
+        itemsBox.appendChild(row);
+      });
+
+      /* 항목 추가 */
+      wrap.querySelector('[data-act="add-item"]').onclick = () => {
+        g.items.push({
+          id: crypto.randomUUID(),
+          label: '',
+          price: 0
+        });
+        renderOptionGroups(groups, mountEl);
+        updateSaveButtonState();
+      };
+
+      mountEl.appendChild(wrap);
     });
-
-    wrap.querySelector('[data-act="add-item"]').onclick = () => {
-      g.items.push({ label: '', price: 0 });
-      renderOptionGroups(groups, mountEl);
-    };
-
-    mountEl.appendChild(wrap);
-  });
 }
-
 
 
 
@@ -651,6 +662,7 @@ function openMenuDetailModal(target, onSave) {
   const addGroupBtn = document.getElementById('md-opt-add-group');
   const saveBtn = document.getElementById('md-save');
   const cancelBtn = document.getElementById('md-cancel');
+  
 
   // 값 채우기
   imgEl.value = target.img || '';
@@ -662,8 +674,17 @@ function openMenuDetailModal(target, onSave) {
     ? JSON.parse(JSON.stringify(target.options))
     : [];
 
+  function updateSaveButtonState() {
+    const ok = validateOptionGroups(optionGroups);
+    saveBtn.disabled = !ok;
+    saveBtn.style.opacity = ok ? '1' : '0.4';
+}
+
+
   // 옵션 렌더
   renderOptionGroups(optionGroups, groupsMount);
+  updateSaveButtonState();
+
 
   // 그룹 추가
   addGroupBtn.onclick = () => {
