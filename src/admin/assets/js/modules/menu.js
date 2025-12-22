@@ -604,7 +604,7 @@ function renderOptionGroups(groups, mountEl, onChange) {
     header.innerHTML = `
       <div style="flex:1;text-align:center">항목명</div>
       <div style="width:90px;text-align:center">추가금액</div>
-      
+      <div style="width:48px"></div>
     `;
     itemsBox.appendChild(header);
 
