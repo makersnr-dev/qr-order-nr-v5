@@ -453,7 +453,6 @@ function ensureMenuDetailModal() {
 
 
 
-
 function renderOptionGroups(groups, mountEl) {
   if (!mountEl) return;
   groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -470,6 +469,7 @@ function renderOptionGroups(groups, mountEl) {
       padding:14px;
       margin-bottom:14px;
       color:#e5e7eb;
+      font-size:13px; /* ⭐ 옵션 관리보다 살짝 작게 */
     `;
 
     wrap.innerHTML = `
@@ -478,22 +478,27 @@ function renderOptionGroups(groups, mountEl) {
         display:flex;
         justify-content:space-between;
         align-items:center;
-        margin-bottom:10px;
+        margin-bottom:12px;
       ">
-        <div style="font-weight:600; color:#fff">
+        <div style="font-weight:600; color:#fff; font-size:14px">
           옵션 그룹
         </div>
 
         <div class="hstack" style="gap:6px">
-          <span class="small" style="color:#9ca3af">정렬</span>
+          <span class="small" style="color:#9ca3af; font-size:11px">정렬</span>
           <button class="btn xs" data-act="up">↑</button>
           <button class="btn xs" data-act="down">↓</button>
-          <button class="btn xs danger" data-act="del-group">그룹 삭제</button>
+          <button class="btn xs danger" data-act="del-group"
+            style="font-size:11px">
+            그룹 삭제
+          </button>
         </div>
       </div>
 
       <!-- 그룹 설정 -->
-      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:12px">
+      <div class="hstack"
+        style="gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:flex-end">
+
         <div style="flex:1; min-width:200px">
           <div class="small">옵션명</div>
           <input class="input" data-k="name" value="${g.name || ''}">
@@ -509,7 +514,9 @@ function renderOptionGroups(groups, mountEl) {
 
         <div>
           <div class="small">필수</div>
-          <input type="checkbox" data-k="required" ${g.required?'checked':''}>
+          <label class="hstack" style="gap:6px; height:38px; align-items:center">
+            <input type="checkbox" data-k="required" ${g.required?'checked':''}>
+          </label>
         </div>
 
         <div>
@@ -526,10 +533,14 @@ function renderOptionGroups(groups, mountEl) {
       </div>
 
       <!-- 옵션 항목 -->
-      <div style="font-weight:600; margin-bottom:6px">옵션 항목</div>
+      <div style="font-weight:600; margin-bottom:8px; font-size:13px">
+        옵션 항목
+      </div>
+
       <div class="opt-items"></div>
 
-      <button class="btn xs" data-act="add-item" style="margin-top:6px">
+      <button class="btn xs" data-act="add-item"
+        style="margin-top:6px; font-size:12px">
         + 옵션 항목 추가
       </button>
     `;
@@ -555,7 +566,7 @@ function renderOptionGroups(groups, mountEl) {
       renderOptionGroups(groups, mountEl);
     };
 
-    // 값 반영
+    // 그룹 값 반영
     wrap.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.oninput = () => {
@@ -577,10 +588,10 @@ function renderOptionGroups(groups, mountEl) {
         border-radius:10px;
         padding:10px;
         margin-bottom:6px;
-        flex-wrap:wrap;
         display:flex;
-        gap:8px;
-        align-items:end;
+        gap:10px;
+        align-items:flex-end;
+        font-size:12px; /* ⭐ 옵션 항목 글씨 더 작게 */
       `;
 
       row.innerHTML = `
@@ -595,7 +606,7 @@ function renderOptionGroups(groups, mountEl) {
             value="${it.price || 0}" style="width:100px">
         </div>
 
-        <button class="btn xs danger">삭제</button>
+        <button class="btn xs danger" style="font-size:11px">삭제</button>
       `;
 
       row.querySelector('.btn.danger').onclick = () => {
@@ -617,6 +628,8 @@ function renderOptionGroups(groups, mountEl) {
     mountEl.appendChild(wrap);
   });
 }
+
+
 
 
 
