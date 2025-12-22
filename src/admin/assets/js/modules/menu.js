@@ -441,7 +441,6 @@ function ensureMenuDetailModal() {
 function renderOptionGroups(groups, mountEl) {
   if (!mountEl) return;
 
-  // 순서 기준 정렬
   groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   mountEl.innerHTML = '';
 
@@ -450,68 +449,64 @@ function renderOptionGroups(groups, mountEl) {
 
     const wrap = document.createElement('div');
     wrap.style.cssText = `
-      border:1px solid #ddd;
+      background:#111827;
+      border:1px solid #1f2937;
       border-radius:12px;
-      padding:12px;
-      margin-bottom:12px;
-      background:#fafafa
+      padding:14px;
+      margin-bottom:14px;
+      color:#e5e7eb;
     `;
 
     wrap.innerHTML = `
-      <!-- 그룹 헤더 -->
-      <div class="hstack"
-           style="gap:8px; flex-wrap:wrap; margin-bottom:10px">
+      <div style="font-weight:600; margin-bottom:8px; color:#fff">
+        옵션 그룹
+      </div>
+
+      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:10px">
         <button class="btn xs" data-act="up">↑</button>
         <button class="btn xs" data-act="down">↓</button>
 
-        <input class="input" data-k="name"
-          placeholder="옵션 그룹명 (예: 사이즈)"
-          value="${g.name || ''}"
-          style="min-width:200px">
+        <div style="flex:1; min-width:200px">
+          <div class="small">옵션명</div>
+          <input class="input" data-k="name"
+            value="${g.name || ''}" placeholder="예: 사이즈">
+        </div>
 
-        <select class="input" data-k="type" style="width:120px">
-          <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
-          <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
-        </select>
+        <div>
+          <div class="small">선택 방식</div>
+          <select class="input" data-k="type">
+            <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
+            <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
+          </select>
+        </div>
 
-        <label class="small hstack" style="gap:6px">
+        <div>
+          <div class="small">필수</div>
           <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-          필수
-        </label>
+        </div>
 
-        <input class="input" data-k="min" type="number"
-          placeholder="min" value="${g.min ?? ''}" style="width:80px">
+        <div>
+          <div class="small">최소</div>
+          <input class="input" type="number" data-k="min" value="${g.min ?? ''}" style="width:70px">
+        </div>
 
-        <input class="input" data-k="max" type="number"
-          placeholder="max" value="${g.max ?? ''}" style="width:80px">
+        <div>
+          <div class="small">최대</div>
+          <input class="input" type="number" data-k="max" value="${g.max ?? ''}" style="width:70px">
+        </div>
 
-        <button class="btn small danger" data-act="del-group">그룹 삭제</button>
+        <button class="btn xs danger" data-act="del-group">그룹 삭제</button>
       </div>
 
-      <!-- 옵션 항목 -->
+      <div style="margin-top:8px; font-weight:600">옵션 항목</div>
       <div class="opt-items"></div>
 
-      <button class="btn xs" data-act="add-item" type="button">
+      <button class="btn xs" data-act="add-item" style="margin-top:6px">
         + 옵션 항목 추가
       </button>
     `;
 
-    /* ▲▼ 그룹 이동 */
-    wrap.querySelector('[data-act="up"]').onclick = () => {
-      if (gi === 0) return;
-      [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
-      groups.forEach((g, i) => g.order = i + 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
-    wrap.querySelector('[data-act="down"]').onclick = () => {
-      if (gi === groups.length - 1) return;
-      [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
-      groups.forEach((g, i) => g.order = i + 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
-    /* 그룹 값 반영 */
+    // 그룹 입력 반영
     wrap.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.oninput = () => {
@@ -522,71 +517,53 @@ function renderOptionGroups(groups, mountEl) {
       };
     });
 
-    /* 그룹 삭제 */
+    // 그룹 삭제
     wrap.querySelector('[data-act="del-group"]').onclick = () => {
       groups.splice(gi, 1);
       renderOptionGroups(groups, mountEl);
     };
 
-    /* 옵션 아이템 */
     const itemsBox = wrap.querySelector('.opt-items');
 
-    g.items
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      .forEach((it, ii) => {
-        const row = document.createElement('div');
-        row.className = 'hstack';
-        row.style.cssText = 'gap:8px; margin-bottom:6px';
+    g.items.forEach((it, ii) => {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        background:#1f2937;
+        border-radius:8px;
+        padding:8px;
+        margin-top:6px;
+        display:flex;
+        gap:8px;
+        align-items:end;
+      `;
 
-        row.innerHTML = `
-          <button class="btn xs" data-act="up">↑</button>
-          <button class="btn xs" data-act="down">↓</button>
+      row.innerHTML = `
+        <div style="flex:1">
+          <div class="small">항목명</div>
+          <input class="input" value="${it.label || ''}">
+        </div>
 
-          <input class="input" data-k="label"
-            placeholder="옵션명"
-            value="${it.label || ''}"
-            style="min-width:200px">
+        <div>
+          <div class="small">추가금액</div>
+          <input class="input" type="number" value="${it.price || 0}" style="width:90px">
+        </div>
 
-          <input class="input" data-k="price" type="number"
-            value="${Number(it.price || 0)}"
-            style="width:100px">
+        <button class="btn xs danger">삭제</button>
+      `;
 
-          <button class="btn xs danger" data-act="del-item">삭제</button>
-        `;
+      row.querySelector('.btn.danger').onclick = () => {
+        g.items.splice(ii, 1);
+        renderOptionGroups(groups, mountEl);
+      };
 
-        row.querySelector('[data-act="up"]').onclick = () => {
-          if (ii === 0) return;
-          [g.items[ii - 1], g.items[ii]] = [g.items[ii], g.items[ii - 1]];
-          g.items.forEach((x, i) => x.order = i + 1);
-          renderOptionGroups(groups, mountEl);
-        };
+      row.querySelectorAll('input')[0].oninput = e => it.label = e.target.value;
+      row.querySelectorAll('input')[1].oninput = e => it.price = Number(e.target.value || 0);
 
-        row.querySelector('[data-act="down"]').onclick = () => {
-          if (ii === g.items.length - 1) return;
-          [g.items[ii], g.items[ii + 1]] = [g.items[ii + 1], g.items[ii]];
-          g.items.forEach((x, i) => x.order = i + 1);
-          renderOptionGroups(groups, mountEl);
-        };
+      itemsBox.appendChild(row);
+    });
 
-        row.querySelector('[data-k="label"]').oninput = e => it.label = e.target.value;
-        row.querySelector('[data-k="price"]').oninput = e => it.price = Number(e.target.value || 0);
-
-        row.querySelector('[data-act="del-item"]').onclick = () => {
-          g.items.splice(ii, 1);
-          renderOptionGroups(groups, mountEl);
-        };
-
-        itemsBox.appendChild(row);
-      });
-
-    /* 항목 추가 */
     wrap.querySelector('[data-act="add-item"]').onclick = () => {
-      g.items.push({
-        id: crypto.randomUUID(),
-        label: '',
-        price: 0,
-        order: g.items.length + 1
-      });
+      g.items.push({ label: '', price: 0 });
       renderOptionGroups(groups, mountEl);
     };
 
@@ -607,7 +584,7 @@ function openMenuDetailModal(target, onSave) {
   const modal = document.getElementById('menu-detail-modal');
   const imgEl = document.getElementById('md-img');
   const descEl = document.getElementById('md-desc');
-  const catEl = document.getElementById('md-category');
+ 
   const groupsMount = document.getElementById('md-opt-groups');
 
   const addGroupBtn = document.getElementById('md-opt-add-group');
@@ -617,7 +594,7 @@ function openMenuDetailModal(target, onSave) {
   // 값 채우기
   imgEl.value = target.img || '';
   descEl.value = target.desc || '';
-  catEl.value = target.category || '';
+  
 
   // 옵션 그룹 복사본(모달에서 편집하다 취소하면 원본 유지)
   let optionGroups = Array.isArray(target.options)
@@ -652,7 +629,7 @@ function openMenuDetailModal(target, onSave) {
   saveBtn.onclick = () => {
     target.img = imgEl.value.trim();
     target.desc = descEl.value.trim();
-    target.category = catEl.value.trim();
+    
 
     // 옵션 최종 정리(빈 그룹/빈 항목 제거)
     const cleaned = (optionGroups || [])
