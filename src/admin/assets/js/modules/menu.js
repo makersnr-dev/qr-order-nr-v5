@@ -417,7 +417,7 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:12px;
       ">
-        <div style="margin-bottom:12px; color:#9ca3af; font-size:11px;
+        <div style="margin-bottom:14px; color:#9ca3af; font-size:13px;
   text-align:center;">
           이미지 URL
         </div>
@@ -434,7 +434,7 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:16px;
       ">
-        <div style="margin-bottom:12px; color:#9ca3af; font-size:11px;
+        <div style="margin-bottom:14px; color:#9ca3af; font-size:13px;
   text-align:center;">
           메뉴 설명
         </div>
