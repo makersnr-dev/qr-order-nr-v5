@@ -417,8 +417,8 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:12px;
       ">
-        <div style="margin-bottom:11px; color:#9ca3af"; font-size:10px;
-  text-align:center;>
+        <div style="margin-bottom:12px; color:#9ca3af; font-size:11px;
+  text-align:center;">
           이미지 URL
         </div>
         <input id="md-img" class="input"
@@ -434,8 +434,8 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:16px;
       ">
-        <div style="margin-bottom:11px; color:#9ca3af"; font-size:10px;
-  text-align:center;>
+        <div style="margin-bottom:12px; color:#9ca3af; font-size:11px;
+  text-align:center;">
           메뉴 설명
         </div>
         <textarea id="md-desc" class="input"
@@ -565,6 +565,68 @@ function renderOptionGroups(groups, mountEl, onChange) {
         </button>
       </div>
     `;
+    
+
+
+    const minInput = wrap.querySelector('[data-k="min"]');
+const maxInput = wrap.querySelector('[data-k="max"]');
+const typeSelect = wrap.querySelector('[data-k="type"]');
+const requiredCheckbox = wrap.querySelector('[data-k="required"]');
+
+function syncMinMaxState() {
+  // 필수 아님 → min/max 비활성화
+  if (!g.required) {
+    g.min = undefined;
+    g.max = undefined;
+
+    if (minInput) {
+      minInput.value = '';
+      minInput.disabled = true;
+      minInput.style.opacity = '0.5';
+    }
+    if (maxInput) {
+      maxInput.value = '';
+      maxInput.disabled = true;
+      maxInput.style.opacity = '0.5';
+    }
+    return;
+  }
+
+  // 필수일 때 min 활성
+  if (minInput) {
+    minInput.disabled = false;
+    minInput.style.opacity = '1';
+  }
+
+  // single 선택 시
+  if (g.type === 'single') {
+    g.max = 1;
+    g.min = 1;
+
+    if (maxInput) {
+      maxInput.value = '1';
+      maxInput.disabled = true;
+      maxInput.style.opacity = '0.5';
+    }
+    if (minInput) {
+      minInput.value = '1';
+    }
+  } else {
+     if (g.max === 1) g.max = undefined;
+    // multi 선택 시 max 활성
+    if (maxInput) {
+      maxInput.disabled = false;
+      maxInput.style.opacity = '1';
+      maxInput.value = g.max ?? '';
+    }
+    // ✅ 4순위: 필수 + multi일 때 최소값 자동 보정
+    if (g.required && !g.min) {
+      g.min = 1;
+      if (minInput) minInput.value = '1';
+    }
+  }
+}
+syncMinMaxState(); 
 
     /* ===== 그룹 이벤트 ===== */
     wrap.querySelector('[data-act="toggle"]').onclick = () => {
@@ -575,14 +637,19 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
     wrap.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
+    
       el.oninput = () => {
         if (k === 'required') g.required = el.checked;
+        else if (k === 'type') g.type = el.value;
         else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
         else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
         else g[k] = el.value;
+    
+        syncMinMaxState();   
         notifyChange();
       };
     });
+
 
     wrap.querySelector('[data-act="del-group"]').onclick = () => {
       groups.splice(gi, 1);
