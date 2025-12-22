@@ -668,7 +668,7 @@ function openMenuDetailModal(target, onSave) {
       items: []
     });
 
-    renderOptionGroups(optionGroups, groupsMount);
+    renderOptionGroups(optionGroups, groupsMount, updateSaveButtonState);
   };
 
   // 취소
