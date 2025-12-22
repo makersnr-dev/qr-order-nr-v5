@@ -363,6 +363,7 @@ export function bindMenu() {
 }
 
 
+
 function ensureMenuDetailModal() {
   if (document.getElementById('menu-detail-modal')) return;
 
@@ -370,7 +371,7 @@ function ensureMenuDetailModal() {
   modal.id = 'menu-detail-modal';
   modal.style.cssText = `
     position:fixed; inset:0;
-    background:rgba(0,0,0,.55);
+    background:rgba(0,0,0,.6);
     display:none;
     align-items:center;
     justify-content:center;
@@ -384,44 +385,58 @@ function ensureMenuDetailModal() {
       max-width:100%;
       max-height:90vh;
       overflow:auto;
-      background:#fff;
-      border-radius:14px;
-      padding:20px
+      background:#0b1620;
+      border-radius:16px;
+      padding:18px;
+      color:#e5e7eb;
+      border:1px solid #1f2937;
     ">
-      <h3 style="margin:0 0 14px">메뉴 상세 설정</h3>
+      <h3 style="margin:0 0 14px; color:#fff">메뉴 상세 설정</h3>
 
-      <!-- 기본 정보 -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-        <div>
-          <div class="small" style="margin-bottom:6px">이미지 URL</div>
-          <input id="md-img" class="input"
-                 placeholder="https://..."
-                 style="width:100%">
+      <!-- 이미지 URL -->
+      <div style="
+        background:#111827;
+        border:1px solid #1f2937;
+        border-radius:12px;
+        padding:14px;
+        margin-bottom:12px;
+      ">
+        <div class="small" style="margin-bottom:6px; color:#9ca3af">
+          이미지 URL
         </div>
+        <input id="md-img" class="input"
+          placeholder="https://..."
+          style="width:100%">
       </div>
 
-      <div style="margin-top:12px">
-        <div class="small" style="margin-bottom:6px">메뉴 설명</div>
+      <!-- 메뉴 설명 -->
+      <div style="
+        background:#111827;
+        border:1px solid #1f2937;
+        border-radius:12px;
+        padding:14px;
+        margin-bottom:16px;
+      ">
+        <div class="small" style="margin-bottom:6px; color:#9ca3af">
+          메뉴 설명
+        </div>
         <textarea id="md-desc" class="input"
-          style="width:100%; min-height:90px; white-space:pre-wrap"
-          placeholder="메뉴에 대한 설명을 입력하세요"></textarea>
+          style="width:100%; min-height:90px; white-space:pre-wrap"></textarea>
       </div>
 
-      <hr style="margin:18px 0">
-
-      <!-- 옵션 -->
-      <h4 style="margin:0 0 10px">옵션 관리</h4>
+      <!-- 옵션 관리 -->
+      <h4 style="margin:0 0 10px; color:#fff">옵션 관리</h4>
       <div id="md-opt-groups"></div>
 
       <button id="md-opt-add-group"
-              class="btn small"
-              type="button"
-              style="margin-top:6px">
-        옵션 그룹 추가
+        class="btn small"
+        type="button"
+        style="margin-top:8px">
+        + 옵션 그룹 추가
       </button>
 
       <div class="hstack"
-           style="justify-content:flex-end; margin-top:16px; gap:8px">
+        style="justify-content:flex-end; margin-top:18px; gap:8px">
         <button id="md-cancel" class="btn" type="button">취소</button>
         <button id="md-save" class="btn primary" type="button">저장</button>
       </div>
@@ -430,7 +445,6 @@ function ensureMenuDetailModal() {
 
   document.body.appendChild(modal);
 
-  // 바깥 클릭 닫기
   modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.style.display = 'none';
   });
@@ -438,9 +452,10 @@ function ensureMenuDetailModal() {
 
 
 
+
+
 function renderOptionGroups(groups, mountEl) {
   if (!mountEl) return;
-
   groups.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   mountEl.innerHTML = '';
 
@@ -451,54 +466,67 @@ function renderOptionGroups(groups, mountEl) {
     wrap.style.cssText = `
       background:#111827;
       border:1px solid #1f2937;
-      border-radius:12px;
+      border-radius:14px;
       padding:14px;
       margin-bottom:14px;
       color:#e5e7eb;
     `;
 
     wrap.innerHTML = `
-      <div style="font-weight:600; margin-bottom:8px; color:#fff">
-        옵션 그룹
+      <!-- 그룹 헤더 -->
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:10px;
+      ">
+        <div style="font-weight:600; color:#fff">
+          옵션 그룹
+        </div>
+
+        <div class="hstack" style="gap:6px">
+          <span class="small" style="color:#9ca3af">정렬</span>
+          <button class="btn xs" data-act="up">↑</button>
+          <button class="btn xs" data-act="down">↓</button>
+          <button class="btn xs danger" data-act="del-group">그룹 삭제</button>
+        </div>
       </div>
 
-      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:10px">
-        <button class="btn xs" data-act="up">↑</button>
-        <button class="btn xs" data-act="down">↓</button>
-
+      <!-- 그룹 설정 -->
+      <div class="hstack" style="gap:8px; flex-wrap:wrap; margin-bottom:12px">
         <div style="flex:1; min-width:200px">
           <div class="small">옵션명</div>
-          <input class="input" data-k="name"
-            value="${g.name || ''}" placeholder="예: 사이즈">
+          <input class="input" data-k="name" value="${g.name || ''}">
         </div>
 
         <div>
           <div class="small">선택 방식</div>
           <select class="input" data-k="type">
-            <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
-            <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
+            <option value="single" ${g.type==='single'?'selected':''}>단일</option>
+            <option value="multi" ${g.type==='multi'?'selected':''}>복수</option>
           </select>
         </div>
 
         <div>
           <div class="small">필수</div>
-          <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
+          <input type="checkbox" data-k="required" ${g.required?'checked':''}>
         </div>
 
         <div>
           <div class="small">최소</div>
-          <input class="input" type="number" data-k="min" value="${g.min ?? ''}" style="width:70px">
+          <input class="input" data-k="min" type="number"
+            value="${g.min ?? ''}" style="width:70px">
         </div>
 
         <div>
           <div class="small">최대</div>
-          <input class="input" type="number" data-k="max" value="${g.max ?? ''}" style="width:70px">
+          <input class="input" data-k="max" type="number"
+            value="${g.max ?? ''}" style="width:70px">
         </div>
-
-        <button class="btn xs danger" data-act="del-group">그룹 삭제</button>
       </div>
 
-      <div style="margin-top:8px; font-weight:600">옵션 항목</div>
+      <!-- 옵션 항목 -->
+      <div style="font-weight:600; margin-bottom:6px">옵션 항목</div>
       <div class="opt-items"></div>
 
       <button class="btn xs" data-act="add-item" style="margin-top:6px">
@@ -506,7 +534,28 @@ function renderOptionGroups(groups, mountEl) {
       </button>
     `;
 
-    // 그룹 입력 반영
+    // 정렬
+    wrap.querySelector('[data-act="up"]').onclick = () => {
+      if (gi === 0) return;
+      [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
+      groups.forEach((g, i) => g.order = i + 1);
+      renderOptionGroups(groups, mountEl);
+    };
+
+    wrap.querySelector('[data-act="down"]').onclick = () => {
+      if (gi === groups.length - 1) return;
+      [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
+      groups.forEach((g, i) => g.order = i + 1);
+      renderOptionGroups(groups, mountEl);
+    };
+
+    // 그룹 삭제
+    wrap.querySelector('[data-act="del-group"]').onclick = () => {
+      groups.splice(gi, 1);
+      renderOptionGroups(groups, mountEl);
+    };
+
+    // 값 반영
     wrap.querySelectorAll('[data-k]').forEach(el => {
       const k = el.dataset.k;
       el.oninput = () => {
@@ -517,35 +566,33 @@ function renderOptionGroups(groups, mountEl) {
       };
     });
 
-    // 그룹 삭제
-    wrap.querySelector('[data-act="del-group"]').onclick = () => {
-      groups.splice(gi, 1);
-      renderOptionGroups(groups, mountEl);
-    };
-
+    // 옵션 항목
     const itemsBox = wrap.querySelector('.opt-items');
 
     g.items.forEach((it, ii) => {
       const row = document.createElement('div');
       row.style.cssText = `
-        background:#1f2937;
-        border-radius:8px;
-        padding:8px;
-        margin-top:6px;
+        background:#0b1620;
+        border:1px solid #1f2937;
+        border-radius:10px;
+        padding:10px;
+        margin-bottom:6px;
+        flex-wrap:wrap;
         display:flex;
         gap:8px;
         align-items:end;
       `;
 
       row.innerHTML = `
-        <div style="flex:1">
+        <div style="flex:1; min-width:180px">
           <div class="small">항목명</div>
           <input class="input" value="${it.label || ''}">
         </div>
 
         <div>
-          <div class="small">추가금액</div>
-          <input class="input" type="number" value="${it.price || 0}" style="width:90px">
+          <div class="small">추가 금액</div>
+          <input class="input" type="number"
+            value="${it.price || 0}" style="width:100px">
         </div>
 
         <button class="btn xs danger">삭제</button>
@@ -570,6 +617,7 @@ function renderOptionGroups(groups, mountEl) {
     mountEl.appendChild(wrap);
   });
 }
+
 
 
 
