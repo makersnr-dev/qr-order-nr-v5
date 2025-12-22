@@ -474,11 +474,19 @@ function ensureMenuDetailModal() {
 function renderOptionGroups(groups, mountEl, onChange) {
   if (!mountEl) return;
 
-  // 🔒 항상 함수로 보장
+  // 🔒 onChange 항상 함수로 보장
   const notifyChange = typeof onChange === 'function'
     ? onChange
     : () => {};
 
+  // 🔒 order 정규화 (정렬 안정화)
+  function normalizeOrder(list) {
+    list.forEach((g, i) => {
+      g.order = i + 1;
+    });
+  }
+
+  normalizeOrder(groups);
   mountEl.innerHTML = '';
 
   groups
@@ -497,8 +505,12 @@ function renderOptionGroups(groups, mountEl, onChange) {
       `;
 
       wrap.innerHTML = `
+        <!-- 그룹 헤더 -->
         <div class="hstack" style="gap:8px;align-items:center;margin-bottom:8px">
-          <button class="btn xs" data-act="toggle">${g._collapsed ? '▶' : '▼'}</button>
+          <button class="btn xs" data-act="toggle">
+            ${g._collapsed ? '▶' : '▼'}
+          </button>
+
           <span class="small" style="color:#9ca3af">옵션 그룹</span>
 
           <input class="input" data-k="name"
@@ -512,31 +524,35 @@ function renderOptionGroups(groups, mountEl, onChange) {
           </select>
 
           <label class="small hstack" style="gap:4px">
-            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}> 필수
+            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
+            필수
           </label>
 
-          <input class="input" data-k="min" placeholder="최소" value="${g.min ?? ''}" style="width:60px">
-          <input class="input" data-k="max" placeholder="최대" value="${g.max ?? ''}" style="width:60px">
+          <input class="input" data-k="min" placeholder="최소"
+            value="${g.min ?? ''}" style="width:60px">
+          <input class="input" data-k="max" placeholder="최대"
+            value="${g.max ?? ''}" style="width:60px">
 
-          <button class="btn xs" data-act="up">↑</button>
-          <button class="btn xs" data-act="down">↓</button>
+          <button class="btn xs" data-act="up" title="위로">↑</button>
+          <button class="btn xs" data-act="down" title="아래로">↓</button>
           <button class="btn xs" data-act="del-group">삭제</button>
         </div>
 
+        <!-- 항목 영역 -->
         <div class="opt-body" style="display:${g._collapsed ? 'none' : 'block'}">
           <div class="opt-items"></div>
           <button class="btn xs" data-act="add-item">+ 옵션 항목 추가</button>
         </div>
       `;
 
-      // 접기
+      /* 접기 / 펼치기 */
       wrap.querySelector('[data-act="toggle"]').onclick = () => {
         g._collapsed = !g._collapsed;
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
 
-      // 값 바인딩
+      /* 값 바인딩 */
       wrap.querySelectorAll('[data-k]').forEach(el => {
         const k = el.dataset.k;
         el.oninput = () => {
@@ -549,10 +565,11 @@ function renderOptionGroups(groups, mountEl, onChange) {
         };
       });
 
-      // 정렬
+      /* 정렬 */
       wrap.querySelector('[data-act="up"]').onclick = () => {
         if (gi === 0) return;
         [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
+        normalizeOrder(groups);
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
@@ -560,18 +577,20 @@ function renderOptionGroups(groups, mountEl, onChange) {
       wrap.querySelector('[data-act="down"]').onclick = () => {
         if (gi === groups.length - 1) return;
         [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
+        normalizeOrder(groups);
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
 
-      // 그룹 삭제
+      /* 그룹 삭제 */
       wrap.querySelector('[data-act="del-group"]').onclick = () => {
         groups.splice(gi, 1);
+        normalizeOrder(groups);
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
 
-      // 항목
+      /* 옵션 항목 */
       const itemsBox = wrap.querySelector('.opt-items');
 
       g.items.forEach((it, ii) => {
@@ -580,9 +599,14 @@ function renderOptionGroups(groups, mountEl, onChange) {
         row.style.cssText = 'gap:8px;margin-bottom:6px';
 
         row.innerHTML = `
-          <input class="input" value="${it.label || ''}" placeholder="항목명"
+          <input class="input" type="text" value="${it.label || ''}" placeholder="항목명"
             style="flex:1;background:#0b1620;color:#e5e7eb">
-          <input class="input" type="number" value="${it.price || 0}" style="width:80px">
+
+          <input class="input"
+            type="number"
+            value="${it.price || 0}"
+            style="width:80px">
+
           <button class="btn xs">삭제</button>
         `;
 
@@ -605,8 +629,13 @@ function renderOptionGroups(groups, mountEl, onChange) {
         itemsBox.appendChild(row);
       });
 
+      /* 항목 추가 */
       wrap.querySelector('[data-act="add-item"]').onclick = () => {
-        g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
+        g.items.push({
+          id: crypto.randomUUID(),
+          label: '',
+          price: 0
+        });
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
