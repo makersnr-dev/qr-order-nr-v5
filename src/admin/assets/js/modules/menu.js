@@ -574,58 +574,58 @@ const typeSelect = wrap.querySelector('[data-k="type"]');
 const requiredCheckbox = wrap.querySelector('[data-k="required"]');
 
 function syncMinMaxState() {
-  // 필수 아님 → min/max 비활성화
+  // ❌ 필수 아님 → 값은 유지, UI만 비활성화
   if (!g.required) {
-    g.min = undefined;
-    g.max = undefined;
-
     if (minInput) {
-      minInput.value = '';
       minInput.disabled = true;
       minInput.style.opacity = '0.5';
     }
     if (maxInput) {
-      maxInput.value = '';
       maxInput.disabled = true;
       maxInput.style.opacity = '0.5';
     }
     return;
   }
 
-  // 필수일 때 min 활성
+  // ✅ 필수일 때 min 활성
   if (minInput) {
     minInput.disabled = false;
     minInput.style.opacity = '1';
   }
 
-  // single 선택 시
+  // ✅ single 선택 시 → min/max = 1 강제
   if (g.type === 'single') {
-    g.max = 1;
     g.min = 1;
+    g.max = 1;
 
+    if (minInput) {
+      minInput.value = '1';
+      minInput.disabled = true;
+      minInput.style.opacity = '0.5';
+    }
     if (maxInput) {
       maxInput.value = '1';
       maxInput.disabled = true;
       maxInput.style.opacity = '0.5';
     }
-    if (minInput) {
-      minInput.value = '1';
+  } 
+  // ✅ multi 선택 시
+  else {
+    // min은 필수일 경우 최소 1 보정
+    if (!g.min) {
+      g.min = 1;
+      if (minInput) minInput.value = '1';
     }
-  } else {
-     if (g.max === 1) g.max = undefined;
-    // multi 선택 시 max 활성
+
     if (maxInput) {
       maxInput.disabled = false;
       maxInput.style.opacity = '1';
       maxInput.value = g.max ?? '';
     }
-    // ✅ 4순위: 필수 + multi일 때 최소값 자동 보정
-    if (g.required && !g.min) {
-      g.min = 1;
-      if (minInput) minInput.value = '1';
-    }
   }
 }
+
+    
 syncMinMaxState(); 
 
     /* ===== 그룹 이벤트 ===== */
@@ -648,6 +648,8 @@ syncMinMaxState();
         syncMinMaxState();   
         notifyChange();
       };
+       el.oninput = handler;
+  el.onchange = handler;   // ✅ 이 줄 추가 (중요)
     });
 
 
