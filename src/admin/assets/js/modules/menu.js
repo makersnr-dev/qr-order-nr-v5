@@ -417,7 +417,8 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:12px;
       ">
-        <div class="small" style="margin-bottom:8px; color:#9ca3af">
+        <div style="margin-bottom:12px; color:#9ca3af"; font-size:13px;
+  text-align:center;>
           이미지 URL
         </div>
         <input id="md-img" class="input"
@@ -433,7 +434,8 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:16px;
       ">
-        <div class="small" style="margin-bottom:8px; color:#9ca3af">
+        <div style="margin-bottom:12px; color:#9ca3af"; font-size:13px;
+  text-align:center;>
           메뉴 설명
         </div>
         <textarea id="md-desc" class="input"
@@ -447,7 +449,7 @@ function ensureMenuDetailModal() {
       <button id="md-opt-add-group"
         class="btn small"
         type="button"
-        style="margin-top:8px">
+        style="margin-top:9px">
         + 옵션 그룹 추가
       </button>
 
@@ -524,12 +526,12 @@ function renderOptionGroups(groups, mountEl, onChange) {
         <!-- 필수 여부 -->
       <div style="width:110px">
         <div style="font-size:13px;color:#9ca3af;text-align:center">
-          필수
+          필수 여부
         </div>
         <label class="hstack"
           style="justify-content:center;gap:6px;height:38px">
           <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-          <span style="font-size:13px">선택 필수</span>
+          <span style="font-size:13px">필수</span>
         </label>
       </div>
 
