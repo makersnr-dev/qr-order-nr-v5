@@ -473,6 +473,12 @@ function ensureMenuDetailModal() {
 
 function renderOptionGroups(groups, mountEl, onChange) {
   if (!mountEl) return;
+
+  // 🔒 항상 함수로 보장
+  const notifyChange = typeof onChange === 'function'
+    ? onChange
+    : () => {};
+
   mountEl.innerHTML = '';
 
   groups
@@ -492,10 +498,7 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
       wrap.innerHTML = `
         <div class="hstack" style="gap:8px;align-items:center;margin-bottom:8px">
-          <button class="btn xs" data-act="toggle">
-            ${g._collapsed ? '▶' : '▼'}
-          </button>
-
+          <button class="btn xs" data-act="toggle">${g._collapsed ? '▶' : '▼'}</button>
           <span class="small" style="color:#9ca3af">옵션 그룹</span>
 
           <input class="input" data-k="name"
@@ -509,8 +512,7 @@ function renderOptionGroups(groups, mountEl, onChange) {
           </select>
 
           <label class="small hstack" style="gap:4px">
-            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-            필수
+            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}> 필수
           </label>
 
           <input class="input" data-k="min" placeholder="최소" value="${g.min ?? ''}" style="width:60px">
@@ -527,15 +529,15 @@ function renderOptionGroups(groups, mountEl, onChange) {
         </div>
       `;
 
+      // 접기
       wrap.querySelector('[data-act="toggle"]').onclick = () => {
         g._collapsed = !g._collapsed;
-        renderOptionGroups(groups, mountEl, onChange);
-        onChange && onChange();
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
       };
 
+      // 값 바인딩
       wrap.querySelectorAll('[data-k]').forEach(el => {
-        if (!el) return;
-
         const k = el.dataset.k;
         el.oninput = () => {
           if (k === 'required') g.required = el.checked;
@@ -543,30 +545,33 @@ function renderOptionGroups(groups, mountEl, onChange) {
           else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
           else g[k] = el.value;
 
-          onChange && onChange();
+          notifyChange();
         };
       });
 
+      // 정렬
       wrap.querySelector('[data-act="up"]').onclick = () => {
         if (gi === 0) return;
         [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
-        renderOptionGroups(groups, mountEl, onChange);
-        onChange && onChange();
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
       };
 
       wrap.querySelector('[data-act="down"]').onclick = () => {
         if (gi === groups.length - 1) return;
         [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
-        renderOptionGroups(groups, mountEl, onChange);
-        onChange && onChange();
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
       };
 
+      // 그룹 삭제
       wrap.querySelector('[data-act="del-group"]').onclick = () => {
         groups.splice(gi, 1);
-        renderOptionGroups(groups, mountEl, onChange);
-        onChange && onChange();
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
       };
 
+      // 항목
       const itemsBox = wrap.querySelector('.opt-items');
 
       g.items.forEach((it, ii) => {
@@ -583,18 +588,18 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
         row.querySelector('input[type="text"]').oninput = e => {
           it.label = e.target.value;
-          onChange && onChange();
+          notifyChange();
         };
 
         row.querySelector('input[type="number"]').oninput = e => {
           it.price = Number(e.target.value || 0);
-          onChange && onChange();
+          notifyChange();
         };
 
         row.querySelector('button').onclick = () => {
           g.items.splice(ii, 1);
-          renderOptionGroups(groups, mountEl, onChange);
-          onChange && onChange();
+          renderOptionGroups(groups, mountEl, notifyChange);
+          notifyChange();
         };
 
         itemsBox.appendChild(row);
@@ -602,8 +607,8 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
       wrap.querySelector('[data-act="add-item"]').onclick = () => {
         g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
-        renderOptionGroups(groups, mountEl, onChange);
-        onChange && onChange();
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
       };
 
       mountEl.appendChild(wrap);
