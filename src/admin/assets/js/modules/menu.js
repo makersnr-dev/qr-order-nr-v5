@@ -480,191 +480,173 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
   mountEl.innerHTML = '';
 
-  groups
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .forEach((g, gi) => {
-      if (g._collapsed === undefined) g._collapsed = false;
-      if (!Array.isArray(g.items)) g.items = [];
+  groups.forEach((g, gi) => {
+    if (g._collapsed === undefined) g._collapsed = false;
+    if (!Array.isArray(g.items)) g.items = [];
 
-      const wrap = document.createElement('div');
-      wrap.style.cssText = `
-        background:#02040a;
-        border:1px solid #263241;
-        border-radius:14px;
-        padding:16px;
-        margin-bottom:18px;
-      `;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+      background:#02040a;
+      border:1px solid #263241;
+      border-radius:14px;
+      padding:16px;
+      margin-bottom:18px;
+    `;
 
-      /* ================= 옵션 그룹 설정 ================= */
-      wrap.innerHTML = `
-        <div style="font-size:14px;color:#cbd5f5;margin-bottom:12px">
-          옵션 그룹 설정
+    /* ================= 옵션 그룹 설정 ================= */
+    wrap.innerHTML = `
+      <div style="font-size:14px;color:#cbd5f5;margin-bottom:12px">
+        옵션 그룹 설정
+      </div>
+
+      <div class="hstack" style="gap:16px;align-items:flex-end;flex-wrap:wrap">
+
+        <!-- 접기 -->
+        <button class="btn xs" data-act="toggle">
+          ${g._collapsed ? '▶' : '▼'}
+        </button>
+
+        <!-- 옵션명 -->
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:13px;color:#9ca3af;text-align:center">옵션명</div>
+          <input class="input" data-k="name" value="${g.name || ''}">
         </div>
 
-        <div class="hstack" style="gap:16px;align-items:flex-end;flex-wrap:wrap">
-
-          <!-- 접기 -->
-          <button class="btn xs" data-act="toggle">
-            ${g._collapsed ? '▶' : '▼'}
-          </button>
-
-          <!-- 옵션명 -->
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:13px;color:#9ca3af;text-align:center">옵션명</div>
-            <input class="input" data-k="name" value="${g.name || ''}">
-          </div>
-
-          <!-- 선택 방식 -->
-          <div style="width:130px">
-            <div style="font-size:13px;color:#9ca3af;text-align:center">선택 방식</div>
-            <select class="input" data-k="type">
-              <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
-              <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
-            </select>
-          </div>
-
-          <!-- 필수 -->
-          <div style="width:110px;text-align:center">
-            <div style="font-size:13px;color:#9ca3af">필수 여부</div>
-            <label class="hstack" style="justify-content:center;gap:6px">
-              <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-              <span style="font-size:13px">필수</span>
-            </label>
-          </div>
-
-          <!-- 최소 -->
-          <div style="width:80px">
-            <div style="font-size:13px;color:#9ca3af;text-align:center">최소</div>
-            <input class="input" data-k="min" value="${g.min ?? ''}">
-          </div>
-
-          <!-- 최대 -->
-          <div style="width:80px">
-            <div style="font-size:13px;color:#9ca3af;text-align:center">최대</div>
-            <input class="input" data-k="max" value="${g.max ?? ''}">
-          </div>
-
-          <!-- 정렬 / 삭제 -->
-          <div style="display:flex;gap:6px;margin-left:auto">
-            <button class="btn xs" data-act="up">↑</button>
-            <button class="btn xs" data-act="down">↓</button>
-            <button class="btn xs" data-act="del-group">삭제</button>
-          </div>
+        <!-- 선택 방식 -->
+        <div style="width:130px">
+          <div style="font-size:13px;color:#9ca3af;text-align:center">선택 방식</div>
+          <select class="input" data-k="type">
+            <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
+            <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
+          </select>
         </div>
 
-        <!-- 옵션 항목 -->
-        <div class="opt-body"
-          style="display:${g._collapsed ? 'none' : 'block'};margin-top:18px">
-
-          <div class="opt-items"></div>
-
-          <button class="btn xs" data-act="add-item">
-            + 옵션 항목 추가
-          </button>
+        <!-- 필수 -->
+        <div style="width:110px;text-align:center">
+          <div style="font-size:13px;color:#9ca3af">필수 여부</div>
+          <label class="hstack" style="justify-content:center;gap:6px">
+            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
+            <span style="font-size:13px">필수</span>
+          </label>
         </div>
-      `;
 
-      /* ===== 그룹 이벤트 ===== */
-      wrap.querySelector('[data-act="toggle"]').onclick = () => {
-        g._collapsed = !g._collapsed;
-        renderOptionGroups(groups, mountEl, notifyChange);
+        <!-- 최소 -->
+        <div style="width:80px">
+          <div style="font-size:13px;color:#9ca3af;text-align:center">최소</div>
+          <input class="input" data-k="min" value="${g.min ?? ''}">
+        </div>
+
+        <!-- 최대 -->
+        <div style="width:80px">
+          <div style="font-size:13px;color:#9ca3af;text-align:center">최대</div>
+          <input class="input" data-k="max" value="${g.max ?? ''}">
+        </div>
+
+        <!-- 삭제 (우측 끝) -->
+        <div style="margin-left:auto">
+          <button class="btn xs" data-act="del-group">삭제</button>
+        </div>
+      </div>
+
+      <!-- 옵션 항목 -->
+      <div class="opt-body"
+        style="display:${g._collapsed ? 'none' : 'block'};margin-top:18px">
+
+        <div class="opt-items"></div>
+
+        <button class="btn xs" data-act="add-item">
+          + 옵션 항목 추가
+        </button>
+      </div>
+    `;
+
+    /* ===== 그룹 이벤트 ===== */
+    wrap.querySelector('[data-act="toggle"]').onclick = () => {
+      g._collapsed = !g._collapsed;
+      renderOptionGroups(groups, mountEl, notifyChange);
+      notifyChange();
+    };
+
+    wrap.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      el.oninput = () => {
+        if (k === 'required') g.required = el.checked;
+        else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
+        else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
+        else g[k] = el.value;
         notifyChange();
       };
-
-      wrap.querySelectorAll('[data-k]').forEach(el => {
-        const k = el.dataset.k;
-        el.oninput = () => {
-          if (k === 'required') g.required = el.checked;
-          else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
-          else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
-          else g[k] = el.value;
-          notifyChange();
-        };
-      });
-
-      wrap.querySelector('[data-act="up"]').onclick = () => {
-        if (gi === 0) return;
-        [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
-        renderOptionGroups(groups, mountEl, notifyChange);
-        notifyChange();
-      };
-
-      wrap.querySelector('[data-act="down"]').onclick = () => {
-        if (gi === groups.length - 1) return;
-        [groups[gi], groups[gi + 1]] = [groups[gi + 1], groups[gi]];
-        renderOptionGroups(groups, mountEl, notifyChange);
-        notifyChange();
-      };
-
-      wrap.querySelector('[data-act="del-group"]').onclick = () => {
-        groups.splice(gi, 1);
-        renderOptionGroups(groups, mountEl, notifyChange);
-        notifyChange();
-      };
-
-      /* ===== 옵션 항목 ===== */
-      const itemsBox = wrap.querySelector('.opt-items');
-
-      const header = document.createElement('div');
-      header.className = 'hstack';
-      header.style.cssText = `
-        gap:8px;
-        margin-bottom:8px;
-        font-size:12px;
-        color:#9ca3af;
-      `;
-      header.innerHTML = `
-        <div style="flex:1;text-align:center">항목명</div>
-        <div style="width:90px;text-align:center">추가금액</div>
-        <div style="width:60px;text-align:center">관리</div>
-      `;
-      itemsBox.appendChild(header);
-
-      g.items.forEach((it, ii) => {
-        const row = document.createElement('div');
-        row.className = 'hstack';
-        row.style.cssText = 'gap:8px;margin-bottom:6px';
-
-        row.innerHTML = `
-          <input class="input" type="text"
-            value="${it.label || ''}"
-            placeholder="예: 톨"
-            style="flex:1">
-
-          <input class="input" type="number"
-            value="${it.price || 0}"
-            style="width:90px;text-align:right">
-
-          <button class="btn xs">삭제</button>
-        `;
-
-        row.querySelector('input[type="text"]').oninput = e => {
-          it.label = e.target.value;
-          notifyChange();
-        };
-
-        row.querySelector('input[type="number"]').oninput = e => {
-          it.price = Number(e.target.value || 0);
-          notifyChange();
-        };
-
-        row.querySelector('button').onclick = () => {
-          g.items.splice(ii, 1);
-          renderOptionGroups(groups, mountEl, notifyChange);
-          notifyChange();
-        };
-
-        itemsBox.appendChild(row);
-      });
-
-      wrap.querySelector('[data-act="add-item"]').onclick = () => {
-        g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
-        renderOptionGroups(groups, mountEl, notifyChange);
-        notifyChange();
-      };
-
-      mountEl.appendChild(wrap);
     });
+
+    wrap.querySelector('[data-act="del-group"]').onclick = () => {
+      groups.splice(gi, 1);
+      renderOptionGroups(groups, mountEl, notifyChange);
+      notifyChange();
+    };
+
+    /* ===== 옵션 항목 ===== */
+    const itemsBox = wrap.querySelector('.opt-items');
+
+    const header = document.createElement('div');
+    header.className = 'hstack';
+    header.style.cssText = `
+      gap:8px;
+      margin-bottom:8px;
+      font-size:12px;
+      color:#9ca3af;
+    `;
+    header.innerHTML = `
+      <div style="flex:1;text-align:center">항목명</div>
+      <div style="width:90px;text-align:center">추가금액</div>
+      <div style="width:60px;text-align:center">관리</div>
+    `;
+    itemsBox.appendChild(header);
+
+    g.items.forEach((it, ii) => {
+      const row = document.createElement('div');
+      row.className = 'hstack';
+      row.style.cssText = 'gap:8px;margin-bottom:6px';
+
+      row.innerHTML = `
+        <input class="input" type="text"
+          value="${it.label || ''}"
+          placeholder="예: 톨"
+          style="flex:1">
+
+        <input class="input" type="number"
+          value="${it.price || 0}"
+          style="width:90px;text-align:right">
+
+        <button class="btn xs">삭제</button>
+      `;
+
+      row.querySelector('input[type="text"]').oninput = e => {
+        it.label = e.target.value;
+        notifyChange();
+      };
+
+      row.querySelector('input[type="number"]').oninput = e => {
+        it.price = Number(e.target.value || 0);
+        notifyChange();
+      };
+
+      row.querySelector('button').onclick = () => {
+        g.items.splice(ii, 1);
+        renderOptionGroups(groups, mountEl, notifyChange);
+        notifyChange();
+      };
+
+      itemsBox.appendChild(row);
+    });
+
+    wrap.querySelector('[data-act="add-item"]').onclick = () => {
+      g.items.push({ id: crypto.randomUUID(), label: '', price: 0 });
+      renderOptionGroups(groups, mountEl, notifyChange);
+      notifyChange();
+    };
+
+    mountEl.appendChild(wrap);
+  });
 }
 
 
