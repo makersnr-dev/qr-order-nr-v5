@@ -547,18 +547,23 @@ function renderOptionGroups(groups, mountEl) {
         updateSaveButtonState();
       };
 
-      /* 값 바인딩 */
-      wrap.querySelectorAll('[data-k]').forEach(el => {
-        const k = el.dataset.k;
-        el.oninput = () => {
-          if (k === 'required') g.required = el.checked;
-          else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
-          else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
-          else g[k] = el.value;
+     // 값 바인딩 (🔥 null-safe)
+wrap.querySelectorAll('[data-k]').forEach(el => {
+  if (!el) return;   // ✅ 핵심: null 방어
 
-          updateSaveButtonState();
-        };
-      });
+  const k = el.dataset.k;
+  if (!k) return;
+
+  el.oninput = () => {
+    if (k === 'required') g.required = !!el.checked;
+    else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
+    else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
+    else g[k] = el.value;
+
+    updateSaveButtonState(); // 저장 버튼 상태 갱신
+  };
+});
+
 
       /* 정렬 */
       wrap.querySelector('[data-act="up"]').onclick = () => {
