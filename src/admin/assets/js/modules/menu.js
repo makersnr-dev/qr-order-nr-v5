@@ -473,8 +473,6 @@ function ensureMenuDetailModal() {
 
 function renderOptionGroups(groups, mountEl, onChange) {
   if (!mountEl) return;
-
-  // onChange 안전 보장
   const notifyChange = typeof onChange === 'function' ? onChange : () => {};
 
   mountEl.innerHTML = '';
@@ -491,84 +489,81 @@ function renderOptionGroups(groups, mountEl, onChange) {
         border:1px solid #263241;
         border-radius:14px;
         padding:14px;
-        margin-bottom:16px;
+        margin-bottom:18px;
       `;
 
-      /* ===============================
-         옵션 그룹 설정 (라벨 포함)
-      =============================== */
+      /* ================= 옵션 그룹 설정 ================= */
       wrap.innerHTML = `
-        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:10px">
           옵션 그룹 설정
         </div>
 
-        <div class="hstack" style="gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="hstack" style="gap:14px;align-items:flex-end;flex-wrap:wrap">
 
-          <button class="btn xs" data-act="toggle" title="접기/펼치기">
+          <!-- 접기 -->
+          <button class="btn xs" data-act="toggle">
             ${g._collapsed ? '▶' : '▼'}
           </button>
 
+          <!-- 옵션명 -->
           <div style="flex:1;min-width:160px">
-            <div class="small">옵션명</div>
-            <input class="input" data-k="name"
-              value="${g.name || ''}"
-              placeholder="예: 사이즈">
+            <div style="font-size:11px;color:#9ca3af;text-align:center">옵션명</div>
+            <input class="input" data-k="name" value="${g.name || ''}">
           </div>
 
+          <!-- 선택 방식 -->
           <div style="width:120px">
-            <div class="small">선택 방식</div>
+            <div style="font-size:11px;color:#9ca3af;text-align:center">선택 방식</div>
             <select class="input" data-k="type">
               <option value="single" ${g.type === 'single' ? 'selected' : ''}>단일</option>
-              <option value="multi"  ${g.type === 'multi'  ? 'selected' : ''}>복수</option>
+              <option value="multi" ${g.type === 'multi' ? 'selected' : ''}>복수</option>
             </select>
           </div>
 
-          <div style="width:90px">
-            <div class="small">필수 여부</div>
-            <label class="hstack small" style="gap:4px">
+          <!-- 필수 -->
+          <div style="width:90px;text-align:center">
+            <div style="font-size:11px;color:#9ca3af">필수 여부</div>
+            <label class="hstack" style="justify-content:center;gap:4px">
               <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-              필수
+              <span style="font-size:11px">필수</span>
             </label>
           </div>
 
+          <!-- 최소 -->
           <div style="width:70px">
-            <div class="small">최소</div>
+            <div style="font-size:11px;color:#9ca3af;text-align:center">최소</div>
             <input class="input" data-k="min" value="${g.min ?? ''}">
           </div>
 
+          <!-- 최대 -->
           <div style="width:70px">
-            <div class="small">최대</div>
+            <div style="font-size:11px;color:#9ca3af;text-align:center">최대</div>
             <input class="input" data-k="max" value="${g.max ?? ''}">
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div class="small">정렬</div>
-            <div class="hstack" style="gap:4px">
-              <button class="btn xs" data-act="up">↑</button>
-              <button class="btn xs" data-act="down">↓</button>
-            </div>
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div class="small">관리</div>
-            <button class="btn xs" data-act="del-group">그룹 삭제</button>
+          <!-- 정렬 + 삭제 (우측 끝) -->
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn xs" data-act="up">↑</button>
+            <button class="btn xs" data-act="down">↓</button>
+            <button class="btn xs" data-act="del-group">삭제</button>
           </div>
         </div>
 
-        <div class="opt-body" style="display:${g._collapsed ? 'none' : 'block'}">
+        <!-- 옵션 항목 -->
+        <div class="opt-body" style="display:${g._collapsed ? 'none' : 'block'};margin-top:14px">
           <div class="opt-items"></div>
           <button class="btn xs" data-act="add-item">+ 옵션 항목 추가</button>
         </div>
       `;
 
-      /* 접기 / 펼치기 */
+      /* ===== 이벤트 바인딩 ===== */
+
       wrap.querySelector('[data-act="toggle"]').onclick = () => {
         g._collapsed = !g._collapsed;
         renderOptionGroups(groups, mountEl, notifyChange);
         notifyChange();
       };
 
-      /* 값 바인딩 */
       wrap.querySelectorAll('[data-k]').forEach(el => {
         const k = el.dataset.k;
         el.oninput = () => {
@@ -576,12 +571,10 @@ function renderOptionGroups(groups, mountEl, onChange) {
           else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
           else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
           else g[k] = el.value;
-
           notifyChange();
         };
       });
 
-      /* 정렬 */
       wrap.querySelector('[data-act="up"]').onclick = () => {
         if (gi === 0) return;
         [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]];
@@ -602,28 +595,24 @@ function renderOptionGroups(groups, mountEl, onChange) {
         notifyChange();
       };
 
-      /* ===============================
-         옵션 항목 영역
-      =============================== */
+      /* ===== 옵션 항목 ===== */
       const itemsBox = wrap.querySelector('.opt-items');
 
-      // 헤더
       const header = document.createElement('div');
       header.className = 'hstack';
       header.style.cssText = `
         gap:8px;
         margin-bottom:6px;
-        font-size:12px;
+        font-size:11px;
         color:#9ca3af;
       `;
       header.innerHTML = `
-        <div style="flex:1">항목명</div>
-        <div style="width:80px;text-align:right">추가금액</div>
-        <div style="width:48px">관리</div>
+        <div style="flex:1;text-align:center">항목명</div>
+        <div style="width:80px;text-align:center">추가금액</div>
+        <div style="width:48px;text-align:center">관리</div>
       `;
       itemsBox.appendChild(header);
 
-      // 항목들
       g.items.forEach((it, ii) => {
         const row = document.createElement('div');
         row.className = 'hstack';
