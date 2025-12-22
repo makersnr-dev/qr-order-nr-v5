@@ -417,7 +417,7 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:12px;
       ">
-        <div class="small" style="margin-bottom:6px; color:#9ca3af">
+        <div class="small" style="margin-bottom:8px; color:#9ca3af">
           이미지 URL
         </div>
         <input id="md-img" class="input"
@@ -433,7 +433,7 @@ function ensureMenuDetailModal() {
         padding:14px;
         margin-bottom:16px;
       ">
-        <div class="small" style="margin-bottom:6px; color:#9ca3af">
+        <div class="small" style="margin-bottom:8px; color:#9ca3af">
           메뉴 설명
         </div>
         <textarea id="md-desc" class="input"
@@ -521,14 +521,18 @@ function renderOptionGroups(groups, mountEl, onChange) {
           </select>
         </div>
 
-        <!-- 필수 -->
-        <div style="width:110px;text-align:center">
-          <div style="font-size:13px;color:#9ca3af">필수 여부</div>
-          <label class="hstack" style="justify-content:center;gap:6px">
-            <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
-            <span style="font-size:13px">필수</span>
-          </label>
+        <!-- 필수 여부 -->
+      <div style="width:110px">
+        <div style="font-size:13px;color:#9ca3af;text-align:center">
+          필수
         </div>
+        <label class="hstack"
+          style="justify-content:center;gap:6px;height:38px">
+          <input type="checkbox" data-k="required" ${g.required ? 'checked' : ''}>
+          <span style="font-size:13px">선택 필수</span>
+        </label>
+      </div>
+
 
         <!-- 최소 -->
         <div style="width:80px">
@@ -598,7 +602,7 @@ function renderOptionGroups(groups, mountEl, onChange) {
     header.innerHTML = `
       <div style="flex:1;text-align:center">항목명</div>
       <div style="width:90px;text-align:center">추가금액</div>
-      <div style="width:60px;text-align:center">관리</div>
+      
     `;
     itemsBox.appendChild(header);
 
