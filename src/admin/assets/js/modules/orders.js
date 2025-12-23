@@ -354,7 +354,7 @@ export async function renderStore() {
                   class="btn small primary"
                   data-action="mark-paid"
                   data-id="${o.id || o.orderId || ''}">
-                  결제 완료
+                  결제 완료 처리
                 </button>
               `
               : ''
