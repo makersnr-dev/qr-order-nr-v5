@@ -636,4 +636,51 @@ document.body.addEventListener('click', (e) => {
     // 👉 나중에 showModal로 상세 주문 표시
   });
 
+    // 4️⃣ 결제 완료 모달 - 확인 / 취소 버튼 처리
+  document.body.addEventListener('click', async (e) => {
+
+    // ❌ 취소 버튼
+    if (e.target.id === 'pay-cancel') {
+      const modal = document.getElementById('pay-confirm-modal');
+      if (modal) modal.style.display = 'none';
+      return;
+    }
+
+    // ✅ 확인 버튼
+    if (e.target.id === 'pay-confirm') {
+      const modal = document.getElementById('pay-confirm-modal');
+      if (!modal) return;
+
+      const id = modal.dataset.orderId;
+      if (!id) {
+        alert('주문 정보를 찾을 수 없습니다.');
+        modal.style.display = 'none';
+        return;
+      }
+
+      const storeId = window.qrnrStoreId || 'store1';
+
+      try {
+        await fetch('/api/orders', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            id,
+            status: '대기'
+          })
+        });
+
+        updateStatusInCache('store', storeId, id, '대기');
+
+        modal.style.display = 'none';
+        await renderStore();
+
+      } catch (err) {
+        console.error(err);
+        alert('결제 완료 처리 실패');
+      }
+    }
+  });
+
+
 }
