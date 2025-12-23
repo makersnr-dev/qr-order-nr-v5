@@ -262,7 +262,8 @@
       type: 'NEW_ORDER',
       storeId,
       orderId,
-      table
+      table,
+      ts: Date.now()
     });
 
     openOrderSuccessModal();
