@@ -192,12 +192,14 @@
   }
 
   function buildCart() {
-    return cart.items.map(i => ({
-      name: i.name,
-      qty: i.qty,
-      price: i.price
-    }));
-  }
+  return cart.items.map(i => ({
+    name: i.name,
+    qty: i.qty,
+    price: i.price,
+    options: Array.isArray(i.options) ? i.options : []
+  }));
+}
+
 
   // ───────────────────────────────────────────────────────────
   // 주문 완료 모달
