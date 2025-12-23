@@ -354,7 +354,11 @@ if (delivRefreshBtn) {
     `새 주문 도착 (테이블 ${msg.table || "-"})`,
     "success"
   );
-  notifyEvent(msg);
+  notifyEvent({
+  ...msg,
+  title: "새 주문 접수",
+  body: `테이블 ${msg.table} 주문이 들어왔습니다`
+});
   safeRenderStore();   // 매장 주문 새로고침
   safeRenderDeliv();
 }
