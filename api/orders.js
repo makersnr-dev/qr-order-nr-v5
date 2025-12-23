@@ -260,39 +260,5 @@ async function handlePut(req, res) {
   return json(res, { ok: true, order: target });
 }
 
-// ===============================
-// PUT /api/orders
-// 주문 상태 변경 (POS 결제 완료, 조리중, 완료 등)
-// ===============================
-async function handlePut(req, res) {
-  try {
-    const { id, status } = req.body || {};
 
-    if (!id || !status) {
-      return json(res, {
-        ok: false,
-        error: "INVALID_BODY",
-        message: "id 또는 status 누락",
-      }, 400);
-    }
-
-    // ⚠️ 현재 DB 없음
-    // 👉 실제 저장은 프론트(localStorage)에서 이미 처리 중
-    // 👉 여기서는 '성공 응답'만 주면 충분
-
-    return json(res, {
-      ok: true,
-      id,
-      status,
-    });
-
-  } catch (err) {
-    console.error("[orders] PUT error:", err);
-    return json(res, {
-      ok: false,
-      error: "PUT_FAILED",
-      detail: err?.message || String(err),
-    }, 500);
-  }
-}
 
