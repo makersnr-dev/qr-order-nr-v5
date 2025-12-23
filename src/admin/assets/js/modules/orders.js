@@ -232,7 +232,14 @@ export function exportOrders(type) {
       data.push([
         t,
         o.table || '',
-        (o.items || []).map(i => i.name + 'x' + i.qty).join('; '),
+        (o.items || []).map(i => {
+  let line = `${i.name} x${i.qty}`;
+  if (Array.isArray(i.options) && i.options.length) {
+    line += ' (' + i.options.join(', ') + ')';
+  }
+  return line;
+}).join('; ')
+,
         o.total || '',
         o.status || ''
       ]);
