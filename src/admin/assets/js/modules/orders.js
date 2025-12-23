@@ -216,3 +216,67 @@ export function attachGlobalHandlers() {
     }, { once:true });
   });
 }
+
+// ─────────────────────────────
+// 엑셀(CSV) 내보내기
+// ─────────────────────────────
+export function exportOrders(type) {
+  const rows = get(['admin', type]);
+
+  if (!rows || !rows.length) {
+    alert('내보낼 데이터가 없습니다.');
+    return;
+  }
+
+  // 컬럼 정의
+  const cols = type === 'ordersStore'
+    ? ['시간', '테이블', '주문내역', '금액', '상태']
+    : ['시간', '주문자', '연락처', '주소', '예약', '금액', '상태', '주문내역'];
+
+  const data = [cols];
+
+  rows.forEach(o => {
+    if (type === 'ordersStore') {
+      data.push([
+        o.time || '',
+        o.table || '',
+        (o.items || []).map(i => `${i.name}x${i.qty}`).join(', '),
+        o.total || '',
+        o.status || ''
+      ]);
+    } else {
+      data.push([
+        o.time || '',
+        o.customer || '',
+        o.phone || '',
+        o.addr || '',
+        o.reserve || '',
+        o.total || '',
+        o.status || '',
+        (o.items || []).map(i => `${i.name}x${i.qty}`).join(', ')
+      ]);
+    }
+  });
+
+  // CSV 생성
+  const csv = data
+    .map(row =>
+      row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    )
+    .join('\n');
+
+  const blob = new Blob([csv], {
+    type: 'application/vnd.ms-excel;charset=utf-8;'
+  });
+
+  const a = document.createElement('a');
+  const today = new Date().toISOString().slice(0, 10);
+  a.href = URL.createObjectURL(blob);
+  a.download =
+    type === 'ordersStore'
+      ? `store_orders_${today}.xlsx`
+      : `delivery_orders_${today}.xlsx`;
+
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
