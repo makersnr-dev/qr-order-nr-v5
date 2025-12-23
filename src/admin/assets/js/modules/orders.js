@@ -326,7 +326,7 @@ export async function renderStore() {
     const items  = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
     const table  = o.table || '-';
     const amount = Number(o.amount || 0);
-    const status = o.status || '대기';
+    const status = o.status || 'WAIT_PAY';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -335,34 +335,49 @@ export async function renderStore() {
       <td>${items || '-'}</td>
       <td>${fmt(amount)}</td>
       <td>
-        <span class="badge-dot ${
-          status === '완료'
-            ? 'badge-done'
-            : status === '조리중'
-            ? 'badge-cook'
-            : 'badge-wait'
-        }"></span>
-        <select
-          class="input"
-          style="width:100px"
-          data-type="store"
-          data-id="${o.id || o.orderId || ''}"
-        >
-          <option ${status === '대기' ? 'selected' : ''}>대기</option>
-          <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
-          <option ${status === '완료' ? 'selected' : ''}>완료</option>
-        </select>
-        <button
-          class="btn small"
-          data-action="pos-done"
-          data-id="${o.id || o.orderId || ''}"
-        >
-  POS 완료
-</button>
-
+        <div style="display:flex;align-items:center;gap:6px">
+    
+          <span class="badge-dot ${
+            status === '완료'
+              ? 'badge-done'
+              : status === '조리중'
+              ? 'badge-cook'
+              : status === '대기'
+              ? 'badge-wait'
+              : 'badge-wait'
+          }"></span>
+    
+          ${
+            status === 'WAIT_PAY'
+              ? `
+                <button
+                  class="btn small primary"
+                  data-action="mark-paid"
+                  data-id="${o.id || o.orderId || ''}">
+                  결제 완료
+                </button>
+              `
+              : ''
+          }
+    
+          <select
+            class="input"
+            style="width:100px"
+            data-type="store"
+            data-id="${o.id || o.orderId || ''}"
+            ${status === 'WAIT_PAY' ? 'disabled' : ''}
+          >
+            <option ${status === '대기' ? 'selected' : ''}>대기</option>
+            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
+            <option ${status === '완료' ? 'selected' : ''}>완료</option>
+          </select>
+    
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
+    
+       
   });
 
   // admin.ordersStore 에도 최신값 저장 (엑셀용)
@@ -560,13 +575,47 @@ export async function renderDeliv() {
 // 상태 변경 핸들러
 // ─────────────────────────────
 export function attachGlobalHandlers() {
-  // 상태 변경
+
+  // 1️⃣ POS 결제 완료 버튼 (WAIT_PAY → 대기)
+  document.body.addEventListener('click', async (e) => {
+    const btn = e.target;
+    if (!btn || btn.dataset.action !== 'mark-paid') return;
+
+    const id = btn.dataset.id;
+    if (!id) return;
+
+    const storeId = window.qrnrStoreId || 'store1';
+
+    try {
+      await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          status: '대기'
+        })
+      });
+
+      // 🔔 로컬 캐시도 동기화
+      updateStatusInCache('store', storeId, id, '대기');
+
+      showModal('결제가 완료되었습니다.');
+
+      await renderStore();
+    } catch (err) {
+      console.error(err);
+      alert('결제 완료 처리 실패');
+    }
+  });
+
+
+  // 2️⃣ 상태 변경 (대기 / 조리중 / 완료)
   document.body.addEventListener('change', async (e) => {
     const sel = e.target;
     if (!sel || sel.tagName !== 'SELECT') return;
 
     const id   = sel.dataset.id;
-    const type = sel.dataset.type; // "store" | "delivery"
+    const type = sel.dataset.type; // store | delivery
     if (!id || !type) return;
 
     const nextStatus = sel.value;
@@ -579,12 +628,11 @@ export function attachGlobalHandlers() {
         body: JSON.stringify({ id, status: nextStatus })
       });
 
-      // 로컬 캐시 상태도 같이 업데이트
       updateStatusInCache(type, storeId, id, nextStatus);
 
       if (type === 'store') {
         await renderStore();
-      } else if (type === 'delivery') {
+      } else {
         await renderDeliv();
       }
     } catch (err) {
@@ -593,44 +641,13 @@ export function attachGlobalHandlers() {
     }
   });
 
-  // 상세보기 (원하면 추후 구현)
+
+  // 3️⃣ 상세보기 (아직 비워둠 – 구조만 유지)
   document.body.addEventListener('click', (e) => {
     const btn = e.target;
-    if (!btn || !btn.dataset || !btn.dataset.detail) return;
-    // data-detail="${idx},store" / "${idx},delivery" 로 모달 띄우는 기능 구현 가능
-    // POS 처리 버튼 클릭
-if (e.target.matches('[data-action="pos-done"]')) {
-  const id = e.target.dataset.id;
-  if (!id) return;
+    if (!btn?.dataset?.detail) return;
 
-  // 1️⃣ 안내 모달 (단순 알림)
-  showModal('POS에서 결제가 완료되었으면 확인을 눌러주세요.');
-
-  // 2️⃣ confirm은 브라우저 기본 confirm 사용
-  if (!confirm('이 주문을 결제 완료로 처리할까요?')) {
-    return;
-  }
-
-  try {
-    await fetch('/api/orders', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, status: '완료' })
-    });
-
-    const storeId = window.qrnrStoreId || 'store1';
-    updateStatusInCache('store', storeId, id, '완료');
-
-    await renderStore();
-    hideModal();
-  } catch (e) {
-    hideModal();
-    alert('POS 처리에 실패했습니다.');
-  }
-}
-
+    // 👉 나중에 showModal로 상세 주문 표시
   });
-}
 
-  });
 }
