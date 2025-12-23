@@ -19,7 +19,7 @@ import { initQR } from './modules/qr.js';
 import { renderMenu, bindMenu } from './modules/menu.js';
 import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
-import { renderNotify, bindNotify, notifyEvent } from './modules/notify.js';
+import { renderNotify, bindNotify, notifyEvent,enableNotifySound } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
@@ -203,6 +203,16 @@ const adminChannel = new BroadcastChannel("qrnr-admin");
 //------------------------------------------------------------
 async function main() {
 
+// 🔊 최초 사용자 클릭으로 알림 소리 활성화
+document.body.addEventListener(
+  'click',
+  () => {
+    enableNotifySound();
+  },
+  { once: true }
+);
+
+  
   //------------------------------------------------------------------
   // A. 인증 검사
   //------------------------------------------------------------------
