@@ -256,6 +256,14 @@
 
     const j = await r.json();
     if (!j.ok) return alert('주문 저장에 실패했습니다');
+    // ✅ POS 관리자에게 "새 주문" 알림 보내기
+    const adminChannel = new BroadcastChannel('qrnr-admin');
+    adminChannel.postMessage({
+      type: 'NEW_ORDER',
+      storeId,
+      orderId,
+      table
+    });
 
     openOrderSuccessModal();
   };
