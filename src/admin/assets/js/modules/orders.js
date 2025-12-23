@@ -576,37 +576,23 @@ export async function renderDeliv() {
 // ─────────────────────────────
 export function attachGlobalHandlers() {
 
-  // 1️⃣ POS 결제 완료 버튼 (WAIT_PAY → 대기)
-  document.body.addEventListener('click', async (e) => {
-    const btn = e.target;
-    if (!btn || btn.dataset.action !== 'mark-paid') return;
+  // 1️⃣ 결제 완료 버튼 클릭 → 확인 모달 열기
+document.body.addEventListener('click', (e) => {
+  const btn = e.target;
+  if (!btn || btn.dataset.action !== 'mark-paid') return;
 
-    const id = btn.dataset.id;
-    if (!id) return;
+  const modal = document.getElementById('pay-confirm-modal');
+  if (!modal) {
+    console.error('pay-confirm-modal not found');
+    return;
+  }
 
-    const storeId = window.qrnrStoreId || 'store1';
+  // 어떤 주문인지 기억 (확인 버튼에서 사용)
+  modal.dataset.orderId = btn.dataset.id;
 
-    try {
-      await fetch('/api/orders', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          status: '대기'
-        })
-      });
+  modal.style.display = 'flex';
+});
 
-      // 🔔 로컬 캐시도 동기화
-      updateStatusInCache('store', storeId, id, '대기');
-
-      showModal('결제가 완료되었습니다.');
-
-      await renderStore();
-    } catch (err) {
-      console.error(err);
-      alert('결제 완료 처리 실패');
-    }
-  });
 
 
   // 2️⃣ 상태 변경 (대기 / 조리중 / 완료)
