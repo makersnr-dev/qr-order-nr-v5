@@ -348,7 +348,17 @@ export async function renderStore() {
     tr.innerHTML = `
       <td>${time}</td>
       <td>${table}</td>
-      <td>${items || '-'}</td>
+      <td>
+      <span
+        class="order-detail-link"
+        data-action="order-detail"
+        data-id="${o.id || o.orderId || ''}"
+        style="cursor:pointer;text-decoration:underline"
+      >
+        ${items || '-'}
+      </span>
+    </td>
+
       <td>${fmt(amount)}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
@@ -697,6 +707,38 @@ document.body.addEventListener('click', (e) => {
       }
     }
   });
+
+  // 주문 상세 모달 열기
+document.body.addEventListener('click', (e) => {
+  if (e.target.dataset.action !== 'order-detail') return;
+
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+  const orders = loadStoreCache(storeId);
+  const order = orders.find(o => (o.id || o.orderId) === id);
+  if (!order) return alert('주문을 찾을 수 없습니다.');
+
+  // 🔥 옵션 줄바꿈 핵심
+  const text = (order.cart || []).map(i => {
+    let line = `${i.name} x${i.qty}`;
+    if (Array.isArray(i.options) && i.options.length) {
+      line += '\n' + i.options.map(opt => ` └ ${opt}`).join('\n');
+    }
+    return line;
+  }).join('\n\n');
+
+  document.getElementById('order-detail-body').textContent = text;
+  document.getElementById('order-detail-modal').style.display = 'flex';
+});
+
+// 닫기 버튼
+document.getElementById('order-detail-close')?.addEventListener('click', () => {
+  document.getElementById('order-detail-modal').style.display = 'none';
+});
+
+  
 
 
 }
