@@ -349,11 +349,21 @@ if (delivRefreshBtn) {
     }
 
 
-    // 🔔 주문 생성됨 (결제 전)
-    if (msg.type === "NEW_ORDER") {
-      showToast(`새 주문 접수 - 테이블 ${msg.table || "-"}`, "info");
-      safeRenderStore();
-    }
+   if (msg.type === "NEW_ORDER") {
+  showToast(
+    `새 주문 도착 (테이블 ${msg.table || "-"})`,
+    "success"
+  );
+
+  notifyEvent({
+    ...msg,
+    type: "ORDER"
+  });
+
+  safeRenderStore();   // 매장 주문 새로고침
+      safeRenderDeliv();
+}
+
     
     if (msg.type === "NEW_ORDER_PAID") {
       showToast(`주문 결제 완료 - ${msg.orderId || ""}`, "success");
