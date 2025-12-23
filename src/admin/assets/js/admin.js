@@ -276,6 +276,24 @@ async function main() {
   safeRenderDeliv();
   attachGlobalHandlers();
 
+  // -------------------------------------------------
+// 주문 새로고침 버튼 바인딩 (누락돼 있던 부분)
+// -------------------------------------------------
+const storeRefreshBtn = document.getElementById("store-refresh");
+if (storeRefreshBtn) {
+  storeRefreshBtn.addEventListener("click", () => {
+    safeRenderStore();
+  });
+}
+
+const delivRefreshBtn = document.getElementById("deliv-refresh");
+if (delivRefreshBtn) {
+  delivRefreshBtn.addEventListener("click", () => {
+    safeRenderDeliv();
+  });
+}
+
+
   const storeExportBtn = document.getElementById("store-export");
   if (storeExportBtn) storeExportBtn.onclick = () =>
     exportOrders("ordersStore");
