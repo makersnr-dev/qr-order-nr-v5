@@ -570,8 +570,8 @@ function renderOptionGroups(groups, mountEl, onChange) {
 
     const minInput = wrap.querySelector('[data-k="min"]');
 const maxInput = wrap.querySelector('[data-k="max"]');
-const typeSelect = wrap.querySelector('[data-k="type"]');
-const requiredCheckbox = wrap.querySelector('[data-k="required"]');
+//const typeSelect = wrap.querySelector('[data-k="type"]');
+//const requiredCheckbox = wrap.querySelector('[data-k="required"]');
 
 function syncMinMaxState() {
   // ❌ 필수 아님 → 값은 유지, UI만 비활성화
@@ -635,22 +635,24 @@ syncMinMaxState();
       notifyChange();
     };
 
-    wrap.querySelectorAll('[data-k]').forEach(el => {
-      const k = el.dataset.k;
-    
-      el.oninput = () => {
-        if (k === 'required') g.required = el.checked;
-        else if (k === 'type') g.type = el.value;
-        else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
-        else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
-        else g[k] = el.value;
-    
-        syncMinMaxState();   
-        notifyChange();
-      };
-       el.oninput = handler;
-  el.onchange = handler;   // ✅ 이 줄 추가 (중요)
-    });
+   wrap.querySelectorAll('[data-k]').forEach(el => {
+  const k = el.dataset.k;
+
+  const run = () => {
+    if (k === 'required') g.required = el.checked;
+    else if (k === 'type') g.type = el.value;
+    else if (k === 'min') g.min = el.value === '' ? undefined : Number(el.value);
+    else if (k === 'max') g.max = el.value === '' ? undefined : Number(el.value);
+    else g[k] = el.value;
+
+    syncMinMaxState();
+    notifyChange();
+  };
+
+  el.addEventListener('input', run);
+  el.addEventListener('change', run);
+});
+
 
 
     wrap.querySelector('[data-act="del-group"]').onclick = () => {
