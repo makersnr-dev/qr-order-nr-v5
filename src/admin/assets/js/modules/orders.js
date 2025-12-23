@@ -334,11 +334,17 @@ export async function renderStore() {
       let opt = '';
     
       if (Array.isArray(i.options) && i.options.length > 0) {
-        opt = ` (${i.options.join(', ')})`;
+        const first = i.options[0];
+        const rest = i.options.length - 1;
+    
+        opt = rest > 0
+          ? ` (${first} 외 ${rest}개)`
+          : ` (${first})`;
       }
     
       return `${i.name}x${i.qty}${opt}`;
     }).join(', ');
+
 
     const table  = o.table || '-';
     const amount = Number(o.amount || 0);
@@ -423,6 +429,7 @@ export async function renderStore() {
       };
     });
   });
+  
 }
 
 // ─────────────────────────────
@@ -567,6 +574,10 @@ export async function renderDeliv() {
     tbody.appendChild(tr);
   });
 
+// ✅ 실제 화면에 사용한 rows 기준으로 캐시 갱신 (상세 모달 안정화)
+saveStoreCache(storeId, rows);
+
+  
   // admin.ordersDelivery 에도 최신값 저장 (엑셀용)
   patch(['admin', 'ordersDelivery'], () => {
     return rows.map(o => {
@@ -721,16 +732,25 @@ document.body.addEventListener('click', (e) => {
   if (!order) return alert('주문을 찾을 수 없습니다.');
 
   // 🔥 옵션 줄바꿈 핵심
-  const text = (order.cart || []).map(i => {
-    let line = `${i.name} x${i.qty}`;
-    if (Array.isArray(i.options) && i.options.length) {
-      line += '\n' + i.options.map(opt => ` └ ${opt}`).join('\n');
-    }
-    return line;
-  }).join('\n\n');
+ const header = [
+  `테이블: ${order.table || '-'}`,
+  `주문시간: ${fmtDateTimeFromOrder(order)}`,
+  `금액: ${fmt(order.amount || 0)}원`
+].join('\n');
 
-  document.getElementById('order-detail-body').textContent = text;
-  document.getElementById('order-detail-modal').style.display = 'flex';
+const body = (order.cart || []).map(i => {
+  let line = `${i.name} x${i.qty}`;
+  if (Array.isArray(i.options) && i.options.length) {
+    line += '\n' + i.options.map(opt => ` └ ${opt}`).join('\n');
+  }
+  return line;
+}).join('\n\n');
+
+document.getElementById('order-detail-body').textContent =
+  header + '\n\n' + body;
+
+document.getElementById('order-detail-modal').style.display = 'flex';
+
 });
 
 // 닫기 버튼
