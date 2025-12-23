@@ -284,6 +284,39 @@
   </div>
 </div>
 
+<!-- =========================
+     결제 완료 확인 모달 (POS)
+========================= -->
+<div id="pay-confirm-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.45);
+  align-items:center;
+  justify-content:center;
+  z-index:10000;
+">
+  <div style="
+    background:#0d1117;
+    color:#fff;
+    padding:24px;
+    border-radius:16px;
+    min-width:280px;
+  ">
+    <h3>결제 완료</h3>
+
+    <div style="margin:12px 0">
+      결제 완료 처리 하시겠습니까?
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="pay-cancel" class="btn">취소</button>
+      <button id="pay-confirm" class="btn primary">확인</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- QR Code 라이브러리 -->
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 
