@@ -365,7 +365,7 @@ export async function renderStore() {
             style="width:100px"
             data-type="store"
             data-id="${o.id || o.orderId || ''}"
-            ${status === 'WAIT_PAY' ? 'disabled' : ''}
+            
           >
             <option ${status === '대기' ? 'selected' : ''}>대기</option>
             <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
