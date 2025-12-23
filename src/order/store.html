@@ -53,14 +53,18 @@
   <!-- 합계/결제 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
-    <button id="pay-btn" class="btn primary">결제하기</button>
+    <button id="pay-btn" class="btn primary">주문하기</button>
+    <div class="small" style="color:#9ca3af;margin-top:6px">
+  주문 접수 후 카운터에서 결제를 진행해주세요.
+</div>
+
   </div>
 </div>
 
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
-  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
   const storeId = ensureStoreInitialized();
   window.qrnrStoreId = storeId;
@@ -196,81 +200,57 @@
     }
   }
 
-  // ───────────────────────────────────────────────────────────
-  // 결제 버튼
-  // ───────────────────────────────────────────────────────────
-  function bindPay() {
-    const btn =
-      document.getElementById('pay-btn') ||
-      document.getElementById('payBtn') ||
-      document.querySelector('[data-action="pay"]') ||
-      document.querySelector('.btn-pay, button.pay');
+// ───────────────────────────────────────────────────────────
+// 주문하기 (POS 결제 방식)
+// ───────────────────────────────────────────────────────────
+const orderBtn = document.getElementById('pay-btn');
 
-    if (!btn) {
-      console.warn('pay button not found');
+if (orderBtn) {
+  orderBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    const table = currentTable();
+    const items = buildCart();
+    const amount = totalAmountFromCart();
+
+    if (!table) {
+      alert('테이블 번호를 입력하세요');
+      return;
+    }
+    if (!items.length || !amount) {
+      alert('장바구니가 비어 있습니다');
       return;
     }
 
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
+    const payload = {
+      type: 'store',
+      table,
+      amount,
+      cart: items,
+      storeId,
+      status: 'WAIT_PAY',   // ⭐ 결제 전 상태
+      ts: Date.now()
+    };
 
-      const table = currentTable();
-      const codeInput = document.getElementById('paycode');
-      const inputCode = (codeInput?.value || '').trim();
-      const expectedCode = getPayCode();
-
-      const items = buildCart();
-      const amount = totalAmountFromCart();
-
-      if (!table) {
-        alert('테이블 번호를 입력하세요');
-        return;
-      }
-      if (inputCode !== expectedCode) {
-        alert('결제 코드가 올바르지 않습니다');
-        return;
-      }
-      if (!items.length || !amount) {
-        alert('장바구니가 비어 있습니다');
-        return;
-      }
-
-      const orderId = 'S' + Date.now();
-      const orderName =
-        items.map((i) => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
-
-      // ✅ 결제 후 되돌아올 정확한 경로(스토어/테이블 유지)
-      //   → 여기서는 인코딩하지 않고 "깨끗한 URL" 그대로 둠
-      const returnTo =
-        `/order/store?store=${storeId}` +
-        (table ? `&table=${table}` : '');
-
-      // 성공 페이지에서 /api/orders 저장 시 사용할 페이로드
-      const payload = {
-        type: 'store',
-        table,
-        amount,
-        orderId,
-        orderName,
-        cart: items,
-        status: '대기',
-        storeId,
-        returnTo
-      };
-
-      setPendingOrder(payload);
-
-      try {
-        // Toss URL 쪽 인코딩은 toss-client.js에서 전체를 encodeURIComponent로 처리
-        await startPayment({ orderId, amount, orderName, returnTo });
-      } catch (err) {
-        console.error('payment start error', err);
-        alert('결제를 시작할 수 없습니다.');
-      }
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-  }
 
-  bindPay();
+    const j = await r.json();
+    if (!j.ok) {
+      alert('주문 저장에 실패했습니다');
+      return;
+    }
+
+    alert('주문이 접수되었습니다.\n카운터에서 결제를 진행해주세요.');
+    cart.clear();
+  });
+}
+
+  
+ 
   document.body.setAttribute("data-store-id", storeId);
 </script>
 </body>
