@@ -348,6 +348,13 @@ if (delivRefreshBtn) {
       safeRenderNotifyLogs();
     }
 
+
+    // 🔔 주문 생성됨 (결제 전)
+    if (msg.type === "NEW_ORDER") {
+      showToast(`새 주문 접수 - 테이블 ${msg.table || "-"}`, "info");
+      safeRenderStore();
+    }
+    
     if (msg.type === "NEW_ORDER_PAID") {
       showToast(`주문 결제 완료 - ${msg.orderId || ""}`, "success");
       notifyEvent(msg);
