@@ -54,25 +54,42 @@ let audioCtx = null;
 let lastBeepAt = 0;
 const BEEP_COOLDOWN_MS = 3000; // 3초에 한 번만
 
-function playBeep(volume = 0.7) {
-  const now = Date.now();
-  if (now - lastBeepAt < BEEP_COOLDOWN_MS) {
-    return;
-  }
-  lastBeepAt = now;
 
+// ─────────────────────────────
+// 🔊 사용자 제스처로 오디오 활성화 (중요)
+// ─────────────────────────────
+export function enableNotifySound() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+
     if (!audioCtx) {
       audioCtx = new AC();
     }
+
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  } catch (e) {
+    console.error('[notify] enable sound error', e);
+  }
+}
+
+
+
+function playBeep(volume = 0.7) {
+  const now = Date.now();
+  if (now - lastBeepAt < BEEP_COOLDOWN_MS) return;
+  lastBeepAt = now;
+
+  try {
+    if (!audioCtx || audioCtx.state !== 'running') return;
 
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.value = 880; // A5 음
+    osc.frequency.value = 880;
     gain.gain.value = volume;
 
     osc.connect(gain);
@@ -84,6 +101,7 @@ function playBeep(volume = 0.7) {
     console.error('[notify] beep error', e);
   }
 }
+
 
 // ─────────────────────────────
 // 데스크탑 알림 (Notification API, 쿨타임 포함)
