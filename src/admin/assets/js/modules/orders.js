@@ -323,7 +323,16 @@ export async function renderStore() {
 
   rows.forEach(o => {
     const time   = fmtDateTimeFromOrder(o);
-    const items  = (o.cart || []).map(i => `${i.name}x${i.qty}`).join(', ');
+    const items = (o.cart || []).map(i => {
+      let opt = '';
+    
+      if (Array.isArray(i.options) && i.options.length > 0) {
+        opt = ` (${i.options.join(', ')})`;
+      }
+    
+      return `${i.name}x${i.qty}${opt}`;
+    }).join(', ');
+
     const table  = o.table || '-';
     const amount = Number(o.amount || 0);
     const status = o.status || 'WAIT_PAY';
