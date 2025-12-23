@@ -603,27 +603,32 @@ if (e.target.matches('[data-action="pos-done"]')) {
   const id = e.target.dataset.id;
   if (!id) return;
 
-  showModal({
-    title: 'POS 결제 완료',
-    message: '해당 주문을 결제 완료로 처리할까요?',
-    confirmText: '완료 처리',
-    cancelText: '취소',
-    onConfirm: async () => {
-      try {
-        await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ id, status: '완료' })
-        });
+  // 1️⃣ 안내 모달 (단순 알림)
+  showModal('POS에서 결제가 완료되었으면 확인을 눌러주세요.');
 
-        const storeId = window.qrnrStoreId || 'store1';
-        updateStatusInCache('store', storeId, id, '완료');
+  // 2️⃣ confirm은 브라우저 기본 confirm 사용
+  if (!confirm('이 주문을 결제 완료로 처리할까요?')) {
+    return;
+  }
 
-        await renderStore();
-      } catch (e) {
-        alert('POS 처리에 실패했습니다.');
-      }
-    }
+  try {
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, status: '완료' })
+    });
+
+    const storeId = window.qrnrStoreId || 'store1';
+    updateStatusInCache('store', storeId, id, '완료');
+
+    await renderStore();
+    hideModal();
+  } catch (e) {
+    hideModal();
+    alert('POS 처리에 실패했습니다.');
+  }
+}
+
   });
 }
 
