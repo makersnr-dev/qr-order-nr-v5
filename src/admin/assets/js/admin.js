@@ -9,6 +9,7 @@ import { initTabs } from './modules/ui.js';
 import {
   renderStore,
   renderDeliv,
+  bindFilters,
   exportOrders,
   attachGlobalHandlers,
   syncStoreFromServer,
@@ -270,7 +271,7 @@ async function main() {
   //------------------------------------------------------------------
   // F. 기타 초기화
   //------------------------------------------------------------------
-
+  bindFilters();
   safeRenderStore();
   safeRenderDeliv();
   attachGlobalHandlers();
