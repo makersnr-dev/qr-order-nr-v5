@@ -354,14 +354,9 @@ if (delivRefreshBtn) {
     `새 주문 도착 (테이블 ${msg.table || "-"})`,
     "success"
   );
-
-  notifyEvent({
-    ...msg,
-    type: "ORDER"
-  });
-
+  notifyEvent(msg);
   safeRenderStore();   // 매장 주문 새로고침
-      safeRenderDeliv();
+  safeRenderDeliv();
 }
 
     
