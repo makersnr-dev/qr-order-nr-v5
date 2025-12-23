@@ -6,11 +6,12 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>매장 주문</title>
 </head>
+
 <body data-store-id="">
 <div class="container">
   <h1>QR Order - 주문</h1>
 
-  <!-- 테이블/결제코드 -->
+  <!-- 테이블 / 결제 코드 -->
   <div class="card vstack">
     <div class="hstack" style="gap:12px;flex-wrap:wrap">
       <div class="vstack" style="min-width:220px;flex:1">
@@ -39,41 +40,75 @@
     <div id="call-msg" class="small"></div>
   </div>
 
-  <!-- 메뉴/장바구니 -->
+  <!-- 메뉴 -->
   <div class="card vstack">
     <h3>메뉴</h3>
     <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
   </div>
 
+  <!-- 장바구니 -->
   <div class="card vstack">
     <h3>장바구니</h3>
     <div id="cart-box" class="vstack"></div>
   </div>
 
-  <!-- 합계/결제 -->
-  <div class="card hstack" style="justify-content:space-between">
+  <!-- 합계 / 주문 -->
+  <div class="card hstack" style="justify-content:space-between;align-items:center">
     <div>합계: <b id="total">0</b>원</div>
     <button id="pay-btn" class="btn primary">주문하기</button>
-    <div class="small" style="color:#9ca3af;margin-top:6px">
-  주문 접수 후 카운터에서 결제를 진행해주세요.
+  </div>
+
+  <div class="small" style="color:#9ca3af;margin-top:6px">
+    주문 접수 후 카운터에서 결제를 진행해주세요.
+  </div>
 </div>
 
+<!-- 주문 완료 모달 -->
+<div id="order-success-modal"
+     style="
+       display:none;
+       position:fixed;
+       inset:0;
+       background:rgba(0,0,0,.45);
+       z-index:1000;
+       align-items:center;
+       justify-content:center;
+     ">
+  <div style="
+    background:#0d1117;
+    color:#fff;
+    padding:24px;
+    border-radius:16px;
+    width:90%;
+    max-width:360px;
+    text-align:center;
+  ">
+    <h3 style="margin-bottom:12px">주문이 접수되었습니다</h3>
+    <p style="font-size:14px;color:#9ca3af;line-height:1.5">
+      카운터에서 결제를 진행해주세요.
+    </p>
+
+    <button id="order-success-close"
+            class="btn primary"
+            style="margin-top:20px;width:100%">
+      확인
+    </button>
   </div>
 </div>
 
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
-  //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
-  const storeId = ensureStoreInitialized();
-  window.qrnrStoreId = storeId;
 
   // ───────────────────────────────────────────────────────────
-  // 초기 파라미터
+  // storeId 초기화
   // ───────────────────────────────────────────────────────────
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+  document.body.dataset.storeId = storeId;
+
   const url = new URL(location.href);
- 
   const tableParam = url.searchParams.get('table') || '';
   const tableInput = document.getElementById('tableNo');
   if (tableParam && tableInput) tableInput.value = tableParam;
@@ -81,114 +116,63 @@
   // ───────────────────────────────────────────────────────────
   // 장바구니 & 메뉴
   // ───────────────────────────────────────────────────────────
-  const cart = makeCart('cart-box', 'total'); // { items[], render(), total() }
+  const cart = makeCart('cart-box', 'total');
   cart.render();
-  renderMenu('menu-grid', cart);               // 매장별 메뉴가 비어있으면 기본 3종 fallback
+  renderMenu('menu-grid', cart);
+
+  function clearCart() {
+    cart.items.length = 0;
+    cart.render();
+  }
 
   // ───────────────────────────────────────────────────────────
-  // 직원 호출 (로컬 로그 + 브라우저 간 브로드캐스트)
+  // 직원 호출
   // ───────────────────────────────────────────────────────────
   const adminChannel = new BroadcastChannel('qrnr-admin');
   const callBtn = document.getElementById('call-btn');
 
   if (callBtn) {
-    callBtn.onclick = async () => {
-      const reasonEl = document.getElementById('call-reason');
-      const msgEl = document.getElementById('call-msg');
+    callBtn.onclick = () => {
       const tableVal = (document.getElementById('tableNo')?.value || '').trim();
+      const note = (document.getElementById('call-reason')?.value || '').trim();
 
       if (!tableVal) {
         alert('테이블 번호를 입력하세요.');
         return;
       }
-      const note = (reasonEl?.value || '').trim();
 
-      // 1) 관리자 알림 탭용 로컬 로그에 저장 (매장 분리 포함)
-      try {
-        patch(['admin', 'notifyLogs'], (list) => {
-          const arr = Array.isArray(list) ? [...list] : [];
-          arr.unshift({
-            id: 'CALL-' + Date.now(),
-            type: 'CALL',
-            ts: Date.now(),        // 날짜+시간 기준 UTC ms
-            storeId,               // 매장 구분
-            table: tableVal,
-            message: note,
-            status: '대기'
-          });
-          return arr;
-        });
-      } catch (e) {
-        console.error('local notify patch failed', e);
-      }
-
-      // 2) 같은 브라우저/다른 탭의 관리자 페이지에 실시간 알림
-      try {
-        adminChannel.postMessage({
+      patch(['admin', 'notifyLogs'], (list) => {
+        const arr = Array.isArray(list) ? [...list] : [];
+        arr.unshift({
+          id: 'CALL-' + Date.now(),
           type: 'CALL',
+          ts: Date.now(),
           storeId,
           table: tableVal,
-          note,
-          ts: Date.now()
+          message: note,
+          status: '대기'
         });
-      } catch (e) {
-        console.error('broadcast failed', e);
-      }
+        return arr;
+      });
 
-      if (msgEl) {
-        msgEl.textContent = '호출 전송됨 (관리자 페이지에서 확인 가능)';
-      }
+      adminChannel.postMessage({
+        type: 'CALL',
+        storeId,
+        table: tableVal,
+        note,
+        ts: Date.now()
+      });
+
+      document.getElementById('call-msg').textContent =
+        '호출 전송됨 (관리자 페이지에서 확인 가능)';
     };
   }
 
   // ───────────────────────────────────────────────────────────
   // 유틸
   // ───────────────────────────────────────────────────────────
-  function totalAmountFromCart() {
-    if (cart?.items?.length) {
-      return cart.items.reduce(
-        (sum, i) => sum + Number(i.price || 0) * Number(i.qty || 1),
-        0
-      );
-    }
-    const el = document.querySelector('[data-total]') || document.getElementById('total');
-    const v = el ? el.getAttribute('data-total') || el.textContent || '0' : '0';
-    return Number(String(v).replace(/[^0-9.-]/g, '')) || 0;
-  }
-
-  function buildCart() {
-    if (cart?.items?.length) {
-      return cart.items.map((i) => ({
-        name: i.name,
-        qty: i.qty,
-        price: i.price
-      }));
-    }
-    // Fallback: data-cart-item DOM 스캔 (현재 구조에선 보통 사용되지 않음)
-    const items = [];
-    document.querySelectorAll('[data-cart-item]').forEach((row) => {
-      const name =
-        row.getAttribute('data-name') ||
-        row.querySelector('.name')?.textContent ||
-        '메뉴';
-      const qty = Number(
-        row.getAttribute('data-qty') ||
-        row.querySelector('.qty')?.textContent ||
-        1
-      );
-      const price = Number(
-        row.getAttribute('data-price') ||
-        row.querySelector('.price')?.textContent ||
-        0
-      );
-      items.push({ name, qty, price });
-    });
-    return items;
-  }
-
   function currentTable() {
-    const v = document.getElementById('tableNo')?.value || tableParam || '';
-    return v.toString().trim() || null;
+    return (document.getElementById('tableNo')?.value || '').trim();
   }
 
   function getPayCode() {
@@ -200,35 +184,67 @@
     }
   }
 
-// ───────────────────────────────────────────────────────────
-// 주문하기 (POS 결제 방식)
-// ───────────────────────────────────────────────────────────
-const orderBtn = document.getElementById('pay-btn');
+  function totalAmountFromCart() {
+    return cart.items.reduce(
+      (sum, i) => sum + Number(i.price || 0) * Number(i.qty || 1),
+      0
+    );
+  }
 
-if (orderBtn) {
-  orderBtn.addEventListener('click', async (e) => {
+  function buildCart() {
+    return cart.items.map(i => ({
+      name: i.name,
+      qty: i.qty,
+      price: i.price
+    }));
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // 주문 완료 모달
+  // ───────────────────────────────────────────────────────────
+  function openOrderSuccessModal() {
+    document.getElementById('order-success-modal').style.display = 'flex';
+  }
+
+  function closeOrderSuccessModal() {
+    document.getElementById('order-success-modal').style.display = 'none';
+  }
+
+  document.getElementById('order-success-close').onclick = () => {
+    closeOrderSuccessModal();
+    clearCart();
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // 주문하기 (POS 결제 방식)
+  // ───────────────────────────────────────────────────────────
+  document.getElementById('pay-btn').onclick = async (e) => {
     e.preventDefault();
 
     const table = currentTable();
+    const inputCode = (document.getElementById('paycode')?.value || '').trim();
+    const expectedCode = getPayCode();
     const items = buildCart();
     const amount = totalAmountFromCart();
 
-    if (!table) {
-      alert('테이블 번호를 입력하세요');
-      return;
-    }
-    if (!items.length || !amount) {
-      alert('장바구니가 비어 있습니다');
-      return;
-    }
+    if (!table) return alert('테이블 번호를 입력하세요');
+    if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
+    if (!items.length || !amount) return alert('장바구니가 비어 있습니다');
+
+    // ✅ orderId / orderName 복구
+    const orderId = 'S' + Date.now();
+    const orderName =
+      items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
     const payload = {
       type: 'store',
+      orderId,
+      orderName,
       table,
       amount,
       cart: items,
       storeId,
-      status: 'WAIT_PAY',   // ⭐ 결제 전 상태
+      status: 'WAIT_PAY',
       ts: Date.now()
     };
 
@@ -239,19 +255,10 @@ if (orderBtn) {
     });
 
     const j = await r.json();
-    if (!j.ok) {
-      alert('주문 저장에 실패했습니다');
-      return;
-    }
+    if (!j.ok) return alert('주문 저장에 실패했습니다');
 
-    alert('주문이 접수되었습니다.\n카운터에서 결제를 진행해주세요.');
-    cart.clear();
-  });
-}
-
-  
- 
-  document.body.setAttribute("data-store-id", storeId);
+    openOrderSuccessModal();
+  };
 </script>
 </body>
 </html>
