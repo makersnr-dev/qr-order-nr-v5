@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <title>배달/예약 (비회원)</title>
+  <title>예약 (비회원)</title>
 
   <style>
     /* ----- 공통 레이아웃 ----- */
@@ -186,15 +186,10 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
 <div class="container">
 
-  <h1>배달/예약 (비회원)</h1>
-
-  <div class="card hstack" style="gap:8px">
-    <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
-    <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
-  </div>
+  <h1>예약 (비회원)</h1>
 
   <div class="card vstack">
-    <h3>배달/예약 정보 *</h3>
+    <h3>예약 정보 *</h3>
 
     <div class="vstack" style="gap:14px">
 
@@ -259,7 +254,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
       </div>
 
       <!-- 입금계좌 -->
-      <div class="field-row" id="bank-box" style="display:none;">
+      <div class="field-row" id="bank-box">
         <div class="field-label">입금계좌</div>
 
         <div class="bank-line">
@@ -290,7 +285,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   <!-- 금액 -->
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
-    <button id="action-btn" class="btn primary">결제하기</button>
+    <button id="action-btn" class="btn primary">예약하기</button>
   </div>
 
 </div>
@@ -319,10 +314,18 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
-  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
   const storeId = window.qrnrStoreId;
 
+  document.getElementById("bank-copy").onclick = () => {
+    const text = document.getElementById("bank-text").textContent;
+    if (!text) return alert("복사할 계좌 정보가 없습니다.");
+    navigator.clipboard.writeText(text);
+    alert("계좌번호가 복사되었습니다.");
+  };
+
+  
   /* -------- 주소 검색 -------- */
   function openAddrSearch() {
     new window.daum.Postcode({
@@ -386,29 +389,6 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   document.getElementById("privacy-close").onclick = () =>
     modal.style.display = "none";
 
-  /* -------- 탭 전환 -------- */
-  function updateTab() {
-    const isResv = document.getElementById("tab-resv").checked;
-
-    document.getElementById("date-row").style.display = isResv ? "block" : "none";
-    document.getElementById("bank-box").style.display = isResv ? "flex" : "none";
-    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
-
-    if (isResv) {
-      const b =
-        get(["admin", "ownerBank", storeId]) ||
-        get(["admin", "ownerBank"]) ||
-        {};
-      const bt = document.getElementById("bank-text");
-      bt.textContent = (b.bank && b.number)
-        ? `${b.bank} ${b.number} (${b.holder || ""})`
-        : "(관리자에 계좌 정보 없음)";
-    }
-  }
-  document.getElementById("tab-deliv").onchange = updateTab;
-  document.getElementById("tab-resv").onchange = updateTab;
-  updateTab();
-
   /* -------- 결제 / 예약 처리 -------- */
   document.getElementById("action-btn").onclick = async () => {
     const addr1 = document.getElementById("addr").value.trim();
@@ -426,10 +406,9 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     if (pw.length !== 4) return alert("조회 비밀번호 4자리를 입력해주세요.");
     if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
 
-    const isResv = document.getElementById("tab-resv").checked;
+    
 
     /* ---- 예약 ---- */
-    if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time") || {};
       if (!date) return alert("예약 날짜를 선택해주세요.");
@@ -458,12 +437,12 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
       if (!j.ok) return alert("예약 저장 실패");
 
       const originPage = location.pathname + location.search;  // 현재 페이지(비회원 주문 페이지)
-return location.replace(`/src/order/reserve-success.html?store=${storeId}&origin=${encodeURIComponent(originPage)}`);
+      location.replace(`/src/order/reserve-success.html?store=${storeId}&origin=${encodeURIComponent(originPage)}`);
 
-    }
+    
 
     /* ---- 배달 결제 ---- */
-    const orderId = "DELIV-" + Date.now();
+   /* const orderId = "DELIV-" + Date.now();
 
     setPendingOrder({
       type: "delivery",
@@ -482,7 +461,7 @@ return location.replace(`/src/order/reserve-success.html?store=${storeId}&origin
       orderId,
       amount: cart.total(),
       orderName: "배달 주문"
-    });
+    });*/
   };
 </script>
 
