@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <title>배달/예약</title>
+  <title>예약</title>
 </head>
 
 <body data-store-id="">
@@ -27,19 +27,14 @@
 
 <div class="container">
   <div class="hstack" style="justify-content:space-between">
-    <h1>배달/예약</h1>
+    <h1>예약</h1>
     <div class="hstack" style="gap:8px">
       <a id="btn-mypage" class="btn" href="#">마이페이지</a>
     </div>
   </div>
 
-  <div class="card hstack" style="gap:8px">
-    <label><input type="radio" name="tab" id="tab-deliv" checked> 배달(결제)</label>
-    <label><input type="radio" name="tab" id="tab-resv"> 예약(무결제)</label>
-  </div>
-
   <div class="card vstack" id="form-box">
-    <h3>배달/예약 정보 <span class="small">*</span></h3>
+    <h3>예약 정보 <span class="small">*</span></h3>
 
     <div class="vstack" style="gap:10px">
       <!-- 배송지 -->
@@ -82,7 +77,7 @@
       </div>
 
       <!-- 예약용 계좌 -->
-      <div id="bank-box" class="field-row small" style="display:none">
+      <div id="bank-box" class="field-row small">
         <div class="field-label">입금계좌</div>
         <div class="hstack" style="gap:6px;flex-wrap:wrap">
           <span id="bank-text"></span>
@@ -109,9 +104,36 @@
 
   <div class="card hstack" style="justify-content:space-between">
     <div>합계: <b id="total">0</b>원</div>
-    <button id="action-btn" class="btn primary">결제하기</button>
+    <button id="action-btn" class="btn primary">예약하기</button>
   </div>
 </div>
+
+<!-- 예약 완료 모달 -->
+<div id="reserve-done-modal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:9999;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:#0d1117;
+    padding:24px 22px;
+    border-radius:16px;
+    max-width:420px;
+    width:calc(100% - 40px);
+    text-align:center;">
+    <h3 style="margin-bottom:8px;">예약이 완료되었습니다</h3>
+    <p class="small" style="line-height:1.6;">
+      아래 계좌로 <b>1시간 이내</b>에<br>
+      <b id="reserve-amount"></b>원을 입금해주세요.
+    </p>
+    <div class="small" style="margin:10px 0;color:#9ca3af;">
+      <span id="reserve-bank"></span>
+    </div>
+    <button id="reserve-done-ok" class="btn primary" style="width:100%;">
+      확인
+    </button>
+  </div>
+</div>
+
 
 <!-- 다음주소 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
@@ -121,7 +143,7 @@
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
-  import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
   await requireCust();
 
@@ -162,29 +184,6 @@
     if (!document.getElementById("addr").value) openAddrSearch();
   };
 
-  /* -------------------- 예약용 계좌 -------------------- */
-  function updateTab() {
-    const isResv = document.getElementById("tab-resv").checked;
-
-    const bank =
-      get(["admin", "ownerBank", storeId]) ||
-      get(["admin", "ownerBank"]) ||
-      {};
-
-    document.getElementById("bank-box").style.display = isResv ? "block" : "none";
-    document.getElementById("action-btn").textContent = isResv ? "예약하기" : "결제하기";
-    document.getElementById("date-row").style.display = isResv ? "block" : "none";
-
-    document.getElementById("bank-text").textContent =
-      (bank.bank && bank.number)
-        ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-        : "(관리자에 계좌 정보가 없습니다)";
-  }
-  ["tab-deliv", "tab-resv"].forEach(id =>
-    document.getElementById(id).addEventListener("change", updateTab)
-  );
-  updateTab();
-
   /* -------------------- 계좌 복사 -------------------- */
   document.getElementById("bank-copy").onclick = async () => {
     const txt = document.getElementById("bank-text").textContent.trim();
@@ -208,11 +207,11 @@
     if (!cust || !addr) return alert("주소/주문자명을 입력해주세요.");
     if (phone.replace(/\D/g, "").length < 10) return alert("연락처를 다시 확인해주세요.");
 
-    const isResv = document.getElementById("tab-resv").checked;
+
     const total = cart.total();
+   
 
     /* -------------------- 예약 처리 -------------------- */
-    if (isResv) {
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time");
 
@@ -232,21 +231,52 @@
         storeId
       };
 
-      const r = await fetch("/api/orders", {
+    // 🔒 중복 예약 방지
+    document.getElementById("action-btn").disabled = true;
+    
+    let r, j;
+    try {
+      r = await fetch("/api/orders", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
       });
-      const j = await r.json();
-      if (!j.ok) return alert("예약 저장 실패!");
-
-      const back = location.pathname + location.search;
-      location.replace(`/src/order/reserve-success.html?store=${storeId}&returnTo=${encodeURIComponent(back)}`);
-      return;
+      j = await r.json();
+    } catch (e) {
+      document.getElementById("action-btn").disabled = false;
+      return alert("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+    }
+    
+    if (!j.ok) {
+      document.getElementById("action-btn").disabled = false;
+      return alert("예약 저장 실패!");
     }
 
+
+    // ✅ 예약 완료 모달 표시
+      const bank =
+        get(["admin", "ownerBank", storeId]) ||
+        get(["admin", "ownerBank"]) ||
+        {};
+      document.getElementById("bank-text").textContent =
+      bank.bank && bank.number
+        ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
+        : "관리자 계좌 정보 없음";
+      document.getElementById("reserve-amount").textContent =
+        cart.total().toLocaleString()+"원";
+      
+      document.getElementById("reserve-bank").textContent =
+        bank.bank && bank.number
+          ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
+          : "관리자 계좌 정보 없음";
+      
+      document.getElementById("reserve-done-modal").style.display = "flex";
+
+    
+
+
     /* -------------------- 배달 결제 -------------------- */
-    const orderId = "DELIV-" + Date.now();
+    /*const orderId = "DELIV-" + Date.now();
     const orderName = "배달 주문";
 
     setPendingOrder({
@@ -263,8 +293,30 @@
       await startPayment({ orderId, amount: total, orderName });
     } catch {
       alert("결제를 시작할 수 없습니다.");
-    }
+    }*/
   };
+  document.getElementById("reserve-done-ok").onclick = () => {
+    document.getElementById("reserve-done-modal").style.display = "none";
+  document.getElementById("action-btn").disabled = false;
+    // 입력 초기화
+    document.getElementById("addr").value = "";
+    document.getElementById("addr-detail").value = "";
+    document.getElementById("cust").value = "";
+    document.getElementById("phone").value = "";
+    document.getElementById("memo").value = "";
+    document.getElementById("date").value = "";
+    document.getElementById("time-ap").selectedIndex = 0;
+    document.getElementById("time-hh").selectedIndex = 0;
+    document.getElementById("time-mm").selectedIndex = 0;
+
+      
+  
+    cart.clear();     // 장바구니 비우기
+    cart.render();    // 화면 갱신
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+  };
+
 </script>
 
 </body>
