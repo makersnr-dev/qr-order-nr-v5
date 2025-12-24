@@ -414,22 +414,30 @@ export async function renderStore() {
 
   // admin.ordersStore 에도 최신값 저장 (엑셀용)
   patch(['admin', 'ordersStore'], () => {
-    return rows.map(o => {
-      const items = (o.cart || []).map(i => ({
-        name: i.name ?? '메뉴',
-        qty: i.qty ?? 1
-      }));
-      return {
-        id: o.id || o.orderId,
-        time: fmtDateTimeFromOrder(o),
-        table: o.table || '-',
-        items,
-        total: o.amount || 0,
-        status: o.status || '대기'
-      };
-    });
+  return rows.map(o => {
+    const items = (o.cart || []).map(i => ({
+      name: i.name ?? '메뉴',
+      qty: i.qty ?? 1,
+      options: Array.isArray(i.options)
+        ? i.options.map(opt =>
+            typeof opt === 'string'
+              ? opt
+              : opt.name || String(opt)
+          )
+        : []
+    }));
+
+    return {
+      id: o.id || o.orderId,
+      time: fmtDateTimeFromOrder(o),
+      table: o.table || '-',
+      items,
+      total: o.amount || 0,
+      status: o.status || '대기'
+    };
   });
-  
+});
+
 }
 
 // ─────────────────────────────
