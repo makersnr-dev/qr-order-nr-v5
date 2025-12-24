@@ -402,6 +402,17 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   const cart = makeCart("cart-box", "total");
   cart.render();
   renderMenu("menu-grid", cart);
+  /* -------- 입금계좌 초기 표시 (관리자 설정값) -------- */
+  const initBank =
+    get(["admin", "ownerBank", storeId]) ||
+    get(["admin", "ownerBank"]) ||
+    {};
+
+document.getElementById("bank-text").textContent =
+  initBank.bank && initBank.number
+    ? `${initBank.bank} ${initBank.number} (${initBank.holder || ""})`
+    : "관리자 계좌 정보 없음";
+
 
   /* -------- 개인정보 보기 -------- */
   const modal = document.getElementById("privacy-modal");
