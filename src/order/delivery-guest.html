@@ -253,14 +253,17 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
         <div class="datetime-wrap">
           <div class="datetime-row">
-           <div class="date-field">
+          <div class="date-field">
             <input
               id="date"
-              type="date"
+              type="text"
               class="input date-input"
+              placeholder="예약 날짜 선택"
+              readonly
+              inputmode="none"
             >
-            <span class="date-placeholder">예약 날짜 선택</span>
           </div>
+
 
             <select id="time-ap" class="input input-sm"></select>
             <select id="time-hh" class="input input-sm"></select>
@@ -385,6 +388,26 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     navigator.clipboard.writeText(text);
     alert("계좌번호가 복사되었습니다.");
   };
+
+const dateInput = document.getElementById("date");
+
+dateInput.addEventListener("focus", () => {
+  dateInput.type = "date";
+});
+
+dateInput.addEventListener("blur", () => {
+  if (!dateInput.value) {
+    dateInput.type = "text";
+  }
+});
+
+dateInput.addEventListener("change", () => {
+  if (dateInput.value) {
+    const v = dateInput.value; // YYYY-MM-DD
+    dateInput.type = "text";
+    dateInput.value = v;       // 값 유지
+  }
+});
 
   
   /* -------- 주소 검색 -------- */
@@ -568,4 +591,4 @@ cart.render();          // 화면 갱신
 </script>
 
 </body>
-</html>
+</html> 이거 맞아?
