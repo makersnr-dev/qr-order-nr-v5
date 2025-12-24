@@ -461,21 +461,15 @@ export async function renderDeliv() {
   let rows = [];
 
   try {
-    // 1) 배달 주문
-    const r1 = await fetch(
-      `/api/orders?type=delivery&storeId=${encodeURIComponent(storeId)}`,
-      { cache: 'no-store' }
-    );
-    const d1 = await r1.json().catch(() => ({ orders: [] }));
-
-    // 2) 예약 주문
-    const r2 = await fetch(
+   // ✅ 예약 주문만 가져오기
+    const r = await fetch(
       `/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`,
       { cache: 'no-store' }
     );
-    const d2 = await r2.json().catch(() => ({ orders: [] }));
+    const d = await r.json().catch(() => ({ orders: [] }));
+    
+    let serverRows = d.orders || [];
 
-    let serverRows = [...(d1.orders || []), ...(d2.orders || [])];
 
     if (serverRows.length) {
       saveDelivCache(storeId, serverRows);
@@ -507,7 +501,7 @@ export async function renderDeliv() {
     const time = fmtDateTimeFromOrder(o);
 
     // 🔹 주문 유형 (배달 / 예약 구분)
-    const kind = o.type === 'reserve' ? '예약' : '배달';
+    const kind = '예약';
 
     // 주문자 / 연락처
     const customer = o.customer || {};
@@ -673,9 +667,10 @@ document.body.addEventListener('click', (e) => {
 
       if (type === 'store') {
         await renderStore();
-      } else {
-        await renderDeliv();
+      } else if (type === 'delivery') {
+        await renderDeliv(); // 사실상 예약
       }
+
     } catch (err) {
       console.error('status change err', err);
       alert('상태 변경에 실패했습니다.');
