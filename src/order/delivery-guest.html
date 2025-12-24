@@ -27,6 +27,33 @@
     }
 
     /* ---- 날짜 + 시간 ---- */
+    .date-field {
+  position: relative;
+  width: 180px;
+}
+
+.date-placeholder {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  font-size: 14px;
+  pointer-events: none; /* 클릭 방해 ❌ */
+  transition: opacity 0.15s ease;
+}
+
+/* 날짜가 선택되면 안내 문구 숨김 */
+.date-field input:not(:placeholder-shown) + .date-placeholder {
+  opacity: 0;
+}
+
+/* date 타입 대응 (placeholder-shown 미지원 대응) */
+.date-field input:valid + .date-placeholder {
+  opacity: 0;
+}
+
+    
     .datetime-wrap {
       flex: 1;
     }
@@ -226,13 +253,15 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
         <div class="datetime-wrap">
           <div class="datetime-row">
-           <input
-            id="date"
-            type="text"
-            class="input date-input"
-            placeholder="예약 날짜 선택"
-            readonly
-          >
+           <div class="date-field">
+            <input
+              id="date"
+              type="date"
+              class="input date-input"
+            >
+            <span class="date-placeholder">예약 날짜 선택</span>
+          </div>
+
             <select id="time-ap" class="input input-sm"></select>
             <select id="time-hh" class="input input-sm"></select>
             <select id="time-mm" class="input input-sm"></select>
@@ -379,28 +408,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   });
 
-  /* -------- date-picker 즉시 팝업 -------- */
- const dateInput = document.getElementById("date");
 
-/**
- * 방법 3 + 보너스
- * - showPicker 사용 ❌
- * - focus 시 type만 date로 변경
- * - 브라우저가 알아서 picker 표시
- */
-dateInput.addEventListener("focus", () => {
-  dateInput.type = "date";
-});
-
-/**
- * 날짜를 선택 안 하고 빠져나오면
- * 다시 text로 돌려 placeholder 유지
- */
-dateInput.addEventListener("blur", () => {
-  if (!dateInput.value) {
-    dateInput.type = "text";
-  }
-});
 
 
   dateInput.addEventListener("blur", () => {
