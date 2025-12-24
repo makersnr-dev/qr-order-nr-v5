@@ -224,16 +224,21 @@ async function handlePost(req, res) {
    try {
      const channel = new BroadcastChannel("qrnr-admin");
      channel.postMessage({
-       type: "NEW_ORDER",
-       kind: type,              // store | reserve
-       storeId: finalStoreId,
-       orderId: newOrder.id,
-       table: table || null,
-       reserveDate,
-       reserveTime,
-       amount: amt,
-       ts,
-     });
+     type: "NEW_ORDER",
+     orderType: type,          // ⭐ 핵심 (store | delivery | reserve)
+     storeId: finalStoreId,
+     orderId: newOrder.id,
+   
+     table: table || null,
+     customer: finalCustomer || null,   // ⭐ 추가
+     cart: cart || [],                  // ⭐ 추가
+   
+     reserveDate,
+     reserveTime,
+     amount: amt,
+     ts,
+   });
+
    } catch (e) {
      console.error("[orders] admin notify error:", e);
    }
