@@ -534,8 +534,9 @@ document.getElementById("reserve-done-modal").style.display = "flex";
   document.getElementById("time-mm").selectedIndex = 0;
   
 
-  cart.clear();     // 장바구니 비우기
-  cart.render();    // 화면 갱신
+  cart.items.length = 0;  // 장바구니 비우기
+cart.render();          // 화면 갱신
+
     window.scrollTo({ top: 0, behavior: "smooth" });
 
 };
