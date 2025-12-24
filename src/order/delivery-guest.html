@@ -408,13 +408,6 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   });
 
-
-
-
-  dateInput.addEventListener("blur", () => {
-    if (!dateInput.value) dateInput.type = "text";
-  });
-
   /* -------- 메뉴 및 카트 -------- */
   fillTimeSelectors("time");
   const cart = makeCart("cart-box", "total");
