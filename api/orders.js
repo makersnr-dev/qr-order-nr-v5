@@ -217,10 +217,29 @@ async function handlePost(req, res) {
     agreePrivacy: !!agreePrivacy,
   };
 
-  orders.push(newOrder);
-  await saveOrders(orders);
+   orders.push(newOrder);
+   await saveOrders(orders);
+   
+   /* 🔔 관리자 알림 (매장/예약 공통) */
+   try {
+     const channel = new BroadcastChannel("qrnr-admin");
+     channel.postMessage({
+       type: "NEW_ORDER",
+       kind: type,              // store | reserve
+       storeId: finalStoreId,
+       orderId: newOrder.id,
+       table: table || null,
+       reserveDate,
+       reserveTime,
+       amount: amt,
+       ts,
+     });
+   } catch (e) {
+     console.error("[orders] admin notify error:", e);
+   }
+   
+   return json(res, { ok: true, order: newOrder });
 
-  return json(res, { ok: true, order: newOrder });
 }
 
 
