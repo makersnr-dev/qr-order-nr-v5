@@ -226,8 +226,13 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
         <div class="datetime-wrap">
           <div class="datetime-row">
-            <input id="date" type="text" class="input date-input" placeholder="연-월-일 선택">
-
+           <input
+            id="date"
+            type="text"
+            class="input date-input"
+            placeholder="예약 날짜 선택"
+            readonly
+          >
             <select id="time-ap" class="input input-sm"></select>
             <select id="time-hh" class="input input-sm"></select>
             <select id="time-mm" class="input input-sm"></select>
@@ -375,23 +380,28 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   });
 
   /* -------- date-picker 즉시 팝업 -------- */
-  const dateInput = document.getElementById("date");
+ const dateInput = document.getElementById("date");
 
-  dateInput.addEventListener("mousedown", () => {
-    if (dateInput.type !== "date") {
-      dateInput.type = "date";
-    }
-    setTimeout(() => {
-      if (dateInput.showPicker) dateInput.showPicker();
-    }, 0);
-  });
+/**
+ * 방법 3 + 보너스
+ * - showPicker 사용 ❌
+ * - focus 시 type만 date로 변경
+ * - 브라우저가 알아서 picker 표시
+ */
+dateInput.addEventListener("focus", () => {
+  dateInput.type = "date";
+});
 
-  dateInput.addEventListener("focus", () => {
-    if (dateInput.type !== "date") dateInput.type = "date";
-    setTimeout(() => {
-      if (dateInput.showPicker) dateInput.showPicker();
-    }, 0);
-  });
+/**
+ * 날짜를 선택 안 하고 빠져나오면
+ * 다시 text로 돌려 placeholder 유지
+ */
+dateInput.addEventListener("blur", () => {
+  if (!dateInput.value) {
+    dateInput.type = "text";
+  }
+});
+
 
   dateInput.addEventListener("blur", () => {
     if (!dateInput.value) dateInput.type = "text";
