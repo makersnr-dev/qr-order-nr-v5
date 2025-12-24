@@ -308,6 +308,33 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   </div>
 </div>
 
+  <!-- 예약 완료 모달 -->
+<div id="reserve-done-modal" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.55); z-index:9999;
+  align-items:center; justify-content:center;">
+  <div style="
+    background:#0d1117;
+    padding:24px 22px;
+    border-radius:16px;
+    max-width:420px;
+    width:calc(100% - 40px);
+    text-align:center;">
+    <h3 style="margin-bottom:8px;">예약이 완료되었습니다</h3>
+    <p class="small" style="line-height:1.6;">
+      아래 계좌로 <b>1시간 이내</b>에<br>
+      <b id="reserve-amount"></b>원을 입금해주세요.
+    </p>
+    <div class="small" style="margin:10px 0;color:#9ca3af;">
+      <span id="reserve-bank"></span>
+    </div>
+    <button id="reserve-done-ok" class="btn primary" style="width:100%;">
+      확인
+    </button>
+  </div>
+</div>
+
+
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
@@ -435,9 +462,26 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
       });
       const j = await r.json();
       if (!j.ok) return alert("예약 저장 실패");
+    // 🔒 중복 예약 방지
+document.getElementById("action-btn").disabled = true;
 
-      const originPage = location.pathname + location.search;  // 현재 페이지(비회원 주문 페이지)
-      location.replace(`/src/order/reserve-success.html?store=${storeId}&origin=${encodeURIComponent(originPage)}`);
+// ✅ 예약 완료 모달 표시
+const bank =
+  get(["admin", "ownerBank", storeId]) ||
+  get(["admin", "ownerBank"]) ||
+  {};
+
+document.getElementById("reserve-amount").textContent =
+  cart.total().toLocaleString()+"원";
+
+document.getElementById("reserve-bank").textContent =
+  bank.bank && bank.number
+    ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
+    : "관리자 계좌 정보 없음";
+
+document.getElementById("reserve-done-modal").style.display = "flex";
+
+      
 
     
 
@@ -463,6 +507,28 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
       orderName: "배달 주문"
     });*/
   };
+  document.getElementById("reserve-done-ok").onclick = () => {
+  document.getElementById("reserve-done-modal").style.display = "none";
+  document.getElementById("action-btn").disabled = false;
+  // 입력 초기화
+  document.getElementById("addr").value = "";
+  document.getElementById("addr-detail").value = "";
+  document.getElementById("cust").value = "";
+  document.getElementById("phone").value = "";
+  document.getElementById("lookupPw").value = "";
+  document.getElementById("memo").value = "";
+  document.getElementById("date").value = "";
+  document.getElementById("time-ap").selectedIndex = 0;
+  document.getElementById("time-hh").selectedIndex = 0;
+  document.getElementById("time-mm").selectedIndex = 0;
+  
+
+  cart.clear();     // 장바구니 비우기
+  cart.render();    // 화면 갱신
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+};
+
 </script>
 
 </body>
