@@ -18,9 +18,6 @@
     { "src": "/order/mypage", "dest": "/src/order/mypage.html" },
     { "src": "/order/reserve-success", "dest": "/src/order/reserve-success.html" },
 
-    { "src": "/toss/success", "dest": "/src/public/toss-success.html" },
-    { "src": "/toss/fail",   "dest": "/src/public/toss-fail.html" },
-
     { "src": "/api/(.*)", "dest": "/api/$1.js" }
   ]
 }
