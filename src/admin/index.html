@@ -13,16 +13,16 @@
   <div class="hstack">
     <h1>관리자 콘솔</h1>
     <span class="badge right">매장</span>
-    <span class="badge">배달/예약</span>
+    <span class="badge">예약</span>
     <button id="logoutBtn" class="btn">로그아웃</button>
   </div>
 
   <!-- ================= TAB BAR ================= -->
   <div class="tabbar">
     <button class="tab active" data-tab="store">매장</button>
-    <button class="tab" data-tab="delivery">배달/예약</button>
+    <button class="tab" data-tab="delivery">예약</button>
     <button class="tab" data-tab="qr-store">매장QR</button>
-    <button class="tab" data-tab="qr-deliv">배달/예약QR</button>
+    <button class="tab" data-tab="qr-deliv">예약QR</button>
     <button class="tab" data-tab="menu">메뉴 관리</button>
     <button class="tab" data-tab="code">결제 코드</button>
     <button class="tab" data-tab="mybank">내 계좌정보</button>
@@ -70,10 +70,10 @@
     </table>
   </div>
 
-  <!-- ================= 배달/예약 주문 ================= -->
+  <!-- ================= 예약 주문 ================= -->
   <div class="card" data-panel="delivery" style="display:none">
     <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-      <h3>배달/예약 주문</h3>
+      <h3>예약 주문</h3>
       <button id="deliv-refresh" class="btn small">새로고침</button>
     </div>
 
@@ -133,16 +133,16 @@
     <div id="qr-grid" class="grid" style="gap:12px"></div>
   </div>
 
-  <!-- ================= 배달/예약 QR ================= -->
+  <!-- ================= 예약 QR ================= -->
   <div class="card" data-panel="qr-deliv" style="display:none">
-    <h3>배달/예약 QR</h3>
+    <h3>예약 QR</h3>
     <p class="small">
-      이 QR은 <b>배달/예약 주문 진입 페이지</b>로 연결됩니다.<br/>
+      이 QR은 <b>예약 주문 진입 페이지</b>로 연결됩니다.<br/>
       고객이 스캔하면 회원/비회원 선택 화면으로 이동합니다.
     </p>
 
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <input id="qr-deliv-label" class="input" placeholder="라벨 (예: 배달/예약 주문)" style="max-width:260px">
+      <input id="qr-deliv-label" class="input" placeholder="라벨 (예: 예약 주문)" style="max-width:260px">
       <button id="qr-deliv-generate" class="btn primary">QR 생성 & 저장</button>
       <button id="qr-deliv-clear" class="btn">전체 삭제</button>
     </div>
@@ -262,7 +262,7 @@
     <h3>개인정보 처리방침</h3>
 
     <p class="small" style="margin-bottom:8px">
-      이 내용은 배달/예약 주문 페이지의<br/>
+      이 내용은 예약 주문 페이지의<br/>
       <b>「개인정보 처리방침 보기」 모달</b>에 그대로 표시됩니다.
     </p>
 
