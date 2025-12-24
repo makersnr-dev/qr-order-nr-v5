@@ -253,17 +253,14 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
         <div class="datetime-wrap">
           <div class="datetime-row">
-          <div class="date-field">
+           <div class="date-field">
             <input
               id="date"
-              type="text"
+              type="date"
               class="input date-input"
-              placeholder="예약 날짜 선택"
-              readonly
-              inputmode="none"
             >
+            <span class="date-placeholder">예약 날짜 선택</span>
           </div>
-
 
             <select id="time-ap" class="input input-sm"></select>
             <select id="time-hh" class="input input-sm"></select>
@@ -389,26 +386,6 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     alert("계좌번호가 복사되었습니다.");
   };
 
-const dateInput = document.getElementById("date");
-
-dateInput.addEventListener("focus", () => {
-  dateInput.type = "date";
-});
-
-dateInput.addEventListener("blur", () => {
-  if (!dateInput.value) {
-    dateInput.type = "text";
-  }
-});
-
-dateInput.addEventListener("change", () => {
-  if (dateInput.value) {
-    const v = dateInput.value; // YYYY-MM-DD
-    dateInput.type = "text";
-    dateInput.value = v;       // 값 유지
-  }
-});
-
   
   /* -------- 주소 검색 -------- */
   function openAddrSearch() {
@@ -430,6 +407,7 @@ dateInput.addEventListener("change", () => {
   document.getElementById("lookupPw").addEventListener("input", e => {
     e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
   });
+
 
   /* -------- 메뉴 및 카트 -------- */
   fillTimeSelectors("time");
@@ -591,4 +569,4 @@ cart.render();          // 화면 갱신
 </script>
 
 </body>
-</html> 이거 맞아?
+</html> 어디가 문제야?
