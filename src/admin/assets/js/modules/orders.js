@@ -120,7 +120,7 @@ export async function syncStoreFromServer() {
 
     const rawOrders = data.orders || [];
     // 원본 주문 배열을 캐시에 그대로 저장
-    saveStoreCache(storeId, rawOrders);
+    //saveStoreCache(storeId, rawOrders);
 
     const rows = rawOrders.map(o => {
       const time = fmtDateTimeFromOrder(o);
@@ -429,31 +429,24 @@ export async function renderStore() {
        
   });
 
-  // admin.ordersStore 에도 최신값 저장 (엑셀용)
   patch(['admin', 'ordersStore'], () => {
-  return rows.map(o => {
-    const items = (o.cart || []).map(i => ({
+  const storeId = window.qrnrStoreId || 'store1';
+  const orders = loadStoreCache(storeId); // ✅ 원본 기준
+
+  return orders.map(o => ({
+    id: o.id || o.orderId,
+    time: fmtDateTimeFromOrder(o),
+    table: o.table || '-',
+    items: (o.cart || []).map(i => ({
       name: i.name ?? '메뉴',
       qty: i.qty ?? 1,
-      options: Array.isArray(i.options)
-        ? i.options.map(opt =>
-            typeof opt === 'string'
-              ? opt
-              : opt.name || String(opt)
-          )
-        : []
-    }));
-
-    return {
-      id: o.id || o.orderId,
-      time: fmtDateTimeFromOrder(o),
-      table: o.table || '-',
-      items,
-      total: o.amount || 0,
-      status: o.status || '대기'
-    };
-  });
+      options: normalizeOptions(i.options) // ✅ 문자열화는 여기서 한 번만
+    })),
+    total: o.amount || 0,
+    status: o.status || '대기'
+  }));
 });
+
 
 }
 
