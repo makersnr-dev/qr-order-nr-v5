@@ -119,8 +119,8 @@ export async function syncStoreFromServer() {
     if (!data.ok) return;
 
     const rawOrders = data.orders || [];
-    // 원본 주문 배열을 캐시에 그대로 저장
-    //saveStoreCache(storeId, rawOrders);
+    // 원본 주문 배열을 캐시에 그대로 저장(중요)
+    saveStoreCache(storeId, rawOrders);
 
     const rows = rawOrders.map(o => {
       const time = fmtDateTimeFromOrder(o);
@@ -162,7 +162,7 @@ export async function syncStoreFromServer() {
     });
 
     // admin.ordersStore 에 덮어쓰기 (엑셀용)
-    patch(['admin', 'ordersStore'], () => rows);
+    //patch(['admin', 'ordersStore'], () => rows);
   } catch (e) {
     console.error('syncStoreFromServer error', e);
   }
