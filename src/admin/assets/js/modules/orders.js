@@ -244,13 +244,15 @@ export function exportOrders(type) {
         t,
         o.table || '',
         (o.items || []).map(i => {
-  let line = `${i.name} x${i.qty}`;
-  if (Array.isArray(i.options) && i.options.length) {
-    line += ' (' + i.options.join(', ') + ')';
-  }
-  return line;
-}).join('; ')
-,
+          let line = `${i.name} x${i.qty}`;
+        
+          if (Array.isArray(i.options) && i.options.length) {
+            const opts = normalizeOptions(i.options);
+            line += ' (' + opts.join(', ') + ')';
+          }
+        
+          return line;
+        }).join('; '),
         o.total || '',
         o.status || ''
       ]);
