@@ -18,6 +18,17 @@ function fmtDateTimeFromOrder(o) {
   const MM   = String(d.getMinutes()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${HH}:${MM}`;
 }
+//-------------문자열 변환 함수-----------------------
+function normalizeOptions(options) {
+  if (!Array.isArray(options)) return [];
+
+  return options.map(opt =>
+    typeof opt === 'string'
+      ? opt
+      : opt.name || opt.label || String(opt)
+  );
+}
+
 
 // ─────────────────────────────
 // 로컬 캐시 (localStorage)
@@ -334,11 +345,8 @@ export async function renderStore() {
       let opt = '';
     
       if (Array.isArray(i.options) && i.options.length > 0) {
-        const optNames = i.options.map(opt =>
-          typeof opt === 'string'
-            ? opt
-            : opt.name || String(opt)
-        );
+        const optNames = normalizeOptions(i.options);
+
       
         const first = optNames[0];
         const rest = optNames.length - 1;
@@ -756,15 +764,11 @@ document.body.addEventListener('click', (e) => {
 const body = (order.cart || []).map(i => {
   let line = `${i.name} x${i.qty}`;
   if (Array.isArray(i.options) && i.options.length) {
-    line += '\n' + i.options
-      .map(opt =>
-        ` └ ${
-          typeof opt === 'string'
-            ? opt
-            : opt.name || String(opt)
-        }`
-      )
-      .join('\n');
+    const opts = normalizeOptions(i.options);
+    if (opts.length) {
+      line += '\n' + opts.map(opt => ` └ ${opt}`).join('\n');
+    }
+    
 
   }
   return line;
