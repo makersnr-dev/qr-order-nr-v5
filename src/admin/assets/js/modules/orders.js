@@ -575,7 +575,7 @@ export async function renderDeliv() {
   });
 
 // ✅ 실제 화면에 사용한 rows 기준으로 캐시 갱신 (상세 모달 안정화)
-saveStoreCache(storeId, rows);
+//saveStoreCache(storeId, rows);
 
   
   // admin.ordersDelivery 에도 최신값 저장 (엑셀용)
