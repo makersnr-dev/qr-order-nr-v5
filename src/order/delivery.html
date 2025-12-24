@@ -226,9 +226,20 @@
       const date = document.getElementById("date").value;
       const { ap, hh, mm } = getTimeValue("time");
 
-      if (!date) return alert("예약 날짜를 선택해주세요.");
-      if (!ap || !hh || !mm || hh === "시" || mm === "분")
-        return alert("예약 시간을 선택해주세요.");
+      if (!date) {
+        alert("예약 날짜를 선택해주세요.");
+        return;
+      }
+      
+      if (
+        !ap || !hh || !mm ||
+        ap === "오전/오후" ||
+        hh === "시" ||
+        mm === "분"
+      ) {
+        alert("예약 시간을 선택해주세요.");
+        return;
+      }
 
       const payload = {
         type: "reserve",
