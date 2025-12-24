@@ -334,13 +334,20 @@ export async function renderStore() {
       let opt = '';
     
       if (Array.isArray(i.options) && i.options.length > 0) {
-        const first = i.options[0];
-        const rest = i.options.length - 1;
-    
+        const optNames = i.options.map(opt =>
+          typeof opt === 'string'
+            ? opt
+            : opt.name || String(opt)
+        );
+      
+        const first = optNames[0];
+        const rest = optNames.length - 1;
+      
         opt = rest > 0
           ? ` (${first} 외 ${rest}개)`
           : ` (${first})`;
       }
+
     
       return `${i.name}x${i.qty}${opt}`;
     }).join(', ');
@@ -749,7 +756,16 @@ document.body.addEventListener('click', (e) => {
 const body = (order.cart || []).map(i => {
   let line = `${i.name} x${i.qty}`;
   if (Array.isArray(i.options) && i.options.length) {
-    line += '\n' + i.options.map(opt => ` └ ${opt}`).join('\n');
+    line += '\n' + i.options
+      .map(opt =>
+        ` └ ${
+          typeof opt === 'string'
+            ? opt
+            : opt.name || String(opt)
+        }`
+      )
+      .join('\n');
+
   }
   return line;
 }).join('\n\n');
