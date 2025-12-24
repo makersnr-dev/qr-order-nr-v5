@@ -285,7 +285,7 @@
         ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
         : "관리자 계좌 정보 없음";
       document.getElementById("reserve-amount").textContent =
-        cart.total().toLocaleString()+"원";
+        cart.total().toLocaleString();
       
       document.getElementById("reserve-bank").textContent =
         bank.bank && bank.number
