@@ -379,6 +379,72 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
   const storeId = window.qrnrStoreId;
 
+  async function submitReserve() {
+
+  const addr1 = document.getElementById("addr").value.trim();
+  const addr2 = document.getElementById("addr-detail").value.trim();
+  const fullAddr = addr2 ? addr1 + " " + addr2 : addr1;
+  const cust = document.getElementById("cust").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const memo = document.getElementById("memo").value.trim();
+  const pw = document.getElementById("lookupPw").value.trim();
+  const agree = document.getElementById("agree-privacy").checked;
+
+  if (!agree) return alert("개인정보 수집·이용에 동의해주세요.");
+  if (!addr1 || !cust) return alert("주소와 주문자명을 입력해주세요.");
+  if (phone.length < 9) return alert("전화번호를 확인해주세요.");
+  if (pw.length !== 4) return alert("조회 비밀번호 4자리를 입력해주세요.");
+  if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
+
+  const date = document.getElementById("date").value;
+  const { ap, hh, mm } = getTimeValue("time") || {};
+  if (!date) return alert("예약 날짜를 선택해주세요.");
+  if (!ap || !hh || !mm) return alert("예약 시간을 선택해주세요.");
+
+  const payload = {
+    type: "reserve",
+    amount: cart.total(),
+    orderName: "예약 주문",
+    cart: cart.items,
+    customer: { name: cust, phone, addr: fullAddr, req: memo },
+    reserveDate: date,
+    reserveTime: `${ap} ${hh}:${mm}`,
+    status: "대기",
+    lookupPw: pw,
+    storeId,
+    agreePrivacy: true
+  };
+
+  const r = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await r.json();
+  if (!j.ok) return alert("예약 저장 실패");
+
+  // 🔔 관리자 알림
+  new BroadcastChannel("qrnr-admin").postMessage({
+    type: "NEW_ORDER",
+    orderType: "reserve",
+    storeId,
+    customer: { name: cust },
+    cart: cart.items,
+    reserveDate: date,
+    reserveTime: `${ap} ${hh}:${mm}`,
+    amount: cart.total(),
+    ts: Date.now()
+  });
+
+  // ✅ 완료 모달
+  document.getElementById("reserve-amount").textContent =
+    cart.total().toLocaleString();
+
+  document.getElementById("reserve-done-modal").style.display = "flex";
+}
+
+
   document.getElementById("bank-copy").onclick = () => {
     const text = document.getElementById("bank-text").textContent;
     if (!text) return alert("복사할 계좌 정보가 없습니다.");
@@ -439,108 +505,30 @@ document.getElementById("bank-text").textContent =
   document.getElementById("privacy-close").onclick = () =>
     modal.style.display = "none";
 
+
+  
   /* -------- 결제 / 예약 처리 -------- */
-  document.getElementById("action-btn").onclick = async () => {
-    const addr1 = document.getElementById("addr").value.trim();
-    const addr2 = document.getElementById("addr-detail").value.trim();
-    const fullAddr = addr2 ? addr1 + " " + addr2 : addr1;
-    const cust = document.getElementById("cust").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const memo = document.getElementById("memo").value.trim();
-    const pw = document.getElementById("lookupPw").value.trim();
-    const agree = document.getElementById("agree-privacy").checked;
+  document.getElementById("action-btn").onclick = () => {
 
-    if (!agree) return alert("개인정보 수집·이용에 동의해주세요.");
-    if (!addr1 || !cust) return alert("주소와 주문자명을 입력해주세요.");
-    if (phone.length < 9) return alert("전화번호를 확인해주세요.");
-    if (pw.length !== 4) return alert("조회 비밀번호 4자리를 입력해주세요.");
-    if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
+  const date = document.getElementById("date").value;
+  const { ap, hh, mm } = getTimeValue("time") || {};
 
-    
+  // 확인 모달 내용 채우기
+  document.getElementById("confirm-items").textContent =
+    cart.items.map(i => `• ${i.name} x${i.qty}`).join("\n");
 
-    /* ---- 예약 ---- */
-      const date = document.getElementById("date").value;
-      const { ap, hh, mm } = getTimeValue("time") || {};
-      if (!date) {
-        alert("예약 날짜를 선택해주세요.");
-        return;
-      }
-      
-      if (
-        !ap || !hh || !mm ||
-        ap === "오전/오후" ||
-        hh === "시" ||
-        mm === "분"
-      ) {
-        alert("예약 시간을 선택해주세요.");
-        return;
-      }
+  document.getElementById("confirm-total").textContent =
+    cart.total().toLocaleString();
+
+  document.getElementById("confirm-datetime").textContent =
+    date && ap && hh && mm
+      ? `${date} ${ap} ${hh}:${mm}`
+      : "-";
+
+  document.getElementById("confirm-modal").style.display = "flex";
 
 
-      const payload = {
-        type: "reserve",
-        amount: cart.total(),
-        orderName: "예약 주문",
-        cart: cart.items,
-        customer: { name: cust, phone, addr: fullAddr, req: memo },
-        reserveDate: date,
-        reserveTime: `${ap} ${hh}:${mm}`,
-        status: "대기",
-        lookupPw: pw,
-        storeId,
-        agreePrivacy: true
-      };
-
-      const r = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const j = await r.json();
-      if (!j.ok) return alert("예약 저장 실패");
-
-// 🔔 관리자에게 예약 주문 알림 보내기 (브라우저 → 관리자)
-const adminChannel = new BroadcastChannel('qrnr-admin');
-
-adminChannel.postMessage({
-  type: 'NEW_ORDER',
-  orderType: 'reserve',        // ⭐ 예약임을 명시
-  storeId,                     // 매장 식별자
-
-  customer: { name: cust },    // 주문자명
-  cart: cart.items,            // 주문 메뉴
-
-  reserveDate: date,
-  reserveTime: `${ap} ${hh}:${mm}`,
-  amount: cart.total(),
-
-  ts: Date.now()
-});
-
-    
-    // 🔒 중복 예약 방지
-document.getElementById("action-btn").disabled = true;
-
-// ✅ 예약 완료 모달 표시
-const bank =
-  get(["admin", "ownerBank", storeId]) ||
-  get(["admin", "ownerBank"]) ||
-  {};
-
-document.getElementById("reserve-amount").textContent =
-  cart.total().toLocaleString();
-
-document.getElementById("reserve-bank").textContent =
-  bank.bank && bank.number
-    ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-    : "관리자 계좌 정보 없음";
-
-document.getElementById("reserve-done-modal").style.display = "flex";
-
-      
-
-    
-
+  return;
     /* ---- 배달 결제 ---- */
    /* const orderId = "DELIV-" + Date.now();
 
@@ -563,6 +551,8 @@ document.getElementById("reserve-done-modal").style.display = "flex";
       orderName: "배달 주문"
     });*/
   };
+
+  
   document.getElementById("reserve-done-ok").onclick = () => {
   document.getElementById("reserve-done-modal").style.display = "none";
   document.getElementById("action-btn").disabled = false;
@@ -578,15 +568,80 @@ document.getElementById("reserve-done-modal").style.display = "flex";
   document.getElementById("time-hh").selectedIndex = 0;
   document.getElementById("time-mm").selectedIndex = 0;
   
-
   cart.items.length = 0;  // 장바구니 비우기
-cart.render();          // 화면 갱신
+  cart.render();          // 화면 갱신
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
+const confirmOkBtn = document.getElementById("confirm-ok");
+
+confirmOkBtn.onclick = async () => {
+  confirmOkBtn.disabled = true;          // 🔒 연타 방지
+  confirmOkBtn.textContent = "처리 중…";
+
+  document.getElementById("confirm-modal").style.display = "none";
+
+  try {
+    await submitReserve();
+  } finally {
+    confirmOkBtn.disabled = false;
+    confirmOkBtn.textContent = "확인";
+  }
 };
 
+
+document.getElementById("confirm-cancel").onclick = () => {
+  document.getElementById("confirm-modal").style.display = "none";
+};
+
+
 </script>
+
+  <!-- 주문/예약 확인 모달 -->
+<div id="confirm-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#0d1117;
+    padding:22px;
+    border-radius:16px;
+    max-width:420px;
+    width:calc(100% - 40px);
+  ">
+    <h3 style="margin-bottom:10px;">주문 확인</h3>
+
+    <div id="confirm-items"
+     class="small"
+     style="line-height:1.6;white-space:pre-wrap;"></div>
+
+<div class="small" style="margin-top:8px;color:#9ca3af;">
+  예약일시:
+  <b id="confirm-datetime"></b>
+</div>
+
+<div style="margin-top:12px;">
+  합계: <b id="confirm-total"></b>원
+</div>
+
+
+    <div class="hstack" style="gap:8px;margin-top:16px;">
+      <button id="confirm-cancel" class="btn" style="flex:1;">
+        취소
+      </button>
+      <button id="confirm-ok" class="btn primary" style="flex:1;">
+        확인
+      </button>
+    </div>
+  </div>
+</div>
+
 
 </body>
 </html> 
