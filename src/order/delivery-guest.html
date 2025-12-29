@@ -423,6 +423,12 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
   const storeId = window.qrnrStoreId;
 
+  function fail(msg) {
+  alert(msg);
+  throw new Error(msg); // 여기서 흐름 완전히 끊음
+}
+
+
   async function submitReserve() {
 
   const addr1 = document.getElementById("addr").value.trim();
@@ -434,16 +440,16 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   const pw = document.getElementById("lookupPw").value.trim();
   const agree = document.getElementById("agree-privacy").checked;
 
-  if (!agree) return alert("개인정보 수집·이용에 동의해주세요.");
-  if (!addr1 || !cust) return alert("주소와 주문자명을 입력해주세요.");
-  if (phone.length < 9) return alert("전화번호를 확인해주세요.");
-  if (pw.length !== 4) return alert("조회 비밀번호 4자리를 입력해주세요.");
-  if (!cart.items.length) return alert("장바구니가 비어 있습니다.");
+  if (!agree) fail("개인정보 수집·이용에 동의해주세요.");
+  if (!addr1 || !cust) fail("주소와 주문자명을 입력해주세요.");
+  if (phone.length < 9) fail("전화번호를 확인해주세요.");
+  if (pw.length !== 4) fail("조회 비밀번호 4자리를 입력해주세요.");
+  if (!cart.items.length) fail("장바구니가 비어 있습니다.");
 
   const date = document.getElementById("date").value;
   const { ap, hh, mm } = getTimeValue("time") || {};
-  if (!date) return alert("예약 날짜를 선택해주세요.");
-  if (!ap || !hh || !mm) return alert("예약 시간을 선택해주세요.");
+  if (!date) fail("예약 날짜를 선택해주세요.");
+  if (!ap || !hh || !mm) fail("예약 시간을 선택해주세요.");
 
   const payload = {
     type: "reserve",
@@ -466,7 +472,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   });
 
   const j = await r.json();
-  if (!j.ok) return alert("예약 저장 실패");
+  if (!j.ok) fail("예약 저장 실패");
 
   // 🔔 관리자 알림
   new BroadcastChannel("qrnr-admin").postMessage({
@@ -491,7 +497,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
   document.getElementById("bank-copy").onclick = () => {
     const text = document.getElementById("bank-text").textContent;
-    if (!text) return alert("복사할 계좌 정보가 없습니다.");
+    if (!text) fail("복사할 계좌 정보가 없습니다.");
     navigator.clipboard.writeText(text);
     alert("계좌번호가 복사되었습니다.");
   };
