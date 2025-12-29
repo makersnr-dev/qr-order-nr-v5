@@ -376,6 +376,9 @@ if (delivRefreshBtn) {
       safeRenderStore();
       safeRenderDeliv();
     }
+
+  console.log("[BC RECV]", event.data);
+    
   };
 }
 
