@@ -595,11 +595,17 @@ document.getElementById("bank-text").textContent =
  document.getElementById("confirm-items").textContent =
   items.map(i => {
     let line = `• ${i.name} x${i.qty}`;
-    if (i.options?.length) {
-      line += ` (${i.options.map(o => `${o.name}:${o.value}`).join(", ")})`;
+
+    if (Array.isArray(i.options) && i.options.length) {
+      const optText = i.options
+        .map(o => `${o.name}:${o.value}`)
+        .join(", ");
+      line += ` (${optText})`;
     }
+
     return line;
   }).join("\n");
+
 
 
   document.getElementById("confirm-total").textContent =
