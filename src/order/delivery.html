@@ -182,6 +182,9 @@
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  
+  const adminChannel = new BroadcastChannel("qrnr-admin");
+
 
   function fail(msg) {
   alert(msg);
@@ -294,7 +297,7 @@
 
 
   // 관리자 알림
-  new BroadcastChannel("qrnr-admin").postMessage({
+  adminChannel.postMessage({
     type: "NEW_ORDER",
     orderType: "reserve",
     storeId,
