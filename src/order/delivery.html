@@ -258,7 +258,19 @@
   const cust = document.getElementById("cust").value.trim();
   const phone = phoneInput.value.trim();
   const memo = document.getElementById("memo").value.trim();
-  const items = cart.items || [];
+  const rawItems = cart.items || [];
+
+  const normalizedCart = rawItems.map(i => ({
+    name: i.name,
+    qty: Number(i.qty || 1),
+    price: Number(i.price || 0),
+    options: Array.isArray(i.options)
+      ? i.options
+      : i.optionText
+        ? [{ name: "옵션", value: i.optionText }]
+        : []
+  }));
+
 
   if (!cust || !addr) fail("주소/주문자명을 입력해주세요.");
   if (phone.replace(/\D/g, "").length < 10) fail("연락처를 확인해주세요.");
@@ -274,7 +286,7 @@
     type: "reserve",
     amount: cart.total(),
     orderName: "예약 주문",
-    cart: items,
+    cart: normalizedCart,
     customer: { name: cust, phone, addr, req: memo },
     reserveDate: date,
     reserveTime: `${ap} ${hh}:${mm}`,
@@ -302,7 +314,7 @@
     orderType: "reserve",
     storeId,
     customer: { name: cust, phone },
-    cart: items,
+    cart: normalizedCart,
     reserveDate: date,
     reserveTime: `${ap} ${hh}:${mm}`,
     amount: cart.total(),
@@ -326,8 +338,17 @@
   const { ap, hh, mm } = getTimeValue("time") || {};
 
   // 장바구니 목록 표시
-  document.getElementById("confirm-items").textContent =
-    items.map(i => `• ${i.name} x${i.qty}`).join("\n");
+ document.getElementById("confirm-items").textContent =
+  rawItems.map(i => {
+    let line = `• ${i.name} x${i.qty}`;
+    if (i.options?.length) {
+      line += ` (${i.options.map(o => `${o.name}:${o.value}`).join(", ")})`;
+    } else if (i.optionText) {
+      line += ` (${i.optionText})`;
+    }
+    return line;
+  }).join("\n");
+
 
   document.getElementById("confirm-total").textContent =
     cart.total().toLocaleString();
