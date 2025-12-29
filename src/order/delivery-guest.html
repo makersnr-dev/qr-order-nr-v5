@@ -421,6 +421,9 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
 
+  const adminChannel = new BroadcastChannel("qrnr-admin");
+
+
   const storeId = window.qrnrStoreId;
 
   function fail(msg) {
@@ -475,7 +478,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   if (!j.ok) fail("예약 저장 실패");
 
   // 🔔 관리자 알림
-  new BroadcastChannel("qrnr-admin").postMessage({
+  adminChannel.postMessage({
     type: "NEW_ORDER",
     orderType: "reserve",
     storeId,
