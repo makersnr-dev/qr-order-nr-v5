@@ -598,18 +598,21 @@ document.getElementById("confirm-items").textContent =
 
     if (Array.isArray(i.options) && i.options.length) {
       const optText = i.options.map(o => {
-        // 1️⃣ value가 문자열이면 그대로
-        if (typeof o.value === "string") {
+        // 🔴 핵심: value를 무조건 문자열로 만든다
+        if (o.value === null || o.value === undefined) {
+          return o.name;
+        }
+
+        if (typeof o.value === "string" || typeof o.value === "number") {
           return `${o.name}:${o.value}`;
         }
 
-        // 2️⃣ value가 객체면 label / name 우선 사용
-        if (typeof o.value === "object" && o.value !== null) {
-          return `${o.name}:${o.value.label || o.value.name || "선택됨"}`;
+        // 객체 / 배열 전부 여기로 옴
+        try {
+          return `${o.name}:${JSON.stringify(o.value)}`;
+        } catch {
+          return o.name;
         }
-
-        // 3️⃣ 그 외(숫자 등)
-        return `${o.name}:${String(o.value)}`;
       }).join(", ");
 
       line += ` (${optText})`;
@@ -617,6 +620,7 @@ document.getElementById("confirm-items").textContent =
 
     return line;
   }).join("\n");
+
 
 
 
