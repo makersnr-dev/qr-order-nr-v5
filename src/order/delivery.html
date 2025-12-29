@@ -338,16 +338,20 @@
   const { ap, hh, mm } = getTimeValue("time") || {};
 
   // 장바구니 목록 표시
- document.getElementById("confirm-items").textContent =
-  rawItems.map(i => {
+document.getElementById("confirm-items").textContent =
+  rowItems.map(i => {
     let line = `• ${i.name} x${i.qty}`;
-    if (i.options?.length) {
-      line += ` (${i.options.map(o => `${o.name}:${o.value}`).join(", ")})`;
-    } else if (i.optionText) {
-      line += ` (${i.optionText})`;
+
+    if (Array.isArray(i.options) && i.options.length) {
+      const optText = i.options
+        .map(o => `${o.name}:${o.value}`)
+        .join(", ");
+      line += ` (${optText})`;
     }
+
     return line;
   }).join("\n");
+
 
 
   document.getElementById("confirm-total").textContent =
