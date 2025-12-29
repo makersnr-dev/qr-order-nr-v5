@@ -592,19 +592,24 @@ document.getElementById("bank-text").textContent =
   const { ap, hh, mm } = getTimeValue("time") || {};
 
   // 장바구니 목록 표시
- document.getElementById("confirm-items").textContent =
+document.getElementById("confirm-items").textContent =
   items.map(i => {
     let line = `• ${i.name} x${i.qty}`;
 
-    // ✅ 옵션이 있으면 문자열로 변환
     if (Array.isArray(i.options) && i.options.length) {
       const optText = i.options.map(o => {
-        // o가 객체면 name:value 형태로
-        if (typeof o === "object" && o !== null) {
+        // 1️⃣ value가 문자열이면 그대로
+        if (typeof o.value === "string") {
           return `${o.name}:${o.value}`;
         }
-        // 혹시 문자열이면 그대로
-        return String(o);
+
+        // 2️⃣ value가 객체면 label / name 우선 사용
+        if (typeof o.value === "object" && o.value !== null) {
+          return `${o.name}:${o.value.label || o.value.name || "선택됨"}`;
+        }
+
+        // 3️⃣ 그 외(숫자 등)
+        return `${o.name}:${String(o.value)}`;
       }).join(", ");
 
       line += ` (${optText})`;
@@ -612,6 +617,7 @@ document.getElementById("bank-text").textContent =
 
     return line;
   }).join("\n");
+
 
 
 
