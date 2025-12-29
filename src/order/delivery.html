@@ -339,7 +339,7 @@
 
   // 장바구니 목록 표시
 document.getElementById("confirm-items").textContent =
-  rowItems.map(i => {
+  items.map(i => {
     let line = `• ${i.name} x${i.qty}`;
 
     if (Array.isArray(i.options) && i.options.length) {
