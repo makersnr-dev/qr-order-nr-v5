@@ -368,6 +368,50 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   </div>
 </div>
 
+    <!-- 주문/예약 확인 모달 -->
+<div id="confirm-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#0d1117;
+    padding:22px;
+    border-radius:16px;
+    max-width:420px;
+    width:calc(100% - 40px);
+  ">
+    <h3 style="margin-bottom:10px;">주문 확인</h3>
+
+    <div id="confirm-items"
+     class="small"
+     style="line-height:1.6;white-space:pre-wrap;"></div>
+
+<div class="small" style="margin-top:8px;color:#9ca3af;">
+  예약일시:
+  <b id="confirm-datetime"></b>
+</div>
+
+<div style="margin-top:12px;">
+  합계: <b id="confirm-total"></b>원
+</div>
+
+
+    <div class="hstack" style="gap:8px;margin-top:16px;">
+      <button id="confirm-cancel" class="btn" style="flex:1;">
+        취소
+      </button>
+      <button id="confirm-ok" class="btn primary" style="flex:1;">
+        확인
+      </button>
+    </div>
+  </div>
+</div>
+
 
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
@@ -509,13 +553,18 @@ document.getElementById("bank-text").textContent =
   
   /* -------- 결제 / 예약 처리 -------- */
   document.getElementById("action-btn").onclick = () => {
+  const items = cart.items || [];
+  if (!items.length) {
+    alert("장바구니가 비어 있습니다.");
+    return;
+  }
 
   const date = document.getElementById("date").value;
   const { ap, hh, mm } = getTimeValue("time") || {};
 
-  // 확인 모달 내용 채우기
+  // 장바구니 목록 표시
   document.getElementById("confirm-items").textContent =
-    cart.items.map(i => `• ${i.name} x${i.qty}`).join("\n");
+    items.map(i => `• ${i.name} x${i.qty}`).join("\n");
 
   document.getElementById("confirm-total").textContent =
     cart.total().toLocaleString();
@@ -526,9 +575,11 @@ document.getElementById("bank-text").textContent =
       : "-";
 
   document.getElementById("confirm-modal").style.display = "flex";
+};
 
 
-  return;
+
+  
     /* ---- 배달 결제 ---- */
    /* const orderId = "DELIV-" + Date.now();
 
@@ -549,8 +600,8 @@ document.getElementById("bank-text").textContent =
       orderId,
       amount: cart.total(),
       orderName: "배달 주문"
-    });*/
-  };
+    }); };*/
+  
 
   
   document.getElementById("reserve-done-ok").onclick = () => {
@@ -598,49 +649,7 @@ document.getElementById("confirm-cancel").onclick = () => {
 
 </script>
 
-  <!-- 주문/예약 확인 모달 -->
-<div id="confirm-modal" style="
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.55);
-  z-index:9999;
-  align-items:center;
-  justify-content:center;
-">
-  <div style="
-    background:#0d1117;
-    padding:22px;
-    border-radius:16px;
-    max-width:420px;
-    width:calc(100% - 40px);
-  ">
-    <h3 style="margin-bottom:10px;">주문 확인</h3>
 
-    <div id="confirm-items"
-     class="small"
-     style="line-height:1.6;white-space:pre-wrap;"></div>
-
-<div class="small" style="margin-top:8px;color:#9ca3af;">
-  예약일시:
-  <b id="confirm-datetime"></b>
-</div>
-
-<div style="margin-top:12px;">
-  합계: <b id="confirm-total"></b>원
-</div>
-
-
-    <div class="hstack" style="gap:8px;margin-top:16px;">
-      <button id="confirm-cancel" class="btn" style="flex:1;">
-        취소
-      </button>
-      <button id="confirm-ok" class="btn primary" style="flex:1;">
-        확인
-      </button>
-    </div>
-  </div>
-</div>
 
 
 </body>
