@@ -596,15 +596,23 @@ document.getElementById("bank-text").textContent =
   items.map(i => {
     let line = `• ${i.name} x${i.qty}`;
 
+    // ✅ 옵션이 있으면 문자열로 변환
     if (Array.isArray(i.options) && i.options.length) {
-      const optText = i.options
-        .map(o => `${o.name}:${o.value}`)
-        .join(", ");
+      const optText = i.options.map(o => {
+        // o가 객체면 name:value 형태로
+        if (typeof o === "object" && o !== null) {
+          return `${o.name}:${o.value}`;
+        }
+        // 혹시 문자열이면 그대로
+        return String(o);
+      }).join(", ");
+
       line += ` (${optText})`;
     }
 
     return line;
   }).join("\n");
+
 
 
 
