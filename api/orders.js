@@ -242,6 +242,14 @@ async function handlePost(req, res) {
    } catch (e) {
      console.error("[orders] admin notify error:", e);
    }
+
+   console.log("[BC SEND]", {
+  orderType: type,
+  storeId: finalStoreId,
+  reserveDate,
+  reserveTime,
+});
+
    
    return json(res, { ok: true, order: newOrder });
 
