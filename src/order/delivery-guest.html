@@ -420,6 +420,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
+  let lastNormalizedCart = [];
 
   const adminChannel = new BroadcastChannel("qrnr-admin");
 
@@ -442,7 +443,21 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   const memo = document.getElementById("memo").value.trim();
   const pw = document.getElementById("lookupPw").value.trim();
   const agree = document.getElementById("agree-privacy").checked;
+  const rawItems = cart.items || [];
 
+  const normalizedCart = rawItems.map(i => ({
+    name: i.name,
+    qty: Number(i.qty || 1),
+    price: Number(i.price || 0),
+    options: Array.isArray(i.options)
+      ? i.options
+      : i.optionText
+        ? [{ name: "옵션", value: i.optionText }]
+        : []
+  }));
+  lastNormalizedCart = normalizedCart;
+
+    
   if (!agree) fail("개인정보 수집·이용에 동의해주세요.");
   if (!addr1 || !cust) fail("주소와 주문자명을 입력해주세요.");
   if (phone.length < 9) fail("전화번호를 확인해주세요.");
@@ -458,17 +473,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     type: "reserve",
     amount: cart.total(),
     orderName: "예약 주문",
-    cart: cart.items.map(i => ({
-    name: i.name,
-    qty: i.qty,
-    price: i.price,
-    options: Array.isArray(i.options)
-      ? i.options
-      : i.optionText
-        ? [{ name: "옵션", value: i.optionText }]
-        : []
-  }))
-  ,
+    cart: normalizedCart,
     customer: { name: cust, phone, addr: fullAddr, req: memo },
     reserveDate: date,
     reserveTime: `${ap} ${hh}:${mm}`,
@@ -493,17 +498,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     orderType: "reserve",
     storeId,
     customer: { name: cust },
-    cart: cart.items.map(i => ({
-    name: i.name,
-    qty: i.qty,
-    price: i.price,
-    options: Array.isArray(i.options)
-      ? i.options
-      : i.optionText
-        ? [{ name: "옵션", value: i.optionText }]
-        : []
-  })),
-
+    cart: normalizedCart, 
     reserveDate: date,
     reserveTime: `${ap} ${hh}:${mm}`,
     amount: cart.total(),
@@ -582,7 +577,12 @@ document.getElementById("bank-text").textContent =
   
   /* -------- 결제 / 예약 처리 -------- */
   document.getElementById("action-btn").onclick = () => {
-  const items = cart.items || [];
+    document.getElementById("action-btn").disabled = true;
+
+ const items = lastNormalizedCart.length
+  ? lastNormalizedCart
+  : cart.items;
+
   if (!items.length) {
     alert("장바구니가 비어 있습니다.");
     return;
@@ -592,8 +592,15 @@ document.getElementById("bank-text").textContent =
   const { ap, hh, mm } = getTimeValue("time") || {};
 
   // 장바구니 목록 표시
-  document.getElementById("confirm-items").textContent =
-    items.map(i => `• ${i.name} x${i.qty}`).join("\n");
+ document.getElementById("confirm-items").textContent =
+  items.map(i => {
+    let line = `• ${i.name} x${i.qty}`;
+    if (i.options?.length) {
+      line += ` (${i.options.map(o => `${o.name}:${o.value}`).join(", ")})`;
+    }
+    return line;
+  }).join("\n");
+
 
   document.getElementById("confirm-total").textContent =
     cart.total().toLocaleString();
@@ -673,6 +680,8 @@ confirmOkBtn.onclick = async () => {
 
 document.getElementById("confirm-cancel").onclick = () => {
   document.getElementById("confirm-modal").style.display = "none";
+  document.getElementById("action-btn").disabled = false;
+
 };
 
 
