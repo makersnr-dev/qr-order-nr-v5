@@ -274,6 +274,25 @@
       return alert("예약 저장 실패!");
     }
 
+    // 🔔 관리자에게 예약 주문 알림 보내기 (회원 예약)
+const adminChannel = new BroadcastChannel('qrnr-admin');
+
+adminChannel.postMessage({
+  type: 'NEW_ORDER',
+  orderType: 'reserve',        // ⭐ 중요
+  storeId,
+
+  customer: { name: cust, phone },
+  cart: items,
+
+  reserveDate: date,
+  reserveTime: `${ap} ${hh}:${mm}`,
+  amount: total,
+
+  ts: Date.now()
+});
+
+
 
     // ✅ 예약 완료 모달 표시
       const bank =
