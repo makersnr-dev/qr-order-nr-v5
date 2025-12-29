@@ -134,6 +134,44 @@
   </div>
 </div>
 
+<!-- 주문/예약 확인 모달 -->
+<div id="confirm-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#0d1117;
+    padding:22px;
+    border-radius:16px;
+    max-width:420px;
+    width:calc(100% - 40px);
+  ">
+    <h3 style="margin-bottom:10px;">예약 확인</h3>
+
+    <div id="confirm-items"
+         class="small"
+         style="line-height:1.6;white-space:pre-wrap;"></div>
+
+    <div class="small" style="margin-top:8px;color:#9ca3af;">
+      예약일시: <b id="confirm-datetime"></b>
+    </div>
+
+    <div style="margin-top:12px;">
+      합계: <b id="confirm-total"></b>원
+    </div>
+
+    <div class="hstack" style="gap:8px;margin-top:16px;">
+      <button id="confirm-cancel" class="btn" style="flex:1;">취소</button>
+      <button id="confirm-ok" class="btn primary" style="flex:1;">확인</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- 다음주소 -->
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
@@ -204,138 +242,95 @@
   };
 
   /* -------------------- 예약/결제 제출 -------------------- */
-  document.getElementById("action-btn").onclick = async () => {
-    const addr1 = document.getElementById("addr").value.trim();
-    const addr2 = document.getElementById("addr-detail").value.trim();
-    const addr = addr2 ? `${addr1} ${addr2}` : addr1;
+  async function submitReserve() {
+  const addr1 = document.getElementById("addr").value.trim();
+  const addr2 = document.getElementById("addr-detail").value.trim();
+  const addr = addr2 ? `${addr1} ${addr2}` : addr1;
+  const cust = document.getElementById("cust").value.trim();
+  const phone = phoneInput.value.trim();
+  const memo = document.getElementById("memo").value.trim();
+  const items = cart.items || [];
 
-    const cust = document.getElementById("cust").value.trim();
-    const phone = phoneInput.value.trim();
-    const memo = document.getElementById("memo").value.trim();
-    const items = cart.items || [];
+  if (!cust || !addr) return alert("주소/주문자명을 입력해주세요.");
+  if (phone.replace(/\D/g, "").length < 10) return alert("연락처를 확인해주세요.");
 
-    if (!items.length) return alert("장바구니가 비어 있습니다.");
-    if (!cust || !addr) return alert("주소/주문자명을 입력해주세요.");
-    if (phone.replace(/\D/g, "").length < 10) return alert("연락처를 다시 확인해주세요.");
+  const date = document.getElementById("date").value;
+  const { ap, hh, mm } = getTimeValue("time");
+  if (!date || !ap || !hh || !mm) {
+    alert("예약 날짜/시간을 선택해주세요.");
+    return;
+  }
 
-
-    const total = cart.total();
-   
-
-    /* -------------------- 예약 처리 -------------------- */
-      const date = document.getElementById("date").value;
-      const { ap, hh, mm } = getTimeValue("time");
-
-      if (!date) {
-        alert("예약 날짜를 선택해주세요.");
-        return;
-      }
-      
-      if (
-        !ap || !hh || !mm ||
-        ap === "오전/오후" ||
-        hh === "시" ||
-        mm === "분"
-      ) {
-        alert("예약 시간을 선택해주세요.");
-        return;
-      }
-
-      const payload = {
-        type: "reserve",
-        amount: total,
-        orderName: "예약 주문",
-        cart: items,
-        customer: { name: cust, phone, addr, req: memo },
-        reserveDate: date,
-        reserveTime: `${ap} ${hh}:${mm}`,
-        status: "대기",
-        storeId
-      };
-
-    // 🔒 중복 예약 방지
-    document.getElementById("action-btn").disabled = true;
-    
-    let r, j;
-    try {
-      r = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      j = await r.json();
-    } catch (e) {
-      document.getElementById("action-btn").disabled = false;
-      return alert("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
-    }
-    
-    if (!j.ok) {
-      document.getElementById("action-btn").disabled = false;
-      return alert("예약 저장 실패!");
-    }
-
-    // 🔔 관리자에게 예약 주문 알림 보내기 (회원 예약)
-const adminChannel = new BroadcastChannel('qrnr-admin');
-
-adminChannel.postMessage({
-  type: 'NEW_ORDER',
-  orderType: 'reserve',        // ⭐ 중요
-  storeId,
-
-  customer: { name: cust, phone },
-  cart: items,
-
-  reserveDate: date,
-  reserveTime: `${ap} ${hh}:${mm}`,
-  amount: total,
-
-  ts: Date.now()
-});
-
-
-
-    // ✅ 예약 완료 모달 표시
-      const bank =
-        get(["admin", "ownerBank", storeId]) ||
-        get(["admin", "ownerBank"]) ||
-        {};
-      document.getElementById("bank-text").textContent =
-      bank.bank && bank.number
-        ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-        : "관리자 계좌 정보 없음";
-      document.getElementById("reserve-amount").textContent =
-        cart.total().toLocaleString();
-      
-      document.getElementById("reserve-bank").textContent =
-        bank.bank && bank.number
-          ? `${bank.bank} ${bank.number} (${bank.holder || ""})`
-          : "관리자 계좌 정보 없음";
-      
-      document.getElementById("reserve-done-modal").style.display = "flex";
-
-    
-
-
-    /* -------------------- 배달 결제 -------------------- */
-    /*const orderId = "DELIV-" + Date.now();
-    const orderName = "배달 주문";
-
-    setPendingOrder({
-      type: "delivery",
-      amount: total,
-      orderName,
-      cart: items,
-      customer: { name: cust, phone, addr, req: memo },
-      storeId,
-      returnTo: location.pathname + location.search
-    });
-
-    try {
-      await startPayment({ orderId, amount: total, orderName });
-    } catch {
-      alert("결제를 시작할 수 없습니다.");
-    }*/
+  const payload = {
+    type: "reserve",
+    amount: cart.total(),
+    orderName: "예약 주문",
+    cart: items,
+    customer: { name: cust, phone, addr, req: memo },
+    reserveDate: date,
+    reserveTime: `${ap} ${hh}:${mm}`,
+    status: "대기",
+    storeId
   };
+
+  const r = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await r.json();
+  if (!j.ok) {
+  document.getElementById("action-btn").disabled = false;
+  alert("예약 저장 실패");
+  return;
+}
+
+
+  // 관리자 알림
+  new BroadcastChannel("qrnr-admin").postMessage({
+    type: "NEW_ORDER",
+    orderType: "reserve",
+    storeId,
+    customer: { name: cust, phone },
+    cart: items,
+    reserveDate: date,
+    reserveTime: `${ap} ${hh}:${mm}`,
+    amount: cart.total(),
+    ts: Date.now()
+  });
+
+  document.getElementById("reserve-amount").textContent =
+    cart.total().toLocaleString();
+
+  document.getElementById("reserve-done-modal").style.display = "flex";
+}
+
+ document.getElementById("action-btn").onclick = () => {
+  const items = cart.items || [];
+  if (!items.length) {
+    alert("장바구니가 비어 있습니다.");
+    return;
+  }
+
+  const date = document.getElementById("date").value;
+  const { ap, hh, mm } = getTimeValue("time") || {};
+
+  // 장바구니 목록 표시
+  document.getElementById("confirm-items").textContent =
+    items.map(i => `• ${i.name} x${i.qty}`).join("\n");
+
+  document.getElementById("confirm-total").textContent =
+    cart.total().toLocaleString();
+
+  document.getElementById("confirm-datetime").textContent =
+    date && ap && hh && mm
+      ? `${date} ${ap} ${hh}:${mm}`
+      : "-";
+
+  document.getElementById("confirm-modal").style.display = "flex";
+};
+
   document.getElementById("reserve-done-ok").onclick = () => {
     document.getElementById("reserve-done-modal").style.display = "none";
   document.getElementById("action-btn").disabled = false;
@@ -359,7 +354,32 @@ cart.render();          // 화면 갱신
 
   };
 
+  const confirmOkBtn = document.getElementById("confirm-ok");
+
+confirmOkBtn.onclick = async () => {
+  confirmOkBtn.disabled = true;
+  confirmOkBtn.textContent = "처리 중…";
+  document.getElementById("action-btn").disabled = true;
+  document.getElementById("confirm-modal").style.display = "none";
+
+  try {
+    await submitReserve();
+  } finally {
+    confirmOkBtn.disabled = false;
+    confirmOkBtn.textContent = "확인";
+  }
+};
+
+
+document.getElementById("confirm-cancel").onclick = () => {
+  document.getElementById("confirm-modal").style.display = "none";
+};
+
+
 </script>
 
+
+
+  
 </body>
 </html>
