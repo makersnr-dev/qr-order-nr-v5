@@ -446,16 +446,17 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   const rawItems = cart.items || [];
 
   const normalizedCart = rawItems.map(i => ({
-    name: i.name,
-    qty: Number(i.qty || 1),
-    price: Number(i.price || 0),
-    options: Array.isArray(i.options)
-      ? i.options
-      : i.optionText
-        ? [{ name: "옵션", value: i.optionText }]
-        : []
-  }));
-  lastNormalizedCart = normalizedCart;
+  name: i.name,
+  qty: Number(i.qty || 1),
+  price: Number(i.price || 0),
+  options: Array.isArray(i.options)
+    ? i.options.map(o => ({
+        name: o.group || o.name || '옵션',
+        value: o.label || o.value || ''
+      }))
+    : []
+}));
+
 
     
   if (!agree) fail("개인정보 수집·이용에 동의해주세요.");
