@@ -46,45 +46,34 @@ export function renderCode() {
   if (!storeId) return;
 
   const t = today();
-  const all = get(['admin', 'paymentCode']) || {};
-  let pc = all[storeId];
+  let pc = get(['stores', storeId, 'paymentCode']);
 
-  // ✅ 코드가 없거나 날짜가 바뀌었으면 자동 재발급
   if (!pc || pc.date !== t) {
     pc = {
       date: t,
       code: generateCode(),
       updatedAt: Date.now()
     };
-
-    patch(['admin', 'paymentCode'], prev => ({
-      ...(prev || {}),
-      [storeId]: pc
-    }));
+    patch(['stores', storeId, 'paymentCode'], () => pc);
   }
 
-  // 화면 반영
-  const dateEl = document.getElementById('code-date');
-  const inputEl = document.getElementById('code-input');
-
-  if (dateEl) dateEl.textContent = pc.date;
-  if (inputEl) inputEl.value = pc.code;
+  document.getElementById('code-date').textContent = pc.date;
+  document.getElementById('code-input').value = pc.code;
 
   if (leftTimer) clearInterval(leftTimer);
   tickLeft();
 
-  // ✅ 자정 감시 (열려있는 화면 자동 갱신)
   if (!dayWatcherTimer) {
     let last = t;
     dayWatcherTimer = setInterval(() => {
-      const now = today();
-      if (now !== last) {
-        last = now;
+      if (today() !== last) {
+        last = today();
         renderCode();
       }
     }, 60000);
   }
 }
+
 
 /* ------------------------------
    버튼 바인딩
@@ -108,14 +97,12 @@ export function bindCode() {
       const sid = storeId();
       if (!sid) return;
 
-      patch(['admin', 'paymentCode'], prev => ({
-        ...(prev || {}),
-        [sid]: {
-          date: today(),
-          code: generateCode(),
-          updatedAt: Date.now()
-        }
+      patch(['stores', sid, 'paymentCode'], () => ({
+        date: today(),
+        code: generateCode(),
+        updatedAt: Date.now()
       }));
+
 
       renderCode();
     };
@@ -128,14 +115,12 @@ export function bindCode() {
       const sid = storeId();
       if (!sid) return;
 
-      patch(['admin', 'paymentCode'], prev => ({
-        ...(prev || {}),
-        [sid]: {
-          date: today(),
-          code: '7111',
-          updatedAt: Date.now()
-        }
+      patch(['stores', sid, 'paymentCode'], () => ({
+        date: today(),
+        code: '7111',
+        updatedAt: Date.now()
       }));
+
 
       renderCode();
     };
