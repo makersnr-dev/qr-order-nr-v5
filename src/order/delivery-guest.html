@@ -576,48 +576,40 @@ document.getElementById("bank-text").textContent =
 
 
   
-  /* -------- 결제 / 예약 처리 -------- */
-  document.getElementById("action-btn").onclick = () => {
-    document.getElementById("action-btn").disabled = true;
+/* -------- 결제 / 예약 처리 -------- */
+document.getElementById("action-btn").onclick = () => {
+  document.getElementById("action-btn").disabled = true;
 
- const items = cart.items;
+  const items = cart.items;
 
   if (!items.length) {
     alert("장바구니가 비어 있습니다.");
+    document.getElementById("action-btn").disabled = false;
     return;
   }
 
   const date = document.getElementById("date").value;
   const { ap, hh, mm } = getTimeValue("time") || {};
 
-  // 장바구니 목록 표시
-document.getElementById("confirm-items").textContent =
-  cart.items.map(i => {
-    let line = `• ${i.name} x${i.qty}`;
+  // ✅ 주문 확인용 장바구니 표시
+  document.getElementById("confirm-items").textContent =
+    items.map(i => {
+      let line = `• ${i.name} x${i.qty}`;
 
-    if (Array.isArray(i.options) && i.options.length) {
-      document.getElementById("confirm-items").textContent =
-  cart.items.map(i => {
-    let line = `• ${i.name} x${i.qty}`;
+      if (Array.isArray(i.options) && i.options.length) {
+        const optText = i.options
+          .map(o => {
+            const group = o.group || o.name || "옵션";
+            const label = o.label || "";
+            return label ? `${group}:${label}` : group;
+          })
+          .join(", ");
 
-    if (Array.isArray(i.options) && i.options.length) {
-      const optText = i.options.map(o => {
-        const group = o.group || "옵션";
-        const label = o.label || "";
-        return label ? `${group}:${label}` : group;
-      }).join(", ");
+        line += ` (${optText})`;
+      }
 
-      line += ` (${optText})`;
-    }
-
-    return line;
-  }).join("\n");
-
-
-
-
-
-
+      return line;
+    }).join("\n");
 
   document.getElementById("confirm-total").textContent =
     cart.total().toLocaleString();
@@ -629,8 +621,6 @@ document.getElementById("confirm-items").textContent =
 
   document.getElementById("confirm-modal").style.display = "flex";
 };
-
-
 
   
     /* ---- 배달 결제 ---- */
