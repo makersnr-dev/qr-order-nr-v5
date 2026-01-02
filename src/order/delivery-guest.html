@@ -420,7 +420,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
-  let lastNormalizedCart = [];
+  
 
   const adminChannel = new BroadcastChannel("qrnr-admin");
 
@@ -580,9 +580,7 @@ document.getElementById("bank-text").textContent =
   document.getElementById("action-btn").onclick = () => {
     document.getElementById("action-btn").disabled = true;
 
- const items = lastNormalizedCart.length
-  ? lastNormalizedCart
-  : cart.items;
+ const items = cart.items;
 
   if (!items.length) {
     alert("장바구니가 비어 있습니다.");
