@@ -598,21 +598,21 @@ document.getElementById("confirm-items").textContent =
 
     if (Array.isArray(i.options) && i.options.length) {
       const optText = i.options.map(o => {
-        // 🔴 핵심: value를 무조건 문자열로 만든다
-        if (o.value === null || o.value === undefined) {
-          return o.name;
+        const v = o.value;
+
+        // ✅ 1. 문자열이면 그대로
+        if (typeof v === "string" || typeof v === "number") {
+          return `${o.name}:${v}`;
         }
 
-        if (typeof o.value === "string" || typeof o.value === "number") {
-          return `${o.name}:${o.value}`;
+        // ✅ 2. 객체면 label / name 우선
+        if (typeof v === "object" && v !== null) {
+          if (v.label) return `${o.name}:${v.label}`;
+          if (v.name)  return `${o.name}:${v.name}`;
         }
 
-        // 객체 / 배열 전부 여기로 옴
-        try {
-          return `${o.name}:${JSON.stringify(o.value)}`;
-        } catch {
-          return o.name;
-        }
+        // ✅ 3. 예외 대비
+        return o.name;
       }).join(", ");
 
       line += ` (${optText})`;
