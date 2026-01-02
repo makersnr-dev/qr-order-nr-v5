@@ -590,7 +590,7 @@ export async function renderDeliv() {
 
       <td>
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
-          <span class="badge small">${kind}</span>
+          
           <span>${fmt(amount)}</span>
           <span class="badge-dot ${
             status === '완료'
