@@ -1,6 +1,6 @@
 // /src/admin/assets/js/modules/orders.js
 import { get, patch, fmt } from './store.js';
-import { showModal } from './ui.js';
+//import { showModal } from './ui.js';
 
 // ─────────────────────────────
 // 공통: 주문 시간 포맷
@@ -539,9 +539,22 @@ export async function renderDeliv() {
       '-';
 
     // 구매내역
-    const items = (o.cart || [])
-      .map(i => `${i.name}x${i.qty}`)
-      .join(', ');
+    const items = (o.cart || []).map(i => {
+  let opt = '';
+
+  if (Array.isArray(i.options) && i.options.length > 0) {
+    const optNames = normalizeOptions(i.options);
+    const first = optNames[0];
+    const rest = optNames.length - 1;
+
+    opt = rest > 0
+      ? ` (${first} 외 ${rest}개)`
+      : ` (${first})`;
+  }
+
+  return `${i.name}x${i.qty}${opt}`;
+}).join(', ');
+
 
     // 합계금액
     const amount = Number(o.amount || 0);
@@ -558,7 +571,17 @@ export async function renderDeliv() {
       <td>${reserveDate}</td>
       <td>${reserveTime}</td>
       <td>${req}</td>
-      <td>${items || '-'}</td>
+      <td>
+        <span
+          class="order-detail-link"
+          data-action="order-detail-deliv"
+          data-id="${o.id || o.orderId || ''}"
+          style="cursor:pointer;text-decoration:underline"
+        >
+          ${items || '-'}
+        </span>
+      </td>
+
       <td>
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
           <span class="badge small">${kind}</span>
@@ -776,7 +799,47 @@ document.getElementById('order-detail-close')?.addEventListener('click', () => {
   document.getElementById('order-detail-modal').style.display = 'none';
 });
 
-  
+  // 예약 주문 상세 모달 열기
+document.body.addEventListener('click', (e) => {
+  if (e.target.dataset.action !== 'order-detail-deliv') return;
+
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+  const orders = loadDelivCache(storeId);
+  const order = orders.find(o => (o.id || o.orderId) === id);
+  if (!order) return alert('예약 주문을 찾을 수 없습니다.');
+
+  const customer = order.customer || {};
+
+  const header = [
+    `주문시간: ${fmtDateTimeFromOrder(order)}`,
+    `주문자: ${customer.name || '-'}`,
+    `연락처: ${customer.phone || '-'}`,
+    `주소: ${customer.addr || '-'}`,
+    `예약일시: ${(order.reserveDate || '-') + ' ' + (order.reserveTime || '')}`,
+    `요청사항: ${customer.req || order.memo || '-'}`,
+    `금액: ${fmt(order.amount || 0)}원`
+  ].join('\n');
+
+  const body = (order.cart || []).map(i => {
+    let line = `${i.name} x${i.qty}`;
+    if (Array.isArray(i.options) && i.options.length) {
+      const opts = normalizeOptions(i.options);
+      if (opts.length) {
+        line += '\n' + opts.map(opt => ` └ ${opt}`).join('\n');
+      }
+    }
+    return line;
+  }).join('\n\n');
+
+  document.getElementById('order-detail-body').textContent =
+    header + '\n\n' + body;
+
+  document.getElementById('order-detail-modal').style.display = 'flex';
+});
+
 
 
 }
