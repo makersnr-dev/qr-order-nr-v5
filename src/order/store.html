@@ -96,6 +96,42 @@
   </div>
 </div>
 
+<!-- 주문 확인 모달 (매장 주문용) -->
+<div id="order-confirm-modal"
+     style="
+       display:none;
+       position:fixed;
+       inset:0;
+       background:rgba(0,0,0,.45);
+       z-index:1000;
+       align-items:center;
+       justify-content:center;
+     ">
+  <div style="
+    background:#0d1117;
+    color:#fff;
+    padding:20px;
+    border-radius:16px;
+    width:90%;
+    max-width:420px;
+  ">
+    <h3>주문 확인</h3>
+
+    <pre id="confirm-items"
+         style="white-space:pre-wrap;font-size:13px"></pre>
+
+    <div style="margin-top:10px">
+      합계: <b id="confirm-total"></b>원
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button id="confirm-cancel" class="btn" style="flex:1">취소</button>
+      <button id="confirm-ok" class="btn primary" style="flex:1">확인</button>
+    </div>
+  </div>
+</div>
+
+
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
@@ -204,6 +240,26 @@
   // ───────────────────────────────────────────────────────────
   // 주문 완료 모달
   // ───────────────────────────────────────────────────────────
+  function openOrderConfirmModal(items, amount) {
+  document.getElementById('confirm-items').textContent =
+    items.map(i => {
+      let line = `${i.name} x${i.qty}`;
+      if (Array.isArray(i.options) && i.options.length) {
+        line += '\n' + i.options.map(o => ` └ ${o}`).join('\n');
+      }
+      return line;
+    }).join('\n\n');
+
+  document.getElementById('confirm-total').textContent =
+    amount.toLocaleString();
+
+  document.getElementById('order-confirm-modal').style.display = 'flex';
+}
+
+function closeOrderConfirmModal() {
+  document.getElementById('order-confirm-modal').style.display = 'none';
+}
+
   function openOrderSuccessModal() {
     document.getElementById('order-success-modal').style.display = 'flex';
   }
@@ -220,56 +276,68 @@
   // ───────────────────────────────────────────────────────────
   // 주문하기 (POS 결제 방식)
   // ───────────────────────────────────────────────────────────
-  document.getElementById('pay-btn').onclick = async (e) => {
-    e.preventDefault();
+  document.getElementById('pay-btn').onclick = (e) => {
+  e.preventDefault();
 
-    const table = currentTable();
-    const inputCode = (document.getElementById('paycode')?.value || '').trim();
-    const expectedCode = getPayCode();
-    const items = buildCart();
-    const amount = totalAmountFromCart();
+  const table = currentTable();
+  const inputCode = document.getElementById('paycode').value.trim();
+  const expectedCode = getPayCode();
+  const items = buildCart();
+  const amount = totalAmountFromCart();
 
-    if (!table) return alert('테이블 번호를 입력하세요');
-    if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
-    if (!items.length || !amount) return alert('장바구니가 비어 있습니다');
+  if (!table) return alert('테이블 번호를 입력하세요');
+  if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
+  if (!items.length) return alert('장바구니가 비어 있습니다');
 
-    // ✅ orderId / orderName 복구
-    const orderId = 'S' + Date.now();
-    const orderName =
-      items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
+  // 🔥 여기서 주문 안 보냄
+  openOrderConfirmModal(items, amount);
+};
+document.getElementById('confirm-ok').onclick = async () => {
+  closeOrderConfirmModal();
 
-    const payload = {
-      type: 'store',
-      orderId,
-      orderName,
-      table,
-      amount,
-      cart: items,
-      storeId,
-      status: 'WAIT_PAY',
-      ts: Date.now()
-    };
+  const items = buildCart();
+  const amount = totalAmountFromCart();
+  const table = currentTable();
 
-    const r = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+  const orderId = 'S' + Date.now();
+  const orderName =
+    items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
-    const j = await r.json();
-    if (!j.ok) return alert('주문 저장에 실패했습니다');
-    // ✅ POS 관리자에게 "새 주문" 알림 보내기
-    const adminChannel = new BroadcastChannel('qrnr-admin');
-    adminChannel.postMessage({
-      type: 'NEW_ORDER',
-      storeId,
-      orderId,
-      table,
-      ts: Date.now()
-    });
-
-    openOrderSuccessModal();
+  const payload = {
+    type: 'store',
+    orderId,
+    orderName,
+    table,
+    amount,
+    cart: items,
+    storeId,
+    status: 'WAIT_PAY',
+    ts: Date.now()
   };
+
+  const r = await fetch('/api/orders', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await r.json();
+  if (!j.ok) return alert('주문 저장 실패');
+
+  new BroadcastChannel('qrnr-admin').postMessage({
+    type: 'NEW_ORDER',
+    storeId,
+    orderId,
+    table,
+    ts: Date.now()
+  });
+
+  openOrderSuccessModal();
+};
+
+document.getElementById('confirm-cancel').onclick = closeOrderConfirmModal;
+
+
 </script>
 </body>
 </html>
