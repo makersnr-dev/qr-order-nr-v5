@@ -344,13 +344,19 @@ document.getElementById("confirm-items").textContent =
 
     if (Array.isArray(i.options) && i.options.length) {
       const optText = i.options
-        .map(o => `${o.name}:${o.value}`)
+        .map(o => {
+          const group = o.group || o.name || "옵션";
+          const label = o.label || o.value || "";
+          return label ? `${group}:${label}` : group;
+        })
         .join(", ");
+
       line += ` (${optText})`;
     }
 
     return line;
   }).join("\n");
+
 
 
 
