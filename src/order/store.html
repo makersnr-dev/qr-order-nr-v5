@@ -212,16 +212,18 @@
   }
 
   function getPayCode() {
-    try {
-      const storeId = window.qrnrStoreId;
-      if (!storeId) return null;
-  
-      const pc = get(['stores', storeId, 'paymentCode']);
-      return pc?.code || null;
-    } catch {
-      return null;
-    }
+  try {
+    const storeId = window.qrnrStoreId;
+    if (!storeId) return '7111';
+
+    const pc = get(['stores', storeId, 'paymentCode']);
+    return pc?.code || '7111';
+  } catch (e) {
+    console.error('getPayCode error', e);
+    return '7111';
   }
+}
+
 
 
   function totalAmountFromCart() {
