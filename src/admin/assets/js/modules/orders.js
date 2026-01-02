@@ -22,12 +22,18 @@ function fmtDateTimeFromOrder(o) {
 function normalizeOptions(options) {
   if (!Array.isArray(options)) return [];
 
-  return options.map(opt =>
-    typeof opt === 'string'
-      ? opt
-      : opt.name || opt.label || String(opt)
-  );
+  return options.map(opt => {
+    // 문자열 옵션 (구버전 호환)
+    if (typeof opt === 'string') return opt;
+
+    // 객체 옵션 (신버전)
+    const name = opt.name || opt.group || '옵션';
+    const value = opt.value || opt.label || '';
+
+    return value ? `${name}:${value}` : name;
+  });
 }
+
 
 
 // ─────────────────────────────
