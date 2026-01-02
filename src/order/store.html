@@ -213,12 +213,16 @@
 
   function getPayCode() {
     try {
-      const conf = get(['admin', 'paymentCode']) || {};
-      return conf.code || '7111';
+      const storeId = window.qrnrStoreId;
+      if (!storeId) return null;
+  
+      const pc = get(['stores', storeId, 'paymentCode']);
+      return pc?.code || null;
     } catch {
-      return '7111';
+      return null;
     }
   }
+
 
   function totalAmountFromCart() {
     return cart.items.reduce(
