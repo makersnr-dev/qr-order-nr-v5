@@ -236,11 +236,17 @@
   function buildCart() {
   return cart.items.map(i => ({
     name: i.name,
-    qty: i.qty,
-    price: i.price,
-    options: Array.isArray(i.options) ? i.options : []
+    qty: Number(i.qty || 1),
+    price: Number(i.price || 0),
+    options: Array.isArray(i.options)
+      ? i.options.map(o => ({
+          name: o.group || o.name || '옵션',
+          value: o.label || o.value || ''
+        }))
+      : []
   }));
 }
+
 
 
   // ───────────────────────────────────────────────────────────
@@ -251,8 +257,16 @@
     items.map(i => {
       let line = `${i.name} x${i.qty}`;
       if (Array.isArray(i.options) && i.options.length) {
-        line += '\n' + i.options.map(o => ` └ ${o}`).join('\n');
-      }
+  const optText = i.options
+    .map(o => {
+      const group = o.group || o.name || '옵션';
+      const label = o.label || o.value || '';
+      return label ? `${group}:${label}` : group;
+    });
+
+  line += '\n' + optText.map(t => ` └ ${t}`).join('\n');
+}
+
       return line;
     }).join('\n\n');
 
