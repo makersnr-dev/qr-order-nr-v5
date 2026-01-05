@@ -524,18 +524,15 @@ export async function renderDeliv() {
     // 🔹 예약일자 / 예약시간
     //   - 예약 주문(type === 'reserve')에만 의미 있음
     //   - 배달(type === 'delivery')이면 화면에는 '-' 표시
-    const reserveDate =
-    o.reserve && o.reserve.date
-      ? o.reserve.date
-      : '-';
+     const reserveDate =
+    o.reserve?.date || '-';
   
-  const reserveTime =
-    o.reserve && o.reserve.time
-      ? o.reserve.time
-      : '-';
-  
-  const req =
-    customer.memo || '-';
+    const reserveTime =
+      o.reserve?.time || '-';
+    
+    const req =
+      customer.memo || '-';
+
 
 
     // 구매내역
@@ -818,14 +815,11 @@ document.body.addEventListener('click', (e) => {
     `주문자: ${customer.name || '-'}`,
     `연락처: ${customer.phone || '-'}`,
     `주소: ${customer.addr || '-'}`,
-    `예약일시: ${
-      order.reserve && order.reserve.date
-        ? `${order.reserve.date} ${order.reserve.time || ''}`
-        : '-'
-    }`,
+    `예약일시: ${(order.reserve?.date || '-') + ' ' + (order.reserve?.time || '')}`,
     `요청사항: ${customer.memo || '-'}`,
     `금액: ${fmt(order.amount || 0)}원`
   ].join('\n');
+
 
   const body = (order.cart || []).map(i => {
     let line = `${i.name} x${i.qty}`;
