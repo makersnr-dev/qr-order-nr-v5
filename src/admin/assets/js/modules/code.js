@@ -1,5 +1,9 @@
 // /src/admin/assets/js/modules/code.js
-import { get, patch } from './store.js';
+import {
+  ensureStore,
+  getPaymentCode,
+  setPaymentCode
+} from './store.js';
 
 let leftTimer;
 let dayWatcherTimer;
@@ -45,8 +49,10 @@ export function renderCode() {
   const storeId = window.qrnrStoreId;
   if (!storeId) return;
 
+  ensureStore(storeId);
+
   const t = today();
-  let pc = get(['stores', storeId, 'paymentCode']);
+  let pc = getPaymentCode(storeId);
 
   if (!pc || pc.date !== t) {
     pc = {
@@ -54,7 +60,7 @@ export function renderCode() {
       code: generateCode(),
       updatedAt: Date.now()
     };
-    patch(['stores', storeId, 'paymentCode'], () => pc);
+    setPaymentCode(storeId, pc);
   }
 
   document.getElementById('code-date').textContent = pc.date;
@@ -62,17 +68,8 @@ export function renderCode() {
 
   if (leftTimer) clearInterval(leftTimer);
   tickLeft();
-
-  if (!dayWatcherTimer) {
-    let last = t;
-    dayWatcherTimer = setInterval(() => {
-      if (today() !== last) {
-        last = today();
-        renderCode();
-      }
-    }, 60000);
-  }
 }
+
 
 
 /* ------------------------------
