@@ -233,19 +233,7 @@
     );
   }
 
-  function buildCart() {
-  return cart.items.map(i => ({
-    name: i.name,
-    qty: Number(i.qty || 1),
-    price: Number(i.price || 0),
-    options: Array.isArray(i.options)
-      ? i.options.map(o => ({
-          name: o.group || o.name || '옵션',
-          value: o.label || o.value || ''
-        }))
-      : []
-  }));
-}
+  
 
 
 
@@ -324,21 +312,23 @@ document.getElementById('confirm-ok').onclick = async () => {
     items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
   const payload = {
-      orderId,
-      storeId,
-      orderType: 'store',
-      status: 'WAIT_PAY',
-      table,
-      amount,
-      items: items.map(i => ({
-        id: i.id,
-        name: i.name,
-        qty: i.qty,
-        unitPrice: i.price,
-        optionsText: Array.isArray(i.optionText) ? i.optionText : []
-      })),
-      createdAt: Date.now()
-    };
+  orderId,
+  storeId,
+  orderType: 'store',
+  status: 'WAIT_PAY',
+  table,
+  amount: cart.total(),
+
+  items: cart.items.map(i => ({
+    id: i.id,
+    name: i.name,
+    qty: i.qty,
+    unitPrice: i.price,
+    options: Array.isArray(i.options) ? i.options : []
+  })),
+
+  createdAt: Date.now()
+};
 
 
   const r = await fetch('/api/orders', {
