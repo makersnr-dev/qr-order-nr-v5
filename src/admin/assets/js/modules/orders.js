@@ -34,6 +34,33 @@ function normalizeOptions(options) {
   });
 }
 
+// ─────────────────────────────
+// 관리자 UI 표시용 유틸 (🔥 추가)
+// ─────────────────────────────
+
+// 구매내역 요약: 메뉴 2개 이상이면 "외 n개"
+function summarizeItems(items) {
+  if (!Array.isArray(items) || items.length === 0) return '-';
+  if (items.length === 1) return items[0];
+
+  const first = items[0];
+  const restCount = items.length - 1;
+  return `${first} 외 ${restCount}개`;
+}
+
+// 텍스트 줄 수 제한 (목록용)
+function limitLines(text, maxLines = 20) {
+  if (!text) return text;
+  const lines = String(text).split('\n');
+  if (lines.length <= maxLines) return text;
+  return lines.slice(0, maxLines).join('\n') + '\n…';
+}
+
+// 주문자 이름 말줄임 (한글 5글자 기준)
+function truncateName(name, maxLen = 5) {
+  if (!name) return '-';
+  return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
+}
 
 
 // ─────────────────────────────
@@ -349,24 +376,24 @@ export async function renderStore() {
 
   rows.forEach(o => {
     const time   = fmtDateTimeFromOrder(o);
-    const items = (o.cart || []).map(i => {
-      let opt = '';
+    const itemTexts = (o.cart || []).map(i => {
+      let line = `${i.name}x${i.qty}`;
     
-      if (Array.isArray(i.options) && i.options.length > 0) {
-        const optNames = normalizeOptions(i.options);
-
-      
-        const first = optNames[0];
-        const rest = optNames.length - 1;
-      
-        opt = rest > 0
-          ? ` (${first} 외 ${rest}개)`
-          : ` (${first})`;
+      if (Array.isArray(i.options) && i.options.length) {
+        const opts = normalizeOptions(i.options);
+        if (opts.length) {
+          line += ` (${opts[0]}${opts.length > 1 ? ` 외 ${opts.length - 1}개` : ''})`;
+        }
       }
-
     
-      return `${i.name}x${i.qty}${opt}`;
-    }).join(', ');
+      return line;
+    });
+    
+    const items = limitLines(
+      summarizeItems(itemTexts),
+      20
+    );
+    
 
 
     const table  = o.table || '-';
@@ -511,7 +538,7 @@ export async function renderDeliv() {
 
     // 주문자 / 연락처
     const customer = o.customer || {};
-    const name  = customer.name  || o.name  || '-';
+    const name = truncateName(customer.name || o.name || '-');
     const phone = customer.phone || o.phone || '-';
 
     // 주소
@@ -536,21 +563,24 @@ export async function renderDeliv() {
 
 
     // 구매내역
-    const items = (o.cart || []).map(i => {
-  let opt = '';
+    const itemTexts = (o.cart || []).map(i => {
+      let line = `${i.name} x${i.qty}`;
+    
+      if (Array.isArray(i.options) && i.options.length) {
+        const opts = normalizeOptions(i.options);
+        if (opts.length) {
+          line += ` (${opts[0]}${opts.length > 1 ? ` 외 ${opts.length - 1}개` : ''})`;
+        }
+      }
+    
+      return line;
+    });
+    
+    const items = limitLines(
+      summarizeItems(itemTexts),
+      20
+    );
 
-  if (Array.isArray(i.options) && i.options.length > 0) {
-    const optNames = normalizeOptions(i.options);
-    const first = optNames[0];
-    const rest = optNames.length - 1;
-
-    opt = rest > 0
-      ? ` (${first} 외 ${rest}개)`
-      : ` (${first})`;
-  }
-
-  return `${i.name}x${i.qty}${opt}`;
-}).join(', ');
 
 
     // 합계금액
