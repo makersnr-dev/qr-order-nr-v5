@@ -10,6 +10,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,s
 .tab.active{outline:2px solid #2ea04355}
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{border-bottom:1px solid var(--border);padding:10px;text-align:left}
+/* 테이블 셀 기본 줄바꿈 규칙 (주소/요청사항 안정화 핵심) */
+.table td{
+  word-break: keep-all;     /* 한글 주소 깨짐 방지 */
+  white-space: pre-line;      /* 자동 줄바꿈 */
+  line-height: 1.45;
+}
+
 .input{background:#0b1620;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;outline:none;width:100%}
 .btn{background:#0b1620;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;cursor:pointer}
 .btn.primary{background:var(--primary);border-color:transparent;color:white}
