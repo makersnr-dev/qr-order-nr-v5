@@ -68,3 +68,77 @@ export function patch(path, updater) {
 export const get = (path) => path.reduce((o, k) => (o && o[k]), load());
 
 export const fmt = (n) => Number(n || 0).toLocaleString();
+
+/* ======================================================
+   1단계: 가짜 DB API (localStorage 기반)
+   👉 나중에 DB로 바꿀 때 여기만 수정
+====================================================== */
+
+/* ---------- 공통 ---------- */
+export function ensureStore(storeId) {
+  if (!storeId) return;
+  patch(['stores', storeId], prev => prev ?? {});
+}
+
+/* ---------- 결제 코드 ---------- */
+export function getPaymentCode(storeId) {
+  if (!storeId) return null;
+  return get(['stores', storeId, 'paymentCode']) || null;
+}
+
+export function setPaymentCode(storeId, data) {
+  if (!storeId) return;
+  patch(['stores', storeId, 'paymentCode'], () => data);
+}
+
+/* ---------- 매장 주문 ---------- */
+export function getStoreOrders(storeId) {
+  if (!storeId) return [];
+  return get(['stores', storeId, 'orders']) || [];
+}
+
+export function addStoreOrder(storeId, order) {
+  if (!storeId) return;
+  patch(['stores', storeId, 'orders'], prev => {
+    const arr = Array.isArray(prev) ? prev : [];
+    return [order, ...arr];
+  });
+}
+
+/* ---------- 예약 주문 ---------- */
+export function getReserveOrders(storeId) {
+  if (!storeId) return [];
+  return get(['stores', storeId, 'reserveOrders']) || [];
+}
+
+export function addReserveOrder(storeId, order) {
+  if (!storeId) return;
+  patch(['stores', storeId, 'reserveOrders'], prev => {
+    const arr = Array.isArray(prev) ? prev : [];
+    return [order, ...arr];
+  });
+}
+
+/* ---------- 메뉴 ---------- */
+export function getMenu(storeId) {
+  if (!storeId) return [];
+  return get(['stores', storeId, 'menu']) || [];
+}
+
+export function setMenu(storeId, menu) {
+  if (!storeId) return;
+  patch(['stores', storeId, 'menu'], () => menu);
+}
+
+/* ---------- 관리자 계좌 ---------- */
+export function getOwnerBank(storeId) {
+  return (
+    get(['stores', storeId, 'ownerBank']) ||
+    get(['admin', 'ownerBank']) ||
+    null
+  );
+}
+
+export function setOwnerBank(storeId, bank) {
+  patch(['stores', storeId, 'ownerBank'], () => bank);
+}
