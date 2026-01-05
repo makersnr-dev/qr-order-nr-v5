@@ -445,17 +445,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   const agree = document.getElementById("agree-privacy").checked;
   const rawItems = cart.items || [];
 
-  const normalizedCart = rawItems.map(i => ({
-  name: i.name,
-  qty: Number(i.qty || 1),
-  price: Number(i.price || 0),
-  options: Array.isArray(i.options)
-    ? i.options.map(o => ({
-        name: o.group || o.name || '옵션',
-        value: o.label || o.value || ''
-      }))
-    : []
-}));
+  
 
 
     
@@ -476,15 +466,13 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   orderType: 'reserve',
   status: 'WAIT_PAY',
   amount: cart.total(),
-  items: normalizedCart.map(i => ({
-    id: i.id || '',
-    name: i.name,
-    qty: i.qty,
-    unitPrice: i.price,
-    optionsText: Array.isArray(i.options)
-      ? i.options.map(o => `${o.name}:${o.value}`)
-      : []
-  })),
+  items: cart.items.map(i => ({
+  id: i.id,
+  name: i.name,
+  qty: i.qty,
+  unitPrice: i.price,
+  options: Array.isArray(i.options) ? i.options : []
+})),
   customer: {
     name: cust,
     phone,
