@@ -471,18 +471,33 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   if (!ap || !hh || !mm) fail("예약 시간을 선택해주세요.");
 
   const payload = {
-    type: "reserve",
-    amount: cart.total(),
-    orderName: "예약 주문",
-    cart: normalizedCart,
-    customer: { name: cust, phone, addr: fullAddr, req: memo },
-    reserveDate: date,
-    reserveTime: `${ap} ${hh}:${mm}`,
-    status: "대기",
-    lookupPw: pw,
-    storeId,
-    agreePrivacy: true
-  };
+  orderId: 'R' + Date.now(),
+  storeId,
+  orderType: 'reserve',
+  status: 'WAIT_PAY',
+  amount: cart.total(),
+  items: normalizedCart.map(i => ({
+    id: i.id || '',
+    name: i.name,
+    qty: i.qty,
+    unitPrice: i.price,
+    optionsText: Array.isArray(i.options)
+      ? i.options.map(o => `${o.name}:${o.value}`)
+      : []
+  })),
+  customer: {
+    name: cust,
+    phone,
+    addr: fullAddr,
+    memo
+  },
+  reserve: {
+    date,
+    time: `${ap} ${hh}:${mm}`
+  },
+  createdAt: Date.now()
+};
+
 
   const r = await fetch("/api/orders", {
     method: "POST",
