@@ -487,7 +487,15 @@ const ruleCheck = validateOptions(optionBox, item.options);
     return;
   }
      const selectedOptions = getSelectedOptions(optionBox);
-const optionKey = JSON.stringify(selectedOptions);
+
+    // ✅ 화면/전송용 옵션 문자열 생성
+    const optionText = selectedOptions.map(o => {
+      return o.label ? `${o.group}:${o.label}` : o.group;
+    });
+    
+    // ✅ 옵션 비교용 키 (문자열 기준)
+    const optionKey = JSON.stringify(optionText);
+
     // 이미 같은 id 항목 있으면 수량만 증가
     const idx = cart.items.findIndex(x => x.id === item.id && x.optionKey === optionKey);
 
@@ -495,14 +503,20 @@ const optionKey = JSON.stringify(selectedOptions);
       cart.items[idx].qty += qty;
     } else {
 
-cart.items.push({
-  id: item.id,
-  name: item.name,
-  price: currentUnitPrice,
-  qty,
-  options: selectedOptions,
-  optionKey
-});
+    cart.items.push({
+      id: item.id,
+      name: item.name,
+      price: currentUnitPrice,
+      qty,
+    
+      // 🔹 데이터용 (관리자 / DB 대비)
+      options: selectedOptions,
+    
+      // 🔥 화면 표시 & API 전송용
+      optionText,
+    
+      optionKey
+    });
 
 
     }
@@ -617,12 +631,13 @@ export function makeCart(containerId, totalId) {
   <div>
     <div>${it.name} x ${it.qty}</div>
     ${
-      Array.isArray(it.options) && it.options.length
+      Array.isArray(it.optionText) && it.optionText.length
         ? `<div class="small" style="color:#9ca3af">
-            ${it.options.map(o => `- ${o.label}`).join('<br>')}
+            ${it.optionText.map(t => `- ${t}`).join('<br>')}
            </div>`
         : ''
     }
+
   </div>
   <div>${fmt(Number(it.price || 0) * Number(it.qty || 1))}원</div>
   <div class="hstack" style="gap:6px">
