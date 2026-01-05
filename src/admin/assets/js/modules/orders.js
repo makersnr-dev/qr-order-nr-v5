@@ -818,8 +818,12 @@ document.body.addEventListener('click', (e) => {
     `주문자: ${customer.name || '-'}`,
     `연락처: ${customer.phone || '-'}`,
     `주소: ${customer.addr || '-'}`,
-    `예약일시: ${(order.reserveDate || '-') + ' ' + (order.reserveTime || '')}`,
-    `요청사항: ${customer.req || order.memo || '-'}`,
+    `예약일시: ${
+      order.reserve && order.reserve.date
+        ? `${order.reserve.date} ${order.reserve.time || ''}`
+        : '-'
+    }`,
+    `요청사항: ${customer.memo || '-'}`,
     `금액: ${fmt(order.amount || 0)}원`
   ].join('\n');
 
