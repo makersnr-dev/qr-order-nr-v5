@@ -141,24 +141,33 @@ async function handlePost(req, res) {
   const body = req.body || {};
 
   let {
-    orderId,
-    type,
-    amount,
-    orderName,
-    cart,
-    customer,
-    table,
-    status,
-    reserveDate,
-    reserveTime,
-    memo,
-    meta,
-    storeId,
-    agreePrivacy,
-  } = body;
+  orderId,
+  orderType,   // ✅ 새 필드
+  type,        // 🔙 하위호환
+  amount,
+  items,       // ✅ 새 필드
+  cart,        // 🔙 하위호환
+  customer,
+  table,
+  status,
+  reserveDate,
+  reserveTime,
+  memo,
+  meta,
+  storeId,
+  agreePrivacy,
+  orderName,
+} = body;
+
+// ✅ type 통합 (store / reserve / delivery)
+const finalType = orderType || type;
+
+// ✅ cart 통합
+const finalCart = Array.isArray(items) ? items : (cart || []);
+
 
   const amt = typeof amount === "number" ? amount : Number(amount);
-  if (!type || Number.isNaN(amt)) {
+  if (!finalType || Number.isNaN(amt)) {
     return json(res, {
       ok: false,
       error: "INVALID_ORDER_PARAMS",
@@ -197,25 +206,39 @@ async function handlePost(req, res) {
   }
 
   const newOrder = {
-    id,
-    orderId: orderId || id,
-    type,
-    amount: amt,
-    orderName,
-    cart: cart || [],
-    customer: finalCustomer,
-    table: table || null,
-    status: status || "paid",
-    reserveDate: reserveDate || null,
-    reserveTime: reserveTime || null,
-    memo: memo || "",
-    meta: meta || {},
-    ts,
-    date,
-    dateTime,
-    storeId: finalStoreId,
-    agreePrivacy: !!agreePrivacy,
-  };
+  id,
+  orderId: orderId || id,
+
+  // ✅ 통합된 타입
+  type: finalType,
+
+  amount: amt,
+
+  // ❌ orderName은 이제 의미 없음 (유지해도 되지만 안 씀)
+  orderName: orderName || null,
+
+  // ✅ 핵심: items / cart 통합
+  cart: finalCart,
+
+  customer: finalCustomer,
+  table: table || null,
+
+  status: status || "WAIT",
+
+  reserveDate: reserveDate || null,
+  reserveTime: reserveTime || null,
+
+  memo: memo || "",
+  meta: meta || {},
+
+  ts,
+  date,
+  dateTime,
+
+  storeId: finalStoreId,
+  agreePrivacy: !!agreePrivacy,
+};
+
 
    orders.push(newOrder);
    await saveOrders(orders);
@@ -225,13 +248,13 @@ async function handlePost(req, res) {
      const channel = new BroadcastChannel("qrnr-admin");
      channel.postMessage({
      type: "NEW_ORDER",
-     orderType: type,          // ⭐ 핵심 (store | delivery | reserve)
+     orderType: finalType,          // ⭐ 핵심 (store | delivery | reserve)
      storeId: finalStoreId,
      orderId: newOrder.id,
    
      table: table || null,
      customer: finalCustomer || null,   // ⭐ 추가
-     cart: cart || [],                  // ⭐ 추가
+     cart: finalCart,                  // ⭐ 추가
    
      reserveDate,
      reserveTime,
@@ -244,7 +267,7 @@ async function handlePost(req, res) {
    }
 
    console.log("[BC SEND]", {
-  orderType: type,
+  orderType: finalType,
   storeId: finalStoreId,
   reserveDate,
   reserveTime,
