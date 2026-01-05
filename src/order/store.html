@@ -136,6 +136,8 @@
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
+  import { getPaymentCode } from '/src/admin/assets/js/modules/store.js';
+
 
   // ───────────────────────────────────────────────────────────
   // storeId 초기화
@@ -214,15 +216,13 @@
   function getPayCode() {
   try {
     const storeId = window.qrnrStoreId;
-    if (!storeId) return '7111';
-
-    const pc = get(['stores', storeId, 'paymentCode']);
-    return pc?.code || '7111';
-  } catch (e) {
-    console.error('getPayCode error', e);
-    return '7111';
+    const pc = getPaymentCode(storeId);
+    return pc?.code || '';
+  } catch {
+    return '';
   }
 }
+
 
 
 
