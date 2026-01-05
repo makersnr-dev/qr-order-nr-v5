@@ -283,16 +283,39 @@
   }
 
   const payload = {
-    type: "reserve",
-    amount: cart.total(),
-    orderName: "예약 주문",
-    cart: normalizedCart,
-    customer: { name: cust, phone, addr, req: memo },
-    reserveDate: date,
-    reserveTime: `${ap} ${hh}:${mm}`,
-    status: "대기",
-    storeId
-  };
+  orderId: 'R' + Date.now(),
+  storeId,
+  orderType: 'reserve',
+  status: 'WAIT_PAY',
+  amount: cart.total(),
+
+  items: cart.items.map(i => ({
+    id: i.id || '',
+    name: i.name,
+    qty: i.qty,
+    unitPrice: i.price,
+    optionsText: Array.isArray(i.optionText)
+      ? i.optionText
+      : Array.isArray(i.options)
+        ? i.options.map(o => `${o.group || o.name}:${o.label || o.value}`)
+        : []
+  })),
+
+  customer: {
+    name: cust,
+    phone,
+    addr,
+    memo
+  },
+
+  reserve: {
+    date,
+    time: `${ap} ${hh}:${mm}`
+  },
+
+  createdAt: Date.now()
+};
+
 
   const r = await fetch("/api/orders", {
     method: "POST",
