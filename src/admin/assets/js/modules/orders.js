@@ -446,7 +446,7 @@ export async function renderStore() {
     items: (o.cart || []).map(i => ({
       name: i.name ?? '메뉴',
       qty: i.qty ?? 1,
-      options: normalizeOptions(i.options) // ✅ 문자열화는 여기서 한 번만
+      options: i.options || [] // ✅ 문자열화는 여기서 한 번만
     })),
     total: o.amount || 0,
     status: o.status || '대기'
