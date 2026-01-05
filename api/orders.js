@@ -134,11 +134,53 @@ async function handleGet(req, res) {
   return json(res, { ok: true, orders: filtered });
 }
 
+function normalizeOrderInput(body) {
+  const {
+    customer = {},
+    reserve = {},
+    reserveDate,
+    reserveTime,
+    memo,
+    meta = {},
+  } = body;
+
+  // ✅ customer 정규화
+  const finalCustomer = {
+    name: customer.name || "",
+    phone: customer.phone || "",
+    addr: customer.addr || "",
+    memo:
+      customer.memo ||
+      customer.req ||
+      memo ||
+      meta.req ||
+      "",
+  };
+
+  // ✅ reserve 정규화
+  const finalReserve = {
+    date:
+      reserve.date ||
+      reserveDate ||
+      meta.reserveDate ||
+      "",
+    time:
+      reserve.time ||
+      reserveTime ||
+      meta.reserveTime ||
+      "",
+  };
+
+  return { finalCustomer, finalReserve };
+}
+
+
 /* ============================================================
    POST /api/orders
    ============================================================ */
 async function handlePost(req, res) {
   const body = req.body || {};
+  const { finalCustomer, finalReserve } = normalizeOrderInput(body);
 
   let {
   orderId,
@@ -199,12 +241,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 
   if (!finalStoreId) finalStoreId = "store1";
 
-  /* ⭐ 요청사항 자동 통합 로직 (핵심) */
-  let finalCustomer = customer || {};
-  if (memo && !finalCustomer.req) {
-    finalCustomer.req = memo;
-  }
-
+  
   const newOrder = {
   id,
   orderId: orderId || id,
@@ -221,15 +258,12 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   cart: finalCart,
 
   customer: finalCustomer,
+  reserve: finalReserve,
   table: table || null,
 
   status: status || "WAIT",
 
-  reserveDate: reserveDate || null,
-  reserveTime: reserveTime || null,
-
-  memo: memo || "",
-  meta: meta || {},
+  
 
   ts,
   date,
