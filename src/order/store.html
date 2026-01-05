@@ -290,8 +290,9 @@ function closeOrderConfirmModal() {
   const table = currentTable();
   const inputCode = document.getElementById('paycode').value.trim();
   const expectedCode = getPayCode();
-  const items = buildCart();
-  const amount = totalAmountFromCart();
+  const items = cart.items;
+  const amount = cart.total();
+
 
   if (!table) return alert('테이블 번호를 입력하세요');
   if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
@@ -303,8 +304,9 @@ function closeOrderConfirmModal() {
 document.getElementById('confirm-ok').onclick = async () => {
   closeOrderConfirmModal();
 
-  const items = buildCart();
-  const amount = totalAmountFromCart();
+  const items = cart.items;
+  const amount = cart.total();
+
   const table = currentTable();
 
   const orderId = 'S' + Date.now();
