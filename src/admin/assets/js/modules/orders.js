@@ -525,24 +525,18 @@ export async function renderDeliv() {
     //   - 예약 주문(type === 'reserve')에만 의미 있음
     //   - 배달(type === 'delivery')이면 화면에는 '-' 표시
     const reserveDate =
-      kind === '예약'
-        ? (o.reserveDate || (o.meta && o.meta.reserveDate) || '-')
-        : '-';
+    o.reserve && o.reserve.date
+      ? o.reserve.date
+      : '-';
+  
+  const reserveTime =
+    o.reserve && o.reserve.time
+      ? o.reserve.time
+      : '-';
+  
+  const req =
+    customer.memo || '-';
 
-    const reserveTime =
-      kind === '예약'
-        ? (o.reserveTime ||
-           o.time ||
-           (o.meta && o.meta.reserveTime) ||
-           '-')
-        : '-';
-
-    // 요청사항
-    const req =
-      customer.req ||
-      o.memo ||
-      (o.meta && o.meta.req) ||
-      '-';
 
     // 구매내역
     const items = (o.cart || []).map(i => {
