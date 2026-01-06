@@ -557,8 +557,11 @@ export async function renderDeliv() {
     const reserveTime =
       o.reserve?.time || '-';
     
-    const req =
-      customer.memo || '-';
+    const req = limitLines(
+      customer.memo || '-',
+      20
+    );
+
 
 
 
