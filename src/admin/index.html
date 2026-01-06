@@ -31,28 +31,40 @@
     <button class="tab" data-tab="privacy">개인정보 처리방침</button>
   </div>
 
-  <!-- ================= 매장 주문 ================= -->
-  <div class="card" data-panel="store">
-    <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-      <h3>매장 주문</h3>
-      <button id="store-refresh" class="btn small">새로고침</button>
-    </div>
+ <!-- ================= 매장 주문 ================= -->
+<div class="card" data-panel="store">
 
+  <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:6px">
+    <h3>매장 주문</h3>
+    <button id="store-refresh" class="btn small">새로고침</button>
+  </div>
+
+  <!-- 📱 모바일 전용 -->
+  <div id="mobile-store-list" class="mobile-only"></div>
+
+  <!-- 🖥 PC 전용 -->
+  <div class="desktop-only">
+
+    <!-- 필터 -->
     <div class="hstack" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
       <input type="date" class="input" id="store-from" style="width:150px">
       <input type="date" class="input" id="store-to"   style="width:150px">
       <select class="input" id="store-status" style="width:140px">
         <option value="">상태 전체</option>
-        <option>대기</option>
-        <option>조리중</option>
-        <option>완료</option>
+        <option>주문접수</option>
+        <option>준비중</option>
+        <option>주문완료</option>
+        <option>주문취소</option>
+        <option>결제취소</option>
       </select>
       <input class="input" id="store-search" placeholder="검색(테이블/메뉴 등)" style="width:200px">
       <button id="store-filter" class="btn">필터</button>
       <button id="store-reset" class="btn">초기화</button>
     </div>
 
-    <button id="store-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
+    <button id="store-export" class="btn small" style="margin-bottom:8px">
+      엑셀 다운로드
+    </button>
 
     <table class="table">
       <thead>
@@ -68,8 +80,11 @@
         <tr><td colspan="5" class="small">주문 없음</td></tr>
       </tbody>
     </table>
-  </div>
 
+  </div>
+</div>
+
+  
   <!-- ================= 예약 주문 ================= -->
   <div class="card" data-panel="delivery" style="display:none">
     <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:6px">
