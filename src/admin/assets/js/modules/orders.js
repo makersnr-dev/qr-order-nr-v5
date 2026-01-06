@@ -778,7 +778,7 @@ document.body.addEventListener('click', (e) => {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             id,
-            status: '대기'
+            status: '주문접수'
           })
         });
 
