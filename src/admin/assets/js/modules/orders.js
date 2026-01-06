@@ -600,7 +600,7 @@ export async function renderDeliv() {
       <td>${addr}</td>
       <td>${reserveDate}</td>
       <td>${reserveTime}</td>
-      <td>${req}</td>
+      <td style="white-space:pre-line; max-width:280px;">${req}</td>
       <td>
         <span
           class="order-detail-link"
