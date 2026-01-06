@@ -5,6 +5,10 @@
 
 import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
+import {
+  STATUS_FLOW,
+  INITIAL_STATUS
+} from '../src/shared/constants/status.js';
 
 export const config = { runtime: "nodejs" };
 
@@ -240,13 +244,10 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   }
 
   if (!finalStoreId) finalStoreId = "store1";
-   
-   // 🔒 기본 상태 자동 설정 (구조 고정)
-   let initialStatus = '주문접수';
-   
-   if (finalType === 'reserve') {
-     initialStatus = '입금 미확인';
-   }
+
+  const initialStatus =
+     INITIAL_STATUS[finalType] || '주문접수';
+
   
   const newOrder = {
   id,
@@ -322,19 +323,6 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 /* ============================================================
    PUT /api/orders
    ============================================================ */
-const STATUS_FLOW = {
-  store: {
-    '주문접수': ['준비중', '주문취소','결제취소'],
-    '준비중': ['주문완료', '주문취소','결제취소'],
-    '주문완료': ['결제취소'],
-  },
-  reserve: {
-    '입금 미확인': ['주문접수', '주문취소'],
-    '주문접수': ['준비중', '주문취소'],
-    '준비중': ['주문완료', '주문취소'],
-  }
-};
-
 async function handlePut(req, res) {
    // 🔒 상태 전이 규칙 (구조 고정)
 
