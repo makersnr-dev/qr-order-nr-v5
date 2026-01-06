@@ -429,14 +429,13 @@ export async function renderStore() {
         <div style="display:flex;align-items:center;gap:6px">
     
           <span class="badge-dot ${
-            status === '완료'
+            status === '주문완료'
               ? 'badge-done'
-              : status === '조리중'
+              : status === '준비중'
               ? 'badge-cook'
-              : status === '대기'
-              ? 'badge-wait'
               : 'badge-wait'
           }"></span>
+
     
           ${
             status === 'WAIT_PAY'
@@ -458,9 +457,12 @@ export async function renderStore() {
             data-id="${o.id || o.orderId || ''}"
             
           >
-            <option ${status === '대기' ? 'selected' : ''}>대기</option>
-            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
-            <option ${status === '완료' ? 'selected' : ''}>완료</option>
+            <option ${status === '주문접수' ? 'selected' : ''}>주문접수</option>
+            <option ${status === '준비중' ? 'selected' : ''}>준비중</option>
+            <option ${status === '주문완료' ? 'selected' : ''}>주문완료</option>
+            <option ${status === '주문취소' ? 'selected' : ''}>주문취소</option>
+            <option ${status === '결제취소' ? 'selected' : ''}>결제취소</option>
+
           </select>
     
         </div>
@@ -624,23 +626,26 @@ export async function renderDeliv() {
       <td>
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
           
-          <span>${fmt(amount)}</span>
           <span class="badge-dot ${
-            status === '완료'
-              ? 'badge-done'
-              : status === '조리중'
-              ? 'badge-cook'
-              : 'badge-wait'
-          }"></span>
+          status === '주문완료'
+            ? 'badge-done'
+            : status === '준비중'
+            ? 'badge-cook'
+            : 'badge-wait'
+        }"></span>
+
           <select
             class="input"
             style="width:90px"
             data-type="delivery"
             data-id="${o.id || o.orderId || ''}"
           >
-            <option ${status === '대기' ? 'selected' : ''}>대기</option>
-            <option ${status === '조리중' ? 'selected' : ''}>조리중</option>
-            <option ${status === '완료' ? 'selected' : ''}>완료</option>
+            <option ${status === '입금 미확인' ? 'selected' : ''}>입금 미확인</option>
+            <option ${status === '주문접수' ? 'selected' : ''}>주문접수</option>
+            <option ${status === '준비중' ? 'selected' : ''}>준비중</option>
+            <option ${status === '주문완료' ? 'selected' : ''}>주문완료</option>
+            <option ${status === '주문취소' ? 'selected' : ''}>주문취소</option>
+
           </select>
         </div>
       </td>
