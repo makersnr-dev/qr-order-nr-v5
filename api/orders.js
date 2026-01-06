@@ -240,7 +240,13 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   }
 
   if (!finalStoreId) finalStoreId = "store1";
-
+   
+   // 🔒 기본 상태 자동 설정 (구조 고정)
+   let initialStatus = '주문접수';
+   
+   if (finalType === 'reserve') {
+     initialStatus = '입금 미확인';
+   }
   
   const newOrder = {
   id,
@@ -261,7 +267,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   reserve: finalReserve,
   table: table || null,
 
-  status: status || "WAIT",
+  status: initialStatus,
 
   
 
