@@ -3,6 +3,30 @@ import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
 const isMobile = () => window.innerWidth <= 768;
 
+async function changeOrderStatus({ id, status, type }) {
+  if (!id || !status) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+
+  const res = await fetch('/api/orders', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, status })
+  });
+
+  const data = await res.json();
+  if (!data.ok) {
+    throw new Error(data.error || 'STATUS_CHANGE_FAILED');
+  }
+
+  updateStatusInCache(type, storeId, id, status);
+
+  if (type === 'store') await renderStore();
+  if (type === 'delivery') await renderDeliv();
+}
+
+
+
 
 // ─────────────────────────────
 // 공통: 주문 시간 포맷
@@ -181,7 +205,7 @@ export async function syncStoreFromServer() {
           table: o.table || '-',
           items: [{ name: `직원 호출: ${o.meta?.note || ''}`, qty: '' }],
           total: 0,
-          status: o.status || '대기'
+          status: o.status || '주문접수'
         };
       }
 
@@ -191,7 +215,7 @@ export async function syncStoreFromServer() {
       }));
 
       // 서버 status → 화면 status 매핑
-      let status = '대기';
+      let status = '주문접수';
       if (o.status === '조리중' || o.status === 'cook') status = '조리중';
       else if (o.status === '완료' || o.status === 'done') status = '완료';
 
@@ -759,45 +783,30 @@ document.body.addEventListener('click', (e) => {
 
   // 2️⃣ 상태 변경 (대기 / 조리중 / 완료)
   document.body.addEventListener('change', async (e) => {
-    const sel = e.target;
-    if (!sel || sel.tagName !== 'SELECT') return;
+  const sel = e.target;
+  if (sel.tagName !== 'SELECT') return;
 
-    const id   = sel.dataset.id;
-    const type = sel.dataset.type; // store | delivery
-    if (!id || !type) return;
+  const id = sel.dataset.id;
+  const type = sel.dataset.type;
+  const status = sel.value;
 
-    const nextStatus = sel.value;
-    const storeId = window.qrnrStoreId || 'store1';
+  try {
+    await changeOrderStatus({ id, status, type });
+  } catch (err) {
+    alert('상태 변경 실패');
+    console.error(err);
+  }
+});
 
-    try {
-      await fetch('/api/orders', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id, status: nextStatus })
-      });
-
-      updateStatusInCache(type, storeId, id, nextStatus);
-
-      if (type === 'store') {
-        await renderStore();
-      } else if (type === 'delivery') {
-        await renderDeliv(); // 사실상 예약
-      }
-
-    } catch (err) {
-      console.error('status change err', err);
-      alert('상태 변경에 실패했습니다.');
-    }
-  });
 
 
   // 3️⃣ 상세보기 (아직 비워둠 – 구조만 유지)
-  document.body.addEventListener('click', (e) => {
+  /*document.body.addEventListener('click', (e) => {
     const btn = e.target;
     if (!btn?.dataset?.detail) return;
 
     // 👉 나중에 showModal로 상세 주문 표시
-  });
+  });*/
 
     // 4️⃣ 결제 완료 모달 - 확인 / 취소 버튼 처리
   document.body.addEventListener('click', async (e) => {
@@ -824,19 +833,13 @@ document.body.addEventListener('click', (e) => {
       const storeId = window.qrnrStoreId || 'store1';
 
       try {
-        await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            id,
-            status: '주문접수'
-          })
+        await changeOrderStatus({
+          id,
+          status: '주문접수',
+          type: 'store'
         });
-
-        updateStatusInCache('store', storeId, id, '대기');
-
+        
         modal.style.display = 'none';
-        await renderStore();
 
       } catch (err) {
         console.error(err);
@@ -939,16 +942,14 @@ document.body.addEventListener('click', async (e) => {
   if (!id) return;
 
   try {
-    await fetch('/api/orders', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        id,
-        status: '준비중'
-      })
+    await changeOrderStatus({
+      id,
+      status: '준비중',
+      type: 'store'
     });
 
-    await renderStore();
+
+    
 
   } catch (err) {
     console.error(err);
@@ -958,27 +959,23 @@ document.body.addEventListener('click', async (e) => {
 // 📱 모바일 카드 상태 버튼 처리
 document.body.addEventListener('click', async (e) => {
   const btn = e.target;
-  if (!btn.dataset.status || !btn.dataset.id) return;
-
-  const id = btn.dataset.id;
-  const nextStatus = btn.dataset.status;
+  if (!btn.dataset?.status || !btn.dataset?.id) return;
 
   try {
-    await fetch('/api/orders', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, status: nextStatus })
+    await changeOrderStatus({
+      id: btn.dataset.id,
+      status: btn.dataset.status,
+      type: 'store'
     });
-
-    await renderStore(); // 모바일/데스크탑 자동 분기
   } catch (err) {
-    console.error(err);
     alert('상태 변경 실패');
+    console.error(err);
   }
 });
 
+
   // 📱 모바일 주문 카드 버튼 처리
-document.body.addEventListener('click', async (e) => {
+/*document.body.addEventListener('click', async (e) => {
   const btn = e.target;
 
   // 모바일 카드 버튼 아니면 무시
@@ -1006,7 +1003,7 @@ document.body.addEventListener('click', async (e) => {
     console.error(err);
     alert('상태 변경 실패');
   }
-});
+});*/
 
 
 }
