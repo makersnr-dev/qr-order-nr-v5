@@ -977,5 +977,36 @@ document.body.addEventListener('click', async (e) => {
   }
 });
 
+  // 📱 모바일 주문 카드 버튼 처리
+document.body.addEventListener('click', async (e) => {
+  const btn = e.target;
+
+  // 모바일 카드 버튼 아니면 무시
+  if (!btn || !btn.dataset || !btn.dataset.status) return;
+
+  const id = btn.dataset.id;
+  const nextStatus = btn.dataset.status;
+
+  if (!id || !nextStatus) return;
+
+  try {
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        status: nextStatus
+      })
+    });
+
+    // 상태 변경 후 다시 렌더링
+    await renderStore();
+
+  } catch (err) {
+    console.error(err);
+    alert('상태 변경 실패');
+  }
+});
+
 
 }
