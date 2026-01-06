@@ -597,10 +597,10 @@ export async function renderDeliv() {
       <td>${time}</td>
       <td>${name}</td>
       <td>${phone}</td>
-      <td>${addr}</td>
+      <td class="td-addr">${addr}</td>
       <td>${reserveDate}</td>
       <td>${reserveTime}</td>
-      <td style="white-space:pre-line; max-width:280px;">${req}</td>
+      <td class="td-req">${req}</td>
       <td>
         <span
           class="order-detail-link"
