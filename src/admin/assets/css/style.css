@@ -158,3 +158,11 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   white-space: normal;
   max-width: 220px;
 }
+
+@media (max-width: 768px) {
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
