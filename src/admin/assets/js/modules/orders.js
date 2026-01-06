@@ -1,6 +1,8 @@
 // /src/admin/assets/js/modules/orders.js
 import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
+const isMobile = () => window.innerWidth <= 768;
+
 
 // ─────────────────────────────
 // 공통: 주문 시간 포맷
@@ -336,6 +338,50 @@ export function exportOrders(type) {
 // 매장 주문 렌더링 (서버 + 로컬 캐시)
 // ─────────────────────────────
 export async function renderStore() {
+  if (isMobile()) {
+    return renderStoreMobile();
+  }
+  return renderStoreTable();
+}
+function renderStoreMobile() {
+  const wrap = document.getElementById('mobile-store-list');
+  if (!wrap) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+  const rows = loadStoreCache(storeId);
+
+  wrap.innerHTML = '';
+
+  rows.forEach(o => {
+    const div = document.createElement('div');
+    div.className = 'order-card';
+
+    div.innerHTML = `
+      <div class="order-card-header">
+        <strong>${fmtDateTimeFromOrder(o)}</strong>
+        <span>${fmt(o.amount)}원</span>
+      </div>
+
+      <div class="small">
+        테이블 ${o.table || '-'}
+      </div>
+
+      <div class="order-items">
+        ${(o.cart || []).map(i => i.name).join(', ')}
+      </div>
+
+      <div class="order-actions">
+        <button data-id="${o.id}" data-status="준비중">준비중</button>
+        <button data-id="${o.id}" data-status="주문완료">완료</button>
+        <button data-id="${o.id}" data-status="주문취소">취소</button>
+        <button data-id="${o.id}" data-status="결제취소">결제취소</button>
+      </div>
+    `;
+
+    wrap.appendChild(div);
+  });
+}
+async function renderStoreTable() {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
@@ -907,6 +953,27 @@ document.body.addEventListener('click', async (e) => {
   } catch (err) {
     console.error(err);
     alert('POS 결제 확인 처리 실패');
+  }
+});
+// 📱 모바일 카드 상태 버튼 처리
+document.body.addEventListener('click', async (e) => {
+  const btn = e.target;
+  if (!btn.dataset.status || !btn.dataset.id) return;
+
+  const id = btn.dataset.id;
+  const nextStatus = btn.dataset.status;
+
+  try {
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, status: nextStatus })
+    });
+
+    await renderStore(); // 모바일/데스크탑 자동 분기
+  } catch (err) {
+    console.error(err);
+    alert('상태 변경 실패');
   }
 });
 
