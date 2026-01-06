@@ -62,6 +62,15 @@ function truncateName(name, maxLen = 5) {
   return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
 }
 
+// 요청사항 글자 수 제한 (목록용)
+function truncateText(text, maxLen = 20) {
+  if (!text) return '-';
+  const str = String(text);
+  return str.length > maxLen
+    ? str.slice(0, maxLen) + '…'
+    : str;
+}
+
 
 // ─────────────────────────────
 // 로컬 캐시 (localStorage)
@@ -557,7 +566,7 @@ export async function renderDeliv() {
     const reserveTime =
       o.reserve?.time || '-';
     
-    const req = limitLines(
+    const req = truncateText(
       customer.memo || '-',
       20
     );
