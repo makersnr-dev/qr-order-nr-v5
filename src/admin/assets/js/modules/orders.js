@@ -407,7 +407,7 @@ export async function renderStore() {
 
     const table  = o.table || '-';
     const amount = Number(o.amount || 0);
-    const status = o.status || 'WAIT_PAY';
+    const status = o.status || '주문접수';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -438,13 +438,13 @@ export async function renderStore() {
 
     
           ${
-            status === 'WAIT_PAY'
+            status === '주문접수'
               ? `
                 <button
                   class="btn small primary"
-                  data-action="mark-paid"
+                  data-action="confirm-pos-paid"
                   data-id="${o.id || o.orderId || ''}">
-                  결제 완료 처리
+                  POS 결제 확인
                 </button>
               `
               : ''
@@ -885,6 +885,30 @@ document.body.addEventListener('click', (e) => {
   document.getElementById('order-detail-modal').style.display = 'flex';
 });
 
+// 🟢 POS 결제 확인 버튼
+document.body.addEventListener('click', async (e) => {
+  if (e.target.dataset.action !== 'confirm-pos-paid') return;
+
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  try {
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        status: '준비중'
+      })
+    });
+
+    await renderStore();
+
+  } catch (err) {
+    console.error(err);
+    alert('POS 결제 확인 처리 실패');
+  }
+});
 
 
 }
