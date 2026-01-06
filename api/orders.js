@@ -191,7 +191,7 @@ async function handlePost(req, res) {
   cart,        // 🔙 하위호환
   customer,
   table,
-  status,
+  //status,
   reserveDate,
   reserveTime,
   memo,
@@ -322,8 +322,29 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 /* ============================================================
    PUT /api/orders
    ============================================================ */
+const STATUS_FLOW = {
+  store: {
+    '주문접수': ['준비중', '주문취소','결제취소'],
+    '준비중': ['주문완료', '주문취소'],
+    '결제취소':[],
+  },
+  reserve: {
+    '입금 미확인': ['주문접수', '주문취소'],
+    '주문접수': ['준비중', '주문취소'],
+    '준비중': ['주문완료', '주문취소'],
+  }
+};
+
 async function handlePut(req, res) {
+   // 🔒 상태 전이 규칙 (구조 고정)
+
   const { id, orderId, status, meta } = req.body || {};
+   if (typeof status !== 'string') {
+  return json(res, {
+    ok: false,
+    error: 'STATUS_REQUIRED'
+  }, 400);
+}
 
   if (!id && !orderId) {
     return json(res, { ok: false, error: "MISSING_ID" }, 400);
@@ -343,7 +364,27 @@ async function handlePut(req, res) {
 
   const target = { ...orders[idx] };
 
-  if (typeof status === "string") target.status = status;
+  if (typeof status === 'string') {
+  const currentStatus = target.status;
+  const orderType = target.type; // store / reserve
+
+  const allowedNext =
+    STATUS_FLOW[orderType]?.[currentStatus] || [];
+
+  if (!allowedNext.includes(status)) {
+    return json(res, {
+      ok: false,
+      error: 'INVALID_STATUS_CHANGE',
+      detail: {
+        from: currentStatus,
+        to: status,
+      }
+    }, 400);
+  }
+
+  target.status = status;
+}
+
 
   if (meta && typeof meta === "object" && !Array.isArray(meta)) {
     target.meta = { ...(target.meta || {}), ...meta };
