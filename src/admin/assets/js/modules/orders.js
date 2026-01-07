@@ -6,7 +6,7 @@ const isMobile = () => window.innerWidth <= 768;
 const STATUS_FLOW = {
   store: {
     주문접수: ['준비중', '주문취소'],
-    준비중: ['주문완료', '결제취소'],
+    준비중: ['주문완료', '주문취소','결제취소'],
     주문완료: ['주문취소','결제취소'],
     주문취소: [],
     결제취소: []
@@ -1020,10 +1020,11 @@ document.body.addEventListener('click', (e) => {
   const orders = loadStoreCache(storeId);
   const order = orders.find(o => (o.id || o.orderId) === id);
 
-  if (!order || order.status !== '주문완료') {
-    alert('결제 완료된 주문만 결제취소할 수 있습니다.');
-    return;
-  }
+  if (!order || !['준비중', '주문완료'].includes(order.status)) {
+  alert('준비중 또는 주문완료 상태에서만 결제취소할 수 있습니다.');
+  return;
+}
+
 
   const modal = document.getElementById('cancel-reason-modal');
   modal.dataset.orderId = id;
