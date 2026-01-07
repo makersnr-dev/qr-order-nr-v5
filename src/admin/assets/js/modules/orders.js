@@ -7,7 +7,7 @@ const STATUS_FLOW = {
   store: {
     주문접수: ['준비중', '주문취소'],
     준비중: ['주문완료', '결제취소'],
-    주문완료: [],
+    주문완료: ['주문취소','결제취소'],
     주문취소: [],
     결제취소: []
   },
@@ -540,6 +540,15 @@ async function renderStoreTable() {
               ? 'badge-cook'
               : 'badge-wait'
           }"></span>
+          
+          ${status === '주문완료' ? `
+            <button
+              class="btn small danger"
+              data-action="cancel-payment"
+              data-id="${o.id || o.orderId}">
+              결제취소
+            </button>
+          ` : ''}
 
     
           ${
@@ -987,6 +996,18 @@ document.body.addEventListener('click', (e) => {
 // 🟢 POS 결제 확인 버튼
 document.body.addEventListener('click', async (e) => {
   if (e.target.dataset.action !== 'confirm-pos-paid') return;
+  // 🔴 결제취소 버튼 클릭 → 사유 입력 모달
+  document.body.addEventListener('click', (e) => {
+    if (e.target.dataset.action !== 'cancel-payment') return;
+  
+    const id = e.target.dataset.id;
+    if (!id) return;
+  
+    const modal = document.getElementById('cancel-reason-modal');
+    modal.dataset.orderId = id;
+    modal.style.display = 'flex';
+  });
+
 
   const id = e.target.dataset.id;
   if (!id) return;
@@ -997,10 +1018,6 @@ document.body.addEventListener('click', async (e) => {
       status: '준비중',
       type: 'store'
     });
-
-
-    
-
   } catch (err) {
     console.error(err);
     alert('POS 결제 확인 처리 실패');
