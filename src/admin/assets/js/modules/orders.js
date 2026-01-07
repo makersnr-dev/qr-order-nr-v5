@@ -534,26 +534,28 @@ async function renderStoreTable() {
     const table  = o.table || '-';
     const amount = Number(o.amount || 0);
     const status = o.status || '주문접수';
-
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${time}</td>
-      <td>${table}</td>
-      <td>
-      <span
-        class="order-detail-link"
-        data-action="order-detail"
-        data-id="${o.id || o.orderId || ''}"
-        style="cursor:pointer;text-decoration:underline"
-      >
-        ${items || '-'}
-      </span>
-    </td>
-
-      <td>${fmt(amount)}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px">
+      <td data-label="주문시간">${time}</td>
     
+      <td data-label="테이블">${table}</td>
+    
+      <td data-label="주문내역">
+        <span
+          class="order-detail-link"
+          data-action="order-detail"
+          data-id="${o.id || o.orderId || ''}"
+          style="cursor:pointer;text-decoration:underline"
+        >
+          ${items || '-'}
+        </span>
+      </td>
+    
+      <td data-label="금액">${fmt(amount)}</td>
+    
+      <td data-label="상태/처리">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      
           <span class="badge-dot ${
             status === '주문완료'
               ? 'badge-done'
@@ -570,8 +572,7 @@ async function renderStoreTable() {
               결제취소
             </button>
           ` : ''}
-
-
+    
           ${['주문접수','준비중','주문완료'].includes(status) ? `
             <button
               class="btn small danger"
@@ -580,9 +581,8 @@ async function renderStoreTable() {
               ${UI_TEXT.ORDER_CANCEL}
             </button>
           ` : ''}
-
     
-         ${status === '주문접수' && !o.meta?.payment?.paid ? `
+          ${status === '주문접수' && !o.meta?.payment?.paid ? `
             <button
               class="btn small primary"
               data-action="confirm-pos-paid"
@@ -590,37 +590,32 @@ async function renderStoreTable() {
               POS 결제 확인
             </button>
           ` : ''}
-
-          
     
           ${(() => {
-          const current = status;
-          const nextList = STATUS_FLOW.store[current] || [];
-        
-          const options = [
-            `<option selected>${current}</option>`,
-            ...nextList.map(s => `<option>${s}</option>`)
-          ].join('');
-        
-          return `
-            <select
-              class="input"
-              style="width:100px"
-              data-type="store"
-              data-id="${o.id || o.orderId || ''}"
-            >
-              ${options}
-            </select>
-          `;
-        })()}
-
+            const current = status;
+            const nextList = STATUS_FLOW.store[current] || [];
+          
+            const options = [
+              `<option selected>${current}</option>`,
+              ...nextList.map(s => `<option>${s}</option>`)
+            ].join('');
+          
+            return `
+              <select
+                class="input"
+                style="width:100px"
+                data-type="store"
+                data-id="${o.id || o.orderId || ''}"
+              >
+                ${options}
+              </select>
+            `;
+          })()}
     
         </div>
       </td>
     `;
     tbody.appendChild(tr);
-    
-       
   });
 
   patch(['admin', 'ordersStore'], () => {
@@ -755,14 +750,15 @@ export async function renderDeliv() {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${time}</td>
-      <td>${name}</td>
-      <td>${phone}</td>
-      <td class="td-addr">${addr}</td>
-      <td>${reserveDate}</td>
-      <td>${reserveTime}</td>
-      <td class="td-req">${req}</td>
-      <td>
+      <td data-label="주문시간">${time}</td>
+      <td data-label="주문자">${name}</td>
+      <td data-label="연락처">${phone}</td>
+      <td data-label="주소" class="td-addr">${addr}</td>
+      <td data-label="예약일">${reserveDate}</td>
+      <td data-label="예약시간">${reserveTime}</td>
+      <td data-label="요청사항" class="td-req">${req}</td>
+    
+      <td data-label="주문내역">
         <span
           class="order-detail-link"
           data-action="order-detail-deliv"
@@ -772,18 +768,18 @@ export async function renderDeliv() {
           ${items || '-'}
         </span>
       </td>
-
-      <td>
+    
+      <td data-label="상태">
         <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
           
           <span class="badge-dot ${
-          status === '주문완료'
-            ? 'badge-done'
-            : status === '준비중'
-            ? 'badge-cook'
-            : 'badge-wait'
-        }"></span>
-
+            status === '주문완료'
+              ? 'badge-done'
+              : status === '준비중'
+              ? 'badge-cook'
+              : 'badge-wait'
+          }"></span>
+    
           ${(() => {
             const current = status;
             const nextList = STATUS_FLOW.delivery[current] || [];
@@ -804,7 +800,7 @@ export async function renderDeliv() {
               </select>
             `;
           })()}
-
+    
         </div>
       </td>
     `;
