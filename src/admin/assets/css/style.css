@@ -145,13 +145,13 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   max-width: 220px;
 }
 
-@media (max-width: 768px) {
+/*@media (max-width: 768px) {
   .table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
   }
-}
+}*/
 /* =========================
    관리자 주문 화면 반응형 분리
 ========================= */
@@ -239,3 +239,47 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
     gap: 6px;
   }
 }
+
+/* ===============================
+   📱 주문 테이블 모바일 카드화
+   (매장주문 + 예약주문 공통)
+================================ */
+@media (max-width: 768px) {
+
+  /* 테이블 자체 스크롤 제거 */
+  .table {
+    display: block;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  /* 한 주문 = 카드 */
+  .table tbody tr {
+    display: block;
+    background: #111922;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  /* 각 칸을 세로로 */
+  .table tbody td {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: none;
+    padding: 6px 0;
+    white-space: normal;
+  }
+
+  /* td 앞에 라벨 붙이기 */
+  .table tbody td::before {
+    content: attr(data-label);
+    width: 80px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+}
+
