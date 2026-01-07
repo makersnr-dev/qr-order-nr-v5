@@ -395,9 +395,6 @@ export function exportOrders(type) {
 // 매장 주문 렌더링 (서버 + 로컬 캐시)
 // ─────────────────────────────
 export async function renderStore() {
-  if (isMobile()) {
-    return renderStoreMobile();
-  }
   return renderStoreTable();
 }
 
