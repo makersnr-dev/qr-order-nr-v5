@@ -323,6 +323,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 /* ============================================================
    PUT /api/orders
    ============================================================ */
+
 async function handlePut(req, res) {
    // 🔒 상태 전이 규칙 (구조 고정)
 
@@ -350,7 +351,11 @@ async function handlePut(req, res) {
   }
 
   const target = { ...orders[idx] };
-
+  
+  // ⚠️ 중요:
+  // - 결제 완료(POS 확인)는 status 변경이 아니다.
+  // - meta.payment 업데이트용 PUT은 status 없이 호출된다.
+  // - 이 handler는 "상태 변경 요청" 전용이다.
   if (typeof status === 'string') {
   const currentStatus = target.status;
   const orderType = target.type; // store / reserve
