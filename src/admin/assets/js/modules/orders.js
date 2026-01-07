@@ -319,7 +319,7 @@ export function exportOrders(type) {
   }
 
   const cols = type === 'ordersStore'
-    ? ['시간', '테이블', '내역', '금액', '상태']
+    ? ['시간', '테이블', '내역', '금액', '상태','취소사유']
     : ['시간', '주문자', '연락처', '주소', '예약', '금액', '상태', '내역'];
 
   const data = [cols];
@@ -341,7 +341,8 @@ export function exportOrders(type) {
           return line;
         }).join('; '),
         o.total || '',
-        o.status || ''
+        o.status || '',
+        o.meta?.cancel?.reason || ''
       ]);
     } else {
       data.push([
@@ -551,7 +552,7 @@ async function renderStoreTable() {
           ` : ''}
 
     
-         ${status === '주문접수' ? `
+         ${status === '주문접수' && !o.meta?.payment?.paid ? `
             <button
               class="btn small primary"
               data-action="confirm-pos-paid"
@@ -559,6 +560,7 @@ async function renderStoreTable() {
               POS 결제 확인
             </button>
           ` : ''}
+
           
     
           ${(() => {
@@ -889,13 +891,24 @@ document.body.addEventListener('click', (e) => {
       const storeId = window.qrnrStoreId || 'store1';
 
       try {
-        await changeOrderStatus({
-          id,
-          status: '주문접수',
-          type: 'store'
+        await fetch('/api/orders', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            id,
+            meta: {
+              payment: {
+                paid: true,
+                paidAt: new Date().toISOString(),
+                method: 'POS'
+              }
+            }
+          })
         });
+
         
         modal.style.display = 'none';
+        //await renderStore(); // 버튼만 사라짐
 
       } catch (err) {
         console.error(err);
@@ -917,11 +930,18 @@ document.body.addEventListener('click', (e) => {
   if (!order) return alert('주문을 찾을 수 없습니다.');
 
   // 🔥 옵션 줄바꿈 핵심
- const header = [
+ const cancelReason =
+  order.meta?.cancel?.reason
+    ? `취소 사유: ${order.meta.cancel.reason}`
+    : '';
+
+const header = [
   `테이블: ${order.table || '-'}`,
   `주문시간: ${fmtDateTimeFromOrder(order)}`,
-  `금액: ${fmt(order.amount || 0)}원`
-].join('\n');
+  `금액: ${fmt(order.amount || 0)}원`,
+  cancelReason
+].filter(Boolean).join('\n');
+
 
 const body = (order.cart || []).map(i => {
   let line = `${i.name} x${i.qty}`;
@@ -999,16 +1019,29 @@ document.body.addEventListener('click', async (e) => {
   if (!id) return;
 
   try {
-    await changeOrderStatus({
-      id,
-      status: '준비중',
-      type: 'store'
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        meta: {
+          payment: {
+            paid: true,
+            paidAt: new Date().toISOString(),
+            method: 'POS'
+          }
+        }
+      })
     });
+
+    await renderStore(); // 버튼만 사라짐
+
   } catch (err) {
     console.error(err);
-    alert('POS 결제 확인 처리 실패');
+    alert('결제 완료 처리 실패');
   }
 });
+
   // 🔴 결제취소 버튼 → 사유 입력 모달 열기
 document.body.addEventListener('click', (e) => {
   if (e.target.dataset.action !== 'cancel-payment') return;
