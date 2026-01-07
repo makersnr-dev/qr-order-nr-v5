@@ -838,7 +838,7 @@ export async function renderDeliv() {
 export function attachGlobalHandlers() {
 
   // 1️⃣ 결제 완료 버튼 클릭 → 확인 모달 열기
-document.body.addEventListener('click', (e) => {
+/*document.body.addEventListener('click', (e) => {
   const btn = e.target;
   if (!btn || btn.dataset.action !== 'mark-paid') return;
 
@@ -853,10 +853,10 @@ document.body.addEventListener('click', (e) => {
 
   modal.style.display = 'flex';
 });
+*/
 
 
-
-  // 2️⃣ 상태 변경 (대기 / 조리중 / 완료)
+  // 2️⃣ 상태 변경
   document.body.addEventListener('change', async (e) => {
   const sel = e.target;
   if (sel.tagName !== 'SELECT') return;
@@ -884,7 +884,7 @@ document.body.addEventListener('click', (e) => {
   });*/
 
     // 4️⃣ 결제 완료 모달 - 확인 / 취소 버튼 처리
-  document.body.addEventListener('click', async (e) => {
+ /* document.body.addEventListener('click', async (e) => {
 
     // ❌ 취소 버튼
     if (e.target.id === 'pay-cancel') {
@@ -932,7 +932,7 @@ document.body.addEventListener('click', (e) => {
         alert('결제 완료 처리 실패');
       }
     }
-  });
+  });*/
 
   // 주문 상세 모달 열기
 document.body.addEventListener('click', (e) => {
