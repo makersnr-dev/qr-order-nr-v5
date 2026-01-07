@@ -327,12 +327,11 @@ async function handlePut(req, res) {
    // 🔒 상태 전이 규칙 (구조 고정)
 
   const { id, orderId, status, meta } = req.body || {};
-   if (typeof status !== 'string') {
-  return json(res, {
-    ok: false,
-    error: 'STATUS_REQUIRED'
-  }, 400);
-}
+
+  if (!id && !orderId) {
+    return json(res, { ok: false, error: "MISSING_ID" }, 400);
+  }
+
 
   if (!id && !orderId) {
     return json(res, { ok: false, error: "MISSING_ID" }, 400);
