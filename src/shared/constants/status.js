@@ -5,6 +5,22 @@
  * ❗ 상태 이름 변경 금지
  */
 
+/**
+ * ⚠️ ORDER STATUS FLOW (STRUCTURE LOCKED)
+ *
+ * 이 파일은 주문 상태 전이의 유일한 기준이다.
+ *
+ * ❌ 프론트에서 임의로 상태 변경 금지
+ * ❌ 결제 완료 = 상태 변경으로 해석 금지
+ * ❌ 여기 없는 상태 전이 절대 추가 금지
+ *
+ * ✅ 상태 변경은 반드시 PUT /api/orders
+ * ✅ 서버에서 STATUS_FLOW 기준으로 검증
+ *
+ * ⛔ DB 전환 시에도 이 구조는 그대로 유지한다.
+ */
+
+
 // 주문 유형별 상태 목록
 export const STATUS_LIST = {
   store: [
