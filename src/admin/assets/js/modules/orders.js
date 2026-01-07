@@ -551,18 +551,15 @@ async function renderStoreTable() {
           ` : ''}
 
     
-          ${
-            status === '주문접수'
-              ? `
-                <button
-                  class="btn small primary"
-                  data-action="confirm-pos-paid"
-                  data-id="${o.id || o.orderId || ''}">
-                  POS 결제 확인
-                </button>
-              `
-              : ''
-          }
+         ${status === '주문접수' ? `
+            <button
+              class="btn small primary"
+              data-action="confirm-pos-paid"
+              data-id="${o.id || o.orderId || ''}">
+              POS 결제 확인
+            </button>
+          ` : ''}
+          
     
           ${(() => {
           const current = status;
@@ -993,21 +990,10 @@ document.body.addEventListener('click', (e) => {
   document.getElementById('order-detail-modal').style.display = 'flex';
 });
 
-// 🟢 POS 결제 확인 버튼
+
+  // 🟢 POS 결제 확인 버튼
 document.body.addEventListener('click', async (e) => {
   if (e.target.dataset.action !== 'confirm-pos-paid') return;
-  // 🔴 결제취소 버튼 클릭 → 사유 입력 모달
-  document.body.addEventListener('click', (e) => {
-    if (e.target.dataset.action !== 'cancel-payment') return;
-  
-    const id = e.target.dataset.id;
-    if (!id) return;
-  
-    const modal = document.getElementById('cancel-reason-modal');
-    modal.dataset.orderId = id;
-    modal.style.display = 'flex';
-  });
-
 
   const id = e.target.dataset.id;
   if (!id) return;
@@ -1023,6 +1009,31 @@ document.body.addEventListener('click', async (e) => {
     alert('POS 결제 확인 처리 실패');
   }
 });
+  // 🔴 결제취소 버튼 → 사유 입력 모달 열기
+document.body.addEventListener('click', (e) => {
+  if (e.target.dataset.action !== 'cancel-payment') return;
+
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+  const orders = loadStoreCache(storeId);
+  const order = orders.find(o => (o.id || o.orderId) === id);
+
+  if (!order || order.status !== '주문완료') {
+    alert('결제 완료된 주문만 결제취소할 수 있습니다.');
+    return;
+  }
+
+  const modal = document.getElementById('cancel-reason-modal');
+  modal.dataset.orderId = id;
+  modal.dataset.cancelStatus = '결제취소'; // 🔥 여기서 명확히
+  modal.style.display = 'flex';
+});
+
+
+
+
 // 📱 모바일 카드 상태 버튼 처리
 document.body.addEventListener('click', async (e) => {
   const btn = e.target;
@@ -1074,3 +1085,40 @@ document.body.addEventListener('click', async (e) => {
 
 
 }
+
+document.getElementById('cancel-reason-close')
+  ?.addEventListener('click', () => {
+    document.getElementById('cancel-reason-modal').style.display = 'none';
+  });
+
+document.getElementById('cancel-reason-confirm')
+  ?.addEventListener('click', async () => {
+
+  const modal = document.getElementById('cancel-reason-modal');
+  const id = modal.dataset.orderId;
+  const status = modal.dataset.cancelStatus; // ← 의미 있음
+  const reason = document.getElementById('cancel-reason-input').value.trim();
+
+  if (!reason) {
+    alert('취소 사유를 입력하세요.');
+    return;
+  }
+
+  try {
+    await changeOrderStatus({
+      id,
+      status,
+      type: 'store'
+    });
+
+
+    document.getElementById('cancel-reason-input').value = '';
+    modal.style.display = 'none';
+    
+
+  } catch (err) {
+    console.error(err);
+    alert('결제 취소 처리 실패');
+  }
+});
+
