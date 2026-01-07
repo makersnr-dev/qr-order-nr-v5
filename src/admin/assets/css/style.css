@@ -198,3 +198,44 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   font-size:14px;
 }
 
+/* ===============================
+   📱 메뉴관리 모바일 카드화
+=============================== */
+@media (max-width: 768px) {
+
+  /* 메뉴관리 테이블만 카드처럼 */
+  #m-body tr {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  #m-body td {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    padding: 6px 0;
+  }
+
+  #m-body td::before {
+    content: attr(data-label);
+    width: 72px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  #m-body input,
+  #m-body select {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  #m-body .right {
+    justify-content: flex-end;
+    gap: 6px;
+  }
+}
