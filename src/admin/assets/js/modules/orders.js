@@ -31,6 +31,12 @@ const UI_TEXT = {
 
 async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
+  
+   // 🚨 안전 가드: 취소/상태 변경만 허용
+  if (!['주문접수','준비중','주문완료','주문취소','결제취소'].includes(status)) {
+    console.warn('[BLOCKED] invalid status change attempt:', status);
+    return;
+  }
 
   const storeId = window.qrnrStoreId || 'store1';
 
