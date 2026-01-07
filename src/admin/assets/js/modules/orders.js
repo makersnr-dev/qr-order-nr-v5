@@ -417,9 +417,19 @@ function renderStoreMobile() {
 
     // ✅ 3. 버튼 HTML 생성
     const buttons = nextList.length
-      ? nextList.map(s =>
-          `<button data-id="${o.id}" data-status="${s}">${s}</button>`
-        ).join('')
+      ?nextList.map(s => {
+        if (s === '결제취소' || s === '주문취소') {
+          return `
+            <button
+              data-action="${s === '결제취소' ? 'cancel-payment' : 'cancel-order'}"
+              data-id="${o.id}">
+              ${s}
+            </button>
+          `;
+        }
+        return `<button data-id="${o.id}" data-status="${s}">${s}</button>`;
+      }).join('')
+
       : `<span class="small">상태 변경 불가</span>`;
 
     // ✅ 4. HTML에 결과만 삽입
