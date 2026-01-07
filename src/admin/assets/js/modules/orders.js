@@ -2,6 +2,25 @@
 import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
 const isMobile = () => window.innerWidth <= 768;
+// ✅ 상태 흐름 기준표 (UI용)
+const STATUS_FLOW = {
+  store: {
+    주문접수: ['준비중', '주문취소'],
+    준비중: ['주문완료', '결제취소'],
+    주문완료: [],
+    주문취소: [],
+    결제취소: []
+  },
+
+  delivery: {
+    '입금 미확인': ['주문접수', '주문취소'],
+    주문접수: ['준비중', '주문취소'],
+    준비중: ['주문완료', '주문취소'],
+    주문완료: [],
+    주문취소: []
+  }
+};
+
 
 async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
@@ -367,6 +386,8 @@ export async function renderStore() {
   }
   return renderStoreTable();
 }
+
+
 function renderStoreMobile() {
   const wrap = document.getElementById('mobile-store-list');
   if (!wrap) return;
@@ -380,6 +401,20 @@ function renderStoreMobile() {
     const div = document.createElement('div');
     div.className = 'order-card';
 
+    // ✅ 1. 현재 상태
+    const current = o.status || '주문접수';
+
+    // ✅ 2. 다음 가능 상태 목록
+    const nextList = STATUS_FLOW.store[current] || [];
+
+    // ✅ 3. 버튼 HTML 생성
+    const buttons = nextList.length
+      ? nextList.map(s =>
+          `<button data-id="${o.id}" data-status="${s}">${s}</button>`
+        ).join('')
+      : `<span class="small">상태 변경 불가</span>`;
+
+    // ✅ 4. HTML에 결과만 삽입
     div.innerHTML = `
       <div class="order-card-header">
         <strong>${fmtDateTimeFromOrder(o)}</strong>
@@ -395,16 +430,16 @@ function renderStoreMobile() {
       </div>
 
       <div class="order-actions">
-        <button data-id="${o.id}" data-status="준비중">준비중</button>
-        <button data-id="${o.id}" data-status="주문완료">완료</button>
-        <button data-id="${o.id}" data-status="주문취소">취소</button>
-        <button data-id="${o.id}" data-status="결제취소">결제취소</button>
+        ${buttons}
       </div>
     `;
 
     wrap.appendChild(div);
   });
 }
+
+
+
 async function renderStoreTable() {
   const tbody = $('#tbody-store');
   if (!tbody) return;
@@ -520,20 +555,27 @@ async function renderStoreTable() {
               : ''
           }
     
-          <select
-            class="input"
-            style="width:100px"
-            data-type="store"
-            data-id="${o.id || o.orderId || ''}"
-            
-          >
-            <option ${status === '주문접수' ? 'selected' : ''}>주문접수</option>
-            <option ${status === '준비중' ? 'selected' : ''}>준비중</option>
-            <option ${status === '주문완료' ? 'selected' : ''}>주문완료</option>
-            <option ${status === '주문취소' ? 'selected' : ''}>주문취소</option>
-            <option ${status === '결제취소' ? 'selected' : ''}>결제취소</option>
+          ${(() => {
+          const current = status;
+          const nextList = STATUS_FLOW.store[current] || [];
+        
+          const options = [
+            `<option selected>${current}</option>`,
+            ...nextList.map(s => `<option>${s}</option>`)
+          ].join('');
+        
+          return `
+            <select
+              class="input"
+              style="width:100px"
+              data-type="store"
+              data-id="${o.id || o.orderId || ''}"
+            >
+              ${options}
+            </select>
+          `;
+        })()}
 
-          </select>
     
         </div>
       </td>
@@ -704,19 +746,27 @@ export async function renderDeliv() {
             : 'badge-wait'
         }"></span>
 
-          <select
-            class="input"
-            style="width:90px"
-            data-type="delivery"
-            data-id="${o.id || o.orderId || ''}"
-          >
-            <option ${status === '입금 미확인' ? 'selected' : ''}>입금 미확인</option>
-            <option ${status === '주문접수' ? 'selected' : ''}>주문접수</option>
-            <option ${status === '준비중' ? 'selected' : ''}>준비중</option>
-            <option ${status === '주문완료' ? 'selected' : ''}>주문완료</option>
-            <option ${status === '주문취소' ? 'selected' : ''}>주문취소</option>
+          ${(() => {
+            const current = status;
+            const nextList = STATUS_FLOW.delivery[current] || [];
+          
+            const options = [
+              `<option selected>${current}</option>`,
+              ...nextList.map(s => `<option>${s}</option>`)
+            ].join('');
+          
+            return `
+              <select
+                class="input"
+                style="width:90px"
+                data-type="delivery"
+                data-id="${o.id || o.orderId || ''}"
+              >
+                ${options}
+              </select>
+            `;
+          })()}
 
-          </select>
         </div>
       </td>
     `;
