@@ -20,6 +20,13 @@ const STATUS_FLOW = {
     주문취소: []
   }
 };
+const UI_TEXT = {
+  ORDER_CANCEL: '주문취소',
+  PAYMENT_CANCEL: '결제취소',
+  POS_PAID: 'POS 결제 확인',
+  PAID_DONE: '결제 완료',
+  CANCEL_REASON_REQUIRED: '취소 사유를 입력하세요.'
+};
 
 
 async function changeOrderStatus({ id, status, type }) {
@@ -551,6 +558,16 @@ async function renderStoreTable() {
             </button>
           ` : ''}
 
+
+          ${['주문접수','준비중','주문완료'].includes(status) ? `
+            <button
+              class="btn small danger"
+              data-action="cancel-order"
+              data-id="${o.id || o.orderId}">
+              ${UI_TEXT.ORDER_CANCEL}
+            </button>
+          ` : ''}
+
     
          ${status === '주문접수' && !o.meta?.payment?.paid ? `
             <button
@@ -1053,10 +1070,15 @@ document.body.addEventListener('click', (e) => {
   const orders = loadStoreCache(storeId);
   const order = orders.find(o => (o.id || o.orderId) === id);
 
-  if (!order || !['준비중', '주문완료'].includes(order.status)) {
-  alert('준비중 또는 주문완료 상태에서만 결제취소할 수 있습니다.');
-  return;
-}
+  if (
+    !order ||
+    !order.meta?.payment?.paid ||
+    !['준비중', '주문완료'].includes(order.status)
+  ) {
+    alert('결제 완료된 주문만 결제취소할 수 있습니다.');
+    return;
+  }
+
 
 
   const modal = document.getElementById('cancel-reason-modal');
@@ -1117,6 +1139,19 @@ document.body.addEventListener('click', async (e) => {
   }
 });*/
 
+  
+document.body.addEventListener('click', (e) => {
+  if (e.target.dataset.action !== 'cancel-order') return;
+
+  const id = e.target.dataset.id;
+  if (!id) return;
+
+  const modal = document.getElementById('cancel-reason-modal');
+  modal.dataset.orderId = id;
+  modal.dataset.cancelStatus = '주문취소';
+  modal.style.display = 'flex';
+});
+
 
 }
 
@@ -1125,34 +1160,46 @@ document.getElementById('cancel-reason-close')
     document.getElementById('cancel-reason-modal').style.display = 'none';
   });
 
+
 document.getElementById('cancel-reason-confirm')
   ?.addEventListener('click', async () => {
 
   const modal = document.getElementById('cancel-reason-modal');
   const id = modal.dataset.orderId;
-  const status = modal.dataset.cancelStatus; // ← 의미 있음
+  const status = modal.dataset.cancelStatus;
   const reason = document.getElementById('cancel-reason-input').value.trim();
 
   if (!reason) {
-    alert('취소 사유를 입력하세요.');
+    alert(UI_TEXT.CANCEL_REASON_REQUIRED);
     return;
   }
 
   try {
-    await changeOrderStatus({
-      id,
-      status,
-      type: 'store'
-    });
-
+    await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          status,
+          meta: {
+            cancel: {
+              reason,
+              at: new Date().toISOString()
+            }
+          }
+        })
+      });
+      
+      updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
 
     document.getElementById('cancel-reason-input').value = '';
     modal.style.display = 'none';
-    
+
+    await renderStore();
 
   } catch (err) {
     console.error(err);
-    alert('결제 취소 처리 실패');
+    alert('취소 처리 실패');
   }
 });
 
