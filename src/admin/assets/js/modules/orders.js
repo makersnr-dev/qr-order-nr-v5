@@ -1013,7 +1013,7 @@ document.body.addEventListener('click', (e) => {
   // 🔥 옵션 줄바꿈 핵심
  const cancelReason =
   order.meta?.cancel?.reason
-    ? `취소 사유: ${order.meta.cancel.reason}`
+    ? `❌ 취소 사유: ${order.meta.cancel.reason}`
     : '';
 
 const header = [
