@@ -376,3 +376,12 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 .toast.show {
   opacity: 1;
 }
+
+.badge-paid {
+  background: #2ea043;
+  color: white;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
