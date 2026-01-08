@@ -46,8 +46,7 @@ function showToast(msg) {
 
 async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
-  
-   // 🚨 안전 가드: 취소/상태 변경만 허용
+
   if (!['주문접수','준비중','주문완료','주문취소','결제취소'].includes(status)) {
     console.warn('[BLOCKED] invalid status change attempt:', status);
     return;
@@ -55,10 +54,23 @@ async function changeOrderStatus({ id, status, type }) {
 
   const storeId = window.qrnrStoreId || 'store1';
 
+  const historyItem = {
+    at: new Date().toISOString(),
+    status,
+    by: 'admin',
+    note: '상태 변경'
+  };
+
   const res = await fetch('/api/orders', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ id, status })
+    body: JSON.stringify({
+      id,
+      status,
+      metaAppend: {
+        history: historyItem
+      }
+    })
   });
 
   const data = await res.json();
@@ -70,8 +82,8 @@ async function changeOrderStatus({ id, status, type }) {
 
   if (type === 'store') await renderStore();
   if (type === 'delivery') await renderDeliv();
-
 }
+
 
 
 
@@ -591,10 +603,8 @@ async function renderStoreTable() {
       ` : o.meta?.payment?.paid ? `
         <span class="badge-paid">결제완료</span>
       ` : ''}
-
     
       ${status === '결제취소' ? `
-        <span class="badge-cancel-text">결제취소됨</span>
       ` : ''}
     </div>
 
@@ -1055,6 +1065,16 @@ const header = [
   cancelReason
 ].filter(Boolean).join('\n');
 
+const historyLines = (order.meta?.history || [])
+  .map(h => {
+    const t = new Date(h.at).toLocaleString();
+    return `- ${t} ${h.status}${h.note ? ` (${h.note})` : ''}`;
+  })
+  .join('\n');
+
+const historyBlock = historyLines
+  ? `\n\n상태 변경 이력:\n${historyLines}`
+  : '';
 
 
 const body =
@@ -1070,7 +1090,8 @@ const body =
 
 
 document.getElementById('order-detail-body').textContent =
-  header + '\n\n' + body;
+  header + historyBlock + '\n\n' + body;
+
 
 document.getElementById('order-detail-modal').style.display = 'flex';
 
@@ -1143,8 +1164,17 @@ document.body.addEventListener('click', async (e) => {
             paidAt: new Date().toISOString(),
             method: 'POS'
           }
+        },
+        metaAppend: {
+          history: {
+            at: new Date().toISOString(),
+            status: 'PAYMENT_CONFIRMED',
+            by: 'admin',
+            note: 'POS 결제 확인'
+          }
         }
       })
+
     });
 
     await renderStore(); // 버튼만 사라짐
@@ -1282,8 +1312,17 @@ document.getElementById('cancel-reason-confirm')
               reason,
               at: new Date().toISOString()
             }
+          },
+          metaAppend: {
+            history: {
+              at: new Date().toISOString(),
+              status,
+              by: 'admin',
+              note: reason
+            }
           }
         })
+
       });
       
       updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
