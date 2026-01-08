@@ -28,6 +28,21 @@ const UI_TEXT = {
   CANCEL_REASON_REQUIRED: '취소 사유를 입력하세요.'
 };
 
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 200);
+  }, 1500);
+}
+
+
 
 async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
@@ -55,6 +70,7 @@ async function changeOrderStatus({ id, status, type }) {
 
   if (type === 'store') await renderStore();
   if (type === 'delivery') await renderDeliv();
+
 }
 
 
@@ -566,6 +582,10 @@ async function renderStoreTable() {
           : 'badge-wait'
       }"></span>
       <strong>${status}</strong>
+
+      ${o.meta?.payment?.paid ? `
+    <span class="badge-paid">결제완료</span>
+  ` : ''}
     </div>
 
     <!-- 상태 변경 -->
@@ -633,7 +653,8 @@ ${!o.meta?.payment?.paid ? `
       options: i.options || [] // ✅ 문자열화는 여기서 한 번만
     })),
     total: o.amount || 0,
-    status: o.status || '대기'
+    status: o.status || '대기',
+    meta: o.meta || {}
   }));
 });
 
@@ -896,13 +917,15 @@ export function attachGlobalHandlers() {
   }
 
   // 🟢 일반 상태 변경만 즉시 처리
-  try {
+   try {
     await changeOrderStatus({ id, status: nextStatus, type });
+    showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`);
   } catch (err) {
     alert('상태 변경 실패');
     console.error(err);
   }
-});
+  
+  });
 
 
 
@@ -1228,6 +1251,7 @@ document.getElementById('cancel-reason-confirm')
     modal.style.display = 'none';
 
     await renderStore();
+  showToast(`${status} 처리되었습니다.`);
 
   } catch (err) {
     console.error(err);
