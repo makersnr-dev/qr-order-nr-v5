@@ -579,14 +579,22 @@ async function renderStoreTable() {
           ? 'badge-done'
           : status === '준비중'
           ? 'badge-cook'
+          : status === '결제취소'
+          ? 'badge-cancel'
           : 'badge-wait'
       }"></span>
+    
       <strong>${status}</strong>
-
+    
       ${o.meta?.payment?.paid ? `
-    <span class="badge-paid">결제완료</span>
-  ` : ''}
+        <span class="badge-paid">결제완료</span>
+      ` : ''}
+    
+      ${status === '결제취소' ? `
+        <span class="badge-cancel-text">결제취소됨</span>
+      ` : ''}
     </div>
+
 
     <!-- 상태 변경 -->
     <div class="order-select-line">
@@ -602,9 +610,10 @@ async function renderStoreTable() {
         });
       
         const options = [
-          `<option selected>${current}</option>`,
-          ...nextList.map(s => `<option>${s}</option>`)
+          `<option value="" selected disabled>${current}</option>`,
+          ...nextList.map(s => `<option value="${s}">${s}</option>`)
         ].join('');
+
       
         return `
           <select
