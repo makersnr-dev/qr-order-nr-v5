@@ -246,49 +246,6 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 ================================ */
 @media (max-width: 768px) {
 
-  /* 테이블 자체 스크롤 제거 */
-  .table {
-    display: block;
-    overflow: visible;
-    white-space: normal;
-  }
-
-  /* 한 주문 = 카드 */
-  .table tbody tr {
-    display: block;
-    background: #111922;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 14px;
-  }
-
-  /* 각 칸을 세로로 */
-  .table tbody td {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    border: none;
-    padding: 6px 0;
-    white-space: normal;
-  }
-
-  /* td 앞에 라벨 붙이기 */
-  .table tbody td::before {
-    content: attr(data-label);
-    width: 80px;
-    font-size: 12px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-}
-
-/* ===============================
-   📱 주문 테이블 모바일 카드화
-   (매장주문 + 예약주문 공통)
-================================ */
-@media (max-width: 768px) {
-
   /* ✅ 테이블 헤더 완전히 숨기기 */
   .table thead {
     display: none;
@@ -382,12 +339,13 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 12px;
-  background: #2ea043;
-  color: #fff;
+  background: #2ecc71;
+  color: #000;
 }
 
 .badge-cancel {
-  background: #ff6b6b;
+  background: #ff5c5c;
+  color: #fff;
 }
 
 .badge-cancel-text {
@@ -396,5 +354,21 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   color: #ff6b6b;
   font-weight: 600;
 }
+
+
+/* 취소 사유 모달 */
+#cancel-reason-modal textarea {
+  color: #111;
+  background: #fff;
+}
+
+#cancel-reason-modal textarea::placeholder {
+  color: #888;
+}
+
+#cancel-reason-modal button {
+  color: #111;
+}
+
 
 
