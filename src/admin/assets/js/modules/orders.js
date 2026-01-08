@@ -399,7 +399,7 @@ export async function renderStore() {
 }
 
 
-function renderStoreMobile() {
+/*function renderStoreMobile() {
   const wrap = document.getElementById('mobile-store-list');
   if (!wrap) return;
 
@@ -457,7 +457,7 @@ function renderStoreMobile() {
 
     wrap.appendChild(div);
   });
-}
+}*/
 
 
 
@@ -563,24 +563,6 @@ async function renderStoreTable() {
               ? 'badge-cook'
               : 'badge-wait'
           }"></span>
-          
-          ${status === '주문완료' ? `
-            <button
-              class="btn small danger"
-              data-action="cancel-payment"
-              data-id="${o.id || o.orderId}">
-              결제취소
-            </button>
-          ` : ''}
-    
-          ${['주문접수','준비중','주문완료'].includes(status) ? `
-            <button
-              class="btn small danger"
-              data-action="cancel-order"
-              data-id="${o.id || o.orderId}">
-              ${UI_TEXT.ORDER_CANCEL}
-            </button>
-          ` : ''}
     
           ${status === '주문접수' && !o.meta?.payment?.paid ? `
             <button
@@ -593,12 +575,19 @@ async function renderStoreTable() {
     
           ${(() => {
             const current = status;
-            const nextList = STATUS_FLOW.store[current] || [];
+            const nextList = (STATUS_FLOW.store[current] || []).filter(s => {
+            // 🔥 결제취소는 "결제 완료된 주문"만 가능
+            if (s === '결제취소') {
+              return o.meta?.payment?.paid === true;
+            }
+            return true;
+          });
           
-            const options = [
-              `<option selected>${current}</option>`,
-              ...nextList.map(s => `<option>${s}</option>`)
-            ].join('');
+          const options = [
+            `<option selected>${current}</option>`,
+            ...nextList.map(s => `<option>${s}</option>`)
+          ].join('');
+
           
             return `
               <select
@@ -872,15 +861,37 @@ export function attachGlobalHandlers() {
 
   const id = sel.dataset.id;
   const type = sel.dataset.type;
-  const status = sel.value;
+  const nextStatus = sel.value;
 
+  if (!id || !type || !nextStatus) return;
+
+  // 🔴 취소 계열은 바로 처리하지 않음
+  if (nextStatus === '주문취소' || nextStatus === '결제취소') {
+    const modal = document.getElementById('cancel-reason-modal');
+    if (!modal) {
+      alert('취소 사유 모달이 없습니다.');
+      sel.value = sel.options[0].value; // 원래 상태로 되돌림
+      return;
+    }
+
+    modal.dataset.orderId = id;
+    modal.dataset.cancelStatus = nextStatus;
+    modal.style.display = 'flex';
+
+    // select 값 원래대로 되돌리기 (확정은 모달에서)
+    sel.value = sel.options[0].value;
+    return;
+  }
+
+  // 🟢 일반 상태 변경만 즉시 처리
   try {
-    await changeOrderStatus({ id, status, type });
+    await changeOrderStatus({ id, status: nextStatus, type });
   } catch (err) {
     alert('상태 변경 실패');
     console.error(err);
   }
 });
+
 
 
 
