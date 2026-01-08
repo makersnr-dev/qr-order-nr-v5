@@ -4,3 +4,24 @@ html, body, .container, .card, .panel, .tab, .table, .toolbar { color:#fff !impo
 h1,h2,h3,h4,h5,h6,p,span,small,label,legend,th,td,li,dt,dd { color:#fff !important; }
 input, select, textarea, button { color:#fff !important; }
 ::placeholder { color:#ddd !important; opacity:1; }
+/* =========================
+   🔥 취소 사유 모달 예외 처리 (필수)
+========================= */
+
+#cancel-reason-modal textarea {
+  color: #111 !important;
+  background: #ffffff !important;
+  border: 2px solid #cbd5e1 !important;
+}
+
+#cancel-reason-modal textarea::placeholder {
+  color: #64748b !important;
+}
+
+#cancel-reason-modal button {
+  color: #111 !important;
+}
+
+#cancel-reason-modal button.danger {
+  color: #fff !important;
+}
