@@ -553,56 +553,61 @@ async function renderStoreTable() {
     
       <td data-label="금액">${fmt(amount)}</td>
     
-      <td data-label="상태/처리">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      
-          <span class="badge-dot ${
-            status === '주문완료'
-              ? 'badge-done'
-              : status === '준비중'
-              ? 'badge-cook'
-              : 'badge-wait'
-          }"></span>
-    
-          ${status === '주문접수' && !o.meta?.payment?.paid ? `
-            <button
-              class="btn small primary"
-              data-action="confirm-pos-paid"
-              data-id="${o.id || o.orderId || ''}">
-              POS 결제 확인
-            </button>
-          ` : ''}
-    
-          ${(() => {
-            const current = status;
-            const nextList = (STATUS_FLOW.store[current] || []).filter(s => {
-            // 🔥 결제취소는 "결제 완료된 주문"만 가능
-            if (s === '결제취소') {
-              return o.meta?.payment?.paid === true;
-            }
-            return true;
-          });
-          
-          const options = [
-            `<option selected>${current}</option>`,
-            ...nextList.map(s => `<option>${s}</option>`)
-          ].join('');
+    <td data-label="상태">
+  <div class="order-status-box">
 
-          
-            return `
-              <select
-                class="input"
-                style="width:100px"
-                data-type="store"
-                data-id="${o.id || o.orderId || ''}"
-              >
-                ${options}
-              </select>
-            `;
-          })()}
-    
-        </div>
-      </td>
+    <!-- 현재 상태 표시 -->
+    <div class="order-status-line">
+      <span class="badge-dot ${
+        status === '주문완료'
+          ? 'badge-done'
+          : status === '준비중'
+          ? 'badge-cook'
+          : 'badge-wait'
+      }"></span>
+      <strong>${status}</strong>
+    </div>
+
+    <!-- 상태 변경 -->
+    <div class="order-select-line">
+      ${(() => {
+        const current = status;
+        const nextList = STATUS_FLOW.store[current] || [];
+
+        if (!nextList.length) return '';
+
+        const options = [
+          `<option selected disabled>상태 변경</option>`,
+          ...nextList.map(s => `<option>${s}</option>`)
+        ].join('');
+
+        return `
+          <select
+            class="input"
+            data-type="store"
+            data-id="${o.id || o.orderId || ''}"
+          >
+            ${options}
+          </select>
+        `;
+      })()}
+    </div>
+
+    <!-- POS 결제 확인 -->
+    ${status === '주문접수' && !o.meta?.payment?.paid ? `
+      <div class="order-action-line">
+        <button
+          class="btn primary"
+          data-action="confirm-pos-paid"
+          data-id="${o.id || o.orderId || ''}">
+          POS 결제 확인
+        </button>
+      </div>
+    ` : ''}
+
+  </div>
+</td>
+
     `;
     tbody.appendChild(tr);
   });
