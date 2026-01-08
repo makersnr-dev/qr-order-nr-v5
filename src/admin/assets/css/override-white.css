@@ -52,3 +52,11 @@ input, select, textarea, button { color:#fff !important; }
   border-color: #ef4444 !important;
   color: #fff !important;
 }
+
+/* =========================
+   모달 최상위 오버레이 강제 다크
+========================= */
+#cancel-reason-modal {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
