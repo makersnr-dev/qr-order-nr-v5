@@ -586,9 +586,12 @@ async function renderStoreTable() {
     
       <strong>${status}</strong>
     
-      ${o.meta?.payment?.paid ? `
+      ${o.status === '결제취소' ? `
+        <span class="badge-cancel">결제취소됨</span>
+      ` : o.meta?.payment?.paid ? `
         <span class="badge-paid">결제완료</span>
       ` : ''}
+
     
       ${status === '결제취소' ? `
         <span class="badge-cancel-text">결제취소됨</span>
@@ -1054,18 +1057,17 @@ const header = [
 
 
 
-const body = (order.cart || []).map(i => {
-  let line = `${i.name} x${i.qty}`;
-  if (Array.isArray(i.options) && i.options.length) {
-    const opts = normalizeOptions(i.options);
-    if (opts.length) {
-      line += '\n' + opts.map(opt => ` └ ${opt}`).join('\n');
+const body =
+  '📦 주문 메뉴\n\n' +
+  (order.cart || []).map(i => {
+    let line = `• ${i.name} x${i.qty}`;
+    if (Array.isArray(i.options) && i.options.length) {
+      const opts = normalizeOptions(i.options);
+      line += '\n' + opts.map(opt => `   └ ${opt}`).join('\n');
     }
-    
+    return line;
+  }).join('\n\n');
 
-  }
-  return line;
-}).join('\n\n');
 
 document.getElementById('order-detail-body').textContent =
   header + '\n\n' + body;
