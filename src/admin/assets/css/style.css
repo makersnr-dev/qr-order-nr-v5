@@ -357,16 +357,10 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 
 
 /* =========================
-   취소 사유 모달 - 최종 안정 버전
+   취소 사유 모달 (정합 버전)
 ========================= */
 
-#cancel-reason-modal {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#cancel-reason-modal .modal-box {
+#cancel-reason-modal .cancel-reason-box {
   background: #f9fafb;
   color: #111;
   padding: 22px;
@@ -388,22 +382,21 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   height: 90px;
   background: #ffffff;
   color: #111;
-  border: 2px solid #cbd5e1;   /* 🔥 핵심 */
+  border: 2px solid #cbd5e1;
   border-radius: 10px;
   padding: 12px;
   font-size: 14px;
-  line-height: 1.5;
   resize: none;
 }
 
 #cancel-reason-modal textarea:focus {
   outline: none;
-  border-color: #2ea043;       /* 관리자 primary 컬러 */
+  border-color: #2ea043;
 }
 
 /* placeholder */
 #cancel-reason-modal textarea::placeholder {
-  color: #64748b;              /* 회색이지만 또렷 */
+  color: #64748b;
 }
 
 /* 버튼 영역 */
@@ -414,7 +407,6 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   margin-top: 14px;
 }
 
-/* 취소 버튼 */
 #cancel-reason-modal button {
   min-width: 72px;
   padding: 8px 14px;
@@ -422,18 +414,15 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   border: 1px solid #cbd5e1;
   background: #e5e7eb;
   color: #111;
-  font-size: 14px;
   cursor: pointer;
 }
 
-/* 확인 버튼 */
 #cancel-reason-modal button.danger {
   background: #ef4444;
   border-color: #ef4444;
   color: #fff;
   font-weight: 600;
 }
-
 
 
 
