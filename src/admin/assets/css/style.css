@@ -330,3 +330,29 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
     flex-shrink: 0;
   }
 }
+
+/* =========================
+   매장주문 상태 영역 정리
+========================= */
+
+.order-status-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.order-select-line select {
+  width: 100%;
+}
+
+.order-action-line button {
+  width: 100%;
+}
+
