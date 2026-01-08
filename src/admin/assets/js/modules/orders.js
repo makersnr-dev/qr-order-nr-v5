@@ -572,15 +572,20 @@ async function renderStoreTable() {
     <div class="order-select-line">
       ${(() => {
         const current = status;
-        const nextList = STATUS_FLOW.store[current] || [];
-
-        if (!nextList.length) return '';
-
+      
+        const nextList = (STATUS_FLOW.store[current] || []).filter(s => {
+          // 🔥 결제취소는 결제 완료 후에만
+          if (s === '결제취소') {
+            return o.meta?.payment?.paid === true;
+          }
+          return true;
+        });
+      
         const options = [
-          `<option selected disabled>상태 변경</option>`,
+          `<option selected>${current}</option>`,
           ...nextList.map(s => `<option>${s}</option>`)
         ].join('');
-
+      
         return `
           <select
             class="input"
@@ -591,19 +596,21 @@ async function renderStoreTable() {
           </select>
         `;
       })()}
+
     </div>
 
     <!-- POS 결제 확인 -->
-    ${status === '주문접수' && !o.meta?.payment?.paid ? `
-      <div class="order-action-line">
-        <button
-          class="btn primary"
-          data-action="confirm-pos-paid"
-          data-id="${o.id || o.orderId || ''}">
-          POS 결제 확인
-        </button>
-      </div>
-    ` : ''}
+${!o.meta?.payment?.paid ? `
+  <div class="order-action-line">
+    <button
+      class="btn primary"
+      data-action="confirm-pos-paid"
+      data-id="${o.id || o.orderId || ''}">
+      POS 결제 확인
+    </button>
+  </div>
+` : ''}
+
 
   </div>
 </td>
