@@ -378,10 +378,23 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 }
 
 .badge-paid {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
   background: #2ea043;
-  color: white;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
+  color: #fff;
 }
+
+.badge-cancel {
+  background: #ff6b6b;
+}
+
+.badge-cancel-text {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
 
