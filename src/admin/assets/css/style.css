@@ -370,5 +370,52 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   color: #111;
 }
 
+/* =========================
+   취소 사유 모달 가독성 보완
+========================= */
+
+#cancel-reason-modal .modal-box {
+  background: #ffffff;
+  color: #111;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 420px;
+}
+
+#cancel-reason-modal textarea {
+  background: #ffffff;
+  color: #111;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+#cancel-reason-modal textarea::placeholder {
+  color: #666;
+}
+
+#cancel-reason-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#cancel-reason-modal button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #f3f3f3;
+  color: #111;
+  cursor: pointer;
+}
+
+#cancel-reason-modal button.danger {
+  background: #ff5c5c;
+  color: #fff;
+  border-color: #ff5c5c;
+}
 
 
