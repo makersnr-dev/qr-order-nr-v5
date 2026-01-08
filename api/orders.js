@@ -374,8 +374,22 @@ async function handlePut(req, res) {
     }, 400);
   }
 
+  // 🔒 결제취소는 "결제 완료된 주문"만 허용
+  if (status === '결제취소') {
+    const paid = target.meta?.payment?.paid === true;
+
+    if (!paid) {
+      return json(res, {
+        ok: false,
+        error: 'PAYMENT_NOT_CONFIRMED',
+        message: '결제 완료된 주문만 결제취소할 수 있습니다.'
+      }, 400);
+    }
+  }
+
   target.status = status;
 }
+
 
 
   if (meta && typeof meta === "object" && !Array.isArray(meta)) {
