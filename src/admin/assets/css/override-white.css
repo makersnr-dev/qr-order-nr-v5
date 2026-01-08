@@ -4,24 +4,51 @@ html, body, .container, .card, .panel, .tab, .table, .toolbar { color:#fff !impo
 h1,h2,h3,h4,h5,h6,p,span,small,label,legend,th,td,li,dt,dd { color:#fff !important; }
 input, select, textarea, button { color:#fff !important; }
 ::placeholder { color:#ddd !important; opacity:1; }
+
 /* =========================
-   🔥 취소 사유 모달 예외 처리 (필수)
+   취소 사유 모달 - 다크 테마 고정
 ========================= */
 
+/* 모달 박스 */
+#cancel-reason-modal .modal-box {
+  background: #0f141a !important;   /* 관리자 bg */
+  color: #e6edf3 !important;
+  border: 1px solid #263241;
+}
+
+/* 제목 */
+#cancel-reason-modal h3 {
+  color: #e6edf3 !important;
+}
+
+/* textarea */
 #cancel-reason-modal textarea {
-  color: #111 !important;
-  background: #ffffff !important;
-  border: 2px solid #cbd5e1 !important;
+  background: #0b1620 !important;
+  color: #e6edf3 !important;
+  border: 1px solid #263241 !important;
 }
 
+#cancel-reason-modal textarea:focus {
+  outline: none;
+  border-color: #2ea043 !important;
+}
+
+/* placeholder */
 #cancel-reason-modal textarea::placeholder {
-  color: #64748b !important;
+  color: #9fb0c0 !important;
+  opacity: 1;
 }
 
-#cancel-reason-modal button {
-  color: #111 !important;
+/* 버튼 영역 */
+#cancel-reason-modal .modal-actions button {
+  background: #0b1620 !important;
+  color: #e6edf3 !important;
+  border: 1px solid #263241 !important;
 }
 
-#cancel-reason-modal button.danger {
+/* 확인 버튼 */
+#cancel-reason-modal .modal-actions button.danger {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
   color: #fff !important;
 }
