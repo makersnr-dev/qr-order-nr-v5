@@ -6,8 +6,8 @@ const isMobile = () => window.innerWidth <= 768;
 const STATUS_FLOW = {
   store: {
     주문접수: ['준비중', '주문취소'],
-    준비중: ['주문완료', '주문취소','결제취소'],
-    주문완료: ['주문취소','결제취소'],
+    준비중: ['주문완료', '주문취소'],
+    주문완료: ['주문취소'],
     주문취소: [],
     결제취소: []
   },
@@ -47,7 +47,7 @@ function showToast(msg) {
 async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
 
-  if (!['주문접수','준비중','주문완료','주문취소','결제취소'].includes(status)) {
+  if (!['주문접수','준비중','주문완료','주문취소'].includes(status)) {
     console.warn('[BLOCKED] invalid status change attempt:', status);
     return;
   }
@@ -612,22 +612,28 @@ async function renderStoreTable() {
     <!-- 상태 변경 -->
     <div class="order-select-line">
       ${(() => {
+       // 1) 현재 상태
         const current = status;
-      
-        const nextList = (STATUS_FLOW.store[current] || []).filter(s => {
-          // 🔥 결제취소는 결제 완료 후에만
-          if (s === '결제취소') {
-            return o.meta?.payment?.paid === true;
-          }
-          return true;
-        });
-      
+        
+        // 2) 다음 가능 상태 목록
+        let nextList = STATUS_FLOW.store[current] || [];
+        
+        // 3) 결제완료 상태면 '주문취소' 옵션 제거
+        if (o.meta?.payment?.paid === true) {
+          nextList = nextList.filter(s => s !== '주문취소');
+        }
+        
+        // 4) 옵션 구성
         const options = [
+          // 현재 상태 (항상 맨 위, 선택 불가)
           `<option value="${current}" selected disabled>
             현재 상태: ${current}
           </option>`,
+        
+          // 다음 상태들
           ...nextList.map(s => `<option value="${s}">${s}</option>`)
         ].join('');
+
 
 
       
@@ -636,7 +642,9 @@ async function renderStoreTable() {
             class="input"
             data-type="store"
             data-id="${o.id || o.orderId || ''}"
+            ${status === '결제취소' ? 'disabled' : ''}
           >
+
             ${options}
           </select>
         `;
@@ -1199,7 +1207,7 @@ document.body.addEventListener('click', (e) => {
   if (
     !order ||
     !order.meta?.payment?.paid ||
-    !['준비중', '주문완료'].includes(order.status)
+    !['주문접수','준비중', '주문완료'].includes(order.status)
   ) {
     alert('결제 완료된 주문만 결제취소할 수 있습니다.');
     return;
