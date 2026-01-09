@@ -74,6 +74,7 @@ async function changeOrderStatus({ id, status, type }) {
     if (!existsInCache) {
       console.warn('[UI BLOCK] order not in cache:', id);
       showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
+      return;
     }
   }
 
