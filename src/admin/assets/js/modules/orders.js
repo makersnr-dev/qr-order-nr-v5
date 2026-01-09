@@ -45,6 +45,14 @@ function showToast(msg) {
 
 
 async function changeOrderStatus({ id, status, type }) {
+
+  // 🔒 0-4-1: id 유효성 1차 차단
+  if (!id || typeof id !== 'string') {
+    console.warn('[BLOCKED] invalid order id:', id);
+    showToast('유효하지 않은 주문입니다.');
+    return;
+  }
+
   if (!id || !status) return;
 
   if (!['주문접수','준비중','주문완료','주문취소'].includes(status)) {
@@ -52,7 +60,23 @@ async function changeOrderStatus({ id, status, type }) {
     return;
   }
 
+  // ✅ storeId는 여기서 한 번만 선언 (핵심 수정)
   const storeId = window.qrnrStoreId || 'store1';
+
+  // 🔒 0-4-2: UI 안전 차단용 (서버 기준 아님)
+  if (type === 'store') {
+    const cachedOrders = loadStoreCache(storeId);
+
+    const existsInCache = cachedOrders.some(
+      o => (o.id || o.orderId) === id
+    );
+
+    if (!existsInCache) {
+      console.warn('[UI BLOCK] order not in cache:', id);
+      showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
+      return;
+    }
+  }
 
   const historyItem = {
     at: new Date().toISOString(),
@@ -80,6 +104,7 @@ async function changeOrderStatus({ id, status, type }) {
     throw new Error(data.error || 'STATUS_CHANGE_FAILED');
   }
 
+  // ✅ 이제 storeId 정상 참조
   updateStatusInCache(type, storeId, id, status);
 
   if (type === 'store') await renderStore();
@@ -644,13 +669,17 @@ async function renderStoreTable() {
 
 
       
+        const orderId = o.id || null;
+        const disabled = !orderId;
+        
         return `
           <select
             class="input"
             data-type="store"
-            data-id="${o.id || o.orderId || ''}"
-            ${status === '결제취소' ? 'disabled' : ''}
+            data-id="${orderId || ''}"
+            ${disabled ? 'disabled' : ''}
           >
+
 
             ${options}
           </select>
@@ -1172,12 +1201,23 @@ document.body.addEventListener('click', (e) => {
 });
 
 
-  // 🟢 POS 결제 확인 버튼
+// 🟢 POS 결제 확인 버튼
 document.body.addEventListener('click', async (e) => {
   if (e.target.dataset.action !== 'confirm-pos-paid') return;
 
   const id = e.target.dataset.id;
-  if (!id) return;
+  if (!id) {
+    showToast('유효하지 않은 주문입니다.');
+    return;
+  }
+
+  // UI 보호용 안내만 하고 서버 판단에 맡김
+  const storeId = window.qrnrStoreId || 'store1';
+  const cached = loadStoreCache(storeId);
+  if (!cached.some(o => (o.id || o.orderId) === id)) {
+    showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
+    return;
+  }
 
   try {
     await fetch('/api/orders', {
@@ -1202,18 +1242,16 @@ document.body.addEventListener('click', async (e) => {
             note: 'POS 결제 확인'
           }
         }
-
       })
-
     });
 
-    await renderStore(); // 버튼만 사라짐
-
+    await renderStore();
   } catch (err) {
     console.error(err);
     alert('결제 완료 처리 실패');
   }
 });
+
 
   // 🔴 결제취소 버튼 → 사유 입력 모달 열기
 document.body.addEventListener('click', (e) => {
@@ -1224,6 +1262,10 @@ document.body.addEventListener('click', (e) => {
 
   const storeId = window.qrnrStoreId || 'store1';
   const orders = loadStoreCache(storeId);
+  if (!orders.length) {
+    showToast('주문 정보를 찾을 수 없습니다.');
+    return;
+  }
   const order = orders.find(o => (o.id || o.orderId) === id);
 
   if (
