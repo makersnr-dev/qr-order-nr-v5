@@ -357,5 +357,86 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 
 
 
+/* =========================
+   취소 사유 모달 - 최종 UI
+========================= */
+
+/* 모달 전체 배경 */
+#cancel-reason-modal {
+  background: rgba(0,0,0,0.6) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 모달 박스 */
+#cancel-reason-modal .content {
+  background: #111922;
+  border: 1px solid #263241;
+  border-radius: 18px;              /* 🔥 둥근 모서리 */
+  padding: 24px;
+  width: 92%;
+  max-width: 420px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+
+/* 제목 */
+#cancel-reason-modal h3 {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e6edf3;
+}
+
+/* textarea */
+#cancel-reason-modal textarea {
+  width: 100%;
+  height: 96px;
+  background: #0b1620;
+  color: #e6edf3;
+  border: 1px solid #263241;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+}
+
+#cancel-reason-modal textarea:focus {
+  outline: none;
+  border-color: #2ea043;
+}
+
+/* placeholder */
+#cancel-reason-modal textarea::placeholder {
+  color: #9fb0c0;
+}
+
+/* 버튼 영역 */
+#cancel-reason-modal .modal-actions {
+  display: flex;
+  justify-content: flex-end;   /* 🔥 오른쪽 정렬 */
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* 기본 버튼 */
+#cancel-reason-modal .modal-actions button {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: #0b1620;
+  border: 1px solid #263241;
+  color: #e6edf3;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 확인(위험) 버튼 */
+#cancel-reason-modal .modal-actions button.danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+  font-weight: 600;
+}
 
 
