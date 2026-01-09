@@ -1282,9 +1282,20 @@ document.body.addEventListener('click', (e) => {
 }
 
 document.getElementById('cancel-reason-close')
-  ?.addEventListener('click', () => {
-    document.getElementById('cancel-reason-modal').style.display = 'none';
+  ?.addEventListener('click', async () => {
+    const modal = document.getElementById('cancel-reason-modal');
+
+    // 1️⃣ 모달 닫기
+    modal.style.display = 'none';
+
+    // 2️⃣ 혹시 남아있을 데이터 제거
+    delete modal.dataset.orderId;
+    delete modal.dataset.cancelStatus;
+
+    // 3️⃣ 서버 기준으로 화면 완전 초기화
+    await renderStore();
   });
+
 
 
 document.getElementById('cancel-reason-confirm')
