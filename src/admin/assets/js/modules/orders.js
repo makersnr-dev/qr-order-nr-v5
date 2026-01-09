@@ -74,7 +74,6 @@ async function changeOrderStatus({ id, status, type }) {
     if (!existsInCache) {
       console.warn('[UI BLOCK] order not in cache:', id);
       showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
-      return;
     }
   }
 
@@ -1008,9 +1007,14 @@ export function attachGlobalHandlers() {
     await changeOrderStatus({ id, status: nextStatus, type });
     showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`);
   } catch (err) {
-    alert('상태 변경 실패');
-    console.error(err);
+  if (err.message === 'ORDER_NOT_FOUND') {
+    showToast('이미 삭제되었거나 처리된 주문입니다.');
+    await renderStore();
+    return;
   }
+  alert('상태 변경 실패');
+  console.error(err);
+}
   
   });
 
