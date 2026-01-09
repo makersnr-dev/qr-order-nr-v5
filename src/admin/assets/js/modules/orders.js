@@ -56,7 +56,9 @@ async function changeOrderStatus({ id, status, type }) {
 
   const historyItem = {
     at: new Date().toISOString(),
-    status,
+    type: 'ORDER',
+    action: 'STATUS_CHANGE',
+    value: status,
     by: 'admin',
     note: '상태 변경'
   };
@@ -617,6 +619,11 @@ async function renderStoreTable() {
         
         // 2) 다음 가능 상태 목록
         let nextList = STATUS_FLOW.store[current] || [];
+
+        // 결제취소 상태면 select 자체를 의미 없게 만듦
+        if (status === '결제취소') {
+          nextList = [];
+        }
         
         // 3) 결제완료 상태면 '주문취소' 옵션 제거
         if (o.meta?.payment?.paid === true) {
@@ -1074,11 +1081,23 @@ const header = [
 ].filter(Boolean).join('\n');
 
 const historyLines = (order.meta?.history || [])
+  .sort((a, b) => new Date(a.at) - new Date(b.at))
   .map(h => {
     const t = new Date(h.at).toLocaleString();
-    return `- ${t} ${h.status}${h.note ? ` (${h.note})` : ''}`;
+
+    // 🔁 구버전 호환
+    const value = h.value || h.status || '';
+    const actionText =
+      h.action === 'PAYMENT_CONFIRMED'
+        ? '결제 완료'
+        : h.action === 'PAYMENT_CANCELLED'
+        ? '결제 취소'
+        : '상태 변경';
+
+    return `- ${t} [${actionText}] ${value}${h.note ? ` (${h.note})` : ''}`;
   })
   .join('\n');
+
 
 const historyBlock = historyLines
   ? `\n\n상태 변경 이력:\n${historyLines}`
@@ -1176,11 +1195,14 @@ document.body.addEventListener('click', async (e) => {
         metaAppend: {
           history: {
             at: new Date().toISOString(),
-            status: 'PAYMENT_CONFIRMED',
+            type: 'PAYMENT',
+            action: 'PAYMENT_CONFIRMED',
+            value: '결제완료',
             by: 'admin',
             note: 'POS 결제 확인'
           }
         }
+
       })
 
     });
@@ -1335,11 +1357,16 @@ document.getElementById('cancel-reason-confirm')
           metaAppend: {
             history: {
               at: new Date().toISOString(),
-              status,
+              type: status === '결제취소' ? 'PAYMENT' : 'ORDER',
+              action: status === '결제취소'
+                ? 'PAYMENT_CANCELLED'
+                : 'STATUS_CHANGE',
+              value: status,
               by: 'admin',
               note: reason
             }
           }
+
         })
 
       });
