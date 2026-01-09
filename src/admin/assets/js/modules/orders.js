@@ -688,17 +688,35 @@ async function renderStoreTable() {
 
     </div>
 
-    <!-- POS 결제 확인 -->
-${!o.meta?.payment?.paid ? `
-  <div class="order-action-line">
-    <button
-      class="btn primary"
-      data-action="confirm-pos-paid"
-      data-id="${o.id || o.orderId || ''}">
-      POS 결제 확인
-    </button>
-  </div>
-` : ''}
+   <!-- 결제 관련 버튼 -->
+<div class="order-action-line">
+  ${
+    // 1️⃣ 결제 안 됐을 때 → POS 결제 확인
+    !o.meta?.payment?.paid
+      ? `
+        <button
+          class="btn primary"
+          data-action="confirm-pos-paid"
+          data-id="${o.id || o.orderId || ''}">
+          POS 결제 확인
+        </button>
+      `
+      // 2️⃣ 결제 완료 + 결제취소 가능 상태 → 결제취소
+      : (
+        ['주문접수', '준비중', '주문완료'].includes(status)
+        && status !== '결제취소'
+      )
+      ? `
+        <button
+          class="btn danger"
+          data-action="cancel-payment"
+          data-id="${o.id || o.orderId || ''}">
+          결제 취소
+        </button>
+      `
+      : ''
+  }
+</div>
 
 
   </div>
