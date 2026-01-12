@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false });
   }
 
-  const { storeId, table, note } = req.body || {};
+  const { storeId, table, note, senderId } = req.body || {};
 
   if (!storeId) {
     return res.status(400).json({
@@ -14,6 +14,8 @@ export default async function handler(req, res) {
       error: 'NO_STORE_ID'
     });
   }
+
+  const ts = Date.now();
 
   // 🔔 관리자에게 호출 이벤트 전파
   try {
@@ -23,7 +25,9 @@ export default async function handler(req, res) {
       storeId,
       table: table || null,
       note: note || '',
-      at: new Date().toISOString()
+      ts,                       // ✅ 기준 시간 (숫자)
+      at: new Date(ts).toISOString(), // (보조용)
+      senderId: senderId || null
     });
   } catch (e) {
     console.error('[CALL] broadcast failed', e);
