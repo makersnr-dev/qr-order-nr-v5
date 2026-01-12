@@ -166,45 +166,42 @@
   // ───────────────────────────────────────────────────────────
   // 직원 호출
   // ───────────────────────────────────────────────────────────
-  const adminChannel = new BroadcastChannel('qrnr-admin');
+  
   const callBtn = document.getElementById('call-btn');
 
   if (callBtn) {
-    callBtn.onclick = () => {
+    callBtn.onclick = async () => {
       const tableVal = (document.getElementById('tableNo')?.value || '').trim();
       const note = (document.getElementById('call-reason')?.value || '').trim();
-
+  
       if (!tableVal) {
         alert('테이블 번호를 입력하세요.');
         return;
       }
-
-      patch(['admin', 'notifyLogs'], (list) => {
-        const arr = Array.isArray(list) ? [...list] : [];
-        arr.unshift({
-          id: 'CALL-' + Date.now(),
-          type: 'CALL',
-          ts: Date.now(),
-          storeId,
-          table: tableVal,
-          message: note,
-          status: '대기'
+  
+      try {
+        const r = await fetch('/api/call', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            storeId,
+            table: tableVal,
+            note
+          })
         });
-        return arr;
-      });
-
-      adminChannel.postMessage({
-        type: 'CALL',
-        storeId,
-        table: tableVal,
-        note,
-        ts: Date.now()
-      });
-
-      document.getElementById('call-msg').textContent =
-        '호출 전송됨 (관리자 페이지에서 확인 가능)';
+  
+        const j = await r.json();
+        if (!j.ok) throw new Error();
+  
+        document.getElementById('call-msg').textContent =
+          '직원 호출이 전달되었습니다.';
+      } catch (e) {
+        alert('직원 호출 실패');
+        console.error(e);
+      }
     };
   }
+
 
   // ───────────────────────────────────────────────────────────
   // 유틸
@@ -342,14 +339,7 @@ document.getElementById('confirm-ok').onclick = async () => {
   const j = await r.json();
   if (!j.ok) return alert('주문 저장 실패');
 
-  new BroadcastChannel('qrnr-admin').postMessage({
-    type: 'NEW_ORDER',
-    storeId,
-    orderId,
-    table,
-    ts: Date.now()
-  });
-
+  
   openOrderSuccessModal();
 };
 
