@@ -1017,11 +1017,18 @@ export function attachGlobalHandlers() {
         await renderStore();
         break;
 
-      case 'CALL':
-        showToast('🔔 직원 호출이 있습니다');
+      case 'CALL': {
+        const timeText = msg.ts
+          ? new Date(msg.ts).toLocaleTimeString()
+          : '';
+      
+        showToast(
+          `🔔 직원 호출${timeText ? ` (${timeText})` : ''}`
+        );
         await renderStore();
         break;
-    }
+      }
+
   };
 
 
