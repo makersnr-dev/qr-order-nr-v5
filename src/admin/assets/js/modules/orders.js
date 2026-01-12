@@ -1,6 +1,19 @@
 // /src/admin/assets/js/modules/orders.js
 import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
+
+// ===============================
+// 관리자 고유 ID (탭 단위)
+// ===============================
+const ADMIN_ID =
+  sessionStorage.getItem('qrnr.adminId')
+  || (() => {
+    const id = crypto.randomUUID();
+    sessionStorage.setItem('qrnr.adminId', id);
+    return id;
+  })();
+
+
 const isMobile = () => window.innerWidth <= 768;
 // ✅ 상태 흐름 기준표 (UI용)
 const STATUS_FLOW = {
@@ -103,6 +116,19 @@ async function changeOrderStatus({ id, status, type }) {
   if (!data.ok) {
     throw new Error(data.error || 'STATUS_CHANGE_FAILED');
   }
+
+  // 🔔 다른 관리자에게 상태 변경 알림
+  try {
+    const channel = new BroadcastChannel('qrnr-admin');
+    channel.postMessage({
+      type: 'STATUS_CHANGED',
+      storeId,
+      orderId: id,
+      status,
+      senderId: ADMIN_ID
+    });
+  } catch {}
+
 
   // ✅ 이제 storeId 정상 참조
   updateStatusInCache(type, storeId, id, status);
@@ -963,6 +989,42 @@ export async function renderDeliv() {
 // ─────────────────────────────
 export function attachGlobalHandlers() {
 
+  // ===============================
+  // 0-6-1 관리자 이벤트 수신 (BroadcastChannel)
+  // ===============================
+  const adminChannel = new BroadcastChannel('qrnr-admin');
+
+  adminChannel.onmessage = async (e) => {
+    const msg = e.data;
+    if (!msg || !msg.type) return;
+
+    const storeId = window.qrnrStoreId || 'store1';
+
+    // 다른 매장 이벤트는 무시
+    if (msg.storeId && msg.storeId !== storeId) return;
+    // 🔕 내가 보낸 이벤트면 무시
+    if (msg.senderId === ADMIN_ID) return;
+
+
+    switch (msg.type) {
+      case 'NEW_ORDER':
+        showToast('📦 새 주문이 들어왔습니다');
+        await renderStore();
+        break;
+
+      case 'STATUS_CHANGED':
+        showToast('🔄 다른 관리자가 주문 상태를 변경했습니다');
+        await renderStore();
+        break;
+
+      case 'CALL':
+        showToast('🔔 직원 호출이 있습니다');
+        await renderStore();
+        break;
+    }
+  };
+
+
   // 1️⃣ 결제 완료 버튼 클릭 → 확인 모달 열기
 /*document.body.addEventListener('click', (e) => {
   const btn = e.target;
@@ -1275,6 +1337,18 @@ document.body.addEventListener('click', async (e) => {
         }
       })
     });
+    // 🔔 결제 완료 이벤트 전파
+    try {
+      const channel = new BroadcastChannel('qrnr-admin');
+      channel.postMessage({
+        type: 'STATUS_CHANGED',
+        storeId: window.qrnrStoreId || 'store1',
+        orderId: id,
+        status: '결제완료',
+        senderId: ADMIN_ID
+      });
+    } catch {}
+
 
     await renderStore();
   } catch (err) {
