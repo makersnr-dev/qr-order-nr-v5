@@ -644,10 +644,22 @@ async function renderStoreTable() {
         
         // 2) 다음 가능 상태 목록
         let nextList = STATUS_FLOW.store[current] || [];
+        
+        const orderId = o.id || null;
+        const disabled = !orderId;
 
         // 결제취소 상태면 select 자체를 의미 없게 만듦
-        if (status === '결제취소') {
-          nextList = [];
+        if (current === '주문취소' || current === '결제취소') {
+          return `
+            <select
+              class="input"
+              data-type="store"
+              data-id="${orderId}"
+              disabled
+            >
+              <option selected>${current}</option>
+            </select>
+          `;
         }
         
         // 3) 결제완료 상태면 '주문취소' 옵션 제거
@@ -665,25 +677,18 @@ async function renderStoreTable() {
           // 다음 상태들
           ...nextList.map(s => `<option value="${s}">${s}</option>`)
         ].join('');
-
-
-
-      
-        const orderId = o.id || null;
-        const disabled = !orderId;
         
+  
         return `
           <select
             class="input"
             data-type="store"
-            data-id="${orderId || ''}"
-            ${disabled ? 'disabled' : ''}
-          >
-
-
-            ${options}
-          </select>
-        `;
+            data-id="${orderId}"
+            ${!orderId ? 'disabled' : ''}
+            >
+              ${options}
+            </select>
+                `;
       })()}
 
     </div>
