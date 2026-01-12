@@ -1028,6 +1028,7 @@ export function attachGlobalHandlers() {
         await renderStore();
         break;
       }
+    }
 
   };
 
