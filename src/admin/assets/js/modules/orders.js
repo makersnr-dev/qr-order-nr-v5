@@ -988,7 +988,7 @@ export async function renderDeliv() {
 // 상태 변경 핸들러
 // ─────────────────────────────
 export function attachGlobalHandlers() {
-
+/*  
   // ===============================
   // 0-6-1 관리자 이벤트 수신 (BroadcastChannel)
   // ===============================
@@ -1034,7 +1034,7 @@ export function attachGlobalHandlers() {
 
   };
 
-
+*/
   // 1️⃣ 결제 완료 버튼 클릭 → 확인 모달 열기
 /*document.body.addEventListener('click', (e) => {
   const btn = e.target;
