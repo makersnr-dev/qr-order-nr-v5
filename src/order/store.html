@@ -165,6 +165,15 @@
   // ───────────────────────────────────────────────────────────
   
   const callBtn = document.getElementById('call-btn');
+  function getAdminCallOptions(storeId) {
+    try {
+      const raw = localStorage.getItem('qrnr.store.v8');
+      const data = raw ? JSON.parse(raw) : {};
+      return data?.admin?.callOptions?.[storeId] || [];
+    } catch {
+      return [];
+    }
+  }
 
   function loadCallOptions() {
   const select = document.getElementById('call-reason');
@@ -172,7 +181,8 @@
 
   const storeId = window.qrnrStoreId || 'store1';
 
-  let list = get(['admin', 'callOptions', storeId]) || [];
+  // ✅ 관리자 설정에서 호출 항목 읽기
+  let list = getAdminCallOptions(storeId);
 
   // 기본값 (관리자가 아직 설정 안 했을 때)
   if (!Array.isArray(list) || !list.length) {
@@ -184,6 +194,7 @@
     ${list.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
   `;
 }
+
 
 
 
