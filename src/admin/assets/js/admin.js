@@ -19,7 +19,7 @@ import { initQR } from './modules/qr.js';
 import { renderMenu, bindMenu } from './modules/menu.js';
 import { renderCode, bindCode } from './modules/code.js';
 import { renderMyBank, bindMyBank } from './modules/mybank.js';
-import { renderNotify, bindNotify, notifyEvent,enableNotifySound } from './modules/notify.js';
+import { renderNotify, bindNotify, notifyEvent,enableNotifySound,renderCallOptions,bindCallOptions } from './modules/notify.js';
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
@@ -320,6 +320,8 @@ if (delivRefreshBtn) {
   bindMyBank();
   renderNotify();
   bindNotify();
+  renderCallOptions();   
+  bindCallOptions();     
   initQR();
   safeRenderNotifyLogs();
   bindNotifyLogs();
