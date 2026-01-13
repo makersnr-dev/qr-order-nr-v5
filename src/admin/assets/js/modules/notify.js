@@ -304,7 +304,7 @@ export function notifyEvent(msg) {
         id: msg.id || 'CALL-' + Date.now(),
         storeId: msg.storeId ?? window.qrnrStoreId ?? 'store1',
         table: msg.table || null,
-        message: `직원 호출${msg.note ? ' - ' + msg.note : ''}`,
+        message: msg.note || '직원 호출',
         status: '대기',
         ts: msg.ts || Date.now(),
       });
