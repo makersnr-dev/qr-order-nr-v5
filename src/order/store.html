@@ -136,7 +136,7 @@
   // ─────────────────────────────────────────
   // 직원 호출 쿨타임 설정 (초)
   // ─────────────────────────────────────────
-  const CALL_COOLDOWN_SEC = 30;
+  const CALL_COOLDOWN_SEC = 10;
   const CALL_COOLDOWN_KEY = 'qrnr.call.cooldown';
   function getCallRemainSec() {
     const last = Number(localStorage.getItem(CALL_COOLDOWN_KEY) || 0);
