@@ -23,11 +23,11 @@ export default async function handler(req, res) {
     channel.postMessage({
       type: 'CALL',
       storeId,
-      table: table || null,
-      note: note || '',
+      table,
+      note,
       ts,                       // ✅ 기준 시간 (숫자)
       at: new Date(ts).toISOString(), // (보조용)
-      senderId: senderId || null
+      senderId : 'server'
     });
   } catch (e) {
     console.error('[CALL] broadcast failed', e);
