@@ -330,7 +330,88 @@ if (delivRefreshBtn) {
   //------------------------------------------------------------------
   // G. 실시간 이벤트 처리
   //------------------------------------------------------------------
-  adminChannel.onmessage = (event) => {
+  //------------------------------------------------------------------
+// G. 실시간 이벤트 처리 (🔥 안정화 완성본)
+//------------------------------------------------------------------
+adminChannel.onmessage = (event) => {
+  const msg = event.data;
+  if (!msg || !msg.type) return;
+
+  // 🔕 내가 보낸 이벤트는 무시 (중복 방지)
+  const myAdminId = sessionStorage.getItem('qrnr.adminId');
+  if (msg.senderId && myAdminId && msg.senderId === myAdminId) {
+    return;
+  }
+
+  // 🔒 storeId 필터
+  const currentStoreId =
+    window.qrnrStoreId || localStorage.getItem('qrnr.storeId');
+
+  const msgStoreId =
+    msg.storeId || msg.store || msg.store_id || msg.sid || null;
+
+  if (msgStoreId && currentStoreId && msgStoreId !== currentStoreId) {
+    return;
+  }
+
+  // 🕒 시간 표시 (CALL / ORDER 공통)
+  const timeText = msg.at
+    ? new Date(msg.at).toLocaleTimeString()
+    : '';
+
+  // ===============================
+  // 직원 호출
+  // ===============================
+  if (msg.type === 'CALL') {
+    showToast(
+      `🔔 테이블 ${msg.table ?? '-'} 호출${msg.note ? ' - ' + msg.note : ''}${timeText ? ' (' + timeText + ')' : ''}`,
+      'info'
+    );
+    notifyEvent(msg);
+    safeRenderNotifyLogs();
+    return;
+  }
+
+  // ===============================
+  // 매장 주문
+  // ===============================
+  if (msg.type === 'NEW_ORDER') {
+    showToast(
+      `📦 새 주문 도착 (테이블 ${msg.table || '-'})${timeText ? ' (' + timeText + ')' : ''}`,
+      'success'
+    );
+    notifyEvent(msg);
+    safeRenderStore();
+    return;
+  }
+
+  // ===============================
+  // 예약 주문
+  // ===============================
+  if (msg.type === 'NEW_RESERVE') {
+    showToast(
+      `📅 새 예약 주문 도착${timeText ? ' (' + timeText + ')' : ''}`,
+      'success'
+    );
+    notifyEvent(msg);
+    safeRenderDeliv();
+    return;
+  }
+
+  // ===============================
+  // 상태 변경
+  // ===============================
+  if (msg.type === 'STATUS_CHANGED') {
+    showToast('🔄 주문 상태가 변경되었습니다');
+    safeRenderStore();
+    safeRenderDeliv();
+    return;
+  }
+
+  console.log('[BC RECV]', msg);
+};
+
+  /*adminChannel.onmessage = (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
 
@@ -379,7 +460,7 @@ if (delivRefreshBtn) {
 
   console.log("[BC RECV]", event.data);
     
-  };
+  };*/
 }
 
 main();
