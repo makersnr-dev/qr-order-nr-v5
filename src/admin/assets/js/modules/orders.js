@@ -993,6 +993,10 @@ export function attachGlobalHandlers() {
   // 0-6-1 관리자 이벤트 수신 (BroadcastChannel)
   // ===============================
   const adminChannel = new BroadcastChannel('qrnr-admin');
+  adminChannel.onmessage = (e) => {
+  console.log('[ADMIN BC RECEIVED]', e.data);
+};
+
 
   adminChannel.onmessage = async (e) => {
     const msg = e.data;
