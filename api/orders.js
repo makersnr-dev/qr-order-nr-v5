@@ -284,7 +284,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
    orders.push(newOrder);
    await saveOrders(orders);
    
-   /* 🔔 관리자 알림 (매장/예약 공통) */
+   /* 🔔 관리자 알림 (매장/예약 공통) 
    try {
      const channel = new BroadcastChannel("qrnr-admin");
      channel.postMessage({
@@ -305,7 +305,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 
    } catch (e) {
      console.error("[orders] admin notify error:", e);
-   }
+   }*/
 
    console.log("[BC SEND]", {
   orderType: finalType,
