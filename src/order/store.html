@@ -199,8 +199,18 @@ if (callBtn) {
         ts: Date.now()
       });
 
-      document.getElementById('call-msg').textContent =
-        '직원 호출이 전달되었습니다.';
+      const msgEl = document.getElementById('call-msg');
+      msgEl.textContent = '직원 호출이 전달되었습니다.';
+      msgEl.style.opacity = '1';
+      
+      setTimeout(() => {
+        msgEl.style.opacity = '0';
+        setTimeout(() => {
+          msgEl.textContent = '';
+          msgEl.style.opacity = '1';
+        }, 300);
+      }, 2000);
+
     } catch (e) {
       alert('직원 호출 실패');
       console.error(e);
