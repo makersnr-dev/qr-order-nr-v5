@@ -302,7 +302,7 @@ export function notifyEvent(msg) {
 
       arr.unshift({
         id: msg.id || 'CALL-' + Date.now(),
-        storeId: msg.storeId || currentStoreId(),
+        storeId: msg.storeId ?? window.qrnrStoreId ?? 'store1',
         table: msg.table || null,
         message: `직원 호출${msg.note ? ' - ' + msg.note : ''}`,
         status: '대기',
