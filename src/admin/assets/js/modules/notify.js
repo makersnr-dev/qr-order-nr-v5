@@ -292,4 +292,27 @@ export function notifyEvent(msg) {
   if (cfg.desktop) {
     showDesktopNotification(title, body);
   }
+
+     // ─────────────────────────────
+  // 🔔 CALL 알림만 로그에 저장
+  // ─────────────────────────────
+  if (msg.type === 'CALL') {
+    patch(['admin', 'notifyLogs'], (list = []) => {
+      const arr = Array.isArray(list) ? [...list] : [];
+
+      arr.unshift({
+        id: msg.id || 'CALL-' + Date.now(),
+        storeId: msg.storeId || currentStoreId(),
+        table: msg.table || null,
+        message: `직원 호출${msg.note ? ' - ' + msg.note : ''}`,
+        status: '대기',
+        ts: msg.ts || Date.now(),
+      });
+
+      // 최근 100개만 유지
+      return arr.slice(0, 100);
+    });
+  }
+
+
 }
