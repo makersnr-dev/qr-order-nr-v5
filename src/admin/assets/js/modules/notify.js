@@ -229,37 +229,53 @@ export function bindCallOptions() {
   const storeId = window.qrnrStoreId || 'store1';
 
   box.addEventListener('click', (e) => {
-    // 삭제
+
+    // ======================
+    // ❌ 삭제 버튼
+    // ======================
     if (e.target.dataset.del !== undefined) {
       const idx = Number(e.target.dataset.del);
-      patch(['admin', 'callOptions', storeId], (list = []) =>
-        list.filter((_, i) => i !== idx)
-      );
+
+      patch(['admin', 'callOptions', storeId], (list = []) => {
+        const arr = Array.isArray(list) ? [...list] : [];
+        arr.splice(idx, 1);          // ← 여기서만 삭제
+        return arr;
+      });
+
       renderCallOptions();
+      return;
     }
 
-    // 추가
+    // ======================
+    // ➕ 항목 추가
+    // ======================
     if (e.target.id === 'call-opt-add') {
-      patch(['admin', 'callOptions', storeId], (list = []) => [
-        ...list,
-        '새 호출 항목',
-      ]);
+      patch(['admin', 'callOptions', storeId], (list = []) => {
+        const arr = Array.isArray(list) ? [...list] : [];
+        arr.push('새 호출 항목');   // ← 기존 유지 + 추가
+        return arr;
+      });
+
       renderCallOptions();
+      return;
     }
   });
 
-  // 수정
+  // ======================
+  // ✏️ 항목 수정
+  // ======================
   box.addEventListener('change', (e) => {
     const idx = e.target.dataset.idx;
     if (idx === undefined) return;
 
     patch(['admin', 'callOptions', storeId], (list = []) => {
-      const arr = [...list];
+      const arr = Array.isArray(list) ? [...list] : [];
       arr[idx] = e.target.value.trim() || arr[idx];
       return arr;
     });
   });
 }
+
 
 
 // ─────────────────────────────
