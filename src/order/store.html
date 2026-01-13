@@ -133,6 +133,34 @@
   import { ensureStoreInitialized } from '/src/shared/store.js';
   import { getPaymentCode } from '/src/admin/assets/js/modules/store.js';
 
+  // ─────────────────────────────────────────
+  // 직원 호출 쿨타임 설정 (초)
+  // ─────────────────────────────────────────
+  const CALL_COOLDOWN_SEC = 30;
+  const CALL_COOLDOWN_KEY = 'qrnr.call.cooldown';
+  function getCallRemainSec() {
+    const last = Number(localStorage.getItem(CALL_COOLDOWN_KEY) || 0);
+    const diff = Math.floor((Date.now() - last) / 1000);
+    return Math.max(0, CALL_COOLDOWN_SEC - diff);
+  }
+  function updateCallButtonState() {
+    const btn = document.getElementById('call-btn');
+    const msgEl = document.getElementById('call-msg');
+    if (!btn) return;
+  
+    const remain = getCallRemainSec();
+  
+    if (remain > 0) {
+      btn.disabled = true;
+      btn.textContent = `직원 호출 (${remain}s)`;
+      if (msgEl) msgEl.textContent = `잠시 후 다시 호출할 수 있습니다 (${remain}초)`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '직원 호출';
+      if (msgEl) msgEl.textContent = '';
+    }
+  }
+
 
   // ───────────────────────────────────────────────────────────
   // storeId 초기화
@@ -140,6 +168,9 @@
   const storeId = ensureStoreInitialized();
   window.qrnrStoreId = storeId;
   loadCallOptions();
+  // ⏱ 호출 버튼 쿨타임 갱신 루프
+  setInterval(updateCallButtonState, 1000);
+  updateCallButtonState();
 
   document.body.dataset.storeId = storeId;
 
@@ -166,14 +197,9 @@
   
   const callBtn = document.getElementById('call-btn');
   function getAdminCallOptions(storeId) {
-    try {
-      const raw = localStorage.getItem('qrnr.store.v8');
-      const data = raw ? JSON.parse(raw) : {};
-      return data?.admin?.callOptions?.[storeId] || [];
-    } catch {
-      return [];
-    }
+    return get(['admin', 'callOptions', storeId]) || [];
   }
+
 
   function loadCallOptions() {
   const select = document.getElementById('call-reason');
@@ -200,6 +226,14 @@
 
 if (callBtn) {
   callBtn.onclick = async () => {
+
+    // ⛔ 쿨타임 체크
+    const remain = getCallRemainSec();
+    if (remain > 0) {
+      alert(`직원 호출은 ${remain}초 후에 다시 가능합니다.`);
+      return;
+    }
+
     const tableVal = (document.getElementById('tableNo')?.value || '').trim();
     const note = (document.getElementById('call-reason')?.value || '').trim();
 
@@ -218,7 +252,10 @@ if (callBtn) {
       const j = await r.json();
       if (!j.ok) throw new Error();
 
-      // ✅ 관리자 알림 (여기가 핵심)
+      // ✅ 쿨타임 시작
+      localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
+
+      // ✅ 관리자 알림
       const channel = new BroadcastChannel('qrnr-admin');
       channel.postMessage({
         type: 'CALL',
@@ -231,7 +268,7 @@ if (callBtn) {
       const msgEl = document.getElementById('call-msg');
       msgEl.textContent = '직원 호출이 전달되었습니다.';
       msgEl.style.opacity = '1';
-      
+
       setTimeout(() => {
         msgEl.style.opacity = '0';
         setTimeout(() => {
@@ -239,6 +276,9 @@ if (callBtn) {
           msgEl.style.opacity = '1';
         }, 300);
       }, 2000);
+
+      // 🔁 버튼 상태 즉시 갱신
+      updateCallButtonState();
 
     } catch (e) {
       alert('직원 호출 실패');
