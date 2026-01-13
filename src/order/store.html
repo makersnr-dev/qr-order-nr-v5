@@ -169,38 +169,45 @@
   
   const callBtn = document.getElementById('call-btn');
 
-  if (callBtn) {
-    callBtn.onclick = async () => {
-      const tableVal = (document.getElementById('tableNo')?.value || '').trim();
-      const note = (document.getElementById('call-reason')?.value || '').trim();
-  
-      if (!tableVal) {
-        alert('테이블 번호를 입력하세요.');
-        return;
-      }
-  
-      try {
-        const r = await fetch('/api/call', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            storeId,
-            table: tableVal,
-            note
-          })
-        });
-  
-        const j = await r.json();
-        if (!j.ok) throw new Error();
-  
-        document.getElementById('call-msg').textContent =
-          '직원 호출이 전달되었습니다.';
-      } catch (e) {
-        alert('직원 호출 실패');
-        console.error(e);
-      }
-    };
-  }
+if (callBtn) {
+  callBtn.onclick = async () => {
+    const tableVal = (document.getElementById('tableNo')?.value || '').trim();
+    const note = (document.getElementById('call-reason')?.value || '').trim();
+
+    if (!tableVal) {
+      alert('테이블 번호를 입력하세요.');
+      return;
+    }
+
+    try {
+      const r = await fetch('/api/call', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ storeId, table: tableVal, note })
+      });
+
+      const j = await r.json();
+      if (!j.ok) throw new Error();
+
+      // ✅ 관리자 알림 (여기가 핵심)
+      const channel = new BroadcastChannel('qrnr-admin');
+      channel.postMessage({
+        type: 'CALL',
+        storeId,
+        table: tableVal,
+        note,
+        ts: Date.now()
+      });
+
+      document.getElementById('call-msg').textContent =
+        '직원 호출이 전달되었습니다.';
+    } catch (e) {
+      alert('직원 호출 실패');
+      console.error(e);
+    }
+  };
+}
+
 
 
   // ───────────────────────────────────────────────────────────
@@ -338,6 +345,21 @@ document.getElementById('confirm-ok').onclick = async () => {
 
   const j = await r.json();
   if (!j.ok) return alert('주문 저장 실패');
+
+  // 🔔 관리자 알림 (매장 주문)
+  try {
+    const channel = new BroadcastChannel('qrnr-admin');
+    channel.postMessage({
+      type: 'NEW_ORDER',
+      orderType: 'store',        // ⭐ 매장 주문
+      storeId,
+      table: table || null,
+      amount: amount || 0,
+      ts: Date.now()
+    });
+  } catch (e) {
+    console.error('[store] admin notify error', e);
+  }
 
   
   openOrderSuccessModal();
