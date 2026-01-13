@@ -29,12 +29,7 @@
   <div class="card vstack">
     <h3>직원 호출</h3>
     <div class="hstack" style="gap:8px;flex-wrap:wrap">
-      <select id="call-reason" class="input" style="max-width:240px">
-        <option>선택 없음</option>
-        <option>물/수저 요청</option>
-        <option>테이블 정리</option>
-        <option>주문 문의</option>
-      </select>
+      <select id="call-reason" class="input" style="max-width:240px"></select>
       <button id="call-btn" class="btn">직원 호출</button>
     </div>
     <div id="call-msg" class="small"></div>
@@ -144,6 +139,8 @@
   // ───────────────────────────────────────────────────────────
   const storeId = ensureStoreInitialized();
   window.qrnrStoreId = storeId;
+  loadCallOptions();
+
   document.body.dataset.storeId = storeId;
 
   const url = new URL(location.href);
@@ -168,6 +165,27 @@
   // ───────────────────────────────────────────────────────────
   
   const callBtn = document.getElementById('call-btn');
+
+  function loadCallOptions() {
+  const select = document.getElementById('call-reason');
+  if (!select) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+
+  let list = get(['admin', 'callOptions', storeId]) || [];
+
+  // 기본값 (관리자가 아직 설정 안 했을 때)
+  if (!Array.isArray(list) || !list.length) {
+    list = ['물/수저 요청', '테이블 정리', '주문 문의'];
+  }
+
+  select.innerHTML = `
+    <option value="">선택 없음</option>
+    ${list.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+  `;
+}
+
+
 
 if (callBtn) {
   callBtn.onclick = async () => {
