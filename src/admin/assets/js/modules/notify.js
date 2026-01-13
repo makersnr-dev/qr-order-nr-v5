@@ -160,6 +160,32 @@ export function renderNotify() {
   if (hookEl)    hookEl.value      = n.webhookUrl || "";
 }
 
+// ── 직원 호출 항목 렌더링 ──
+export function renderCallOptions() {
+  const box = document.getElementById('call-options-box');
+  if (!box) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+  const list =
+    get(['admin', 'callOptions', storeId]) || [
+      '물/수저 요청',
+      '테이블 정리',
+      '주문 문의',
+    ];
+
+  box.innerHTML = list.map((opt, i) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <input class="input" value="${opt}" data-idx="${i}" />
+      <button class="btn danger" data-del="${i}">삭제</button>
+    </div>
+  `).join('');
+
+  box.innerHTML += `
+    <button id="call-opt-add" class="btn small">항목 추가</button>
+  `;
+}
+
+
 export function bindNotify() {
   const saveBtn = document.getElementById('n-save');
   if (!saveBtn) return;
@@ -194,6 +220,47 @@ export function bindNotify() {
     alert('저장되었습니다.');
   };
 }
+
+// ── 직원 호출 항목 바인딩 ──
+export function bindCallOptions() {
+  const box = document.getElementById('call-options-box');
+  if (!box) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+
+  box.addEventListener('click', (e) => {
+    // 삭제
+    if (e.target.dataset.del !== undefined) {
+      const idx = Number(e.target.dataset.del);
+      patch(['admin', 'callOptions', storeId], (list = []) =>
+        list.filter((_, i) => i !== idx)
+      );
+      renderCallOptions();
+    }
+
+    // 추가
+    if (e.target.id === 'call-opt-add') {
+      patch(['admin', 'callOptions', storeId], (list = []) => [
+        ...list,
+        '새 호출 항목',
+      ]);
+      renderCallOptions();
+    }
+  });
+
+  // 수정
+  box.addEventListener('change', (e) => {
+    const idx = e.target.dataset.idx;
+    if (idx === undefined) return;
+
+    patch(['admin', 'callOptions', storeId], (list = []) => {
+      const arr = [...list];
+      arr[idx] = e.target.value.trim() || arr[idx];
+      return arr;
+    });
+  });
+}
+
 
 // ─────────────────────────────
 // 관리자 이벤트 → 알림/소리 트리거
