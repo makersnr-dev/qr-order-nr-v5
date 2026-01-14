@@ -683,87 +683,61 @@ async function renderStoreTable() {
     <td data-label="상태">
   <div class="order-status-box">
 
-    <!-- 현재 상태 표시 -->
-    <div class="order-status-line">
-      <span class="badge-dot ${
-        status === '주문완료'
-          ? 'badge-done'
-          : status === '준비중'
-          ? 'badge-cook'
-          : status === '결제취소'
-          ? 'badge-cancel'
-          : 'badge-wait'
-      }"></span>
-    
-      <strong>${status}</strong>
-    
-      ${o.status === '결제취소' ? `
-        <span class="badge-cancel">결제취소됨</span>
-      ` : o.meta?.payment?.paid ? `
-        <span class="badge-paid">결제완료</span>
-      ` : ''}
-    
-      ${status === '결제취소' ? `
-      ` : ''}
-    </div>
-
-
     <!-- 상태 변경 -->
-    <div class="order-select-line">
-      ${(() => {
-       // 1) 현재 상태
-        const current = status;
-        
-        // 2) 다음 가능 상태 목록
-        let nextList = STATUS_FLOW.store[current] || [];
-        
-        const orderId = o.id || null;
-        const disabled = !orderId;
+<div class="order-status-line">
 
-        // 결제취소 상태면 select 자체를 의미 없게 만듦
-        if (current === '주문취소' || current === '결제취소') {
-          return `
-            <select
-              class="input"
-              data-type="store"
-              data-id="${orderId}"
-              disabled
-            >
-              <option selected>${current}</option>
-            </select>
-          `;
-        }
-        
-        // 3) 결제완료 상태면 '주문취소' 옵션 제거
-        if (o.meta?.payment?.paid === true) {
-          nextList = nextList.filter(s => s !== '주문취소');
-        }
-        
-        // 4) 옵션 구성
-        const options = [
-          // 현재 상태 (항상 맨 위, 선택 불가)
-          `<option value="${current}" selected disabled>
-            현재 상태: ${current}
-          </option>`,
-        
-          // 다음 상태들
-          ...nextList.map(s => `<option value="${s}">${s}</option>`)
-        ].join('');
-        
-  
-        return `
-          <select
-            class="input"
-            data-type="store"
-            data-id="${orderId}"
-            ${!orderId ? 'disabled' : ''}
-            >
-              ${options}
-            </select>
-                `;
-      })()}
+  <!-- ● 상태 점 -->
+  <span class="badge-dot ${
+    status === '주문완료'
+      ? 'badge-done'
+      : status === '준비중'
+      ? 'badge-cook'
+      : status === '결제취소'
+      ? 'badge-cancel'
+      : 'badge-wait'
+  }"></span>
 
-    </div>
+  <!-- 상태 SELECT -->
+  ${(() => {
+    const current = status;
+    let nextList = STATUS_FLOW.store[current] || [];
+    const orderId = o.id || null;
+
+    // 결제취소 / 주문취소면 변경 불가
+    if (['주문취소', '결제취소'].includes(current)) {
+      return `
+        <select class="input" disabled>
+          <option selected>${current}</option>
+        </select>
+      `;
+    }
+
+    // 결제 완료 시 주문취소 제거
+    if (o.meta?.payment?.paid === true) {
+      nextList = nextList.filter(s => s !== '주문취소');
+    }
+
+    return `
+      <select
+        class="input"
+        data-type="store"
+        data-id="${orderId}"
+      >
+        <option selected disabled>${current}</option>
+        ${nextList.map(s => `<option value="${s}">${s}</option>`).join('')}
+      </select>
+    `;
+  })()}
+
+  <!-- 결제 완료 뱃지 (있을 때만) -->
+  ${o.meta?.payment?.paid ? `
+    <span class="badge-paid" style="margin-left:6px">
+      결제완료
+    </span>
+  ` : ''}
+
+</div>
+
 
    <!-- 결제 관련 버튼 -->
 <div class="order-action-line">
