@@ -1246,7 +1246,8 @@ const historyLines = (order.meta?.history || [])
         ? '결제 취소'
         : '상태 변경';
 
-    return `- ${t} [${actionText}] ${value}${h.note ? ` (${h.note})` : ''}`;
+    return `- ${t} ${value}${h.note ? ` (${h.note})` : ''}`;
+
   })
   .join('\n');
 
