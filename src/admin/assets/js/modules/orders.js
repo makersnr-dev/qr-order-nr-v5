@@ -287,8 +287,14 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
     // 🔥 핵심: 결제취소면 결제완료 상태를 무효화
     payment:
       nextStatus === '결제취소'
-        ? { ...o.meta?.payment, paid: false }
+        ? {
+            ...o.meta?.payment,
+            paid: false,
+            cancelled: true,           // 🔥 이 한 줄이 핵심
+            cancelledAt: new Date().toISOString()
+          }
         : o.meta?.payment,
+    
 
     history: [
       ...prevHistory,
@@ -709,10 +715,25 @@ async function renderStoreTable() {
     let nextList = STATUS_FLOW.store[current] || [];
     const orderId = o.id || null;
 
-    // 결제취소 / 주문취소면 변경 불가
-    if (['주문취소', '결제취소'].includes(current)) {
+    //// ❌ 결제취소만 SELECT 제거
+    if (current === '결제취소') {
       return '';
     }
+    
+    const disabled = current === '주문취소' ? 'disabled' : '';
+
+    return `
+      <select
+        class="input"
+        data-type="store"
+        data-id="${orderId}"
+        ${disabled}
+      >
+        <option selected>${current}</option>
+        ${nextList.map(s => `<option value="${s}">${s}</option>`).join('')}
+      </select>
+    `;
+
 
     // 결제 완료 시 주문취소 제거
     if (o.meta?.payment?.paid === true) {
@@ -736,7 +757,8 @@ async function renderStoreTable() {
   <span class="badge-cancel" style="margin-left:6px">
     결제취소
   </span>
-` : o.meta?.payment?.paid ? `
+` : o.meta?.payment?.paid && !o.meta?.payment?.cancelled
+ ? `
   <span class="badge-paid" style="margin-left:6px">
     결제완료
   </span>
@@ -755,7 +777,7 @@ async function renderStoreTable() {
       ? ''
       : (
         // 1️⃣ 결제 안 됐을 때 → POS 결제 확인
-        !o.meta?.payment?.paid
+        !o.meta?.payment?.paid && !o.meta?.payment?.cancelled
           ? `
             <button
               class="btn primary"
