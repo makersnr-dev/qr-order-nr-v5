@@ -255,6 +255,14 @@ if (callBtn) {
       // ✅ 쿨타임 시작
       localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
 
+      const statKey = `qrnr.call.stat.${storeId}`;
+      const today = new Date().toISOString().slice(0,10);
+      const stat = JSON.parse(localStorage.getItem(statKey) || '{}');
+      
+      stat[today] = (stat[today] || 0) + 1;
+      localStorage.setItem(statKey, JSON.stringify(stat));
+
+
       // ✅ 관리자 알림
       const channel = new BroadcastChannel('qrnr-admin');
       channel.postMessage({
