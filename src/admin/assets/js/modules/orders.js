@@ -278,25 +278,31 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
       const prevHistory = Array.isArray(o.meta?.history)
         ? o.meta.history
         : [];
-    
-      return {
-        ...o,
-        status: nextStatus,
-        meta: {
-          ...o.meta,
-          history: [
-            ...prevHistory,
-            {
-              at: new Date().toISOString(),
-              type: 'ORDER',
-              action: 'STATUS_CHANGE',
-              value: nextStatus,
-              by: 'admin',
-              note: '상태 변경'
-            }
-          ]
-        }
-      };
+    return {
+  ...o,
+  status: nextStatus,
+  meta: {
+    ...o.meta,
+
+    // 🔥 핵심: 결제취소면 결제완료 상태를 무효화
+    payment:
+      nextStatus === '결제취소'
+        ? { ...o.meta?.payment, paid: false }
+        : o.meta?.payment,
+
+    history: [
+      ...prevHistory,
+      {
+        at: new Date().toISOString(),
+        type: 'ORDER',
+        action: 'STATUS_CHANGE',
+        value: nextStatus,
+        by: 'admin',
+        note: '상태 변경'
+      }
+    ]
+  }
+};
 
 }
 
@@ -1248,7 +1254,7 @@ const historyLines = (order.meta?.history || [])
         ? '결제 취소'
         : '상태 변경';
 
-    return `- ${t} ${value}${h.note ? ` (${h.note})` : ''}`;
+    return `- ${t} ${value}`;
 
   })
   .join('\n');
