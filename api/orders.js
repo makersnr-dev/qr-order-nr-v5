@@ -395,6 +395,27 @@ async function handlePut(req, res) {
   if (meta && typeof meta === "object" && !Array.isArray(meta)) {
     target.meta = { ...(target.meta || {}), ...meta };
   }
+  // ✅ metaAppend 처리 (history 누적용)
+  if (req.body?.metaAppend && typeof req.body.metaAppend === 'object') {
+    const append = req.body.metaAppend;
+  
+    // history 누적
+    if (append.history) {
+      const prev = Array.isArray(target.meta?.history)
+        ? target.meta.history
+        : [];
+  
+      const nextItems = Array.isArray(append.history)
+        ? append.history
+        : [append.history];
+  
+      target.meta = {
+        ...(target.meta || {}),
+        history: [...prev, ...nextItems]
+      };
+    }
+  }
+
 
   orders[idx] = target;
   await saveOrders(orders);
