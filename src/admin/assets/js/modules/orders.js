@@ -659,7 +659,11 @@ async function renderStoreTable() {
     const status = o.status || '주문접수';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td data-label="주문시간">${time}</td>
+      <td data-label="주문시간">
+        <div>${time}</div>
+        <div class="small">#${o.id || o.orderId}</div>
+      </td>
+
     
       <td data-label="테이블">${table}</td>
     
