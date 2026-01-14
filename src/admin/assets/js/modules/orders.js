@@ -1526,34 +1526,45 @@ document.getElementById('cancel-reason-confirm')
   }
 
   try {
+    const isPaymentCancel = status === '결제취소';
+    
     await fetch('/api/orders', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          id,
-          status,
-          meta: {
-            cancel: {
-              reason,
-              at: new Date().toISOString()
-            }
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id,
+    
+        // ✅ 결제취소면 status 자체를 보내지 않음
+        ...(isPaymentCancel ? {} : { status }),
+    
+        meta: {
+          cancel: {
+            reason,
+            at: new Date().toISOString()
           },
-          metaAppend: {
-            history: {
-              at: new Date().toISOString(),
-              type: status === '결제취소' ? 'PAYMENT' : 'ORDER',
-              action: status === '결제취소'
-                ? 'PAYMENT_CANCELLED'
-                : 'STATUS_CHANGE',
-              value: status,
-              by: 'admin',
-              note: reason
+          ...(isPaymentCancel ? {
+            payment: {
+              paid: false,
+              cancelledAt: new Date().toISOString()
             }
+          } : {})
+        },
+    
+        metaAppend: {
+          history: {
+            at: new Date().toISOString(),
+            type: isPaymentCancel ? 'PAYMENT' : 'ORDER',
+            action: isPaymentCancel
+              ? 'PAYMENT_CANCELLED'
+              : 'STATUS_CHANGE',
+            value: status,
+            by: 'admin',
+            note: reason
           }
+        }
+      })
+    });
 
-        })
-
-      });
       
       updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
 
