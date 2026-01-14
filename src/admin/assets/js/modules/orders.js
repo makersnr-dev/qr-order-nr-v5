@@ -705,11 +705,7 @@ async function renderStoreTable() {
 
     // 결제취소 / 주문취소면 변경 불가
     if (['주문취소', '결제취소'].includes(current)) {
-      return `
-        <select class="input" disabled>
-          <option selected>${current}</option>
-        </select>
-      `;
+      return '';
     }
 
     // 결제 완료 시 주문취소 제거
@@ -730,11 +726,16 @@ async function renderStoreTable() {
   })()}
 
   <!-- 결제 완료 뱃지 (있을 때만) -->
-  ${o.meta?.payment?.paid ? `
-    <span class="badge-paid" style="margin-left:6px">
-      결제완료
-    </span>
-  ` : ''}
+  ${status === '결제취소' ? `
+  <span class="badge-cancel" style="margin-left:6px">
+    결제취소
+  </span>
+` : o.meta?.payment?.paid ? `
+  <span class="badge-paid" style="margin-left:6px">
+    결제완료
+  </span>
+` : ''}
+
 
 </div>
 
