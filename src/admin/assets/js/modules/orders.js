@@ -583,8 +583,26 @@ async function renderStoreTable() {
 
     if (serverRows.length) {
       // 서버 데이터 있으면 그걸 우선 사용하고 캐시에 저장
-      saveStoreCache(storeId, serverRows);
-      rows = serverRows;
+      const cached = loadStoreCache(storeId);
+
+      const mergedRows = serverRows.map(o => {
+        const cachedOne = cached.find(c => (c.id || c.orderId) === (o.id || o.orderId));
+      
+        return {
+          ...o,
+          meta: {
+            ...o.meta,
+            history:
+              Array.isArray(o.meta?.history) && o.meta.history.length
+                ? o.meta.history
+                : cachedOne?.meta?.history || []
+          }
+        };
+      });
+      
+      saveStoreCache(storeId, mergedRows);
+      rows = mergedRows;
+
     } else {
       // 서버가 비어 있으면 캐시에서 복구 시도
       const cached = loadStoreCache(storeId);
