@@ -274,8 +274,32 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
     const oid = o.id || o.orderId;
     if (oid === id) {
       touched = true;
-      return { ...o, status: nextStatus };
-    }
+    
+      const prevHistory = Array.isArray(o.meta?.history)
+        ? o.meta.history
+        : [];
+    
+      return {
+        ...o,
+        status: nextStatus,
+        meta: {
+          ...o.meta,
+          history: [
+            ...prevHistory,
+            {
+              at: new Date().toISOString(),
+              type: 'ORDER',
+              action: 'STATUS_CHANGE',
+              value: nextStatus,
+              by: 'admin',
+              note: '상태 변경'
+            }
+          ]
+        }
+      };
+
+}
+
     return o;
   });
 
@@ -1358,9 +1382,14 @@ document.body.addEventListener('click', async (e) => {
         senderId: ADMIN_ID
       });
     } catch {}
-
-
+    updateStatusInCache(
+      'store',
+      window.qrnrStoreId || 'store1',
+      id,
+      '결제완료'
+    );
     await renderStore();
+    
   } catch (err) {
     console.error(err);
     alert('결제 완료 처리 실패');
