@@ -700,14 +700,15 @@ async function renderStoreTable() {
 
   <!-- ● 상태 점 -->
   <span class="badge-dot ${
-    status === '주문완료'
-      ? 'badge-done'
-      : status === '준비중'
-      ? 'badge-cook'
-      : status === '결제취소'
-      ? 'badge-cancel'
-      : 'badge-wait'
-  }"></span>
+  o.meta?.payment?.cancelled
+    ? 'badge-cancel'
+    : status === '주문완료'
+    ? 'badge-done'
+    : status === '준비중'
+    ? 'badge-cook'
+    : 'badge-wait'
+}"></span>
+
 
   <!-- 상태 SELECT -->
   ${(() => {
@@ -754,16 +755,16 @@ async function renderStoreTable() {
   })()}
 
   <!-- 결제 완료 뱃지 (있을 때만) -->
-  ${status === '결제취소' ? `
+  ${o.meta?.payment?.cancelled ? `
   <span class="badge-cancel" style="margin-left:6px">
     결제취소
   </span>
-` : o.meta?.payment?.paid && !o.meta?.payment?.cancelled
- ? `
+` : o.meta?.payment?.paid ? `
   <span class="badge-paid" style="margin-left:6px">
     결제완료
   </span>
 ` : ''}
+
 
 
 
@@ -773,12 +774,12 @@ async function renderStoreTable() {
    <!-- 결제 관련 버튼 -->
 <div class="order-action-line">
   ${
-    // ❌ 주문취소 / 결제취소 상태면 결제 버튼 자체를 안 보여줌
-    ['주문취소', '결제취소'].includes(status)
+    // ❌ 주문취소 or 결제취소면 버튼 없음
+    status === '주문취소' || o.meta?.payment?.cancelled
       ? ''
       : (
-        // 1️⃣ 결제 안 됐을 때 → POS 결제 확인
-        !o.meta?.payment?.paid && !o.meta?.payment?.cancelled
+        // 1️⃣ 아직 결제 안 됐을 때
+        !o.meta?.payment?.paid
           ? `
             <button
               class="btn primary"
@@ -787,9 +788,8 @@ async function renderStoreTable() {
               POS 결제 확인
             </button>
           `
-          // 2️⃣ 결제 완료 + 취소 가능 상태 → 결제취소
-          : ['주문접수', '준비중', '주문완료'].includes(status)
-          ? `
+          // 2️⃣ 결제 완료 상태 → 결제취소 가능
+          : `
             <button
               class="btn danger"
               data-action="cancel-payment"
@@ -797,7 +797,6 @@ async function renderStoreTable() {
               결제 취소
             </button>
           `
-          : ''
       )
   }
 </div>
