@@ -51,7 +51,7 @@ function showToast(msg) {
   setTimeout(() => {
     t.classList.remove('show');
     setTimeout(() => t.remove(), 200);
-  }, 1500);
+  }, 3000);
 }
 
 
