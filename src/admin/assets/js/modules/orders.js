@@ -716,9 +716,10 @@ async function renderStoreTable() {
     const orderId = o.id || null;
 
     //// ❌ 결제취소만 SELECT 제거
-    if (current === '결제취소') {
+    if (o.meta?.payment?.cancelled) {
       return '';
     }
+
     
     const disabled = current === '주문취소' ? 'disabled' : '';
 
@@ -1574,6 +1575,7 @@ document.getElementById('cancel-reason-confirm')
           ...(isPaymentCancel ? {
             payment: {
               paid: false,
+              cancelled: true,
               cancelledAt: new Date().toISOString()
             }
           } : {})
