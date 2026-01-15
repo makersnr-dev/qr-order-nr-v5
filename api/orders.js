@@ -56,6 +56,24 @@ async function saveOrders(orders) {
 }
 
 /* ============================================================
+   매장 정보 로딩 (슈퍼관리자 대비)
+   ============================================================ */
+
+const STORES_FILE = "/tmp/qrnr_stores.json"; 
+// ⚠️ 로컬에서는 /api/_data/stores.json 읽어도 되고
+// Vercel에서는 /tmp에 캐싱해도 됨
+
+async function loadStores() {
+  try {
+    const txt = await fs.readFile(STORES_FILE, "utf8");
+    return JSON.parse(txt) || {};
+  } catch {
+    return {};
+  }
+}
+
+
+/* ============================================================
    시간 헬퍼 (KST)
    ============================================================ */
 function makeTimeMeta() {
@@ -81,10 +99,9 @@ function makeTimeMeta() {
    ============================================================ */
 
 // 🔹 매장 코드 결정 (지금은 storeId 그대로 사용)
-function getStoreCode(storeId) {
-  // 나중에 여기만 바꾸면 됨
-  // 예: store1 → A01
-  return String(storeId || 'STORE').toUpperCase();
+async function getStoreCode(storeId) {
+  const stores = await loadStores();
+  return stores[storeId]?.code || String(storeId || 'STORE').toUpperCase();
 }
 
 // 🔹 주문 타입 코드
@@ -95,14 +112,14 @@ function getOrderTypeCode(type) {
 }
 
 // 🔹 주문번호 생성
-function makeOrderNumber(orders, storeId, type) {
+async function makeOrderNumber(orders, storeId, type) {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   const dateKey = `${y}${m}${day}`;
 
-  const storeCode = getStoreCode(storeId);
+  const storeCode = await getStoreCode(storeId);
   const typeCode = getOrderTypeCode(type);
 
   const prefix = `${storeCode}-${typeCode}`;
@@ -112,9 +129,9 @@ function makeOrderNumber(orders, storeId, type) {
   );
 
   const seq = String(todayOrders.length + 1).padStart(3, '0');
-
   return `${prefix}-${dateKey}-${seq}`;
 }
+
 
 
 /* ============================================================
@@ -291,11 +308,12 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   body.id ||
   `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const orderNo = makeOrderNumber(
+  const orderNo = await makeOrderNumber(
     orders,
     finalStoreId,
     finalType
   );
+
 
   
   const newOrder = {
