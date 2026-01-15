@@ -245,18 +245,6 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 
   const orders = await loadOrders();
 
-  const id =
-  body.id ||
-  `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-  const orderNo = makeOrderNumber(
-    orders,
-    finalStoreId,
-    finalType
-  );
-
-
-
   const { ts, date, dateTime } = makeTimeMeta();
 
   let finalStoreId = storeId;
@@ -277,10 +265,21 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   const initialStatus =
      INITIAL_STATUS[finalType] || '주문접수';
 
+  const id =
+  body.id ||
+  `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const orderNo = makeOrderNumber(
+    orders,
+    finalStoreId,
+    finalType
+  );
+
   
   const newOrder = {
   id,
   orderId: orderNo,
+  orderNo,
     
   // ✅ 통합된 타입
   type: finalType,
