@@ -21,8 +21,7 @@ const STATUS_FLOW = {
     주문접수: ['준비중', '주문취소'],
     준비중: ['주문완료', '주문취소'],
     주문완료: [],
-    주문취소: [],
-    결제취소: []
+    주문취소: []
   },
 
   delivery: {
@@ -69,6 +68,20 @@ async function changeOrderStatus({ id, status, type }) {
   if (!id || !status) return;
 
   if (!['주문접수','준비중','주문완료','주문취소'].includes(status)) {
+    
+    // 🔒 결제 완료된 주문은 주문취소 불가
+    const storeId = window.qrnrStoreId || 'store1';
+    const cached = loadStoreCache(storeId);
+    const order = cached.find(o => (o.id || o.orderId) === id);
+  
+    if (
+      status === '주문취소' &&
+      order?.meta?.payment?.paid
+    ) {
+      showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
+      return;
+    }
+
     console.warn('[BLOCKED] invalid status change attempt:', status);
     return;
   }
@@ -714,6 +727,12 @@ async function renderStoreTable() {
   ${(() => {
     const current = status;
     let nextList = STATUS_FLOW.store[current] || [];
+
+    // 🔒 결제 완료 상태면 '주문취소' 제거
+    if (o.meta?.payment?.paid) {
+      nextList = nextList.filter(s => s !== '주문취소');
+    }
+    
     const orderId = o.id || null;
 
     //// ❌ 결제취소만 SELECT 제거
