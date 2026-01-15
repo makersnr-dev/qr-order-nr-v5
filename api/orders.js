@@ -77,6 +77,47 @@ function makeTimeMeta() {
 }
 
 /* ============================================================
+   주문번호 관련 헬퍼 
+   ============================================================ */
+
+// 🔹 매장 코드 결정 (지금은 storeId 그대로 사용)
+function getStoreCode(storeId) {
+  // 나중에 여기만 바꾸면 됨
+  // 예: store1 → A01
+  return String(storeId || 'STORE').toUpperCase();
+}
+
+// 🔹 주문 타입 코드
+function getOrderTypeCode(type) {
+  if (type === 'store') return 'S';
+  if (type === 'reserve') return 'R';
+  return 'O';
+}
+
+// 🔹 주문번호 생성
+function makeOrderNumber(orders, storeId, type) {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dateKey = `${y}${m}${day}`;
+
+  const storeCode = getStoreCode(storeId);
+  const typeCode = getOrderTypeCode(type);
+
+  const prefix = `${storeCode}-${typeCode}`;
+
+  const todayOrders = orders.filter(o =>
+    o.orderId?.startsWith(`${prefix}-${dateKey}`)
+  );
+
+  const seq = String(todayOrders.length + 1).padStart(3, '0');
+
+  return `${prefix}-${dateKey}-${seq}`;
+}
+
+
+/* ============================================================
    메인 핸들러
    ============================================================ */
 export default async function handler(req, res) {
@@ -187,7 +228,7 @@ async function handlePost(req, res) {
   const { finalCustomer, finalReserve } = normalizeOrderInput(body);
 
   let {
-  orderId,
+  //orderId,
   orderType,   // ✅ 새 필드
   type,        // 🔙 하위호환
   amount,
@@ -205,26 +246,7 @@ async function handlePost(req, res) {
   orderName,
 } = body;
 
-  function makeOrderNumber(orders, storeId, type) {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateKey = `${y}${m}${day}`;
   
-    const prefix =
-      type === 'store' ? 'S' :
-      type === 'reserve' ? 'R' :
-      'O';
-  
-    const todayOrders = orders.filter(o =>
-      o.storeId === storeId &&
-      o.orderId?.startsWith(`${prefix}-${dateKey}`)
-    );
-  
-    const seq = String(todayOrders.length + 1).padStart(3, '0');
-    return `${prefix}-${dateKey}-${seq}`;
-  }
 
 
 // ✅ type 통합 (store / reserve / delivery)
@@ -279,7 +301,7 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   const newOrder = {
   id,
   orderId: orderNo,
-  orderNo,
+  //orderNo,
     
   // ✅ 통합된 타입
   type: finalType,
