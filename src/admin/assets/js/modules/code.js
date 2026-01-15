@@ -8,6 +8,21 @@ import {
 let leftTimer;
 let dayWatcherTimer;
 
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 200);
+  }, 3000);
+}
+
+
 /* ------------------------------
    공통 유틸
 ------------------------------ */
@@ -68,6 +83,28 @@ export function renderCode() {
 
   if (leftTimer) clearInterval(leftTimer);
   tickLeft();
+  watchMidnight();
+}
+
+/* ------------------------------
+   자정 감시 (결제코드 자동 갱신)
+------------------------------ */
+function watchMidnight() {
+  let lastDate = today();
+
+  if (dayWatcherTimer) clearInterval(dayWatcherTimer);
+
+  dayWatcherTimer = setInterval(() => {
+    const nowDate = today();
+    if (nowDate !== lastDate) {
+      lastDate = nowDate;
+      console.log('[CODE] date changed, re-render');
+      renderCode(); // ✅ 핵심
+      if (typeof showToast === 'function') {
+        showToast('자정이 되어 결제코드가 갱신되었습니다');
+      }
+    }
+  }, 60 * 1000); // 10초 간격 (부담 없음)
 }
 
 
