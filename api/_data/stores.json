@@ -1,0 +1,12 @@
+{
+  "store1": {
+    "name": "나래카페",
+    "code": "NR",
+    "admins": ["admin1", "admin3"]
+  },
+  "store2": {
+    "name": "원주분식",
+    "code": "WJ",
+    "admins": ["admin2"]
+  }
+}
