@@ -327,7 +327,7 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
   font-size: 14px;
   z-index: 99999;
   opacity: 0;
-  transition: opacity 1s ease;
+  transition: opacity 0.2s ease;
 }
 
 .toast.show {
