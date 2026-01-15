@@ -686,7 +686,7 @@ async function renderStoreTable() {
     tr.innerHTML = `
       <td data-label="주문시간">
         <div>${time}</div>
-        <div class="small">#${o.id || o.orderId}</div>
+        <div class="small">주문번호 : ${o.orderId || o.id}</div>
       </td>
 
     
