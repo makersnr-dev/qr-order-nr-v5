@@ -280,7 +280,7 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
         : [];
     return {
   ...o,
-  status: nextStatus,
+  status: nextStatus === '결제취소' ? o.status : nextStatus,
   meta: {
     ...o.meta,
 
