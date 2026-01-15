@@ -205,6 +205,28 @@ async function handlePost(req, res) {
   orderName,
 } = body;
 
+  function makeOrderNumber(orders, storeId, type) {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateKey = `${y}${m}${day}`;
+  
+    const prefix =
+      type === 'store' ? 'S' :
+      type === 'reserve' ? 'R' :
+      'O';
+  
+    const todayOrders = orders.filter(o =>
+      o.storeId === storeId &&
+      o.orderId?.startsWith(`${prefix}-${dateKey}`)
+    );
+  
+    const seq = String(todayOrders.length + 1).padStart(3, '0');
+    return `${prefix}-${dateKey}-${seq}`;
+  }
+
+
 // ✅ type 통합 (store / reserve / delivery)
 const finalType = orderType || type;
 
@@ -224,9 +246,16 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   const orders = await loadOrders();
 
   const id =
-    body.id ||
-    orderId ||
-    `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  body.id ||
+  `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const orderNo = makeOrderNumber(
+    orders,
+    finalStoreId,
+    finalType
+  );
+
+
 
   const { ts, date, dateTime } = makeTimeMeta();
 
@@ -251,8 +280,8 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   
   const newOrder = {
   id,
-  orderId: orderId || id,
-
+  orderId: orderNo,
+    
   // ✅ 통합된 타입
   type: finalType,
 
