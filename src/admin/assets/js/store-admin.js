@@ -83,6 +83,7 @@ function bindMappingUI() {
     const adminId = $('#map-admin').value.trim();
     const storeId = $('#map-store').value.trim();
     const note = $('#map-note').value.trim();
+    const code = $('#map-code')?.value.trim(); // ⭐ 추가
 
     if (!adminId || !storeId) {
       alert('관리자 ID와 storeId는 필수입니다.');
@@ -92,6 +93,18 @@ function bindMappingUI() {
     const map = loadMap();
     map[adminId] = { storeId, note };
     saveMap(map);
+    // ⭐ 매장 코드 저장 (/api/stores)
+    if (code) {
+      fetch('/api/stores', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          storeId,
+          code
+        })
+      }).catch(() => {});
+    }
+
     renderMapTable();
 
     $('#map-admin').value = '';
