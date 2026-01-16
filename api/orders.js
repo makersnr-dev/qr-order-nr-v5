@@ -59,7 +59,8 @@ async function saveOrders(orders) {
    매장 정보 로딩 (슈퍼관리자 대비)
    ============================================================ */
 
-const STORES_FILE = "/tmp/qrnr_stores.json"; 
+const STORES_FILE = "./api/_data/stores.json";
+
 // ⚠️ 로컬에서는 /api/_data/stores.json 읽어도 되고
 // Vercel에서는 /tmp에 캐싱해도 됨
 
