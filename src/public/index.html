@@ -80,7 +80,58 @@
       · 나중에 DB를 붙일 때는 이 JSON 구조를 그대로 테이블 하나로 옮겨 쓰면 됩니다.
     </p>
   </div>
+
+<!-- 매장 정보 관리 카드 -->
+<div id="store-card" class="card vstack" style="display:none">
+  <h3>매장 정보 관리</h3>
+
+  <div class="small">
+    매장(storeId)별 기본 정보와 주문번호 코드를 관리합니다.<br>
+    주문번호 예: <code>NR-S-20260115-001</code>
+  </div>
+
+  <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+    <input id="store-id"
+           class="input"
+           placeholder="storeId (예: narae)"
+           style="min-width:160px">
+
+    <input id="store-name"
+           class="input"
+           placeholder="매장명 (예: 나래카페)"
+           style="min-width:200px">
+
+    <input id="store-code"
+           class="input"
+           placeholder="주문 코드 (예: NR)"
+           style="width:120px">
+
+    <button id="store-save" class="btn primary">
+      저장
+    </button>
+  </div>
+
+  <table class="table" style="margin-top:14px">
+    <thead>
+      <tr>
+        <th>storeId</th>
+        <th>매장명</th>
+        <th>주문 코드</th>
+        <th class="right">관리</th>
+      </tr>
+    </thead>
+    <tbody id="store-body">
+      <tr><td colspan="4" class="small">등록된 매장 없음</td></tr>
+    </tbody>
+  </table>
 </div>
+  
+</div>
+
+
+
+
+  
 
 <!-- SUPER JWT + 매장 매핑 스크립트 -->
 <script type="module" src="/src/admin/assets/js/store-admin.js"></script>
