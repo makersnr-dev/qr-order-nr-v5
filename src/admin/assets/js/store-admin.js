@@ -249,14 +249,36 @@ async function renderStoreTable() {
 
   tbody.innerHTML = '';
 
+  // ① 행 먼저 전부 추가
   entries.forEach(([storeId, info]) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${storeId}</td>
       <td>${info.name || '-'}</td>
       <td>${info.code || '-'}</td>
-      <td class="right"></td>
+      <td class="right">
+        <button class="btn small danger" data-del-store="${storeId}">
+          삭제
+        </button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
+
+  // ② 그 다음 삭제 버튼 이벤트 바인딩
+  tbody.querySelectorAll('[data-del-store]').forEach(btn => {
+    btn.onclick = async () => {
+      const storeId = btn.dataset.delStore;
+      if (!confirm(`매장 "${storeId}"를 삭제할까요?`)) return;
+
+      await fetch('/api/stores', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ storeId })
+      });
+
+      renderStoreTable();
+    };
+  });
 }
+
