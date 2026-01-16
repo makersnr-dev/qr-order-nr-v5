@@ -212,11 +212,16 @@ function bindStoreUI() {
       return;
     }
 
+    const res = await fetch('/api/stores');
+    const data = await res.json();
+    const exists = !!data.stores?.[storeId];
+    
     await fetch('/api/stores', {
-      method: 'PUT',
+      method: exists ? 'PUT' : 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ storeId, name, code })
     });
+
 
     document.getElementById('store-id').value = '';
     document.getElementById('store-name').value = '';
