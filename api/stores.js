@@ -45,12 +45,15 @@ export default async function handler(req, res) {
     return json(res, { ok: false, error: limit.reason }, 429);
   }
 
+  
+
+
   try {
     if (req.method === "GET") return handleGet(req, res);
     if (req.method === "POST") return handlePost(req, res);
     if (req.method === "PUT") return handlePut(req, res);
-
-    res.setHeader("Allow", "GET,POST,PUT");
+    if (req.method === "DELETE") return handleDelete(req, res);
+    res.setHeader("Allow", "GET,POST,PUT,DELETE");
     return json(res, { ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
   } catch (err) {
     console.error("[stores] error", err);
@@ -134,3 +137,29 @@ async function handlePut(req, res) {
 
   return json(res, { ok: true, store: stores[storeId] });
 }
+
+async function handleDelete(req, res) {
+  const { storeId } = req.body || {};
+
+  if (!storeId) {
+    return json(res, {
+      ok: false,
+      error: "MISSING_STORE_ID"
+    }, 400);
+  }
+
+  const stores = await loadStores();
+
+  if (!stores[storeId]) {
+    return json(res, {
+      ok: false,
+      error: "STORE_NOT_FOUND"
+    }, 404);
+  }
+
+  delete stores[storeId];
+  await saveStores(stores);
+
+  return json(res, { ok: true });
+}
+
