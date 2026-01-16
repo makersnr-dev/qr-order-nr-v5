@@ -151,8 +151,11 @@ async function init() {
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
     mappingCard.style.display = 'block';
+    $('#store-card').style.display = 'block';
     renderMapTable();
     bindMappingUI();
+    renderStoreTable(); 
+    bindStoreUI();
   } else {
     statusText.textContent = '';
     logoutBtn.style.display = 'none';
@@ -194,3 +197,61 @@ async function init() {
 }
 
 init();
+
+function bindStoreUI() {
+  const btn = document.getElementById('store-save');
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const storeId = document.getElementById('store-id').value.trim();
+    const name = document.getElementById('store-name').value.trim();
+    const code = document.getElementById('store-code').value.trim();
+
+    if (!storeId || !code) {
+      alert('storeId와 주문 코드는 필수입니다.');
+      return;
+    }
+
+    await fetch('/api/stores', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ storeId, name, code })
+    });
+
+    document.getElementById('store-id').value = '';
+    document.getElementById('store-name').value = '';
+    document.getElementById('store-code').value = '';
+
+    renderStoreTable();
+  };
+}
+
+async function renderStoreTable() {
+  const tbody = document.getElementById('store-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
+
+  const r = await fetch('/api/stores');
+  const data = await r.json();
+  const stores = data.stores || {};
+  const entries = Object.entries(stores);
+
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="small">등록된 매장 없음</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+
+  entries.forEach(([storeId, info]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${storeId}</td>
+      <td>${info.name || '-'}</td>
+      <td>${info.code || '-'}</td>
+      <td class="right"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
