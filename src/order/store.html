@@ -400,15 +400,15 @@ document.getElementById('confirm-ok').onclick = async () => {
 
   const table = currentTable();
 
-  const orderId = 'S' + Date.now();
+ 
   const orderName =
     items.map(i => `${i.name}x${i.qty}`).join(', ').slice(0, 48) || '매장주문';
 
   const payload = {
-  orderId,
+  
   storeId,
   orderType: 'store',
-  status: 'WAIT_PAY',
+  //status: 'WAIT_PAY',
   table,
   amount: cart.total(),
 
@@ -420,7 +420,7 @@ document.getElementById('confirm-ok').onclick = async () => {
     options: Array.isArray(i.options) ? i.options : []
   })),
 
-  createdAt: Date.now()
+  //createdAt: Date.now()
 };
 
 
