@@ -6,7 +6,7 @@ import { rateLimit } from "./_lib/rate-limit.js";
 
 export const config = { runtime: "nodejs" };
 
-const STORES_FILE = "./api/_data/stores.json";
+const STORES_FILE = "/tmp/qrnr_stores.json";
 
 /* ---------------------------
    공통 JSON 응답
