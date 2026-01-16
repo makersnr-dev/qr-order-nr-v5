@@ -310,6 +310,14 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
   body.id ||
   `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  console.log(
+  '[DEBUG stores]',
+  await loadStores(),
+  'storeId:',
+  finalStoreId
+);
+
+
   const orderNo = await makeOrderNumber(
     orders,
     finalStoreId,
