@@ -1297,8 +1297,8 @@ const historyLines = (order.meta?.history || [])
         : h.action === 'PAYMENT_CANCELLED'
         ? '결제 취소'
         : '상태 변경';
-
-    return `- ${t} ${value}`;
+    const by = h.by? ` (by ${h.by})` : '';
+    return `- ${t} ${value}${by}`;
 
   })
   .join('\n');
