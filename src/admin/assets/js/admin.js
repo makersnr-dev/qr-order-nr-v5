@@ -227,6 +227,8 @@ document.body.addEventListener(
 
   console.log("[admin] verified:", session);
   console.log("[admin] adminId:", adminId);
+  sessionStorage.setItem('qrnr.adminId.real', adminId);
+
 
   //------------------------------------------------------------------
   // B. storeId 결정 + URL 반영
