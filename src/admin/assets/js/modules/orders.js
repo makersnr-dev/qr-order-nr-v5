@@ -6,12 +6,15 @@ import { get, patch, fmt } from './store.js';
 // 관리자 고유 ID (탭 단위)
 // ===============================
 const ADMIN_ID =
+  sessionStorage.getItem('qrnr.adminId.real') || 'admin';
+
+/*const ADMIN_ID =
   sessionStorage.getItem('qrnr.adminId')
   || (() => {
     const id = crypto.randomUUID();
     sessionStorage.setItem('qrnr.adminId', id);
     return id;
-  })();
+  })();*/
 
 
 const isMobile = () => window.innerWidth <= 768;
@@ -109,7 +112,7 @@ async function changeOrderStatus({ id, status, type }) {
     type: 'ORDER',
     action: 'STATUS_CHANGE',
     value: status,
-    by: 'admin',
+    by: ADMIN_ID,
     note: '상태 변경'
   };
 
@@ -316,7 +319,7 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
         type: 'ORDER',
         action: 'STATUS_CHANGE',
         value: nextStatus,
-        by: 'admin',
+        by: ADMIN_ID,
         note: '상태 변경'
       }
     ]
@@ -1414,7 +1417,7 @@ document.body.addEventListener('click', async (e) => {
             type: 'PAYMENT',
             action: 'PAYMENT_CONFIRMED',
             value: '결제완료',
-            by: 'admin',
+            by: ADMIN_ID,
             note: 'POS 결제 확인'
           }
         }
@@ -1610,7 +1613,7 @@ document.getElementById('cancel-reason-confirm')
               ? 'PAYMENT_CANCELLED'
               : 'STATUS_CHANGE',
             value: status,
-            by: 'admin',
+            by: ADMIN_ID,
             note: reason
           }
         }
