@@ -145,15 +145,6 @@ td[data-label="연락처"] {
   font-variant-numeric: tabular-nums;
 }
 
-/* 🔹 연락처: 자동 줄바꿈 허용 */
-td[data-label="연락처"] {
-  white-space: normal;        /* 줄바꿈 허용 */
-  word-break: break-word;     /* 숫자 강제 줄바꿈 */
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
-}
-
-
 
 /* 🔹 주소는 여러 줄 허용 (이미 좋음, 유지) */
 td[data-label="주소"] {
@@ -189,6 +180,21 @@ td[data-label="요청사항"] {
   white-space: normal;
   max-width: 220px;
 }
+
+/* 합계금액 */
+td[data-label="합계금액"] {
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  td[data-label="합계금액"] {
+    justify-content: space-between;
+    font-size: 15px;
+  }
+}
+
 
 /*@media (max-width: 768px) {
   .table {
