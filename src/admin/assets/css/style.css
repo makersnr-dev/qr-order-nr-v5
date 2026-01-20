@@ -137,17 +137,23 @@ td[data-label="주문자"] {
   word-break: keep-all;
 }
 
-/* 🔹 연락처는 항상 한 줄 */
+/* 🔹 연락처: 자동 줄바꿈 허용 */
 td[data-label="연락처"] {
-  white-space: nowrap;
+  white-space: normal;        /* 줄바꿈 허용 */
+  word-break: break-word;     /* 숫자 강제 줄바꿈 */
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
-/* 🔹 예약일 / 예약시간 한 줄 유지 */
-td[data-label="예약일"],
-td[data-label="예약시간"] {
-  white-space: nowrap;
+/* 🔹 연락처: 자동 줄바꿈 허용 */
+td[data-label="연락처"] {
+  white-space: normal;        /* 줄바꿈 허용 */
+  word-break: break-word;     /* 숫자 강제 줄바꿈 */
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
 }
+
+
 
 /* 🔹 주소는 여러 줄 허용 (이미 좋음, 유지) */
 td[data-label="주소"] {
