@@ -27,7 +27,7 @@ const STATUS_FLOW = {
     주문취소: []
   },
 
-  delivery: {
+  reserve: {
     '입금 미확인': ['주문접수', '주문취소'],
     주문접수: ['준비중', '주문취소'],
     준비중: ['주문완료', '주문취소'],
@@ -1028,7 +1028,7 @@ export async function renderDeliv() {
     
           ${(() => {
             const current = status;
-            const nextList = STATUS_FLOW.delivery[current] || [];
+            const nextList = STATUS_FLOW.reserve[current] || [];
           
             const options = [
               `<option selected>${current}</option>`,
@@ -1038,7 +1038,7 @@ export async function renderDeliv() {
             return `
               <select
                 class="input"
-                style="width:90px"
+                style="width:120px"
                 data-type="delivery"
                 data-id="${o.id || o.orderId || ''}"
               >
