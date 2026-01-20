@@ -122,7 +122,46 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 }
 
 
-/* ===== 예약 주문 전용 컬럼 규칙 ===== */
+/* =========================
+   예약 주문 컬럼 정리 (PC + 모바일 공통)
+========================= */
+
+/* 🔹 컬럼 제목은 줄바꿈 금지 */
+.table th {
+  white-space: nowrap;
+}
+
+/* 🔹 주문자 이름 */
+td[data-label="주문자"] {
+  max-width: 90px;
+  word-break: keep-all;
+}
+
+/* 🔹 연락처는 항상 한 줄 */
+td[data-label="연락처"] {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 🔹 예약일 / 예약시간 한 줄 유지 */
+td[data-label="예약일"],
+td[data-label="예약시간"] {
+  white-space: nowrap;
+}
+
+/* 🔹 주소는 여러 줄 허용 (이미 좋음, 유지) */
+td[data-label="주소"] {
+  word-break: keep-all;
+  white-space: normal;
+}
+
+/* 🔹 요청사항 여러 줄 허용 */
+td[data-label="요청사항"] {
+  white-space: pre-line;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
 
 /* 주소 */
 .td-addr{
