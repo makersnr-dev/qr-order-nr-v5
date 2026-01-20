@@ -211,19 +211,41 @@ function limitLines(text, maxLines = 20) {
   return lines.slice(0, maxLines).join('\n') + '\n…';
 }
 
-// 주문자 이름 말줄임 (한글 5글자 기준)
-function truncateName(name, maxLen = 5) {
+// 주문자 이름 말줄임 (한글 4글자 기준)
+function truncateName(name, maxLen = 4) {
   if (!name) return '-';
   return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
 }
 
 // 요청사항 글자 수 제한 (목록용)
-function truncateText(text, maxLen = 20) {
+function truncateText(text, maxLen = 15) {
   if (!text) return '-';
   const str = String(text);
   return str.length > maxLen
     ? str.slice(0, maxLen) + '…'
     : str;
+}
+
+// 📞 연락처 포맷 (010-1234-5678)
+function formatPhone(phone) {
+  if (!phone) return '-';
+  const n = String(phone).replace(/\D/g, '');
+
+  if (n.length === 11) {
+    return n.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  }
+  if (n.length === 10) {
+    return n.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+  return phone;
+}
+
+// 🙍‍♂️ 예약 주문자 이름 말줄임 (3글자 기준)
+function truncateReserveName(name, maxLen = 3) {
+  if (!name) return '-';
+  return name.length > maxLen
+    ? name.slice(0, maxLen) + '...'
+    : name;
 }
 
 
@@ -912,8 +934,13 @@ export async function renderDeliv() {
 
     // 주문자 / 연락처
     const customer = o.customer || {};
-    const name = truncateName(customer.name || o.name || '-');
-    const phone = customer.phone || o.phone || '-';
+    
+    const rawName = customer.name || o.name || '-';
+    const name = truncateReserveName(rawName, 3);
+    
+    const rawPhone = customer.phone || o.phone || '-';
+    const phone = formatPhone(rawPhone);
+
 
     // 주소
     const addr =
