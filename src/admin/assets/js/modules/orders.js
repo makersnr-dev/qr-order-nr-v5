@@ -951,12 +951,12 @@ export async function renderDeliv() {
 
     // 🔹 예약일자 / 예약시간
     //   - 예약 주문(type === 'reserve')에만 의미 있음
-    //   - 배달(type === 'delivery')이면 화면에는 '-' 표시
-     const reserveDate =
-    o.reserve?.date || '-';
-  
-    const reserveTime =
-      o.reserve?.time || '-';
+    // 🔹 예약일시 (합쳐서 표시)
+    const reserveDateTime =
+      o.reserve?.date && o.reserve?.time
+        ? `${o.reserve.date}\n${o.reserve.time}`
+        : '-';
+
     
     const req = truncateText(
       customer.memo || '-',
@@ -999,8 +999,9 @@ export async function renderDeliv() {
       <td data-label="주문자">${name}</td>
       <td data-label="연락처">${phone}</td>
       <td data-label="주소" class="td-addr">${addr}</td>
-      <td data-label="예약일">${reserveDate}</td>
-      <td data-label="예약시간">${reserveTime}</td>
+      <td data-label="예약일시" class="td-reserve-dt">
+        ${reserveDateTime}
+      </td>
       <td data-label="요청사항" class="td-req">${req}</td>
     
       <td data-label="주문내역">
