@@ -1015,9 +1015,16 @@ export async function renderDeliv() {
         </span>
       </td>
     
-      <td data-label="상태">
-        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-start">
-          
+      <td data-label="합계 / 상태">
+      <div style="display:flex;flex-direction:column;gap:6px">
+    
+        <!-- 합계금액 -->
+        <div style="font-weight:600">
+          ${fmt(amount)}원
+        </div>
+    
+        <!-- 상태 -->
+        <div style="display:flex;align-items:center;gap:6px">
           <span class="badge-dot ${
             status === '주문완료'
               ? 'badge-done'
@@ -1026,29 +1033,20 @@ export async function renderDeliv() {
               : 'badge-wait'
           }"></span>
     
-          ${(() => {
-            const current = status;
-            const nextList = STATUS_FLOW.reserve[current] || [];
-          
-            const options = [
-              `<option selected>${current}</option>`,
-              ...nextList.map(s => `<option>${s}</option>`)
-            ].join('');
-          
-            return `
-              <select
-                class="input"
-                style="width:120px"
-                data-type="delivery"
-                data-id="${o.id || o.orderId || ''}"
-              >
-                ${options}
-              </select>
-            `;
-          })()}
-    
+          <select
+            class="input"
+            style="min-width:120px"
+            data-type="reserve"
+            data-id="${o.id || o.orderId || ''}"
+          >
+            <option selected>${status}</option>
+            ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
+          </select>
         </div>
-      </td>
+    
+      </div>
+    </td>
+
     `;
     tbody.appendChild(tr);
   });
