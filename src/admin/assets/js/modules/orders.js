@@ -969,7 +969,7 @@ export async function renderDeliv() {
             data-id="${o.id || o.orderId || ''}"
           >
             <option selected>${status}</option>
-            ${(STATUS_FLOW.reserve?.[status] || []).map(s => `<option>${s}</option>`).join('')}
+            ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
           </select>
         </div>
     
