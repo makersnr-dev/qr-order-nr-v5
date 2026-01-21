@@ -1,6 +1,11 @@
 // /src/admin/assets/js/modules/orders.js
 import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
+import {
+  STATUS_FLOW,
+  STATUS_LIST
+} from '/src/shared/constants/status.js';
+
 
 // ===============================
 // 관리자 고유 ID (탭 단위)
@@ -8,33 +13,8 @@ import { get, patch, fmt } from './store.js';
 const ADMIN_ID =
   sessionStorage.getItem('qrnr.adminId.real') || 'admin';
 
-/*const ADMIN_ID =
-  sessionStorage.getItem('qrnr.adminId')
-  || (() => {
-    const id = crypto.randomUUID();
-    sessionStorage.setItem('qrnr.adminId', id);
-    return id;
-  })();*/
-
-
 const isMobile = () => window.innerWidth <= 768;
-// ✅ 상태 흐름 기준표 (UI용)
-const STATUS_FLOW = {
-  store: {
-    주문접수: ['준비중', '주문취소'],
-    준비중: ['주문완료', '주문취소'],
-    주문완료: [],
-    주문취소: []
-  },
 
-  reserve: {
-    '입금 미확인': ['주문접수', '주문취소'],
-    주문접수: ['준비중', '주문취소'],
-    준비중: ['주문완료', '주문취소'],
-    주문완료: [],
-    주문취소: []
-  }
-};
 const UI_TEXT = {
   ORDER_CANCEL: '주문취소',
   PAYMENT_CANCEL: '결제취소',
@@ -70,24 +50,26 @@ async function changeOrderStatus({ id, status, type }) {
 
   if (!id || !status) return;
 
-  if (!['주문접수','준비중','주문완료','주문취소'].includes(status)) {
-    
-    // 🔒 결제 완료된 주문은 주문취소 불가
+  // ✅ 공식 상태 목록 기준
+const allowedStatuses = STATUS_LIST[type] || [];
+
+if (!allowedStatuses.includes(status)) {
+
+  // 🔒 결제 완료된 주문은 주문취소 불가 (기존 로직 유지)
+  if (status === '주문취소') {
     const storeId = window.qrnrStoreId || 'store1';
     const cached = loadStoreCache(storeId);
     const order = cached.find(o => (o.id || o.orderId) === id);
-  
-    if (
-      status === '주문취소' &&
-      order?.meta?.payment?.paid
-    ) {
+
+    if (order?.meta?.payment?.paid) {
       showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
       return;
     }
-
-    console.warn('[BLOCKED] invalid status change attempt:', status);
-    return;
   }
+
+  console.warn('[BLOCKED] invalid status change attempt:', status);
+  return;
+}
 
   // ✅ storeId는 여기서 한 번만 선언 (핵심 수정)
   const storeId = window.qrnrStoreId || 'store1';
@@ -154,6 +136,33 @@ async function changeOrderStatus({ id, status, type }) {
 }
 
 
+// ===============================
+// 💳 결제 상태 변경 전용 함수 (공통)
+// ===============================
+async function applyPaymentUpdate({ id, payment, history }) {
+  if (!id) return;
+
+  const storeId = window.qrnrStoreId || 'store1';
+
+  // 서버 반영
+  await fetch('/api/orders', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      id,
+      meta: {
+        payment
+      },
+      metaAppend: {
+        history
+      }
+    })
+  });
+
+  
+
+  await renderStore();
+}
 
 
 
@@ -318,21 +327,12 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
         : [];
     return {
   ...o,
-  status: nextStatus === '결제취소' ? o.status : nextStatus,
+  status: nextStatus,
   meta: {
     ...o.meta,
 
     // 🔥 핵심: 결제취소면 결제완료 상태를 무효화
-    payment:
-      nextStatus === '결제취소'
-        ? {
-            ...o.meta?.payment,
-            paid: false,
-            cancelled: true,           // 🔥 이 한 줄이 핵심
-            cancelledAt: new Date().toISOString()
-          }
-        : o.meta?.payment,
-    
+    payment: o.meta?.payment,
 
     history: [
       ...prevHistory,
@@ -553,69 +553,6 @@ export async function renderStore() {
   return renderStoreTable();
 }
 
-
-/*function renderStoreMobile() {
-  const wrap = document.getElementById('mobile-store-list');
-  if (!wrap) return;
-
-  const storeId = window.qrnrStoreId || 'store1';
-  const rows = loadStoreCache(storeId);
-
-  wrap.innerHTML = '';
-
-  rows.forEach(o => {
-    const div = document.createElement('div');
-    div.className = 'order-card';
-
-    // ✅ 1. 현재 상태
-    const current = o.status || '주문접수';
-
-    // ✅ 2. 다음 가능 상태 목록
-    const nextList = STATUS_FLOW.store[current] || [];
-
-    // ✅ 3. 버튼 HTML 생성
-    const buttons = nextList.length
-      ?nextList.map(s => {
-        if (s === '결제취소' || s === '주문취소') {
-          return `
-            <button
-              data-action="${s === '결제취소' ? 'cancel-payment' : 'cancel-order'}"
-              data-id="${o.id}">
-              ${s}
-            </button>
-          `;
-        }
-        return `<button data-id="${o.id}" data-status="${s}">${s}</button>`;
-      }).join('')
-
-      : `<span class="small">상태 변경 불가</span>`;
-
-    // ✅ 4. HTML에 결과만 삽입
-    div.innerHTML = `
-      <div class="order-card-header">
-        <strong>${fmtDateTimeFromOrder(o)}</strong>
-        <span>${fmt(o.amount)}원</span>
-      </div>
-
-      <div class="small">
-        테이블 ${o.table || '-'}
-      </div>
-
-      <div class="order-items">
-        ${(o.cart || []).map(i => i.name).join(', ')}
-      </div>
-
-      <div class="order-actions">
-        ${buttons}
-      </div>
-    `;
-
-    wrap.appendChild(div);
-  });
-}*/
-
-
-
 async function renderStoreTable() {
   const tbody = $('#tbody-store');
   if (!tbody) return;
@@ -754,7 +691,8 @@ async function renderStoreTable() {
   <!-- 상태 SELECT -->
   ${(() => {
     const current = status;
-    let nextList = STATUS_FLOW.store[current] || [];
+    let nextList = STATUS_FLOW.store?.[current] || [];
+
 
     // 🔒 결제 완료 상태면 '주문취소' 제거
     if (o.meta?.payment?.paid) {
@@ -783,22 +721,6 @@ async function renderStoreTable() {
       </select>
     `;
 
-
-    // 결제 완료 시 주문취소 제거
-    if (o.meta?.payment?.paid === true) {
-      nextList = nextList.filter(s => s !== '주문취소');
-    }
-
-    return `
-      <select
-        class="input"
-        data-type="store"
-        data-id="${orderId}"
-      >
-        <option selected disabled>${current}</option>
-        ${nextList.map(s => `<option value="${s}">${s}</option>`).join('')}
-      </select>
-    `;
   })()}
 
   <!-- 결제 완료 뱃지 (있을 때만) -->
@@ -1040,7 +962,7 @@ export async function renderDeliv() {
             data-id="${o.id || o.orderId || ''}"
           >
             <option selected>${status}</option>
-            ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
+            ${(STATUS_FLOW.reserve?.[status] || []).map(s => `<option>${s}</option>`).join('')}
           </select>
         </div>
     
@@ -1089,73 +1011,8 @@ export async function renderDeliv() {
 // 상태 변경 핸들러
 // ─────────────────────────────
 export function attachGlobalHandlers() {
-/*  
-  // ===============================
-  // 0-6-1 관리자 이벤트 수신 (BroadcastChannel)
-  // ===============================
-  const adminChannel = new BroadcastChannel('qrnr-admin');
-  
 
-
-  adminChannel.onmessage = async (e) => {
-    const msg = e.data;
-    if (!msg || !msg.type) return;
-
-    const storeId = window.qrnrStoreId || 'store1';
-
-    // 다른 매장 이벤트는 무시
-    if (msg.storeId && msg.storeId !== storeId) return;
-    // 🔕 내가 보낸 이벤트면 무시
-    if (msg.senderId === ADMIN_ID) return;
-
-
-    switch (msg.type) {
-      case 'NEW_ORDER':
-        showToast('📦 새 주문이 들어왔습니다');
-        await renderStore();
-        break;
-
-      case 'STATUS_CHANGED':
-        showToast('🔄 다른 관리자가 주문 상태를 변경했습니다');
-        await renderStore();
-        break;
-
-      case 'CALL': {
-        const timeText = msg.ts
-          ? new Date(msg.ts).toLocaleTimeString()
-          : '';
-      
-        showToast(
-          `🔔 직원 호출${timeText ? ` (${timeText})` : ''}`
-        );
-        await renderStore();
-        break;
-      }
-    }
-
-  };
-
-*/
-  // 1️⃣ 결제 완료 버튼 클릭 → 확인 모달 열기
-/*document.body.addEventListener('click', (e) => {
-  const btn = e.target;
-  if (!btn || btn.dataset.action !== 'mark-paid') return;
-
-  const modal = document.getElementById('pay-confirm-modal');
-  if (!modal) {
-    console.error('pay-confirm-modal not found');
-    return;
-  }
-
-  // 어떤 주문인지 기억 (확인 버튼에서 사용)
-  modal.dataset.orderId = btn.dataset.id;
-
-  modal.style.display = 'flex';
-});
-*/
-
-
-  // 2️⃣ 상태 변경
+  //  상태 변경
   document.body.addEventListener('change', async (e) => {
   const sel = e.target;
   if (sel.tagName !== 'SELECT') return;
@@ -1200,68 +1057,6 @@ export function attachGlobalHandlers() {
   
   });
 
-
-
-
-  // 3️⃣ 상세보기 (아직 비워둠 – 구조만 유지)
-  /*document.body.addEventListener('click', (e) => {
-    const btn = e.target;
-    if (!btn?.dataset?.detail) return;
-
-    // 👉 나중에 showModal로 상세 주문 표시
-  });*/
-
-    // 4️⃣ 결제 완료 모달 - 확인 / 취소 버튼 처리
- /* document.body.addEventListener('click', async (e) => {
-
-    // ❌ 취소 버튼
-    if (e.target.id === 'pay-cancel') {
-      const modal = document.getElementById('pay-confirm-modal');
-      if (modal) modal.style.display = 'none';
-      return;
-    }
-
-    // ✅ 확인 버튼
-    if (e.target.id === 'pay-confirm') {
-      const modal = document.getElementById('pay-confirm-modal');
-      if (!modal) return;
-
-      const id = modal.dataset.orderId;
-      if (!id) {
-        alert('주문 정보를 찾을 수 없습니다.');
-        modal.style.display = 'none';
-        return;
-      }
-
-      const storeId = window.qrnrStoreId || 'store1';
-
-      try {
-        await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            id,
-            meta: {
-              payment: {
-                paid: true,
-                paidAt: new Date().toISOString(),
-                method: 'POS'
-              }
-            }
-          })
-        });
-
-        
-        modal.style.display = 'none';
-        //await renderStore(); // 버튼만 사라짐
-
-      } catch (err) {
-        console.error(err);
-        alert('결제 완료 처리 실패');
-      }
-    }
-  });*/
-
   // 주문 상세 모달 열기
 document.body.addEventListener('click', (e) => {
   if (e.target.dataset.action !== 'order-detail') return;
@@ -1293,7 +1088,7 @@ if (payment?.paid) {
   ].filter(Boolean).join('\n');
 }
 
-if (order.status === '결제취소') {
+if (order.meta?.payment?.cancelled) {
   paymentInfo = [
     '💳 결제 상태: 결제취소',
     payment?.method ? `결제 수단: ${payment.method}` : '',
@@ -1672,7 +1467,10 @@ document.getElementById('cancel-reason-confirm')
     });
 
       
+      if (status !== '결제취소') {
       updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
+    }
+
 
     document.getElementById('cancel-reason-input').value = '';
     modal.style.display = 'none';
