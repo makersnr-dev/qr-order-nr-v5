@@ -1472,7 +1472,48 @@ document.getElementById('cancel-reason-confirm')
       
       if (status !== '결제취소') {
       updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
-    }
+    }else{
+
+        const storeId = window.qrnrStoreId || 'store1';
+
+if (status !== '결제취소') {
+  updateStatusInCache('store', storeId, id, status);
+} else {
+  // ⭐ 결제취소는 status가 아니라 meta.payment 변경
+  const all = loadStoreCache(storeId);
+  const next = all.map(o => {
+    const oid = o.id || o.orderId;
+    if (oid !== id) return o;
+
+    return {
+      ...o,
+      meta: {
+        ...o.meta,
+        payment: {
+          ...o.meta?.payment,
+          paid: false,
+          cancelled: true,
+          cancelledAt: new Date().toISOString()
+        },
+        history: [
+          ...(o.meta?.history || []),
+          {
+            at: new Date().toISOString(),
+            type: 'PAYMENT',
+            action: 'PAYMENT_CANCELLED',
+            value: '결제취소',
+            by: ADMIN_ID,
+            note: reason
+          }
+        ]
+      }
+    };
+  });
+
+  saveStoreCache(storeId, next);
+}
+
+      }
 
 
     document.getElementById('cancel-reason-input').value = '';
