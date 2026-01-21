@@ -1,25 +1,43 @@
-// /src/shared/constants/status.js
-
 /**
  * 주문 상태 정의 (구조 고정)
  * ❗ 상태 이름 변경 금지
  */
 
+/* ============================
+ * ✅ 상태 문자열 상수 (추가)
+ * ============================ */
+
 /**
- * ⚠️ ORDER STATUS FLOW (STRUCTURE LOCKED)
- *
- * 이 파일은 주문 상태 전이의 유일한 기준이다.
- *
- * ❌ 프론트에서 임의로 상태 변경 금지
- * ❌ 결제 완료 = 상태 변경으로 해석 금지
- * ❌ 여기 없는 상태 전이 절대 추가 금지
- *
- * ✅ 상태 변경은 반드시 PUT /api/orders
- * ✅ 서버에서 STATUS_FLOW 기준으로 검증
- *
- * ⛔ DB 전환 시에도 이 구조는 그대로 유지한다.
+ * ⚠️ 이 객체는 "별칭(alias)" 용도다.
+ * - 문자열 중복 방지
+ * - 오타 방지
+ * - STATUS_FLOW / STATUS_LIST 값과 반드시 동일해야 함
+ * ❌ 상태 추가/삭제 금지
  */
 
+export const ORDER_STATUS = {
+  // 공통
+  RECEIVED: '주문접수',
+  PREPARING: '준비중',
+  DONE: '주문완료',
+  CANCELLED: '주문취소',
+
+  // 예약 전용
+  WAIT_PAY: '입금 미확인',
+};
+
+/**
+ * ⚠️ 결제는 status가 아님
+ * meta.payment 전용
+ */
+export const PAYMENT_STATUS = {
+  PAID: '결제완료',
+  CANCELLED: '결제취소',
+};
+
+/* ============================
+ * (기존 코드 — 그대로 유지)
+ * ============================ */
 
 // 주문 유형별 상태 목록
 export const STATUS_LIST = {
@@ -38,7 +56,6 @@ export const STATUS_LIST = {
   ],
 };
 
-
 export const STATUS_FLOW = {
   store: {
     '주문접수': ['준비중', '주문취소'],
@@ -49,7 +66,7 @@ export const STATUS_FLOW = {
 
   reserve: {
     '입금 미확인': ['주문접수', '주문취소'],
-    '입금미확인': ['주문접수', '주문취소'],
+    '입금미확인': ['주문접수', '주문취소'], // 🔹 legacy 호환
     '주문접수': ['준비중', '주문취소'],
     '준비중': ['주문완료', '주문취소'],
     '주문완료': [],
@@ -61,4 +78,3 @@ export const INITIAL_STATUS = {
   store: '주문접수',
   reserve: '입금 미확인',
 };
-
