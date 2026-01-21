@@ -52,7 +52,8 @@ async function changeOrderStatus({ id, status, type }) {
 
   // ✅ 공식 상태 목록 기준
 const allowedStatuses = STATUS_LIST[type] || [];
-
+  // ⚠️ 이 함수는 주문 상태(status) 전용
+// 결제 관련 상태는 여기서 처리하지 않음
 if (!allowedStatuses.includes(status)) {
 
   // 🔒 결제 완료된 주문은 주문취소 불가 (기존 로직 유지)
@@ -331,7 +332,7 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
   meta: {
     ...o.meta,
 
-    // 🔥 핵심: 결제취소면 결제완료 상태를 무효화
+    // 🔥결제취소는 여기서 처리하지 않음
     payment: o.meta?.payment,
 
     history: [
@@ -1068,7 +1069,15 @@ document.body.addEventListener('click', (e) => {
 
   const storeId = window.qrnrStoreId || 'store1';
   const orders = loadStoreCache(storeId);
-  const order = orders.find(o => (o.id || o.orderId) === id);
+  let order = orders.find(o => (o.id || o.orderId) === id);
+  
+  // ⭐ 캐시에 없거나 meta가 비어 있으면 서버 최신값 재요청
+  if (!order || !order.meta?.payment) {
+    await renderStore(); // 서버 기준으로 캐시 재동기화
+    const refreshed = loadStoreCache(storeId);
+    order = refreshed.find(o => (o.id || o.orderId) === id);
+  }
+
   if (!order) return alert('주문을 찾을 수 없습니다.');
 
   // 🔥 옵션 줄바꿈 핵심
@@ -1282,12 +1291,7 @@ document.body.addEventListener('click', async (e) => {
         senderId: ADMIN_ID
       });
     } catch {}
-    updateStatusInCache(
-      'store',
-      window.qrnrStoreId || 'store1',
-      id,
-      '결제완료'
-    );
+    
     await renderStore();
     
   } catch (err) {
@@ -1470,50 +1474,45 @@ document.getElementById('cancel-reason-confirm')
     });
 
       
-      if (status !== '결제취소') {
-      updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
-    }else{
+        if (status !== '결제취소') {
+          updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
+        } else {
+          const storeId = window.qrnrStoreId || 'store1';
+          // ⭐ 결제취소는 status가 아니라 meta.payment 변경
+          const all = loadStoreCache(storeId);
+          const next = all.map(o => {
+            const oid = o.id || o.orderId;
+            if (oid !== id) return o;
+        
+            return {
+              ...o,
+              meta: {
+                ...o.meta,
+                payment: {
+                  ...o.meta?.payment,
+                  paid: false,
+                  cancelled: true,
+                  cancelledAt: new Date().toISOString()
+                },
+                history: [
+                  ...(o.meta?.history || []),
+                  {
+                    at: new Date().toISOString(),
+                    type: 'PAYMENT',
+                    action: 'PAYMENT_CANCELLED',
+                    value: '결제취소',
+                    by: ADMIN_ID,
+                    note: reason
+                  }
+                ]
+              }
+            };
+          });
+        
+          saveStoreCache(storeId, next);
+        }
 
-        const storeId = window.qrnrStoreId || 'store1';
-
-if (status !== '결제취소') {
-  updateStatusInCache('store', storeId, id, status);
-} else {
-  // ⭐ 결제취소는 status가 아니라 meta.payment 변경
-  const all = loadStoreCache(storeId);
-  const next = all.map(o => {
-    const oid = o.id || o.orderId;
-    if (oid !== id) return o;
-
-    return {
-      ...o,
-      meta: {
-        ...o.meta,
-        payment: {
-          ...o.meta?.payment,
-          paid: false,
-          cancelled: true,
-          cancelledAt: new Date().toISOString()
-        },
-        history: [
-          ...(o.meta?.history || []),
-          {
-            at: new Date().toISOString(),
-            type: 'PAYMENT',
-            action: 'PAYMENT_CANCELLED',
-            value: '결제취소',
-            by: ADMIN_ID,
-            note: reason
-          }
-        ]
-      }
-    };
-  });
-
-  saveStoreCache(storeId, next);
-}
-
-      }
+      
 
 
     document.getElementById('cancel-reason-input').value = '';
