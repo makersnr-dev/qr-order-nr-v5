@@ -1474,9 +1474,15 @@ document.getElementById('cancel-reason-confirm')
     });
 
       
-        if (status !== '결제취소') {
-          updateStatusInCache('store', window.qrnrStoreId || 'store1', id, status);
-        } else {
+                  if (status !== '결제취소') {
+            updateStatusInCache(
+              type === 'reserve' ? 'delivery' : 'store',
+              window.qrnrStoreId || 'store1',
+              id,
+              status
+            );
+          }
+           else {
           const storeId = window.qrnrStoreId || 'store1';
           // ⭐ 결제취소는 status가 아니라 meta.payment 변경
           const all = loadStoreCache(storeId);
