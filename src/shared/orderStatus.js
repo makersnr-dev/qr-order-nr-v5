@@ -10,9 +10,6 @@ export const STORE_ORDER_STATUS = {
   PREPARING: '준비중',
   COMPLETED: '주문완료',
   CANCELLED: '주문취소',
-
-  // ⚠️ 결제 취소로 인한 강제 종료 상태
-  PAYMENT_CANCELLED: '결제취소'
 };
 
 /**
