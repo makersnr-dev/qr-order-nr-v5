@@ -697,7 +697,7 @@ async function renderStoreTable() {
   <!-- 상태 SELECT -->
   ${(() => {
     const current = status;
-    let nextList = STATUS_FLOW.store.[current] || [];
+    let nextList = STATUS_FLOW.store[current] || [];
 
 
     // 🔒 결제 완료 상태면 '주문취소' 제거
