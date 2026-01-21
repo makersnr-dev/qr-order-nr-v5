@@ -844,6 +844,7 @@ export async function renderDeliv() {
     tbody.innerHTML = `
       <tr>
         <td colspan="9" class="small">배달/예약 주문이 없습니다.</td>
+
       </tr>`;
     return;
   }
@@ -1034,6 +1035,7 @@ export function attachGlobalHandlers() {
 
     modal.dataset.orderId = id;
     modal.dataset.cancelStatus = nextStatus;
+    modal.dataset.orderType = type;
     modal.style.display = 'flex';
 
     // select 값 원래대로 되돌리기 (확정은 모달에서)
@@ -1418,6 +1420,7 @@ document.getElementById('cancel-reason-confirm')
   const modal = document.getElementById('cancel-reason-modal');
   const id = modal.dataset.orderId;
   const status = modal.dataset.cancelStatus;
+  const type = modal.dataset.orderType || 'store';
   const reason = document.getElementById('cancel-reason-input').value.trim();
 
   if (!reason) {
@@ -1433,7 +1436,7 @@ document.getElementById('cancel-reason-confirm')
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         id,
-    
+        type,
         // ✅ 결제취소면 status 자체를 보내지 않음
         ...(isPaymentCancel ? {} : { status }),
     
