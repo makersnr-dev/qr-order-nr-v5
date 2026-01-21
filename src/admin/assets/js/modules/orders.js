@@ -4,7 +4,8 @@ import { get, patch, fmt } from './store.js';
 import {
   STATUS_FLOW,
   STATUS_LIST,
-  ORDER_STATUS
+  ORDER_STATUS,
+  PAYMENT_STATUS
 } from '/src/shared/constants/status.js';
 
 
@@ -54,6 +55,15 @@ async function changeOrderStatus({ id, status, type }) {
 
   // ✅ 공식 상태 목록 기준
 const allowedStatuses = STATUS_LIST[type] || [];
+  // ❌ 결제 상태 문자열이 들어오면 차단 (주문 상태 전용 함수)
+if (
+  status === PAYMENT_STATUS.PAID ||
+  status === PAYMENT_STATUS.CANCELLED
+) {
+  console.warn('[BLOCKED] payment status passed to changeOrderStatus:', status);
+  return;
+}
+
   // ⚠️ 이 함수는 주문 상태(status) 전용
 // 결제 관련 상태는 여기서 처리하지 않음
 if (!allowedStatuses.includes(status)) {
@@ -686,9 +696,9 @@ async function renderStoreTable() {
   <span class="badge-dot ${
   o.meta?.payment?.cancelled
     ? 'badge-cancel'
-    : status === '주문완료'
+    : status === ORDER_STATUS.DONE
     ? 'badge-done'
-    : status === '준비중'
+    : status === ORDER_STATUS.PREPARING
     ? 'badge-cook'
     : 'badge-wait'
 }"></span>
@@ -702,7 +712,7 @@ async function renderStoreTable() {
 
     // 🔒 결제 완료 상태면 '주문취소' 제거
     if (o.meta?.payment?.paid) {
-      nextList = nextList.filter(s => s !== '주문취소');
+      nextList = nextList.filter(s => s !== ORDER_STATUS.CANCELLED);
     }
     
     const orderId = o.id || null;
@@ -713,7 +723,7 @@ async function renderStoreTable() {
     }
 
     
-    const disabled = current === '주문취소' ? 'disabled' : '';
+    const disabled = current === ORDER_STATUS.CANCELLED ? 'disabled' : '';
 
     return `
       <select
@@ -750,7 +760,7 @@ async function renderStoreTable() {
 <div class="order-action-line">
   ${
     // ❌ 주문취소 or 결제취소면 버튼 없음
-    status === '주문취소' || o.meta?.payment?.cancelled
+    status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled
       ? ''
       : (
         // 1️⃣ 아직 결제 안 됐을 때
@@ -955,9 +965,9 @@ export async function renderDeliv() {
         <!-- 상태 -->
         <div style="display:flex;align-items:center;gap:6px">
           <span class="badge-dot ${
-            status === '주문완료'
+            status === ORDER_STATUS.DONE
               ? 'badge-done'
-              : status === '준비중'
+              : status === ORDER_STATUS.PREPARING
               ? 'badge-cook'
               : 'badge-wait'
           }"></span>
@@ -1031,7 +1041,10 @@ export function attachGlobalHandlers() {
   if (!id || !type || !nextStatus) return;
 
   // 🔴 취소 계열은 바로 처리하지 않음
-  if (nextStatus === '주문취소' || nextStatus === '결제취소') {
+  if (
+  nextStatus === ORDER_STATUS.CANCELLED ||
+  nextStatus === PAYMENT_STATUS.CANCELLED) {
+
     const modal = document.getElementById('cancel-reason-modal');
     if (!modal) {
       alert('취소 사유 모달이 없습니다.');
@@ -1278,7 +1291,7 @@ document.body.addEventListener('click', async (e) => {
             at: new Date().toISOString(),
             type: 'PAYMENT',
             action: 'PAYMENT_CONFIRMED',
-            value: '결제완료',
+            payment: PAYMENT_STATUS.PAID,
             by: ADMIN_ID,
             note: 'POS 결제 확인'
           }
@@ -1292,7 +1305,7 @@ document.body.addEventListener('click', async (e) => {
         type: 'STATUS_CHANGED',
         storeId: window.qrnrStoreId || 'store1',
         orderId: id,
-        status: '결제완료',
+        payment: PAYMENT_STATUS.PAID,
         senderId: ADMIN_ID
       });
     } catch {}
@@ -1324,7 +1337,7 @@ document.body.addEventListener('click', (e) => {
   if (
     !order ||
     !order.meta?.payment?.paid ||
-    !['주문접수','준비중', '주문완료'].includes(order.status)
+    !Array.isArray(STATUS_FLOW.store[order.status])
   ) {
     alert('결제 완료된 주문만 결제취소할 수 있습니다.');
     return;
@@ -1399,7 +1412,7 @@ document.body.addEventListener('click', (e) => {
 
   const modal = document.getElementById('cancel-reason-modal');
   modal.dataset.orderId = id;
-  modal.dataset.cancelStatus = '주문취소';
+  modal.dataset.cancelStatus = 'ORDER_STATUS.CANCELLED';
   modal.style.display = 'flex';
 });
 
@@ -1438,7 +1451,7 @@ document.getElementById('cancel-reason-confirm')
   }
 
   try {
-    const isPaymentCancel = status === '결제취소';
+    const isPaymentCancel = status === PAYMENT_STATUS.CANCELLED;
     
     await fetch('/api/orders', {
       method: 'PUT',
