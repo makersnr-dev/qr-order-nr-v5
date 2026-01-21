@@ -420,7 +420,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
   //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
-  
+  import { INITIAL_STATUS } from '/src/shared/constants/status.js';
 
   const adminChannel = new BroadcastChannel("qrnr-admin");
 
@@ -464,7 +464,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   orderId: 'R' + Date.now(),
   storeId,
   orderType: 'reserve',
-  status: 'WAIT_PAY',
+  status: INITIAL_STATUS.reserve,
   amount: cart.total(),
   items: cart.items.map(i => ({
   id: i.id,
