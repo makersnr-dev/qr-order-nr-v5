@@ -1363,7 +1363,7 @@ document.getElementById('order-detail-close')?.addEventListener('click', () => {
   document.getElementById('order-detail-modal').style.display = 'none';
 });
 
-  // 예약 주문 상세 모달 열기
+ // 예약 주문 상세 모달 열기
 document.body.addEventListener('click', (e) => {
   if (e.target.dataset.action !== 'order-detail-deliv') return;
 
@@ -1377,30 +1377,55 @@ document.body.addEventListener('click', (e) => {
 
   const customer = order.customer || {};
 
-  const header = [
+  /* =========================
+     1️⃣ 상단 정보 블록
+  ========================= */
+  const infoBlock = [
     `주문시간: ${fmtDateTimeFromOrder(order)}`,
     `주문자: ${customer.name || '-'}`,
-    `연락처: ${customer.phone || '-'}`,
+    `연락처: ${formatPhone(customer.phone || '-')}`,
     `주소: ${customer.addr || '-'}`,
     `예약일시: ${(order.reserve?.date || '-') + ' ' + (order.reserve?.time || '')}`,
     `요청사항: ${customer.memo || '-'}`,
-    `금액: ${fmt(order.amount || 0)}원`
+    `합계금액: ${fmt(order.amount || 0)}원`
   ].join('\n');
 
+  /* =========================
+     2️⃣ 상태 변경 이력
+  ========================= */
+  const historyLines = (order.meta?.history || [])
+    .sort((a, b) => new Date(a.at) - new Date(b.at))
+    .map(h => {
+      const t = new Date(h.at).toLocaleString();
+      const value = h.value || '';
+      const by = h.by ? ` (by ${h.by})` : '';
+      return `- ${t} ${value}${by}`;
+    })
+    .join('\n');
 
-  const body = (order.cart || []).map(i => {
-    let line = `${i.name} x${i.qty}`;
-    if (Array.isArray(i.options) && i.options.length) {
-      const opts = normalizeOptions(i.options);
-      if (opts.length) {
-        line += '\n' + opts.map(opt => ` └ ${opt}`).join('\n');
+  const historyBlock = historyLines
+    ? `\n\n상태 변경 이력:\n${historyLines}`
+    : '';
+
+  /* =========================
+     3️⃣ 구매 내역 블록
+  ========================= */
+  const itemsBlock =
+    '구매내역\n\n' +
+    (order.cart || []).map(i => {
+      let line = `• ${i.name} x${i.qty}`;
+      if (Array.isArray(i.options) && i.options.length) {
+        const opts = normalizeOptions(i.options);
+        line += '\n' + opts.map(opt => `   └ ${opt}`).join('\n');
       }
-    }
-    return line;
-  }).join('\n\n');
+      return line;
+    }).join('\n\n');
 
+  /* =========================
+     4️⃣ 모달 출력
+  ========================= */
   document.getElementById('order-detail-body').textContent =
-    header + '\n\n' + body;
+    infoBlock + historyBlock + '\n\n' + itemsBlock;
 
   document.getElementById('order-detail-modal').style.display = 'flex';
 });
