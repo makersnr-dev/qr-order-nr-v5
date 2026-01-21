@@ -1061,7 +1061,7 @@ export function attachGlobalHandlers() {
   });
 
   // 주문 상세 모달 열기
-document.body.addEventListener('click', (e) => {
+document.body.addEventListener('click', async (e) => {
   if (e.target.dataset.action !== 'order-detail') return;
 
   const id = e.target.dataset.id;
