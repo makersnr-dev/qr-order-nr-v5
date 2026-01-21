@@ -3,8 +3,10 @@ import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
 import {
   STATUS_FLOW,
-  STATUS_LIST
+  STATUS_LIST,
+  ORDER_STATUS
 } from '/src/shared/constants/status.js';
+
 
 
 // ===============================
@@ -56,17 +58,20 @@ const allowedStatuses = STATUS_LIST[type] || [];
 // 결제 관련 상태는 여기서 처리하지 않음
 if (!allowedStatuses.includes(status)) {
 
-  // 🔒 결제 완료된 주문은 주문취소 불가 (기존 로직 유지)
-  if (status === '주문취소') {
-    const storeId = window.qrnrStoreId || 'store1';
-    const cached = loadStoreCache(storeId);
-    const order = cached.find(o => (o.id || o.orderId) === id);
 
-    if (order?.meta?.payment?.paid) {
-      showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
-      return;
-    }
+
+// 🔒 결제 완료된 주문은 주문취소 불가
+if (status === ORDER_STATUS.CANCELLED) {
+  const storeId = window.qrnrStoreId || 'store1';
+  const cached = loadStoreCache(storeId);
+  const order = cached.find(o => (o.id || o.orderId) === id);
+
+  if (order?.meta?.payment?.paid) {
+    showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
+    return;
   }
+}
+
 
   console.warn('[BLOCKED] invalid status change attempt:', status);
   return;
@@ -692,7 +697,7 @@ async function renderStoreTable() {
   <!-- 상태 SELECT -->
   ${(() => {
     const current = status;
-    let nextList = STATUS_FLOW.store?.[current] || [];
+    let nextList = STATUS_FLOW.store.[current] || [];
 
 
     // 🔒 결제 완료 상태면 '주문취소' 제거
