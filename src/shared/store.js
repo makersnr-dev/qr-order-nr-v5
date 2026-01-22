@@ -1,24 +1,16 @@
 // /src/shared/store.js
-export function ensureStoreInitialized() {
-  const url = new URL(location.href);
-  let storeId = url.searchParams.get("store");
+// 🔒 PHASE 0-2.5: storeId는 인증 결과 기준으로만 사용
 
-  // 1️⃣ URL에 store가 있으면 최우선
-  if (storeId) {
-    try {
-      localStorage.setItem("qrnr.storeId", storeId);
-    } catch (_) {}
-    return storeId;
+export function ensureStoreInitialized() {
+  // 🔥 storeId는 오직 인증 후 주입된 전역 값만 사용
+  if (
+    typeof window !== "undefined" &&
+    typeof window.qrnrStoreId === "string" &&
+    window.qrnrStoreId
+  ) {
+    return window.qrnrStoreId;
   }
 
-  // 2️⃣ 없으면 localStorage에서만 읽기
-  try {
-    storeId = localStorage.getItem("qrnr.storeId");
-  } catch (_) {}
-
-  if (storeId) return storeId;
-
-  // 3️⃣ ❌ 여기서 생성 금지
-  // 👉 storeId 없으면 차단
+  // ❌ 생성 / 추측 / localStorage / URL 전부 금지
   throw new Error("STORE_ID_NOT_INITIALIZED");
 }
