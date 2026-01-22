@@ -51,15 +51,42 @@ export default async function handler(req) {
     }
 
     // ----------------------------------------
-    // SUPER → admin 페이지 접근 허용
+    // 3) realm 정규화 + storeId 확정 (🔥 0-2.5 핵심)
     // ----------------------------------------
-    const normalizedRealm =
-      payload.realm === "super" ? "admin" : payload.realm;
+    const isSuper = payload.realm === "super";
+    const normalizedRealm = isSuper ? "admin" : payload.realm;
 
+    // 🔒 순수 admin 은 반드시 storeId 필요
+    if (!isSuper && normalizedRealm === "admin") {
+      const storeId = payload.storeId;
+
+      if (!storeId || typeof storeId !== "string") {
+        return json(
+          {
+            ok: false,
+            error: "STORE_ID_REQUIRED",
+            message: "관리자 계정에 storeId가 설정되어 있지 않습니다.",
+          },
+          403
+        );
+      }
+
+      return json({
+        ok: true,
+        realm: normalizedRealm,
+        storeId,
+        uid: payload.uid,
+        name: payload.name || payload.uid,
+      });
+    }
+
+    // 🔓 super (storeId 없이 허용)
     return json({
       ok: true,
       realm: normalizedRealm,
-      ...payload,
+      uid: payload.uid,
+      name: payload.name || payload.uid,
+      isSuper: true, // 프론트 제어용 (선택)
     });
 
   } catch (e) {
