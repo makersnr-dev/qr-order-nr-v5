@@ -10,6 +10,23 @@ import {
   INITIAL_STATUS
 } from '../src/shared/constants/status.js';
 
+import { verifyJWT } from "../src/shared/jwt.js";
+
+async function getAdminStoreIdFromReq(req) {
+  const auth = req.headers.authorization || "";
+  if (!auth.startsWith("Bearer ")) return null;
+
+  const token = auth.slice(7);
+  try {
+    const payload = await verifyJWT(
+      token,
+      process.env.JWT_SECRET || "dev-secret"
+    );
+    return payload?.storeId || null;
+  } catch {
+    return null;
+  }
+}
 
 
 export const config = { runtime: "nodejs" };
@@ -189,15 +206,42 @@ export default async function handler(req, res) {
 /* ============================================================
    GET /api/orders
    ============================================================ */
+/* ============================================================
+   GET /api/orders
+   🔒 0-2.5: 관리자 storeId 기준 주문 조회 제한
+   ============================================================ */
 async function handleGet(req, res) {
   const { type, from, to, storeId } = req.query || {};
+
+  // 🔒 관리자 JWT에서 storeId 추출
+  const adminStoreId = await getAdminStoreIdFromReq(req);
+
+  // 🔒 관리자 + storeId 쿼리 불일치 → 차단
+  if (adminStoreId && storeId && adminStoreId !== storeId) {
+    return json(res, {
+      ok: false,
+      error: "STORE_MISMATCH",
+      message: "다른 매장의 주문은 조회할 수 없습니다."
+    }, 403);
+  }
+
+  // 실제 사용할 storeId 결정
+  const effectiveStoreId = adminStoreId || storeId;
 
   const all = await loadOrders();
   let filtered = all.slice();
 
-  if (type) filtered = filtered.filter(o => o.type === type);
-  if (storeId) filtered = filtered.filter(o => o.storeId === storeId);
+  // 타입 필터
+  if (type) {
+    filtered = filtered.filter(o => o.type === type);
+  }
 
+  // 🔒 매장 필터 (관리자는 자기 매장만)
+  if (effectiveStoreId) {
+    filtered = filtered.filter(o => o.storeId === effectiveStoreId);
+  }
+
+  // 날짜 필터
   let fromTs = from ? Date.parse(from) : null;
   let toTs = to ? Date.parse(to) : null;
 
@@ -215,10 +259,12 @@ async function handleGet(req, res) {
     });
   }
 
+  // 최신순 정렬
   filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
   return json(res, { ok: true, orders: filtered });
 }
+
 
 function normalizeOrderInput(body) {
   const {
@@ -449,6 +495,18 @@ async function handlePut(req, res) {
   }
 
   const target = { ...orders[idx] };
+
+    // 🔒 0-2.5: 주문 소유 매장 검증
+  const adminStoreId = await getAdminStoreIdFromReq(req);
+
+  if (adminStoreId && target.storeId !== adminStoreId) {
+    return json(res, {
+      ok: false,
+      error: "STORE_MISMATCH",
+      message: "다른 매장의 주문은 수정할 수 없습니다."
+    }, 403);
+  }
+
   
   // ⚠️ 중요:
   // - 결제 완료(POS 확인)는 status 변경이 아니다.
