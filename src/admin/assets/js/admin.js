@@ -1,5 +1,6 @@
 //------------------------------------------------------------
 // 관리자 페이지 메인 스크립트 (storeId 안정화 + SUPER/ADMIN 통합 대응)
+///src/admin/assets/js/admin.js
 //------------------------------------------------------------
 
 import { renderPolicy, bindPolicy } from './modules/policy.js';
