@@ -5,17 +5,14 @@ const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
 function currentStoreId() {
-  // admin.js에서 설정한 값 우선
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-
-  // 없으면 URL ?store= 참고
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
+  const storeId = window.qrnrStoreId;
+  if (!storeId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
   }
+  return storeId;
 }
+
 
 // 공통 저장 위치 : ['admin', 'qrList']
 //  - kind: 'store' | 'deliv' 로 구분
