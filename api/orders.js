@@ -10,6 +10,8 @@ import {
   INITIAL_STATUS
 } from '../src/shared/constants/status.js';
 
+
+
 export const config = { runtime: "nodejs" };
 
 // 주문 파일 저장 위치
@@ -28,8 +30,8 @@ function json(res, body, status = 200) {
    ============================================================ */
 async function loadOrders() {
   try {
-    const txt = await fs.readFile(ORDERS_FILE, "utf8");
-    const parsed = JSON.parse(txt);
+     txt = await fs.readFile(ORDERS_FILE, "utf8");
+     parsed = JSON.parse(txt);
 
     if (Array.isArray(parsed?.orders)) return parsed.orders;
     if (Array.isArray(parsed)) return parsed; // 혹시 예전 구조
@@ -59,7 +61,7 @@ async function saveOrders(orders) {
    매장 정보 로딩 (슈퍼관리자 대비)
    ============================================================ */
 
-const STORES_FILE = "/tmp/qrnr_stores.json";
+ STORES_FILE = "/tmp/qrnr_stores.json";
 
 
 // ⚠️ 로컬에서는 /api/_data/stores.json 읽어도 되고
@@ -67,7 +69,7 @@ const STORES_FILE = "/tmp/qrnr_stores.json";
 
 async function loadStores() {
   try {
-    const txt = await fs.readFile(STORES_FILE, "utf8");
+     txt = await fs.readFile(STORES_FILE, "utf8");
     return JSON.parse(txt) || {};
   } catch {
     return {};
@@ -79,15 +81,15 @@ async function loadStores() {
    시간 헬퍼 (KST)
    ============================================================ */
 function makeTimeMeta() {
-  const ts = Date.now();
-  const KST_OFFSET = 9 * 60 * 60 * 1000;
-  const k = new Date(ts + KST_OFFSET);
+   ts = Date.now();
+   KST_OFFSET = 9 * 60 * 60 * 1000;
+   k = new Date(ts + KST_OFFSET);
 
-  const y = k.getUTCFullYear();
-  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(k.getUTCDate()).padStart(2, "0");
-  const hh = String(k.getUTCHours()).padStart(2, "0");
-  const mm = String(k.getUTCMinutes()).padStart(2, "0");
+   y = k.getUTCFullYear();
+   m = String(k.getUTCMonth() + 1).padStart(2, "0");
+   d = String(k.getUTCDate()).padStart(2, "0");
+   hh = String(k.getUTCHours()).padStart(2, "0");
+   mm = String(k.getUTCMinutes()).padStart(2, "0");
 
   return {
     ts,
@@ -102,7 +104,7 @@ function makeTimeMeta() {
 
 // 🔹 매장 코드 결정 (지금은 storeId 그대로 사용)
 async function getStoreCode(storeId) {
-  const stores = await loadStores();
+   stores = await loadStores();
   return stores[storeId]?.code || String(storeId || 'STORE').toUpperCase();
 }
 
@@ -301,7 +303,14 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
     }
   }
 
-  if (!finalStoreId) finalStoreId = "store1";
+  if (!finalStoreId) {
+  return json(res, {
+    ok: false,
+    error: 'MISSING_STORE_ID',
+    message: 'storeId가 없습니다.'
+  }, 400);
+}
+
 
   const initialStatus =
      INITIAL_STATUS[finalType] || '주문접수';
