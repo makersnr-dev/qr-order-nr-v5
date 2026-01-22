@@ -1347,7 +1347,7 @@ document.body.addEventListener('click', (e) => {
 
   const modal = document.getElementById('cancel-reason-modal');
   modal.dataset.orderId = id;
-  modal.dataset.cancelStatus = '결제취소'; // 🔥 여기서 명확히
+  modal.dataset.cancelStatus = PAYMENT_STATUS.CANCELLED; // 🔥 여기서 명확히
   modal.style.display = 'flex';
 });
 
@@ -1524,7 +1524,7 @@ document.getElementById('cancel-reason-confirm')
                     at: new Date().toISOString(),
                     type: 'PAYMENT',
                     action: 'PAYMENT_CANCELLED',
-                    value: '결제취소',
+                    value: PAYMENT_STATUS.CANCELLED,
                     by: ADMIN_ID,
                     note: reason
                   }
