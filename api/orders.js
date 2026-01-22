@@ -44,6 +44,26 @@ async function loadOrders() {
   }
 }
 
+// 🔒 storeId 실존 매장 검증 (PHASE 0-2 핵심)
+async function assertValidStoreId(storeId) {
+  if (!storeId) {
+    const err = new Error('MISSING_STORE_ID');
+    err.status = 400;
+    throw err;
+  }
+
+  const stores = await loadStores();
+
+  if (!stores || !stores[storeId]) {
+    const err = new Error('INVALID_STORE_ID');
+    err.status = 403;
+    throw err;
+  }
+
+  return true;
+}
+
+
 async function saveOrders(orders) {
   try {
     await fs.writeFile(
@@ -292,12 +312,14 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 
   const finalStoreId = storeId;
 
-  if (!finalStoreId) {
+// 🔒 storeId 실존 매장 검증
+try {
+  await assertValidStoreId(finalStoreId);
+} catch (e) {
   return json(res, {
     ok: false,
-    error: 'MISSING_STORE_ID',
-    message: 'storeId는 필수입니다.'
-  }, 400);
+    error: e.message
+  }, e.status || 400);
 }
 
 
