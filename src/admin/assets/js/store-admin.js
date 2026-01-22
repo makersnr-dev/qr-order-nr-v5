@@ -2,6 +2,9 @@
 import { get, patch } from './modules/store.js';
 
 const $ = (s, r=document) => r.querySelector(s);
+
+// ⚠️ 이 토큰은 SUPER 매핑 페이지 전용
+// 관리자 콘솔 / api/me 에 절대 사용 금지
 const SUPER_TOKEN_KEY = 'qrnr.super.jwt';
 const MAP_PATH = ['system', 'storeAdmins'];
 
@@ -58,8 +61,8 @@ function renderMapTable() {
       <td>${note}</td>
       <td class="right">
         <a class="btn small"
-           href="/admin?store=${encodeURIComponent(storeId)}"
-           target="_blank">관리자 콘솔</a>
+         href="/admin?store=${encodeURIComponent(storeId)}"
+         target="_blank">관리자 콘솔</a>
         <button class="btn small" data-del="${adminId}">삭제</button>
       </td>
     `;
@@ -79,31 +82,39 @@ function renderMapTable() {
 }
 
 function bindMappingUI() {
-  $('#map-add').onclick = () => {
+  $('#map-add').onclick = async () => {
     const adminId = $('#map-admin').value.trim();
     const storeId = $('#map-store').value.trim();
     const note = $('#map-note').value.trim();
-    //const code = $('#map-code')?.value.trim(); // ⭐ 추가
 
     if (!adminId || !storeId) {
       alert('관리자 ID와 storeId는 필수입니다.');
       return;
     }
 
+    // 🔒 storeId 실존 여부 검증 (0-2.5 보완)
+    try {
+      const res = await fetch('/api/stores');
+      const data = await res.json();
+
+      if (!data.stores || !data.stores[storeId]) {
+        alert('존재하지 않는 storeId입니다.');
+        return;
+      }
+    } catch (e) {
+      alert('매장 목록을 불러올 수 없습니다.');
+      return;
+    }
+
+    // ✅ 검증 통과 후 매핑 저장
     const map = loadMap();
+
+    if (map[adminId]) {
+      if (!confirm('이미 매핑된 관리자입니다. 덮어쓸까요?')) return;
+    }
+
     map[adminId] = { storeId, note };
     saveMap(map);
-    // ⭐ 매장 코드 저장 (/api/stores)
-    /*if (code) {
-      fetch('/api/stores', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          storeId,
-          code
-        })
-      }).catch(() => {});
-    }*/
 
     renderMapTable();
 
@@ -112,6 +123,7 @@ function bindMappingUI() {
     $('#map-note').value = '';
   };
 }
+
 
 async function fetchSuperMe() {
   try {
