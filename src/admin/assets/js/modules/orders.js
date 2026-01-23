@@ -85,18 +85,6 @@ if (
   console.warn('[BLOCKED] payment status passed to changeOrderStatus:', status);
   return;
 }
-
-// 🔒 결제 완료된 주문은 주문취소 불가
-if (status === ORDER_STATUS.CANCELLED) {
-  const storeId = currentStoreId();
-  const cached = loadStoreCache(storeId);
-  const order = cached.find(o => (o.id || o.orderId) === id);
-
-  if (order?.meta?.payment?.paid) {
-    showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
-    return;
-  }
-}
   
   // ⚠️ 이 함수는 주문 상태(status) 전용
 // 결제 관련 상태는 여기서 처리하지 않음
@@ -105,23 +93,41 @@ if (!allowedStatuses.includes(status)) {
   return;
 }
 
-  // ✅ storeId는 여기서 한 번만 선언 (핵심 수정)
+    // ===============================
+  // 🔒 0-4-1 UI 기준 주문 차단 (통합)
+  // ===============================
   const storeId = currentStoreId();
 
-  // 🔒 0-4-2: UI 안전 차단용 (서버 기준 아님)
-  if (type === 'store') {
-    const cachedOrders = loadStoreCache(storeId);
+  const cachedOrders =
+    type === 'store'
+      ? loadStoreCache(storeId)
+      : loadDelivCache(storeId);
 
-    const existsInCache = cachedOrders.some(
-      o => (o.id || o.orderId) === id
-    );
+  const order = cachedOrders.find(
+    o => (o.id || o.orderId) === id
+  );
 
-    if (!existsInCache) {
-      console.warn('[UI BLOCK] order not in cache:', id);
-      showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
-      return;
-    }
+  // 화면 기준으로 주문 자체가 없으면 차단
+  if (!order) {
+    showToast('이미 처리되었거나 존재하지 않는 주문입니다.');
+    return;
   }
+
+  // 이미 취소된 주문은 재변경 불가
+  if (order.status === ORDER_STATUS.CANCELLED) {
+    showToast('이미 취소된 주문입니다.');
+    return;
+  }
+
+  // 결제 완료 후 주문취소 차단
+  if (
+    status === ORDER_STATUS.CANCELLED &&
+    order.meta?.payment?.paid
+  ) {
+    showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
+    return;
+  }
+
 
   const historyItem = {
     at: new Date().toISOString(),
