@@ -1,7 +1,12 @@
 // /api/stores.js
 // 슈퍼관리자용 매장 관리 API (stores.json)
 
-import fs from "fs/promises";
+
+import fs from "fs";
+import { promisify } from "util";
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+
 import { rateLimit } from "./_lib/rate-limit.js";
 import { verifyJWT } from "../src/shared/jwt.js";
 
@@ -50,7 +55,7 @@ async function assertSuper(req) {
 --------------------------- */
 async function loadStores() {
   try {
-    const txt = await fs.readFile(STORES_FILE, "utf8");
+    const txt = await readFile(STORES_FILE, "utf8");
     return JSON.parse(txt) || {};
   } catch {
     return {};
@@ -58,12 +63,13 @@ async function loadStores() {
 }
 
 async function saveStores(stores) {
-  await fs.writeFile(
+  await writeFile(
     STORES_FILE,
     JSON.stringify(stores, null, 2),
     "utf8"
   );
 }
+
 
 /* ---------------------------
    메인 핸들러
