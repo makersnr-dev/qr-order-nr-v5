@@ -258,6 +258,12 @@ async function renderStoreTable() {
   tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
 
   const r = await fetch('/api/stores');
+   if (!r.ok) {
+     const text = await r.text();
+     console.error('stores api error:', text);
+     alert('매장 정보를 불러오지 못했습니다.');
+     return;
+   }
   const data = await r.json();
   const stores = data.stores || {};
   const entries = Object.entries(stores);
