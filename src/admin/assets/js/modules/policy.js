@@ -104,15 +104,14 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
 `.trim();
 
 function currentStoreId() {
-  if (typeof window !== 'undefined' && window.qrnrStoreId) {
-    return window.qrnrStoreId;
+  const storeId = window.qrnrStoreId;
+  if (!storeId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
   }
-  try {
-    return localStorage.getItem('qrnr.storeId') || 'store1';
-  } catch (e) {
-    return 'store1';
-  }
+  return storeId;
 }
+
 
 // ✅ 관리자 화면에 텍스트 초기 렌더
 export function renderPolicy() {
