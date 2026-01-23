@@ -65,23 +65,26 @@
     // ─────────────────────────────
     saveToken(data.token);
 
-    // ─────────────────────────────
-    // 3) 매장 관리자 매핑 확인
-    // ─────────────────────────────
-    // 예: { "admin1": "narae", "admin2": "storeA" }
-    const map = get(['admin', 'storeAdmins']) || {};
-    const storeId = map[uid];
+   // ─────────────────────────────
+  // 3) 매장 관리자 매핑 확인 (필수)
+  // ─────────────────────────────
+  const map = get(['admin', 'storeAdmins']) || {};
+  const storeId = map[uid];
+  
+  // ─────────────────────────────
+  // 4) 매장 매핑 강제
+  // ─────────────────────────────
+  if (!storeId) {
+    alert(
+      '이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n' +
+      '관리자 매핑 후 다시 로그인해주세요.'
+    );
+    return; // ❗ admin 페이지로 보내지 않음
+  }
+  
+  // ✅ storeId가 있을 때만 admin 진입
+  location.href = `/admin?store=${encodeURIComponent(storeId)}`;
 
-    // ─────────────────────────────
-    // 4) 매장 매핑 여부에 따라 이동
-    // ─────────────────────────────
-    if (storeId) {
-      // 관리자별 매장 컨텍스트 유지
-      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
-    } else {
-      // 매핑되지 않은 관리자 (슈퍼관리자 등)
-      location.href = '/admin';
-    }
   };
 </script>
 
