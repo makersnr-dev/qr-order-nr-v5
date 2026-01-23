@@ -8,6 +8,14 @@ import {
   PAYMENT_STATUS
 } from '/src/shared/constants/status.js';
 
+function currentStoreId() {
+  if (!window.qrnrStoreId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
+  }
+  return window.qrnrStoreId;
+}
+
 
 
 // ===============================
@@ -64,15 +72,9 @@ if (
   return;
 }
 
-  // ⚠️ 이 함수는 주문 상태(status) 전용
-// 결제 관련 상태는 여기서 처리하지 않음
-if (!allowedStatuses.includes(status)) {
-
-
-
 // 🔒 결제 완료된 주문은 주문취소 불가
 if (status === ORDER_STATUS.CANCELLED) {
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const cached = loadStoreCache(storeId);
   const order = cached.find(o => (o.id || o.orderId) === id);
 
@@ -81,14 +83,16 @@ if (status === ORDER_STATUS.CANCELLED) {
     return;
   }
 }
-
-
+  
+  // ⚠️ 이 함수는 주문 상태(status) 전용
+// 결제 관련 상태는 여기서 처리하지 않음
+if (!allowedStatuses.includes(status)) {
   console.warn('[BLOCKED] invalid status change attempt:', status);
   return;
 }
 
   // ✅ storeId는 여기서 한 번만 선언 (핵심 수정)
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
 
   // 🔒 0-4-2: UI 안전 차단용 (서버 기준 아님)
   if (type === 'store') {
@@ -158,7 +162,7 @@ if (status === ORDER_STATUS.CANCELLED) {
 async function applyPaymentUpdate({ id, payment, history }) {
   if (!id) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
 
   // 서버 반영
   await fetch('/api/orders', {
@@ -381,7 +385,7 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
 // ─────────────────────────────
 export async function syncStoreFromServer() {
   try {
-    const storeId = window.qrnrStoreId || 'store1';
+    const storeId = currentStoreId();
     const res = await fetch(
       `/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`,
       { cache: 'no-store' }
@@ -573,7 +577,7 @@ async function renderStoreTable() {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   let rows = [];
 
   try {
@@ -796,7 +800,7 @@ async function renderStoreTable() {
   });
 
   patch(['admin', 'ordersStore'], () => {
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const orders = loadStoreCache(storeId); // ✅ 원본 기준
 
   return orders.map(o => ({
@@ -824,7 +828,7 @@ export async function renderDeliv() {
   const tbody = $('#tbody-deliv');
   if (!tbody) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   let rows = [];
 
   try {
@@ -1085,7 +1089,7 @@ document.body.addEventListener('click', async (e) => {
   const id = e.target.dataset.id;
   if (!id) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const orders = loadStoreCache(storeId);
   let order = orders.find(o => (o.id || o.orderId) === id);
   
@@ -1194,7 +1198,7 @@ document.body.addEventListener('click', (e) => {
   const id = e.target.dataset.id;
   if (!id) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const orders = loadDelivCache(storeId);
   const order = orders.find(o => (o.id || o.orderId) === id);
   if (!order) return alert('예약 주문을 찾을 수 없습니다.');
@@ -1266,7 +1270,7 @@ document.body.addEventListener('click', async (e) => {
   }
 
   // UI 보호용 안내만 하고 서버 판단에 맡김
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const cached = loadStoreCache(storeId);
   if (!cached.some(o => (o.id || o.orderId) === id)) {
     showToast('화면이 최신 상태가 아닙니다. 새로고침 후 다시 시도하세요.');
@@ -1303,7 +1307,7 @@ document.body.addEventListener('click', async (e) => {
       const channel = new BroadcastChannel('qrnr-admin');
       channel.postMessage({
         type: 'STATUS_CHANGED',
-        storeId: window.qrnrStoreId || 'store1',
+        storeId: currentStoreId(),
         orderId: id,
         payment: PAYMENT_STATUS.PAID,
         senderId: ADMIN_ID
@@ -1326,7 +1330,7 @@ document.body.addEventListener('click', (e) => {
   const id = e.target.dataset.id;
   if (!id) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
   const orders = loadStoreCache(storeId);
   if (!orders.length) {
     showToast('주문 정보를 찾을 수 없습니다.');
@@ -1412,7 +1416,7 @@ document.body.addEventListener('click', (e) => {
 
   const modal = document.getElementById('cancel-reason-modal');
   modal.dataset.orderId = id;
-  modal.dataset.cancelStatus = 'ORDER_STATUS.CANCELLED';
+  modal.dataset.cancelStatus = ORDER_STATUS.CANCELLED;
   modal.style.display = 'flex';
 });
 
@@ -1495,13 +1499,13 @@ document.getElementById('cancel-reason-confirm')
                   if (status !== '결제취소') {
             updateStatusInCache(
               type === 'reserve' ? 'delivery' : 'store',
-              window.qrnrStoreId || 'store1',
+              currentStoreId(),
               id,
               status
             );
           }
            else {
-          const storeId = window.qrnrStoreId || 'store1';
+          const storeId = currentStoreId();
           // ⭐ 결제취소는 status가 아니라 meta.payment 변경
           const all = loadStoreCache(storeId);
           const next = all.map(o => {
