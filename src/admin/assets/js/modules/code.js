@@ -2,7 +2,8 @@
 import {
   ensureStore,
   getPaymentCode,
-  setPaymentCode
+  setPaymentCode,
+  patch
 } from './store.js';
 
 let leftTimer;
@@ -62,7 +63,11 @@ function tickLeft() {
 ------------------------------ */
 export function renderCode() {
   const storeId = window.qrnrStoreId;
-  if (!storeId) return;
+  if (!storeId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
+  }
+
 
   ensureStore(storeId);
 
@@ -113,7 +118,13 @@ function watchMidnight() {
    버튼 바인딩
 ------------------------------ */
 export function bindCode() {
-  const storeId = () => window.qrnrStoreId;
+  function getStoreId() {
+  if (!window.qrnrStoreId) {
+    throw new Error('STORE_ID_NOT_INITIALIZED');
+  }
+  return window.qrnrStoreId;
+}
+
 
   // 📋 복사
   const copyBtn = document.getElementById('code-copy');
@@ -128,7 +139,7 @@ export function bindCode() {
   const newBtn = document.getElementById('code-new');
   if (newBtn) {
     newBtn.onclick = () => {
-      const sid = storeId();
+      const sid = getStoreId();
       if (!sid) return;
 
       patch(['stores', sid, 'paymentCode'], () => ({
@@ -146,7 +157,7 @@ export function bindCode() {
   const resetBtn = document.getElementById('code-reset');
   if (resetBtn) {
     resetBtn.onclick = () => {
-      const sid = storeId();
+      const sid = getStoreId();
       if (!sid) return;
 
       patch(['stores', sid, 'paymentCode'], () => ({
