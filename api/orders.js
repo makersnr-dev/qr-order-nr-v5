@@ -486,7 +486,6 @@ async function handlePut(req, res) {
     }, 403);
   }
 
-  
   // ⚠️ 중요:
   // - 결제 완료(POS 확인)는 status 변경이 아니다.
   // - meta.payment 업데이트용 PUT은 status 없이 호출된다.
@@ -497,6 +496,28 @@ async function handlePut(req, res) {
 
   const allowedNext =
     STATUS_FLOW[orderType]?.[currentStatus] || [];
+
+     // 🔒 0-4-3-1: 결제 상태 문자열이 status로 들어오면 차단
+  if (
+    status === '결제완료' ||
+    status === '결제취소'
+  ) {
+    return json(res, {
+      ok: false,
+      error: 'INVALID_STATUS_FIELD',
+      message: '결제 상태는 status로 변경할 수 없습니다.'
+    }, 400);
+  }
+
+    // 🔒 0-4-3-2: 주문 타입 없는 상태 변경 차단
+if (!target.type) {
+  return json(res, {
+    ok: false,
+    error: 'ORDER_TYPE_MISSING',
+    message: '주문 타입이 없는 상태 변경 요청입니다.'
+  }, 400);
+}
+
 
   if (!allowedNext.includes(status)) {
     return json(res, {
