@@ -1,8 +1,13 @@
 import { get, patch } from './store.js';
 
 function currentStoreId() {
-  return window.qrnrStoreId || 'store1';
+  if (!window.qrnrStoreId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
+  }
+  return window.qrnrStoreId;
 }
+
 
 // 매장별 계좌 저장 위치: ['admin', 'ownerBank', storeId]
 const PATH = () => ['admin', 'ownerBank', currentStoreId()];
