@@ -7,7 +7,8 @@ import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
 import {
   STATUS_FLOW,
-  INITIAL_STATUS
+  INITIAL_STATUS,
+  ORDER_STATUS
 } from '../src/shared/constants/status.js';
 
 import { verifyJWT } from "../src/shared/jwt.js";
@@ -427,29 +428,7 @@ try {
 
    orders.push(newOrder);
    await saveOrders(orders);
-   
-   /* 🔔 관리자 알림 (매장/예약 공통) 
-   try {
-     const channel = new BroadcastChannel("qrnr-admin");
-     channel.postMessage({
-     type: "NEW_ORDER",
-     orderType: finalType,          // ⭐ 핵심 (store | delivery | reserve)
-     storeId: finalStoreId,
-     orderId: newOrder.id,
-   
-     table: table || null,
-     customer: finalCustomer || null,   // ⭐ 추가
-     cart: finalCart,                  // ⭐ 추가
-   
-     reserveDate,
-     reserveTime,
-     amount: amt,
-     ts,
-   });
-
-   } catch (e) {
-     console.error("[orders] admin notify error:", e);
-   }*/
+  
 
    console.log("[BC SEND]", {
   orderType: finalType,
@@ -531,17 +510,18 @@ async function handlePut(req, res) {
   }
 
   // 🔒 결제취소는 "결제 완료된 주문"만 허용
-  if (status === '결제취소') {
-    const paid = target.meta?.payment?.paid === true;
+  // 🔒 0-4-2: 결제 완료된 주문은 주문취소 불가
+if (
+  status === ORDER_STATUS.CANCELLED &&
+  target.meta?.payment?.paid === true
+) {
+  return json(res, {
+    ok: false,
+    error: 'ORDER_CANCEL_BLOCKED',
+    message: '결제 완료된 주문은 주문취소할 수 없습니다.'
+  }, 400);
+}
 
-    if (!paid) {
-      return json(res, {
-        ok: false,
-        error: 'PAYMENT_NOT_CONFIRMED',
-        message: '결제 완료된 주문만 결제취소할 수 있습니다.'
-      }, 400);
-    }
-  }
 
   target.status = status;
 }
