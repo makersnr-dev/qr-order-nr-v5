@@ -3,6 +3,7 @@
 
 import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
+import { verifyJWT } from "../src/shared/jwt.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -16,6 +17,34 @@ function json(res, body, status = 200) {
   res.status(status).setHeader("content-type", "application/json");
   return res.send(JSON.stringify(body));
 }
+
+/* ---------------------------
+   SUPER 관리자 인증
+--------------------------- */
+async function assertSuper(req) {
+  const auth = req.headers.authorization || "";
+  if (!auth.startsWith("Bearer ")) {
+    const e = new Error("NO_TOKEN");
+    e.status = 401;
+    throw e;
+  }
+
+  const token = auth.slice(7);
+
+  const payload = await verifyJWT(
+    token,
+    process.env.JWT_SECRET || "dev-secret"
+  );
+
+  if (!payload?.isSuper) {
+    const e = new Error("NOT_SUPER");
+    e.status = 403;
+    throw e;
+  }
+
+  return payload;
+}
+
 
 /* ---------------------------
    stores.json 로드 / 저장
@@ -57,10 +86,15 @@ export default async function handler(req, res) {
     res.setHeader("Allow", "GET,POST,PUT,DELETE");
     return json(res, { ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
   } catch (err) {
-    console.error("[stores] error", err);
-    return json(res, { ok: false, error: "INTERNAL_ERROR" }, 500);
-  }
+  console.error("[stores] error", err);
+
+  return json(res, {
+    ok: false,
+    error: err.message || "INTERNAL_ERROR"
+  }, err.status || 500);
 }
+
+
 
 /* ---------------------------
    GET /api/stores
@@ -76,6 +110,7 @@ async function handleGet(req, res) {
    매장 신규 생성
 --------------------------- */
 async function handlePost(req, res) {
+  await assertSuper(req);
   const { storeId, code, name } = req.body || {};
 
   if (!storeId || !code) {
@@ -109,6 +144,7 @@ async function handlePost(req, res) {
    매장 수정 (code/name)
 --------------------------- */
 async function handlePut(req, res) {
+  await assertSuper(req);
   const { storeId, code, name } = req.body || {};
 
   if (!storeId) {
@@ -140,7 +176,8 @@ async function handlePut(req, res) {
 }
 
 async function handleDelete(req, res) {
-  const { storeId } = req.body || {};
+   await assertSuper(req);
+   const { storeId } = req.body || {};
 
   if (!storeId) {
     return json(res, {
