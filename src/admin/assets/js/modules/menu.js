@@ -14,14 +14,13 @@ const SAMPLE_MENU = [
 
 // 현재 storeId 가져오기
 function currentStoreId() {
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
+  if (!window.qrnrStoreId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
   }
+  return window.qrnrStoreId;
 }
+
 
 // 매장별 메뉴 경로
 const PER_STORE_PATH = () => ['admin', 'menuByStore', currentStoreId()];
