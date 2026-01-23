@@ -2,17 +2,22 @@
 // 슈퍼관리자용 매장 관리 API (stores.json)
 
 
-import fs from "fs";
-import { promisify } from "util";
-const readFile = promisify(fs.readFile);
-const writeFile = promisify(fs.writeFile);
+//import fs from "fs";
+//import { promisify } from "util";
+//const readFile = promisify(fs.readFile);
+//const writeFile = promisify(fs.writeFile);
 
 import { rateLimit } from "./_lib/rate-limit.js";
 import { verifyJWT } from "../src/shared/jwt.js";
 
 export const config = { runtime: "nodejs" };
 
-const STORES_FILE = "/tmp/qrnr_stores.json";
+//const STORES_FILE = "/tmp/qrnr_stores.json";
+// ✅ 임시 고정 매장 데이터 (DB 전환 전까지)
+const FIXED_STORES = {
+  narae: { code: "NC", name: "나래 테스트 매장" }
+};
+
 
 /* ---------------------------
    공통 JSON 응답
@@ -53,7 +58,7 @@ async function assertSuper(req) {
 /* ---------------------------
    stores.json 로드 / 저장
 --------------------------- */
-async function loadStores() {
+/*async function loadStores() {
   try {
     const txt = await readFile(STORES_FILE, "utf8");
     return JSON.parse(txt) || {};
@@ -68,7 +73,7 @@ async function saveStores(stores) {
     JSON.stringify(stores, null, 2),
     "utf8"
   );
-}
+}*/
 
 
 /* ---------------------------
@@ -110,11 +115,12 @@ async function handleGet(req, res) {
   return json(res, { ok: true, stores });
 }
 
+
 /* ---------------------------
    POST /api/stores
    매장 신규 생성
 --------------------------- */
-async function handlePost(req, res) {
+/*async function handlePost(req, res) {
   await assertSuper(req);
   const { storeId, code, name } = req.body || {};
 
@@ -142,13 +148,13 @@ async function handlePost(req, res) {
   await saveStores(stores);
 
   return json(res, { ok: true, store: stores[storeId] });
-}
+}*/
 
 /* ---------------------------
    PUT /api/stores
    매장 수정 (code/name)
 --------------------------- */
-async function handlePut(req, res) {
+/*async function handlePut(req, res) {
   await assertSuper(req);
   const { storeId, code, name } = req.body || {};
 
@@ -205,4 +211,5 @@ async function handleDelete(req, res) {
 
   return json(res, { ok: true });
 }
+   */
 
