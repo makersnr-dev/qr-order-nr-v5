@@ -221,7 +221,7 @@ init();
 function bindStoreUI() {
   const btn = document.getElementById('store-save');
   if (!btn) return;
-
+/*
   btn.onclick = async () => {
     const storeId = document.getElementById('store-id').value.trim();
     const name = document.getElementById('store-name').value.trim();
@@ -248,7 +248,7 @@ function bindStoreUI() {
     document.getElementById('store-code').value = '';
 
     renderStoreTable();
-  };
+  };*/
 }
 
 async function renderStoreTable() {
