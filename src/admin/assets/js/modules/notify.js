@@ -7,14 +7,13 @@ import { get, patch, fmt } from './store.js';
 // 공통: 현재 storeId
 // ─────────────────────────────
 function currentStoreId() {
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
+  if (!window.qrnrStoreId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
   }
+  return window.qrnrStoreId;
 }
+
 
 // 매장별 알림 설정 경로: ['admin', 'notify', storeId]
 const PATH = () => ['admin', 'notify', currentStoreId()];
@@ -165,7 +164,8 @@ export function renderCallOptions() {
   const box = document.getElementById('call-options-box');
   if (!box) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
+
   const list =
     get(['admin', 'callOptions', storeId]) || [
       '물/수저 요청',
@@ -226,7 +226,8 @@ export function bindCallOptions() {
   const box = document.getElementById('call-options-box');
   if (!box) return;
 
-  const storeId = window.qrnrStoreId || 'store1';
+  const storeId = currentStoreId();
+
 
   box.addEventListener('click', (e) => {
 
@@ -382,10 +383,12 @@ export function notifyEvent(msg) {
   if (msg.type === 'CALL') {
     patch(['admin', 'notifyLogs'], (list = []) => {
       const arr = Array.isArray(list) ? [...list] : [];
-
+      const sid = currentStoreId();
       arr.unshift({
         id: msg.id || 'CALL-' + Date.now(),
-        storeId: msg.storeId ?? window.qrnrStoreId ?? 'store1',
+
+        storeId: msg.storeId ?? sid,
+
         table: msg.table || null,
         message: msg.note || '직원 호출',
         status: '대기',
