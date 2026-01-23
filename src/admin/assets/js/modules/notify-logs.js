@@ -16,7 +16,14 @@ export function renderNotifyLogs() {
   const tbody = $('#tbody-notify-logs');
   if (!tbody) return;
 
-  const currentStoreId = window.qrnrStoreId || 'store1';
+  const currentStoreId = (() => {
+  if (!window.qrnrStoreId) {
+    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    throw new Error('STORE_ID_NOT_INITIALIZED');
+  }
+  return window.qrnrStoreId;
+})();
+
   const all = get(['admin', 'notifyLogs']) || [];
 
   // 현재 매장 로그만 필터 (과거 storeId 없는 데이터는 공통으로 표시)
