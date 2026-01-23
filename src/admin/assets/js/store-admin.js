@@ -1,6 +1,14 @@
 // /src/admin/assets/js/store-admin.js
 import { get, patch } from './modules/store.js';
 
+function superHeaders() {
+  return {
+    'content-type': 'application/json',
+    'authorization': `Bearer ${getSuperToken()}`
+  };
+}
+
+
 const $ = (s, r=document) => r.querySelector(s);
 
 // ⚠️ 이 토큰은 SUPER 매핑 페이지 전용
@@ -229,10 +237,10 @@ function bindStoreUI() {
     const exists = !!data.stores?.[storeId];
     
     await fetch('/api/stores', {
-      method: exists ? 'PUT' : 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ storeId, name, code })
-    });
+    method: exists ? 'PUT' : 'POST',
+    headers: superHeaders(),
+    body: JSON.stringify({ storeId, name, code })
+  });
 
 
     document.getElementById('store-id').value = '';
@@ -284,10 +292,11 @@ async function renderStoreTable() {
       if (!confirm(`매장 "${storeId}"를 삭제할까요?`)) return;
 
       await fetch('/api/stores', {
-        method: 'DELETE',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ storeId })
-      });
+      method: 'DELETE',
+      headers: superHeaders(),
+      body: JSON.stringify({ storeId })
+    });  
+
 
       renderStoreTable();
     };
