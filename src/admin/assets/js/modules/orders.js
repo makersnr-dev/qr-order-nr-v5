@@ -1,4 +1,18 @@
 // /src/admin/assets/js/modules/orders.js
+/**
+ * =====================================================
+ * [0-3 ORDER DATA SINGLE SOURCE OF TRUTH]
+ *
+ * - 주문의 최종 기준은 /api/orders 응답이다.
+ * - localStorage cache는 UI 안정화용 보조 수단이다.
+ * - admin.ordersStore / ordersDelivery 는 출력 전용이다.
+ * - 상태 변경은 반드시 /api/orders PUT을 거친다.
+ *
+ * ※ DB 전환 시 이 파일의 fetch 로직만 교체한다.
+ * =====================================================
+ */
+
+
 import { get, patch, fmt } from './store.js';
 //import { showModal } from './ui.js';
 import {
