@@ -21,6 +21,31 @@ import {
   ORDER_STATUS,
   PAYMENT_STATUS
 } from '/src/shared/constants/status.js';
+import { ADMIN_EVENTS } from '/src/shared/constants/adminEvents.js';
+
+let __isRendering = false;
+let __renderQueued = false;
+
+async function safeRenderAll() {
+  if (__isRendering) {
+    __renderQueued = true;
+    return;
+  }
+
+  __isRendering = true;
+  try {
+    await renderStore();
+    await renderDeliv();
+  } finally {
+    __isRendering = false;
+
+    if (__renderQueued) {
+      __renderQueued = false;
+      await safeRenderAll();
+    }
+  }
+}
+
 
 function currentStoreId() {
   if (!window.qrnrStoreId) {
@@ -155,24 +180,23 @@ if (!allowedStatuses.includes(status)) {
     throw new Error(data.error || 'STATUS_CHANGE_FAILED');
   }
 
-  // 🔔 다른 관리자에게 상태 변경 알림
-  try {
-    const channel = new BroadcastChannel('qrnr-admin');
-    channel.postMessage({
-      type: 'STATUS_CHANGED',
-      storeId,
-      orderId: id,
-      status,
-      senderId: ADMIN_ID
-    });
-  } catch {}
+  // 🔔 관리자 간 이벤트 전파 (데이터 X, 이벤트만)
+try {
+  const channel = new BroadcastChannel('qrnr-admin');
+  channel.postMessage({
+    type: ADMIN_EVENTS.ORDER_STATUS_CHANGED,
+    storeId,
+    orderId: id,
+    senderId: ADMIN_ID,
+    at: Date.now()
+  });
+} catch {}
 
 
   // ✅ 이제 storeId 정상 참조
   updateStatusInCache(type, storeId, id, status);
 
-  if (type === 'store') await renderStore();
-  if (type === 'delivery') await renderDeliv();
+  await safeRenderAll();
 }
 
 
@@ -201,7 +225,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
 
   
 
-  await renderStore();
+  await safeRenderAll();
 }
 
 
@@ -1093,7 +1117,7 @@ export function attachGlobalHandlers() {
   } catch (err) {
   if (err.message === 'ORDER_NOT_FOUND') {
     showToast('이미 삭제되었거나 처리된 주문입니다.');
-    await renderStore();
+    await safeRenderAll();
     return;
   }
   alert('상태 변경 실패');
@@ -1115,7 +1139,7 @@ document.body.addEventListener('click', async (e) => {
   
   // ⭐ 캐시에 없거나 meta가 비어 있으면 서버 최신값 재요청
   if (!order || !order.meta?.payment) {
-    await renderStore(); // 서버 기준으로 캐시 재동기화
+    await safeRenderAll(); // 서버 기준으로 캐시 재동기화
     const refreshed = loadStoreCache(storeId);
     order = refreshed.find(o => (o.id || o.orderId) === id);
   }
@@ -1325,16 +1349,18 @@ document.body.addEventListener('click', async (e) => {
     // 🔔 결제 완료 이벤트 전파
     try {
       const channel = new BroadcastChannel('qrnr-admin');
+      // 🔔 결제 완료 → 서버 변경 알림만
       channel.postMessage({
-        type: 'STATUS_CHANGED',
+        type: ADMIN_EVENTS.ORDER_STATUS_CHANGED,
         storeId: currentStoreId(),
         orderId: id,
-        payment: PAYMENT_STATUS.PAID,
-        senderId: ADMIN_ID
+        senderId: ADMIN_ID,
+        at: Date.now()
       });
+
     } catch {}
     
-    await renderStore();
+    await safeRenderAll();
     
   } catch (err) {
     console.error(err);
@@ -1396,37 +1422,6 @@ document.body.addEventListener('click', async (e) => {
 });
 
 
-  // 📱 모바일 주문 카드 버튼 처리
-/*document.body.addEventListener('click', async (e) => {
-  const btn = e.target;
-
-  // 모바일 카드 버튼 아니면 무시
-  if (!btn || !btn.dataset || !btn.dataset.status) return;
-
-  const id = btn.dataset.id;
-  const nextStatus = btn.dataset.status;
-
-  if (!id || !nextStatus) return;
-
-  try {
-    await fetch('/api/orders', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        id,
-        status: nextStatus
-      })
-    });
-
-    // 상태 변경 후 다시 렌더링
-    await renderStore();
-
-  } catch (err) {
-    console.error(err);
-    alert('상태 변경 실패');
-  }
-});*/
-
   
 document.body.addEventListener('click', (e) => {
   if (e.target.dataset.action !== 'cancel-order') return;
@@ -1443,6 +1438,38 @@ document.body.addEventListener('click', (e) => {
 
 }
 
+// =====================================================
+// 🔔 0-5-1 관리자 이벤트 수신
+// - 이벤트 = "서버 데이터 변경됨" 신호
+// - 받은 쪽은 무조건 서버 재조회
+// =====================================================
+(() => {
+  let channel;
+  try {
+    channel = new BroadcastChannel('qrnr-admin');
+  } catch {
+    return;
+  }
+
+  channel.onmessage = async (e) => {
+    const msg = e.data || {};
+    if (msg.type !== ADMIN_EVENTS.ORDER_STATUS_CHANGED) return;
+
+    // 같은 관리자(같은 탭)에서 보낸 건 무시
+    if (msg.senderId === ADMIN_ID) return;
+
+    // 다른 매장 이벤트는 무시
+    if (msg.storeId !== window.qrnrStoreId) return;
+
+    console.log('[ADMIN EVENT] order changed → reload from server');
+
+    // ✅ 서버 기준으로 다시 그리기
+    await safeRenderAll();
+
+  };
+})();
+
+
 document.getElementById('cancel-reason-close')
   ?.addEventListener('click', async () => {
     const modal = document.getElementById('cancel-reason-modal');
@@ -1455,7 +1482,7 @@ document.getElementById('cancel-reason-close')
     delete modal.dataset.cancelStatus;
 
     // 3️⃣ 서버 기준으로 화면 완전 초기화
-    await renderStore();
+    await safeRenderAll();
   });
 
 
@@ -1566,7 +1593,7 @@ document.getElementById('cancel-reason-confirm')
     document.getElementById('cancel-reason-input').value = '';
     modal.style.display = 'none';
 
-    await renderStore();
+    await safeRenderAll();
   showToast(`${status} 처리되었습니다.`);
 
   } catch (err) {
