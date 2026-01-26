@@ -451,6 +451,8 @@ async function handlePost(req, res) {
   // ===============================
   // PHASE 3-3: DB INSERT (병행)
   // ===============================
+  console.log('[PHASE 3-3] DB INSERT TRY');
+
   OrdersDB.insertOrder({
     storeId: newOrder.storeId,
     orderNo: newOrder.orderId,
