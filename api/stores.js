@@ -119,6 +119,9 @@ export default async function handler(req, res) {
    GET /api/stores
    전체 매장 목록
 --------------------------- */
+// PHASE 0-5-3
+// stores API는 DB 도입 전까지 "읽기 전용 기준 데이터"로 사용
+// POST / PUT / DELETE 는 DB 도입 시점에 활성화
 async function handleGet(req, res) {
   //const stores = await loadStores();
   //return json(res, { ok: true, stores });
