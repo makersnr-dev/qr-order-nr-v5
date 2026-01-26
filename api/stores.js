@@ -111,8 +111,9 @@ export default async function handler(req, res) {
    전체 매장 목록
 --------------------------- */
 async function handleGet(req, res) {
-  const stores = await loadStores();
-  return json(res, { ok: true, stores });
+  //const stores = await loadStores();
+  //return json(res, { ok: true, stores });
+  return json(res, { ok: true, stores: FIXED_STORES });
 }
 
 
