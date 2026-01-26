@@ -56,8 +56,8 @@ function json(res, body, status = 200) {
    ============================================================ */
 async function loadOrders() {
   try {
-     const txt = await fs.readFile(ORDERS_FILE, "utf8");
-     const parsed = JSON.parse(txt);
+    const txt = await fs.readFile(ORDERS_FILE, "utf8");
+    const parsed = JSON.parse(txt);
 
     if (Array.isArray(parsed?.orders)) return parsed.orders;
     if (Array.isArray(parsed)) return parsed; // 혹시 예전 구조
@@ -78,16 +78,17 @@ async function assertValidStoreId(storeId) {
     throw err;
   }
 
-  const stores = await loadStores();
-
-  if (!stores || !stores[storeId]) {
+  // PHASE 3-1: storeId "형식만" 확인
+  // 실제 매장 존재 검증은 PHASE 3-2(JWT)에서 처리
+  if (typeof storeId !== 'string' || storeId.length < 1) {
     const err = new Error('INVALID_STORE_ID');
-    err.status = 403;
+    err.status = 400;
     throw err;
   }
 
   return true;
 }
+
 
 
 async function saveOrders(orders) {
@@ -107,7 +108,7 @@ async function saveOrders(orders) {
    매장 정보 로딩 (슈퍼관리자 대비)
    ============================================================ */
 
- const STORES_FILE = "/tmp/qrnr_stores.json";
+const STORES_FILE = "/tmp/qrnr_stores.json";
 
 
 // ⚠️ 로컬에서는 /api/_data/stores.json 읽어도 되고
@@ -115,7 +116,7 @@ async function saveOrders(orders) {
 
 async function loadStores() {
   try {
-     const txt = await fs.readFile(STORES_FILE, "utf8");
+    const txt = await fs.readFile(STORES_FILE, "utf8");
     return JSON.parse(txt) || {};
   } catch {
     return {};
@@ -127,15 +128,15 @@ async function loadStores() {
    시간 헬퍼 (KST)
    ============================================================ */
 function makeTimeMeta() {
-   const ts = Date.now();
-   const KST_OFFSET = 9 * 60 * 60 * 1000;
-   const k = new Date(ts + KST_OFFSET);
+  const ts = Date.now();
+  const KST_OFFSET = 9 * 60 * 60 * 1000;
+  const k = new Date(ts + KST_OFFSET);
 
-   const y = k.getUTCFullYear();
-   const m = String(k.getUTCMonth() + 1).padStart(2, "0");
-   const d = String(k.getUTCDate()).padStart(2, "0");
-   const hh = String(k.getUTCHours()).padStart(2, "0");
-   const mm = String(k.getUTCMinutes()).padStart(2, "0");
+  const y = k.getUTCFullYear();
+  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(k.getUTCDate()).padStart(2, "0");
+  const hh = String(k.getUTCHours()).padStart(2, "0");
+  const mm = String(k.getUTCMinutes()).padStart(2, "0");
 
   return {
     ts,
@@ -150,7 +151,7 @@ function makeTimeMeta() {
 
 // 🔹 매장 코드 결정 (지금은 storeId 그대로 사용)
 async function getStoreCode(storeId) {
-   stores = await loadStores();
+  stores = await loadStores();
   return stores[storeId]?.code || String(storeId || 'STORE').toUpperCase();
 }
 
@@ -324,32 +325,32 @@ async function handlePost(req, res) {
   const { finalCustomer, finalReserve } = normalizeOrderInput(body);
 
   let {
-  //orderId,
-  orderType,   // ✅ 새 필드
-  type,        // 🔙 하위호환
-  amount,
-  items,       // ✅ 새 필드
-  cart,        // 🔙 하위호환
-  customer,
-  table,
-  //status,
-  reserveDate,
-  reserveTime,
-  memo,
-  meta,
-  storeId,
-  agreePrivacy,
-  orderName,
-} = body;
-
-  
+    //orderId,
+    orderType,   // ✅ 새 필드
+    type,        // 🔙 하위호환
+    amount,
+    items,       // ✅ 새 필드
+    cart,        // 🔙 하위호환
+    customer,
+    table,
+    //status,
+    reserveDate,
+    reserveTime,
+    memo,
+    meta,
+    storeId,
+    agreePrivacy,
+    orderName,
+  } = body;
 
 
-// ✅ type 통합 (store / reserve / delivery)
-const finalType = orderType || type;
 
-// ✅ cart 통합
-const finalCart = Array.isArray(items) ? items : (cart || []);
+
+  // ✅ type 통합 (store / reserve / delivery)
+  const finalType = orderType || type;
+
+  // ✅ cart 통합
+  const finalCart = Array.isArray(items) ? items : (cart || []);
 
 
   const amt = typeof amount === "number" ? amount : Number(amount);
@@ -367,30 +368,30 @@ const finalCart = Array.isArray(items) ? items : (cart || []);
 
   const finalStoreId = storeId;
 
-// 🔒 storeId 실존 매장 검증
-try {
-  await assertValidStoreId(finalStoreId);
-} catch (e) {
-  return json(res, {
-    ok: false,
-    error: e.message
-  }, e.status || 400);
-}
+  // 🔒 storeId 실존 매장 검증
+  try {
+    await assertValidStoreId(finalStoreId);
+  } catch (e) {
+    return json(res, {
+      ok: false,
+      error: e.message
+    }, e.status || 400);
+  }
 
 
   const initialStatus =
-     INITIAL_STATUS[finalType] || '주문접수';
+    INITIAL_STATUS[finalType] || '주문접수';
 
   const id =
-  body.id ||
-  `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    body.id ||
+    `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   console.log(
-  '[DEBUG stores]',
-  await loadStores(),
-  'storeId:',
-  finalStoreId
-);
+    '[DEBUG stores]',
+    await loadStores(),
+    'storeId:',
+    finalStoreId
+  );
 
 
   const orderNo = await makeOrderNumber(
@@ -400,53 +401,53 @@ try {
   );
 
 
-  
+
   const newOrder = {
-  id,
-  orderId: orderNo,
-  //orderNo,
-    
-  // ✅ 통합된 타입
-  type: finalType,
+    id,
+    orderId: orderNo,
+    //orderNo,
 
-  amount: amt,
+    // ✅ 통합된 타입
+    type: finalType,
 
-  // ❌ orderName은 이제 의미 없음 (유지해도 되지만 안 씀)
-  orderName: orderName || null,
+    amount: amt,
 
-  // ✅ 핵심: items / cart 통합
-  cart: finalCart,
+    // ❌ orderName은 이제 의미 없음 (유지해도 되지만 안 씀)
+    orderName: orderName || null,
 
-  customer: finalCustomer,
-  reserve: finalReserve,
-  table: table || null,
+    // ✅ 핵심: items / cart 통합
+    cart: finalCart,
 
-  status: initialStatus,
+    customer: finalCustomer,
+    reserve: finalReserve,
+    table: table || null,
 
-  
-
-  ts,
-  date,
-  dateTime,
-
-  storeId: finalStoreId,
-  agreePrivacy: !!agreePrivacy,
-};
+    status: initialStatus,
 
 
-   orders.push(newOrder);
-   await saveOrders(orders);
-  
 
-   console.log("[BC SEND]", {
-  orderType: finalType,
-  storeId: finalStoreId,
-  reserveDate,
-  reserveTime,
-});
+    ts,
+    date,
+    dateTime,
 
-   
-   return json(res, { ok: true, order: newOrder });
+    storeId: finalStoreId,
+    agreePrivacy: !!agreePrivacy,
+  };
+
+
+  orders.push(newOrder);
+  await saveOrders(orders);
+
+
+  console.log("[BC SEND]", {
+    orderType: finalType,
+    storeId: finalStoreId,
+    reserveDate,
+    reserveTime,
+  });
+
+
+  return json(res, { ok: true, order: newOrder });
 
 }
 
@@ -456,7 +457,7 @@ try {
    ============================================================ */
 
 async function handlePut(req, res) {
-   // 🔒 상태 전이 규칙 (구조 고정)
+  // 🔒 상태 전이 규칙 (구조 고정)
 
   const { id, orderId, status, meta } = req.body || {};
 
@@ -483,7 +484,7 @@ async function handlePut(req, res) {
 
   const target = { ...orders[idx] };
 
-    // 🔒 0-2.5: 주문 소유 매장 검증
+  // 🔒 0-2.5: 주문 소유 매장 검증
   const adminStoreId = await getAdminStoreIdFromReq(req);
 
   if (adminStoreId && target.storeId !== adminStoreId) {
@@ -499,61 +500,61 @@ async function handlePut(req, res) {
   // - meta.payment 업데이트용 PUT은 status 없이 호출된다.
   // - 이 handler는 "상태 변경 요청" 전용이다.
   if (typeof status === 'string') {
-  const currentStatus = target.status;
-  const orderType = target.type; // store / reserve
+    const currentStatus = target.status;
+    const orderType = target.type; // store / reserve
 
-  const allowedNext =
-    STATUS_FLOW[orderType]?.[currentStatus] || [];
+    const allowedNext =
+      STATUS_FLOW[orderType]?.[currentStatus] || [];
 
-     // 🔒 0-4-3-1: 결제 상태 문자열이 status로 들어오면 차단
-  if (
-    status === '결제완료' ||
-    status === '결제취소'
-  ) {
-    return json(res, {
-      ok: false,
-      error: 'INVALID_STATUS_FIELD',
-      message: '결제 상태는 status로 변경할 수 없습니다.'
-    }, 400);
-  }
+    // 🔒 0-4-3-1: 결제 상태 문자열이 status로 들어오면 차단
+    if (
+      status === '결제완료' ||
+      status === '결제취소'
+    ) {
+      return json(res, {
+        ok: false,
+        error: 'INVALID_STATUS_FIELD',
+        message: '결제 상태는 status로 변경할 수 없습니다.'
+      }, 400);
+    }
 
     // 🔒 0-4-3-2: 주문 타입 없는 상태 변경 차단
-if (!target.type) {
-  return json(res, {
-    ok: false,
-    error: 'ORDER_TYPE_MISSING',
-    message: '주문 타입이 없는 상태 변경 요청입니다.'
-  }, 400);
-}
+    if (!target.type) {
+      return json(res, {
+        ok: false,
+        error: 'ORDER_TYPE_MISSING',
+        message: '주문 타입이 없는 상태 변경 요청입니다.'
+      }, 400);
+    }
 
 
-  if (!allowedNext.includes(status)) {
-    return json(res, {
-      ok: false,
-      error: 'INVALID_STATUS_CHANGE',
-      detail: {
-        from: currentStatus,
-        to: status,
-      }
-    }, 400);
+    if (!allowedNext.includes(status)) {
+      return json(res, {
+        ok: false,
+        error: 'INVALID_STATUS_CHANGE',
+        detail: {
+          from: currentStatus,
+          to: status,
+        }
+      }, 400);
+    }
+
+    // 🔒 결제취소는 "결제 완료된 주문"만 허용
+    // 🔒 0-4-2: 결제 완료된 주문은 주문취소 불가
+    if (
+      status === ORDER_STATUS.CANCELLED &&
+      target.meta?.payment?.paid === true
+    ) {
+      return json(res, {
+        ok: false,
+        error: 'ORDER_CANCEL_BLOCKED',
+        message: '결제 완료된 주문은 주문취소할 수 없습니다.'
+      }, 400);
+    }
+
+
+    target.status = status;
   }
-
-  // 🔒 결제취소는 "결제 완료된 주문"만 허용
-  // 🔒 0-4-2: 결제 완료된 주문은 주문취소 불가
-if (
-  status === ORDER_STATUS.CANCELLED &&
-  target.meta?.payment?.paid === true
-) {
-  return json(res, {
-    ok: false,
-    error: 'ORDER_CANCEL_BLOCKED',
-    message: '결제 완료된 주문은 주문취소할 수 없습니다.'
-  }, 400);
-}
-
-
-  target.status = status;
-}
 
 
 
@@ -563,17 +564,17 @@ if (
   // ✅ metaAppend 처리 (history 누적용)
   if (req.body?.metaAppend && typeof req.body.metaAppend === 'object') {
     const append = req.body.metaAppend;
-  
+
     // history 누적
     if (append.history) {
       const prev = Array.isArray(target.meta?.history)
         ? target.meta.history
         : [];
-  
+
       const nextItems = Array.isArray(append.history)
         ? append.history
         : [append.history];
-  
+
       target.meta = {
         ...(target.meta || {}),
         history: [...prev, ...nextItems]
