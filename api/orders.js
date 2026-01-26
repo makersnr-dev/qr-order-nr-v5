@@ -9,6 +9,7 @@
 
 import * as OrdersDB from './_lib/db.orders.js';
 
+import { getAuthFromReq } from '../src/shared/auth.js';
 
 
 import fs from "fs/promises";
@@ -321,7 +322,16 @@ function normalizeOrderInput(body) {
    POST /api/orders
    ============================================================ */
 async function handlePost(req, res) {
+
   const body = req.body || {};
+
+  const auth = await getAuthFromReq(req);
+
+  // JWT에 storeId가 있으면 body.storeId보다 우선
+  if (auth?.storeId && !body.storeId) {
+    body.storeId = auth.storeId;
+  }
+  
   const { finalCustomer, finalReserve } = normalizeOrderInput(body);
 
   let {
