@@ -1,6 +1,9 @@
 // /api/stores.js
 // 슈퍼관리자용 매장 관리 API (stores.json)
 
+// PHASE 1-B
+// DB(Neon) 도입 시 FIXED_STORES → db.stores.js로 전환
+
 
 //import fs from "fs";
 //import { promisify } from "util";
