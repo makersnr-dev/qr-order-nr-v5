@@ -7,6 +7,10 @@
 // 이 API는 PHASE 2에서 DB(Neon) 기반으로 전환됨
 // API 인터페이스는 유지, 내부 구현만 교체
 
+// TODO(PHASE 3-4):
+// reservation lookup password will be stored in meta.lookupPassword
+
+
 import * as OrdersDB from './_lib/db.orders.js';
 
 import { getAuthFromReq } from '../src/shared/auth.js';
