@@ -151,7 +151,7 @@ function makeTimeMeta() {
 
 // 🔹 매장 코드 결정 (지금은 storeId 그대로 사용)
 async function getStoreCode(storeId) {
-  stores = await loadStores();
+  const stores = await loadStores();
   return stores[storeId]?.code || String(storeId || 'STORE').toUpperCase();
 }
 
