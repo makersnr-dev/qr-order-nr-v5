@@ -3,6 +3,11 @@
 // 현재는 /tmp/qrnr_orders.json 파일 기반 저장소 사용
 // 나중에 DB로 바꾸려면 loadOrders / saveOrders만 수정하면 됨.
 
+// PHASE 1-C
+// 이 API는 PHASE 2에서 DB 기반으로 전환됨
+// API 인터페이스는 유지
+
+
 import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
 import {
