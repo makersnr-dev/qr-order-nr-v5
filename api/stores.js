@@ -9,6 +9,7 @@
 
 import { rateLimit } from "./_lib/rate-limit.js";
 //import { verifyJWT } from "../src/shared/jwt.js";
+import { verifyJWT } from "./_lib/jwt.server.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -30,7 +31,7 @@ function json(res, body, status = 200) {
 /* ---------------------------
    SUPER 관리자 인증
 --------------------------- */
-/*async function assertSuper(req) {
+async function assertSuper(req) {
   const auth = req.headers.authorization || "";
   if (!auth.startsWith("Bearer ")) {
     const e = new Error("NO_TOKEN");
@@ -52,7 +53,7 @@ function json(res, body, status = 200) {
   }
 
   return payload;
-}*/
+}
 
 
 /* ---------------------------
