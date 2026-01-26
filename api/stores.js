@@ -3,12 +3,14 @@
 
 // PHASE 1-B
 // DB(Neon) 도입 시 FIXED_STORES → db.stores.js로 전환
+import * as StoresDB from './_lib/db.stores.js';
 
 
 //import fs from "fs";
 //import { promisify } from "util";
 //const readFile = promisify(fs.readFile);
 //const writeFile = promisify(fs.writeFile);
+
 
 import { rateLimit } from "./_lib/rate-limit.js";
 //import { verifyJWT } from "../src/shared/jwt.js";
