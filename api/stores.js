@@ -8,7 +8,7 @@
 //const writeFile = promisify(fs.writeFile);
 
 import { rateLimit } from "./_lib/rate-limit.js";
-import { verifyJWT } from "../src/shared/jwt.js";
+//import { verifyJWT } from "../src/shared/jwt.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -30,7 +30,7 @@ function json(res, body, status = 200) {
 /* ---------------------------
    SUPER 관리자 인증
 --------------------------- */
-async function assertSuper(req) {
+/*async function assertSuper(req) {
   const auth = req.headers.authorization || "";
   if (!auth.startsWith("Bearer ")) {
     const e = new Error("NO_TOKEN");
@@ -52,7 +52,7 @@ async function assertSuper(req) {
   }
 
   return payload;
-}
+}*/
 
 
 /* ---------------------------
@@ -79,14 +79,11 @@ async function saveStores(stores) {
 /* ---------------------------
    메인 핸들러
 --------------------------- */
-export default async function handler(req, res) {
+/*export default async function handler(req, res) {
   //const limit = rateLimit(req, "stores");
   //if (!limit.ok) {
   //  return json(res, { ok: false, error: limit.reason }, 429);
  // }
-
-  
-
 
   try {
     if (req.method === "GET") return handleGet(req, res);
@@ -102,8 +99,20 @@ export default async function handler(req, res) {
     ok: false,
     error: err.message || "INTERNAL_ERROR"
   }, err.status || 500);
-}
+}*/
 
+export default async function handler(req, res) {
+  try {
+    if (req.method === "GET") {
+      return json(res, { ok: true, stores: FIXED_STORES });
+    }
+
+    return json(res, { ok:false, error:"METHOD_NOT_ALLOWED" }, 405);
+  } catch (err) {
+    console.error("[stores] error", err);
+    return json(res, { ok:false, error: err.message }, 500);
+  }
+}
 
 
 /* ---------------------------
