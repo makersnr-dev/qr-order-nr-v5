@@ -80,10 +80,10 @@ async function saveStores(stores) {
    메인 핸들러
 --------------------------- */
 export default async function handler(req, res) {
-  const limit = rateLimit(req, "stores");
-  if (!limit.ok) {
-    return json(res, { ok: false, error: limit.reason }, 429);
-  }
+  //const limit = rateLimit(req, "stores");
+  //if (!limit.ok) {
+  //  return json(res, { ok: false, error: limit.reason }, 429);
+ // }
 
   
 
