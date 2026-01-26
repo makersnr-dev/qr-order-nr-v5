@@ -228,6 +228,24 @@ export default async function handler(req, res) {
 async function handleGet(req, res) {
   const { type, from, to, storeId } = req.query || {};
 
+  // ===============================
+// TEMP: PHASE 3-4A DB SELECT TEST
+// ===============================
+if (req.query.__dbtest === '1') {
+  const r = await OrdersDB.listOrders({
+    storeId: req.query.storeId || 'narae',
+  });
+
+  console.log('[DB SELECT TEST]', r.orders?.length || 0);
+
+  return json(res, {
+    ok: true,
+    source: 'db-test',
+    count: r.orders?.length || 0,
+  });
+}
+
+
   // 🔒 관리자 JWT에서 storeId 추출
   const adminStoreId = await getAdminStoreIdFromReq(req);
 
