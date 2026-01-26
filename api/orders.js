@@ -448,6 +448,38 @@ async function handlePost(req, res) {
   orders.push(newOrder);
   await saveOrders(orders);
 
+  // ===============================
+  // PHASE 3-3: DB INSERT (병행)
+  // ===============================
+  OrdersDB.insertOrder({
+    storeId: newOrder.storeId,
+    orderNo: newOrder.orderId,
+    status: newOrder.status,
+    tableNo: newOrder.table,
+    amount: newOrder.amount,
+    meta: {
+      customer: newOrder.customer,
+      reserve: newOrder.reserve,
+      type: newOrder.type,
+      ts: newOrder.ts,
+    },
+    items: (newOrder.cart || []).map(it => ({
+      name: it.name,
+      qty: it.qty,
+      unit_price: it.price || it.unit_price || 0,
+      options: it.options || null,
+    })),
+  }).then(r => {
+    if (!r.ok) {
+      console.error('[DB INSERT FAILED]', r.error);
+    } else {
+      console.log('[DB INSERT OK]', r.orderId);
+    }
+  }).catch(e => {
+    console.error('[DB INSERT EXCEPTION]', e);
+  });
+  
+    
 
   console.log("[BC SEND]", {
     orderType: finalType,
