@@ -2,5 +2,8 @@
   "name": "qr-order-nr",
   "version": "1.0.0",
   "type": "module",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2"
+  }
 }
