@@ -240,23 +240,57 @@ async function handleGet(req, res) {
     }, 403);
   }
 
-  // 실제 사용할 storeId 결정
-  const effectiveStoreId = adminStoreId || storeId;
+  // ===============================
+  // ✅ PHASE 3-4: 관리자 → DB 조회
+  // ===============================
+  if (adminStoreId) {
+    try {
+      const r = await OrdersDB.listOrders({
+        storeId: adminStoreId,
+        type,
+        from,
+        to,
+      });
+
+      if (!r.ok) {
+        return json(res, {
+          ok: false,
+          error: "DB_SELECT_FAILED",
+          detail: r.error,
+        }, 500);
+      }
+
+      return json(res, {
+        ok: true,
+        orders: r.orders,
+        source: "db",
+      });
+    } catch (e) {
+      console.error("[DB SELECT EXCEPTION]", e);
+      return json(res, {
+        ok: false,
+        error: "DB_SELECT_EXCEPTION",
+      }, 500);
+    }
+  }
+
+  // ===============================
+  // ⛳ 기존 JSON 로직 (비관리자)
+  // ===============================
+
+  const effectiveStoreId = storeId;
 
   const all = await loadOrders();
   let filtered = all.slice();
 
-  // 타입 필터
   if (type) {
     filtered = filtered.filter(o => o.type === type);
   }
 
-  // 🔒 매장 필터 (관리자는 자기 매장만)
   if (effectiveStoreId) {
     filtered = filtered.filter(o => o.storeId === effectiveStoreId);
   }
 
-  // 날짜 필터
   let fromTs = from ? Date.parse(from) : null;
   let toTs = to ? Date.parse(to) : null;
 
@@ -274,11 +308,15 @@ async function handleGet(req, res) {
     });
   }
 
-  // 최신순 정렬
   filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-  return json(res, { ok: true, orders: filtered });
+  return json(res, {
+    ok: true,
+    orders: filtered,
+    source: "json",
+  });
 }
+/////////////////////////////////////////////////////////////////
 
 
 function normalizeOrderInput(body) {
