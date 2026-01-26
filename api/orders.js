@@ -451,9 +451,9 @@ async function handlePost(req, res) {
   // ===============================
   // PHASE 3-3: DB INSERT (병행)
   // ===============================
-  console.log('[PHASE 3-3] DB INSERT TRY');
-
-  OrdersDB.insertOrder({
+  
+try {
+  const r =await OrdersDB.insertOrder({
     storeId: newOrder.storeId,
     orderNo: newOrder.orderId,
     status: newOrder.status,
@@ -471,7 +471,8 @@ async function handlePost(req, res) {
       unit_price: it.price || it.unit_price || 0,
       options: it.options || null,
     })),
-  }).then(r => {
+  });
+  /*.then(r => {
     if (!r.ok) {
       console.error('[DB INSERT FAILED]', r.error);
     } else {
@@ -479,8 +480,11 @@ async function handlePost(req, res) {
     }
   }).catch(e => {
     console.error('[DB INSERT EXCEPTION]', e);
-  });
-  
+  });*/
+  console.log('[DB INSERT RESULT]', r);
+} catch (e) {
+  console.error('[DB INSERT EXCEPTION]', e);
+}
     
 
   console.log("[BC SEND]", {
