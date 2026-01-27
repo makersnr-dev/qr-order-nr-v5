@@ -431,8 +431,11 @@ async function handlePost(req, res) {
   }
 
 
-  const initialStatus =
-    INITIAL_STATUS[finalType] || '주문접수';
+ const initialStatus = (() => {
+  if (finalType === 'reserve') return ORDER_STATUS.WAIT_PAY;
+  return ORDER_STATUS.RECEIVED;
+})();
+
 
   const id =
     body.id ||
@@ -475,8 +478,6 @@ async function handlePost(req, res) {
     table: table || null,
 
     status: initialStatus,
-
-
 
     ts,
     date,
@@ -644,6 +645,27 @@ async function handlePut(req, res) {
 
 
     target.status = status;
+    // ✅ STEP 1-4: 상태 변경 이력 자동 기록
+    const historyItem = {
+      at: Date.now(),
+      by: adminStoreId
+        ? { type: 'admin', storeId: adminStoreId }
+        : { type: 'system' },
+      action: 'STATUS_CHANGE',
+      from: currentStatus,
+      to: status,
+    };
+    
+    target.meta = {
+      ...(target.meta || {}),
+      history: [
+        ...(Array.isArray(target.meta?.history)
+          ? target.meta.history
+          : []),
+        historyItem,
+      ],
+    };
+
   }
 
 
