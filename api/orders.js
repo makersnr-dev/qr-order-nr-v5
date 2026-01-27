@@ -24,6 +24,7 @@ import {
   ORDER_STATUS
 } from '../src/shared/constants/status.js';
 
+
 import { verifyJWT } from "../src/shared/jwt.js";
 
 async function getAdminStoreIdFromReq(req) {
@@ -667,6 +668,77 @@ async function handlePut(req, res) {
     };
 
   }
+
+  // ✅ STEP 2-4-1: 결제 확인 요청은 status 없이만 허용
+if (
+  meta?.payment &&
+  typeof status === 'string'
+) {
+  return json(res, {
+    ok: false,
+    error: 'PAYMENT_WITH_STATUS_NOT_ALLOWED',
+    message: '결제 확인 요청에는 status를 포함할 수 없습니다.'
+  }, 400);
+}
+
+  
+const prevPaid = target.meta?.payment?.paid;
+
+  // ✅ STEP 2-1: 결제 정보(meta.payment) 처리
+// - 결제는 status가 아님
+// - 관리자 결제 확인 버튼 대응
+if (
+  meta &&
+  typeof meta === 'object' &&
+  meta.payment &&
+  typeof meta.payment === 'object'
+) {
+  const prevPayment = target.meta?.payment || {};
+
+  target.meta = {
+    ...(target.meta || {}),
+    payment: {
+      ...prevPayment,
+      ...meta.payment,
+      paid: !!meta.payment.paid,
+      paidAt: meta.payment.paid
+        ? meta.payment.paidAt || Date.now()
+        : null,
+    },
+  };
+}
+// ✅ STEP 2-3: 결제 이벤트 history 기록
+if (
+  meta &&
+  typeof meta === 'object' &&
+  meta.payment &&
+  typeof meta.payment === 'object'
+) {
+  const nextPaid = !!meta.payment.paid;
+
+  // 결제 상태가 실제로 변했을 때만 기록
+  if (prevPaid !== nextPaid) {
+    const paymentHistoryItem = {
+      at: Date.now(),
+      by: adminStoreId
+        ? { type: 'admin', storeId: adminStoreId }
+        : { type: 'system' },
+      action: nextPaid
+        ? 'PAYMENT_CONFIRMED'
+        : 'PAYMENT_CANCELLED',
+    };
+
+    target.meta = {
+      ...(target.meta || {}),
+      history: [
+        ...(Array.isArray(target.meta?.history)
+          ? target.meta.history
+          : []),
+        paymentHistoryItem,
+      ],
+    };
+  }
+}
 
 
 
