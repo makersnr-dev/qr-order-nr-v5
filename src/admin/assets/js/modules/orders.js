@@ -1198,7 +1198,7 @@ const historyLines = (order.meta?.history || [])
 
     // 🔁 구버전 호환
     const value = h.value || h.status || '';
-    const actionText =
+    //const actionText =
       h.action === 'PAYMENT_CONFIRMED'
         ? '결제 완료'
         : h.action === 'PAYMENT_CANCELLED'
