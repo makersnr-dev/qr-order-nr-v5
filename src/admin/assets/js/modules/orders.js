@@ -163,12 +163,18 @@ if (!allowedStatuses.includes(status)) {
     note: '상태 변경'
   };
 
+  // 🔒 UI 안전장치: status 변경 요청에는 meta를 절대 포함하지 않음
+  const payload = {
+    id,
+    status
+  };
+
+
   const res = await fetch('/api/orders', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      id,
-      status,
+      ...payload,
       metaAppend: {
         history: historyItem
       }
@@ -1322,6 +1328,7 @@ document.body.addEventListener('click', async (e) => {
   }
 
   try {
+    // 🔒 UI 안전장치: 결제 확인 요청에는 status를 절대 포함하지 않음
     await fetch('/api/orders', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
