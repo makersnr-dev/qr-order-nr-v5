@@ -644,29 +644,7 @@ async function handlePut(req, res) {
       }, 400);
     }
 
-
     target.status = status;
-    // ✅ STEP 1-4: 상태 변경 이력 자동 기록
-    const historyItem = {
-      at: Date.now(),
-      by: adminStoreId
-        ? { type: 'admin', storeId: adminStoreId }
-        : { type: 'system' },
-      action: 'STATUS_CHANGE',
-      from: currentStatus,
-      to: status,
-    };
-    
-    target.meta = {
-      ...(target.meta || {}),
-      history: [
-        ...(Array.isArray(target.meta?.history)
-          ? target.meta.history
-          : []),
-        historyItem,
-      ],
-    };
-
   }
 
   // ✅ STEP 2-4-1: 결제 확인 요청은 status 없이만 허용
@@ -707,38 +685,7 @@ if (
     },
   };
 }
-// ✅ STEP 2-3: 결제 이벤트 history 기록
-if (
-  meta &&
-  typeof meta === 'object' &&
-  meta.payment &&
-  typeof meta.payment === 'object'
-) {
-  const nextPaid = !!meta.payment.paid;
 
-  // 결제 상태가 실제로 변했을 때만 기록
-  if (prevPaid !== nextPaid) {
-    const paymentHistoryItem = {
-      at: Date.now(),
-      by: adminStoreId
-        ? { type: 'admin', storeId: adminStoreId }
-        : { type: 'system' },
-      action: nextPaid
-        ? 'PAYMENT_CONFIRMED'
-        : 'PAYMENT_CANCELLED',
-    };
-
-    target.meta = {
-      ...(target.meta || {}),
-      history: [
-        ...(Array.isArray(target.meta?.history)
-          ? target.meta.history
-          : []),
-        paymentHistoryItem,
-      ],
-    };
-  }
-}
 
 
 
