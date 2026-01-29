@@ -171,3 +171,18 @@ export function getOwnerBank(storeId) {
 export function setOwnerBank(storeId, bank) {
   patch(['stores', storeId, 'ownerBank'], () => bank);
 }
+
+/* ---------- 개인정보 처리방침 ---------- */
+export function getPrivacyPolicy(storeId) {
+  if (!storeId) return null;
+  return (
+    get(['admin', 'privacyPolicy', storeId]) ||
+    get(['admin', 'privacyPolicy']) ||
+    null
+  );
+}
+
+export function setPrivacyPolicy(storeId, text) {
+  if (!storeId) return;
+  patch(['admin', 'privacyPolicy', storeId], () => text);
+}
