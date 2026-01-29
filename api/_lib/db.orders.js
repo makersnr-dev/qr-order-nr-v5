@@ -174,3 +174,74 @@ export async function listOrders({ storeId, type, from, to }) {
     client.release();
   }
 }
+/* ============================================================
+   ✅ PHASE 3-4
+   주문 상태 + meta + history 누적 업데이트
+   ============================================================ */
+export async function updateOrder({
+  storeId,
+  orderNo,
+  status,
+  meta,
+  history,
+}) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const sets = [];
+    const values = [];
+    let idx = 1;
+
+    // 1️⃣ status 변경
+    if (status) {
+      sets.push(`status = $${idx++}`);
+      values.push(status);
+    }
+
+    // 2️⃣ meta 병합
+    if (meta) {
+      sets.push(`meta = meta || $${idx++}::jsonb`);
+      values.push(meta);
+    }
+
+    // 3️⃣ history 누적 (meta.history append)
+    if (history) {
+      sets.push(`
+        meta = jsonb_set(
+          COALESCE(meta, '{}'::jsonb),
+          '{history}',
+          COALESCE(meta->'history', '[]'::jsonb) || $${idx++}::jsonb
+        )
+      `);
+      values.push(
+        Array.isArray(history) ? history : [history]
+      );
+    }
+
+    if (!sets.length) {
+      return { ok: true };
+    }
+
+    values.push(orderNo);
+    values.push(storeId);
+
+    const sql = `
+      UPDATE orders
+      SET ${sets.join(', ')}
+      WHERE order_no = $${idx++}
+        AND store_id = $${idx}
+    `;
+
+    await client.query(sql, values);
+    return { ok: true };
+
+  } catch (e) {
+    console.error('[DB updateOrder]', e);
+    return { ok: false, error: e.message };
+  } finally {
+    client.release();
+  }
+}
+
+
