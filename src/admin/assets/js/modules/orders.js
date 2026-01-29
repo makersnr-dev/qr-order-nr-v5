@@ -4,7 +4,8 @@
  * [0-3 ORDER DATA SINGLE SOURCE OF TRUTH]
  *
  * - 주문의 최종 기준은 /api/orders 응답이다.
- * - localStorage cache는 UI 안정화용 보조 수단이다.
+ * - localStorage cache는 네트워크 오류 대비용 임시 보관소이다.
+ * - 관리자 화면의 단일 기준은 항상 /api/orders(DB) 응답이다.
  * - admin.ordersStore / ordersDelivery 는 출력 전용이다.
  * - 상태 변경은 반드시 /api/orders PUT을 거친다.
  *
@@ -58,6 +59,24 @@ function currentStoreId() {
 
 
 // ===============================
+// PHASE 3-7: 요청 중 잠금 (주문 단위)
+// ===============================
+const pendingOrders = new Set();
+
+function isPending(id) {
+  return pendingOrders.has(id);
+}
+
+function lockOrder(id) {
+  pendingOrders.add(id);
+}
+
+function unlockOrder(id) {
+  pendingOrders.delete(id);
+}
+
+
+// ===============================
 // 관리자 고유 ID (탭 단위)
 // ===============================
 const ADMIN_ID =
@@ -97,11 +116,15 @@ async function changeOrderStatus({ id, status, type }) {
     showToast('유효하지 않은 주문입니다.');
     return;
   }
-
+  
   if (!id || !status) return;
 
   // ✅ 공식 상태 목록 기준
-const allowedStatuses = STATUS_LIST[type] || [];
+const allowedStatuses =
+  type === 'store'
+    ? STATUS_LIST.store
+    : STATUS_LIST.reserve;
+
   // ❌ 결제 상태 문자열이 들어오면 차단 (주문 상태 전용 함수)
 if (
   status === PAYMENT_STATUS.PAID ||
@@ -123,35 +146,23 @@ if (!allowedStatuses.includes(status)) {
   // ===============================
   const storeId = currentStoreId();
 
-  const cachedOrders =
-    type === 'store'
-      ? loadStoreCache(storeId)
-      : loadDelivCache(storeId);
+  // ⚠️ PHASE 3-5-1
+// 캐시는 UI 안정화용 참고만 사용
+// 주문 존재 여부 / 상태 유효성 판단은 서버가 담당
 
-  const order = cachedOrders.find(
-    o => (o.id || o.orderId) === id
-  );
+const cachedOrders =
+  type === 'store'
+    ? loadStoreCache(storeId)
+    : loadDelivCache(storeId);
 
-  // 화면 기준으로 주문 자체가 없으면 차단
-  if (!order) {
-    showToast('이미 처리되었거나 존재하지 않는 주문입니다.');
-    return;
-  }
+// 캐시에 없으면 경고만 표시 (차단 ❌)
+const order = cachedOrders.find(
+  o => (o.id || o.orderId) === id
+);
 
-  // 이미 취소된 주문은 재변경 불가
-  if (order.status === ORDER_STATUS.CANCELLED) {
-    showToast('이미 취소된 주문입니다.');
-    return;
-  }
-
-  // 결제 완료 후 주문취소 차단
-  if (
-    status === ORDER_STATUS.CANCELLED &&
-    order.meta?.payment?.paid
-  ) {
-    showToast('결제 완료된 주문은 주문취소할 수 없습니다.');
-    return;
-  }
+if (!order) {
+  showToast('화면 정보가 최신이 아닐 수 있습니다.');
+}
 
 
   const historyItem = {
@@ -169,7 +180,14 @@ if (!allowedStatuses.includes(status)) {
     status
   };
 
+    if (isPending(id)) {
+    showToast('이미 처리 중인 주문입니다.');
+    return;
+  }
+  
+  lockOrder(id);
 
+  try {
   const res = await fetch('/api/orders', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -183,8 +201,11 @@ if (!allowedStatuses.includes(status)) {
 
   const data = await res.json();
   if (!data.ok) {
+    // 🔥 PHASE 3-6: 서버 기준으로 UI 강제 복구
+    await safeRenderAll();
     throw new Error(data.error || 'STATUS_CHANGE_FAILED');
   }
+
 
   // 🔔 관리자 간 이벤트 전파 (데이터 X, 이벤트만)
 try {
@@ -197,10 +218,16 @@ try {
     at: Date.now()
   });
 } catch {}
+  }catch (err) {
+  console.error(err);
+  throw err;
+} finally {
+  unlockOrder(id);
+}
 
 
   // ✅ 이제 storeId 정상 참조
-  updateStatusInCache(type, storeId, id, status);
+ //updateStatusInCache(type, storeId, id, status);
 
   await safeRenderAll();
 }
@@ -391,31 +418,9 @@ function updateStatusInCache(kind, storeId, id, nextStatus) {
     const oid = o.id || o.orderId;
     if (oid === id) {
       touched = true;
-    
-      const prevHistory = Array.isArray(o.meta?.history)
-        ? o.meta.history
-        : [];
-    return {
-  ...o,
-  status: nextStatus,
-  meta: {
-    ...o.meta,
-
-    // 🔥결제취소는 여기서 처리하지 않음
-    payment: o.meta?.payment,
-
-    history: [
-      ...prevHistory,
-      {
-        at: new Date().toISOString(),
-        type: 'ORDER',
-        action: 'STATUS_CHANGE',
-        value: nextStatus,
-        by: ADMIN_ID,
-        note: '상태 변경'
-      }
-    ]
-  }
+      return {
+        ...o,
+        status: nextStatus
 };
 
 }
@@ -446,45 +451,6 @@ export async function syncStoreFromServer() {
     const rawOrders = data.orders || [];
     // 원본 주문 배열을 캐시에 그대로 저장(중요)
     saveStoreCache(storeId, rawOrders);
-
-    const rows = rawOrders.map(o => {
-      const time = fmtDateTimeFromOrder(o);
-
-      const isCall =
-        o.meta?.kind === 'CALL' ||
-        o.orderName === '직원 호출';
-
-      if (isCall) {
-        // ✅ 직원 호출 행 포맷
-        return {
-          id: o.id,
-          time,
-          table: o.table || '-',
-          items: [{ name: `직원 호출: ${o.meta?.note || ''}`, qty: '' }],
-          total: 0,
-          status: o.status || '주문접수'
-        };
-      }
-
-      const items = (o.cart || []).map(i => ({
-        name: i.name ?? i.menuName ?? '메뉴',
-        qty: i.qty ?? i.quantity ?? 1
-      }));
-
-      // 서버 status → 화면 status 매핑
-      let status = '주문접수';
-      if (o.status === '조리중' || o.status === 'cook') status = '조리중';
-      else if (o.status === '완료' || o.status === 'done') status = '완료';
-
-      return {
-        id: o.id,
-        time,                  // 주문시간
-        table: o.table || '-', // 테이블
-        items,                 // 내역
-        total: o.amount || 0,  // 금액
-        status                 // 상태
-      };
-    });
 
     // admin.ordersStore 에 덮어쓰기 (엑셀용)
     //patch(['admin', 'ordersStore'], () => rows);
@@ -639,27 +605,9 @@ async function renderStoreTable() {
     let serverRows = (data.orders || []);
 
     if (serverRows.length) {
-      // 서버 데이터 있으면 그걸 우선 사용하고 캐시에 저장
-      const cached = loadStoreCache(storeId);
-
-      const mergedRows = serverRows.map(o => {
-        const cachedOne = cached.find(c => (c.id || c.orderId) === (o.id || o.orderId));
-      
-        return {
-          ...o,
-          meta: {
-            ...o.meta,
-            history:
-              Array.isArray(o.meta?.history) && o.meta.history.length
-                ? o.meta.history
-                : cachedOne?.meta?.history || []
-          }
-        };
-      });
-      
-      saveStoreCache(storeId, mergedRows);
-      rows = mergedRows;
-
+      // 🔥 DB 응답을 단일 기준으로 사용
+      saveStoreCache(storeId, serverRows);
+      rows = serverRows;
     } else {
       // 서버가 비어 있으면 캐시에서 복구 시도
       const cached = loadStoreCache(storeId);
@@ -896,9 +844,10 @@ export async function renderDeliv() {
       saveDelivCache(storeId, serverRows);
       rows = serverRows;
     } else {
-      const cached = loadDelivCache(storeId);
-      rows = cached.length ? cached : [];
+      // 🔥 DB 기준: 서버 비어 있으면 그냥 빈 배열
+      rows = [];
     }
+
   } catch (e) {
     console.error('renderDeliv err (server)', e);
     const cached = loadDelivCache(storeId);
@@ -1327,9 +1276,17 @@ document.body.addEventListener('click', async (e) => {
     return;
   }
 
+   if (isPending(id)) {
+    showToast('이미 결제 처리 중입니다.');
+    return;
+  }
+  
+  lockOrder(id);
+
+
   try {
     // 🔒 UI 안전장치: 결제 확인 요청에는 status를 절대 포함하지 않음
-    await fetch('/api/orders', {
+    const res = await fetch('/api/orders', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -1353,6 +1310,13 @@ document.body.addEventListener('click', async (e) => {
         }
       })
     });
+
+    const data = await res.json();
+    if (!data.ok) {
+      // 🔥 PHASE 3-6
+      await safeRenderAll();
+      throw new Error(data.error || 'PAYMENT_FAILED');
+    }
     // 🔔 결제 완료 이벤트 전파
     try {
       const channel = new BroadcastChannel('qrnr-admin');
@@ -1367,12 +1331,14 @@ document.body.addEventListener('click', async (e) => {
 
     } catch {}
     
-    await safeRenderAll();
+ 
     
   } catch (err) {
     console.error(err);
     alert('결제 완료 처리 실패');
-  }
+  } finally {
+  unlockOrder(id);
+}
 });
 
 
@@ -1503,15 +1469,26 @@ document.getElementById('cancel-reason-confirm')
   const type = modal.dataset.orderType || 'store';
   const reason = document.getElementById('cancel-reason-input').value.trim();
 
+if (!id) return;
+
+  // 🔥 PHASE 3-7: 중복 요청 차단
+  if (isPending(id)) {
+    showToast('이미 처리 중인 주문입니다.');
+    return;
+  }
+
+    
   if (!reason) {
     alert(UI_TEXT.CANCEL_REASON_REQUIRED);
     return;
   }
 
+    lockOrder(id);
+
   try {
     const isPaymentCancel = status === PAYMENT_STATUS.CANCELLED;
     
-    await fetch('/api/orders', {
+    const res = await fetch('/api/orders', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -1549,63 +1526,25 @@ document.getElementById('cancel-reason-confirm')
       })
     });
 
-      
-                  if (status !== '결제취소') {
-            updateStatusInCache(
-              type === 'reserve' ? 'delivery' : 'store',
-              currentStoreId(),
-              id,
-              status
-            );
-          }
-           else {
-          const storeId = currentStoreId();
-          // ⭐ 결제취소는 status가 아니라 meta.payment 변경
-          const all = loadStoreCache(storeId);
-          const next = all.map(o => {
-            const oid = o.id || o.orderId;
-            if (oid !== id) return o;
-        
-            return {
-              ...o,
-              meta: {
-                ...o.meta,
-                payment: {
-                  ...o.meta?.payment,
-                  paid: false,
-                  cancelled: true,
-                  cancelledAt: new Date().toISOString()
-                },
-                history: [
-                  ...(o.meta?.history || []),
-                  {
-                    at: new Date().toISOString(),
-                    type: 'PAYMENT',
-                    action: 'PAYMENT_CANCELLED',
-                    value: PAYMENT_STATUS.CANCELLED,
-                    by: ADMIN_ID,
-                    note: reason
-                  }
-                ]
-              }
-            };
-          });
-        
-          saveStoreCache(storeId, next);
-        }
-
-      
-
+    const data = await res.json();
+    if (!data.ok) {
+      // 🔥 PHASE 3-6 + 3-7 콤보
+      await safeRenderAll();
+      throw new Error(data.error || 'CANCEL_FAILED');
+    }
 
     document.getElementById('cancel-reason-input').value = '';
     modal.style.display = 'none';
 
-    await safeRenderAll();
+    
   showToast(`${status} 처리되었습니다.`);
 
   } catch (err) {
     console.error(err);
     alert('취소 처리 실패');
+  }finally {
+    // 🔓 반드시 해제
+    unlockOrder(id);
   }
 });
 
