@@ -10,6 +10,12 @@
 // TODO(PHASE 3-4):
 // reservation lookup password will be stored in meta.lookupPassword
 
+// ===================================================
+// PHASE 2-5 COMPLETE
+// - 프론트 payload 자유
+// - 서버에서 normalize + validate
+// - 테스트는 PHASE 3에서 진행
+// ===================================================
 
 import * as OrdersDB from './_lib/db.orders.js';
 
