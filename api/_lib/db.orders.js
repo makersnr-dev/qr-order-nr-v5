@@ -1,6 +1,8 @@
 import { getPool } from './db.js';
 
-// DB에 주문 저장 (실패해도 기존 로직 영향 없게 설계)
+/* ============================================================
+   주문 생성 (기존 유지)
+   ============================================================ */
 export async function insertOrder({
   storeId,
   orderNo,
@@ -47,8 +49,59 @@ export async function insertOrder({
 }
 
 /* ============================================================
-   PHASE 3-4
-   주문 목록 DB 조회
+   ✅ PHASE 3-3
+   주문 상태 변경 (관리자 PUT 대응)
+   ============================================================ */
+export async function updateOrderStatus({
+  storeId,
+  orderId,
+  status,
+  meta,
+}) {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const values = [];
+    let idx = 1;
+    const sets = [];
+
+    if (status) {
+      sets.push(`status = $${idx++}`);
+      values.push(status);
+    }
+
+    if (meta) {
+      sets.push(`meta = meta || $${idx++}::jsonb`);
+      values.push(meta);
+    }
+
+    if (!sets.length) {
+      return { ok: true };
+    }
+
+    values.push(orderId);
+    values.push(storeId);
+
+    const sql = `
+      UPDATE orders
+      SET ${sets.join(', ')}
+      WHERE order_no = $${idx++}
+        AND store_id = $${idx}
+    `;
+
+    await client.query(sql, values);
+    return { ok: true };
+  } catch (e) {
+    console.error('[DB updateOrderStatus]', e);
+    return { ok: false, error: e.message };
+  } finally {
+    client.release();
+  }
+}
+
+/* ============================================================
+   주문 목록 조회 (기존 유지)
    ============================================================ */
 export async function listOrders({ storeId, type, from, to }) {
   const pool = getPool();
