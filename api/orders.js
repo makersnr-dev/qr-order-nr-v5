@@ -565,188 +565,68 @@ try {
 
 /* ============================================================
    PUT /api/orders
+   PHASE 3-3: DB 기반 상태 변경
    ============================================================ */
-
 async function handlePut(req, res) {
-
-  
-  return json(res, {
-    ok: false,
-    error: "NOT_IMPLEMENTED",
-    message: "주문 상태 변경은 DB 단계(3-3)에서 구현됩니다."
-  }, 501);
-
-
-  
-  // 🔒 상태 전이 규칙 (구조 고정)
-
-  const { id, orderId, status, meta } = req.body || {};
-
-  if (!id && !orderId) {
-    return json(res, { ok: false, error: "MISSING_ID" }, 400);
-  }
-
-
-  if (!id && !orderId) {
-    return json(res, { ok: false, error: "MISSING_ID" }, 400);
-  }
-
-  const orders = await loadOrders();
-
-  const idx = orders.findIndex(o => {
-    if (id && o.id === id) return true;
-    if (orderId && o.orderId === orderId) return true;
-    return false;
-  });
-
-  if (idx === -1) {
-    return json(res, { ok: false, error: "ORDER_NOT_FOUND" }, 404);
-  }
-
-  const target = { ...orders[idx] };
-
-  // 🔒 0-2.5: 주문 소유 매장 검증
   const adminStoreId = await getAdminStoreIdFromReq(req);
 
-  if (adminStoreId && target.storeId !== adminStoreId) {
+  if (!adminStoreId) {
     return json(res, {
       ok: false,
-      error: "STORE_MISMATCH",
-      message: "다른 매장의 주문은 수정할 수 없습니다."
-    }, 403);
+      error: "UNAUTHORIZED"
+    }, 401);
   }
 
-  // ⚠️ 중요:
-  // - 결제 완료(POS 확인)는 status 변경이 아니다.
-  // - meta.payment 업데이트용 PUT은 status 없이 호출된다.
-  // - 이 handler는 "상태 변경 요청" 전용이다.
-  if (typeof status === 'string') {
-    const currentStatus = target.status;
-    const orderType = target.type; // store / reserve
+  const { orderId, status, meta, metaAppend } = req.body || {};
 
-    const allowedNext =
-      STATUS_FLOW[orderType]?.[currentStatus] || [];
-
-    // 🔒 0-4-3-1: 결제 상태 문자열이 status로 들어오면 차단
-    if (
-      status === '결제완료' ||
-      status === '결제취소'
-    ) {
-      return json(res, {
-        ok: false,
-        error: 'INVALID_STATUS_FIELD',
-        message: '결제 상태는 status로 변경할 수 없습니다.'
-      }, 400);
-    }
-
-    // 🔒 0-4-3-2: 주문 타입 없는 상태 변경 차단
-    if (!target.type) {
-      return json(res, {
-        ok: false,
-        error: 'ORDER_TYPE_MISSING',
-        message: '주문 타입이 없는 상태 변경 요청입니다.'
-      }, 400);
-    }
-
-
-    if (!allowedNext.includes(status)) {
-      return json(res, {
-        ok: false,
-        error: 'INVALID_STATUS_CHANGE',
-        detail: {
-          from: currentStatus,
-          to: status,
-        }
-      }, 400);
-    }
-
-    // 🔒 결제취소는 "결제 완료된 주문"만 허용
-    // 🔒 0-4-2: 결제 완료된 주문은 주문취소 불가
-    if (
-      status === ORDER_STATUS.CANCELLED &&
-      target.meta?.payment?.paid === true
-    ) {
-      return json(res, {
-        ok: false,
-        error: 'ORDER_CANCEL_BLOCKED',
-        message: '결제 완료된 주문은 주문취소할 수 없습니다.'
-      }, 400);
-    }
-
-    target.status = status;
+  if (!orderId) {
+    return json(res, {
+      ok: false,
+      error: "MISSING_ORDER_ID"
+    }, 400);
   }
 
-  // ✅ STEP 2-4-1: 결제 확인 요청은 status 없이만 허용
-if (
-  meta?.payment &&
-  typeof status === 'string'
-) {
-  return json(res, {
-    ok: false,
-    error: 'PAYMENT_WITH_STATUS_NOT_ALLOWED',
-    message: '결제 확인 요청에는 status를 포함할 수 없습니다.'
-  }, 400);
-}
-
-  
-const prevPaid = target.meta?.payment?.paid;
-
-  // ✅ STEP 2-1: 결제 정보(meta.payment) 처리
-// - 결제는 status가 아님
-// - 관리자 결제 확인 버튼 대응
-if (
-  meta &&
-  typeof meta === 'object' &&
-  meta.payment &&
-  typeof meta.payment === 'object'
-) {
-  const prevPayment = target.meta?.payment || {};
-
-  target.meta = {
-    ...(target.meta || {}),
-    payment: {
-      ...prevPayment,
-      ...meta.payment,
-      paid: !!meta.payment.paid,
-      paidAt: meta.payment.paid
-        ? meta.payment.paidAt || Date.now()
-        : null,
-    },
-  };
-}
-
-
-
-
-  if (meta && typeof meta === "object" && !Array.isArray(meta)) {
-    target.meta = { ...(target.meta || {}), ...meta };
-  }
-  // ✅ metaAppend 처리 (history 누적용)
-  if (req.body?.metaAppend && typeof req.body.metaAppend === 'object') {
-    const append = req.body.metaAppend;
-
-    // history 누적
-    if (append.history) {
-      const prev = Array.isArray(target.meta?.history)
-        ? target.meta.history
-        : [];
-
-      const nextItems = Array.isArray(append.history)
-        ? append.history
-        : [append.history];
-
-      target.meta = {
-        ...(target.meta || {}),
-        history: [...prev, ...nextItems]
-      };
-    }
+  // 🔒 결제 상태 문자열 차단
+  if (
+    status === '결제완료' ||
+    status === '결제취소'
+  ) {
+    return json(res, {
+      ok: false,
+      error: 'INVALID_STATUS_FIELD',
+      message: '결제 상태는 status로 변경할 수 없습니다.'
+    }, 400);
   }
 
+  // 🔒 status 없이 payment 들어오는 것 차단
+  if (
+    meta?.payment &&
+    typeof status === 'string'
+  ) {
+    return json(res, {
+      ok: false,
+      error: 'PAYMENT_WITH_STATUS_NOT_ALLOWED'
+    }, 400);
+  }
 
-  //orders[idx] = target;
-  //await saveOrders(orders);
+  // ✅ DB 업데이트 (status / meta / history 포함)
+  const r = await OrdersDB.updateOrder({
+    storeId: adminStoreId,
+    orderId,
+    status,
+    meta,
+    metaAppend,
+  });
 
-  return json(res, { ok: true, order: target });
+  if (!r.ok) {
+    return json(res, {
+      ok: false,
+      error: "DB_UPDATE_FAILED",
+      detail: r.error,
+    }, 500);
+  }
+
+  return json(res, { ok: true });
 }
 
 
