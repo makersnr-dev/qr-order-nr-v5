@@ -1,82 +1,48 @@
 // /api/login-admin.js
-import { signJWT } from "../src/shared/jwt.js";
+import { signJWT } from "./_lib/jwt.server.js";
 
-export const config = { runtime: "edge" };
-
-function json(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json;charset=utf-8" },
-  });
-}
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return json({ ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
+    return res.status(405).json({ ok: false, message: "method not allowed" });
   }
 
-  // -------------------------------
-  // 1) body 읽기
-  // -------------------------------
-  let body = {};
-  try {
-    body = await req.json();
-  } catch {
-    return json({ ok: false, error: "BAD_JSON" }, 400);
+  const { id, pw } = req.body;
+
+  if (!id || !pw) {
+    return res.status(400).json({ ok: false, message: "missing fields" });
   }
 
-  const uid = (body.uid || "").trim();
-  const pwd = (body.pwd || "").trim();
-
-  if (!uid || !pwd) {
-    return json({ ok: false, error: "REQUIRED" }, 400);
-  }
-
-  // -------------------------------
-  // 2) 관리자 계정 목록
-  // -------------------------------
   let admins = [];
+
   try {
-    admins = JSON.parse(process.env.ADMIN_USERS_JSON || "[]");
-  } catch {
-    return json({ ok: false, error: "BAD_ADMIN_USERS_JSON" }, 500);
+    admins = JSON.parse(process.env.ADMIN_LIST || "[]");
+  } catch (e) {
+    return res.status(500).json({
+      ok: false,
+      message: "ADMIN_LIST env parse error",
+    });
   }
 
-  // -------------------------------
-  // 3) SUPER 계정 목록도 추가로 읽기
-  // -------------------------------
-  let supers = [];
-  try {
-    supers = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
-  } catch {
-    return json({ ok: false, error: "BAD_SUPER_JSON" }, 500);
+  const admin = admins.find(
+    (a) => a.id === id && a.pw === pw
+  );
+
+  if (!admin) {
+    return res.status(401).json({
+      ok: false,
+      message: "invalid admin credentials",
+    });
   }
 
-  // -------------------------------
-  // 4) ADMIN 또는 SUPER 중 하나라도 일치하면 로그인 성공
-  // -------------------------------
-  const adminMatch = admins.find((a) => a.id === uid && a.pw === pwd);
-  const superMatch = supers.find((a) => a.id === uid && a.pw === pwd);
-
-  if (!adminMatch && !superMatch) {
-    return json({ ok: false, error: "INVALID_CREDENTIALS" }, 401);
-  }
-
-  // -------------------------------
-  // 5) 토큰 발급
-  //    SUPER도 관리자 화면에 들어올 수 있게 realm=admin으로 통일
-  // -------------------------------
-  const payload = {
-    realm: "admin",
-    uid,
-    iat: Math.floor(Date.now() / 1000),
-  };
-
-  const secret = process.env.JWT_SECRET || "dev-secret";
-  const token = await signJWT(payload, secret, 7200);
-
-  return json({
-    ok: true,
-    token,
+  const token = signJWT({
+    role: "admin",
+    adminKey: admin.id, // ⭐ 핵심
   });
+
+  res.setHeader(
+    "Set-Cookie",
+    `admin_token=${token}; Path=/; HttpOnly; SameSite=Lax`
+  );
+
+  return res.status(200).json({ ok: true });
 }
