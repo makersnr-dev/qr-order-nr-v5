@@ -17,6 +17,16 @@
 // - 테스트는 PHASE 3에서 진행
 // ===================================================
 
+// ===================================================
+// ORDER API CONTRACT (FIXED)
+// - orderType: 'store' | 'reserve' | 'delivery'
+// - items: [{ id, name, qty, unitPrice, options }]
+// - customer / reserve 는 선택
+// - 프론트 payload 자유, 서버에서 normalize
+// - 이 구조는 DB 이후에도 유지
+// ===================================================
+
+
 import * as OrdersDB from './_lib/db.orders.js';
 
 import { getAuthFromReq } from '../src/shared/auth.js';
