@@ -32,7 +32,7 @@ import * as OrdersDB from './_lib/db.orders.js';
 import { getAuthFromReq } from '../src/shared/auth.js';
 
 
-import fs from "fs/promises";
+//import fs from "fs/promises";
 import { rateLimit } from "./_lib/rate-limit.js";
 import {
   STATUS_FLOW,
@@ -76,7 +76,7 @@ function json(res, body, status = 200) {
 /* ============================================================
    스토리지 레이어
    ============================================================ */
-async function loadOrders() {
+/*async function loadOrders() {
   try {
     const txt = await fs.readFile(ORDERS_FILE, "utf8");
     const parsed = JSON.parse(txt);
@@ -90,7 +90,7 @@ async function loadOrders() {
     console.error("[orders] loadOrders error:", err);
     return [];
   }
-}
+}*/
 
 // 🔒 storeId 실존 매장 검증 (PHASE 0-2 핵심)
 async function assertValidStoreId(storeId) {
@@ -113,7 +113,7 @@ async function assertValidStoreId(storeId) {
 
 
 
-async function saveOrders(orders) {
+/*async function saveOrders(orders) {
   try {
     await fs.writeFile(
       ORDERS_FILE,
@@ -124,13 +124,13 @@ async function saveOrders(orders) {
     console.error("[orders] saveOrders error:", err);
     throw err;
   }
-}
+}*/
 
 /* ============================================================
    매장 정보 로딩 (슈퍼관리자 대비)
    ============================================================ */
 
-const STORES_FILE = "/tmp/qrnr_stores.json";
+/*const STORES_FILE = "/tmp/qrnr_stores.json";
 
 
 // ⚠️ 로컬에서는 /api/_data/stores.json 읽어도 되고
@@ -143,7 +143,7 @@ async function loadStores() {
   } catch {
     return {};
   }
-}
+}*/
 
 
 /* ============================================================
@@ -297,7 +297,7 @@ async function handleGet(req, res) {
 
   const effectiveStoreId = storeId;
 
-  const all = await loadOrders();
+  /*const all = await loadOrders();
   let filtered = all.slice();
 
   if (type) {
@@ -332,7 +332,7 @@ async function handleGet(req, res) {
     orders: filtered,
     source: "json",
   });
-}
+}*/
 /////////////////////////////////////////////////////////////////
 
 
@@ -431,7 +431,7 @@ async function handlePost(req, res) {
     }, 400);
   }
 
-  const orders = await loadOrders();
+  //const orders = await loadOrders();
 
   const { ts, date, dateTime } = makeTimeMeta();
 
@@ -465,12 +465,15 @@ async function handlePost(req, res) {
     finalStoreId
   );
 
+    const orderNo =
+  `${finalStoreId}-${finalType}-${Date.now()}`;
 
-  const orderNo = await makeOrderNumber(
+
+  /*const orderNo = await makeOrderNumber(
     orders,
     finalStoreId,
     finalType
-  );
+  );*/
 
 
 
@@ -505,8 +508,8 @@ async function handlePost(req, res) {
   };
 
 
-  orders.push(newOrder);
-  await saveOrders(orders);
+  //orders.push(newOrder);
+  //await saveOrders(orders);
 
   // ===============================
   // PHASE 3-3: DB INSERT (병행)
@@ -565,6 +568,16 @@ try {
    ============================================================ */
 
 async function handlePut(req, res) {
+
+  
+  return json(res, {
+    ok: false,
+    error: "NOT_IMPLEMENTED",
+    message: "주문 상태 변경은 DB 단계(3-3)에서 구현됩니다."
+  }, 501);
+
+
+  
   // 🔒 상태 전이 규칙 (구조 고정)
 
   const { id, orderId, status, meta } = req.body || {};
@@ -730,8 +743,8 @@ if (
   }
 
 
-  orders[idx] = target;
-  await saveOrders(orders);
+  //orders[idx] = target;
+  //await saveOrders(orders);
 
   return json(res, { ok: true, order: target });
 }
