@@ -282,7 +282,7 @@
     return;
   }
 
-  const payload = {
+  /*const payload = {
   orderId: 'R' + Date.now(),
   storeId,
   orderType: 'reserve',
@@ -314,7 +314,35 @@
   },
 
   createdAt: Date.now()
+};*/
+    const payload = {
+  storeId,
+  orderType: 'reserve',
+  amount: cart.total(),
+
+  items: cart.items.map(i => ({
+    id: i.id,
+    name: i.name,
+    qty: i.qty,
+    price: i.price,                 // 🔥 unitPrice ❌ → price ✅
+    options: Array.isArray(i.options) ? i.options : []
+  })),
+
+  customer: {
+    name: cust,
+    phone,
+    addr,
+    memo
+  },
+
+  reserve: {
+    date,
+    time: `${ap} ${hh}:${mm}`
+  },
+
+  //agreePrivacy: true
 };
+
 
 
   const r = await fetch("/api/orders", {
