@@ -1,9 +1,10 @@
 // /src/admin/assets/js/modules/policy.js
-import { get, patch } from './store.js';
+import {
+  getPrivacyPolicy,
+  setPrivacyPolicy
+} from './store.js';
 
 // ✅ 매장별 기본 개인정보 처리방침 (전문적/포멀 버전)
-//  - 관리자 콘솔 "기본 예시 불러오기" 에서 사용
-//  - 아무 것도 저장 안 돼 있으면 이 내용이 기본값으로 들어감
 const DEFAULT_POLICY_TEXT = `
 [개인정보 처리방침]
 
@@ -64,43 +65,18 @@ QR 주문·배달/예약 서비스(이하 "서비스")는 「개인정보 보호
   2) 개인정보 정정·삭제 요구
   3) 개인정보 처리 정지 요구
 
-위 권리 행사는 매장 운영자 또는 서비스 관리자로 문의하여 요청할 수 있으며,
-서비스는 지체 없이 필요한 조치를 취합니다.
-다만, 법령에서 별도로 정한 경우에는 일부 권리가 제한될 수 있습니다.
-
 7. 개인정보의 파기 절차 및 방법
 서비스는 보유 기간이 경과하거나 처리 목적이 달성된 경우, 지체 없이 해당 정보를 파기합니다.
 
-1) 파기 절차
-  - 파기 사유가 발생한 개인정보를 선정하고, 내부 규정에 따라 파기합니다.
-
-2) 파기 방법
-  - 전자적 파일 형태: 복구 또는 재생이 불가능한 방법으로 영구 삭제
-  - 종이 문서 등: 분쇄 또는 소각 등 물리적 파기
-
 8. 개인정보의 안전성 확보 조치
 서비스는 개인정보의 안전한 처리를 위하여 다음과 같은 보호 조치를 취합니다.
-  1) 접근 권한 관리: 개인정보에 대한 접근 권한을 최소한으로 부여하고 관리합니다.
-  2) 보안 프로그램 사용: 악성코드 및 해킹 방지를 위한 보안 프로그램을 설치·운영합니다.
-  3) 접속 기록 보관: 개인정보 처리 시스템에 대한 접속 기록을 보관·관리합니다.
-  4) 기타 기술적·관리적 보호 조치: 관련 법령에서 요구하는 보호 조치를 지속적으로 이행합니다.
+  1) 접근 권한 관리
+  2) 보안 프로그램 사용
+  3) 접속 기록 보관
 
-9. 개인정보 보호 책임자 및 연락처
-이용자는 개인정보 보호 관련 문의, 불만 처리, 피해 구제 등을 위하여
-아래 연락처로 문의할 수 있습니다.
-
-  - 개인정보 보호 책임자: (매장 운영자 또는 관리자 이름)
-  - 연락처: (전화번호 또는 이메일 등 기재)
-  - 주소: (매장 주소 또는 사업장 주소 기재)
-
-10. 개인정보 처리방침의 변경
-본 개인정보 처리방침은 관련 법령, 서비스 정책 변화에 따라 개정될 수 있습니다.
-중요한 내용의 변경이 있는 경우, 서비스 화면 또는 별도 공지 등을 통하여
-개정 내용과 시행 시기를 사전에 안내합니다.
-
-※ 본 예시는 일반적인 매장 QR 주문·배달/예약 서비스 상황을 기준으로 작성된 예시이며,
-  실제 사업자의 형태, 서비스 구조, 법률 자문 결과 등에 따라
-  일부 수정·보완이 필요할 수 있습니다.
+9. 개인정보 보호 책임자
+  - 개인정보 보호 책임자: 매장 운영자
+  - 연락처: 매장 연락처
 `.trim();
 
 function currentStoreId() {
@@ -112,24 +88,16 @@ function currentStoreId() {
   return storeId;
 }
 
-
-// ✅ 관리자 화면에 텍스트 초기 렌더
 export function renderPolicy() {
   const textarea = document.getElementById('privacy-text');
   if (!textarea) return;
 
   const storeId = currentStoreId();
-
-  // 매장별 정책 → 공통 정책 순으로 조회
-  const saved =
-    get(['admin', 'privacyPolicy', storeId]) ||
-    get(['admin', 'privacyPolicy']) ||
-    '';
+  const saved = getPrivacyPolicy(storeId);
 
   textarea.value = saved || DEFAULT_POLICY_TEXT;
 }
 
-// ✅ 버튼 바인딩 (저장 / 기본 예시 불러오기)
 export function bindPolicy() {
   const textarea = document.getElementById('privacy-text');
   const saveBtn = document.getElementById('privacy-save');
@@ -139,26 +107,19 @@ export function bindPolicy() {
 
   const storeId = currentStoreId();
 
-  // 저장 버튼
   saveBtn.onclick = () => {
     const text = (textarea.value || '').trim() || DEFAULT_POLICY_TEXT;
-
-    // 매장별로 저장 (admin.privacyPolicy[storeId] = text)
-    patch(['admin', 'privacyPolicy', storeId], () => text);
-
-    // 간단 알림 (관리자 페이지용)
-    alert('개인정보 처리방침이 저장되었습니다.\n배달/예약 주문페이지의 모달에도 이 내용이 적용됩니다.');
+    setPrivacyPolicy(storeId, text);
+    alert('개인정보 처리방침이 저장되었습니다.');
   };
 
-  // 기본 예시 불러오기 (저장까지는 안 하고, textarea만 채움)
   resetBtn.onclick = () => {
-    const ok = confirm('기본 예시 내용으로 채울까요?\n(저장은 [저장] 버튼을 눌러야 반영됩니다.)');
+    const ok = confirm('기본 예시 내용으로 채울까요?');
     if (!ok) return;
     textarea.value = DEFAULT_POLICY_TEXT;
   };
 }
 
-// 예시 텍스트를 다른 모듈에서 재사용하고 싶을 때를 대비
 export function getDefaultPolicyText() {
   return DEFAULT_POLICY_TEXT;
 }
