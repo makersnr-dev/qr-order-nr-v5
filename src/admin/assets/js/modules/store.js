@@ -1,8 +1,10 @@
 // /src/admin/assets/js/modules/store.js
+// ✅ PHASE 1-1: Storage Layer 기준 통합 (storage.js 사용)
 
-const KEY = "qrnr.store.v8";
+import { Storage } from '/src/shared/storage.js';
+import { ensureStoreInitialized } from '/src/shared/store.js';
 
-// 기본 구조 (admin.menu는 전 매장 공통 템플릿, menuByStore는 매장별 메뉴)
+// 기본 구조 (기존 구조 유지)
 const def = () => ({
   admin: {
     ordersStore: [],
@@ -13,7 +15,7 @@ const def = () => ({
       { id: "A2", name: "라떼",       price: 4000, active: true },
       { id: "B1", name: "크로와상",   price: 3500, active: true },
     ],
-    menuByStore: {}, // 🔹 매장별 메뉴 저장용 (추가)
+    menuByStore: {},
     paymentCode: {
       date: new Date().toISOString().slice(0, 10),
       code: "7111",
@@ -26,33 +28,59 @@ const def = () => ({
     },
     ownerBank: { bank: "우리", number: "1002-123-456789", holder: "홍길동" },
   },
+  stores: {}
 });
 
-export function load() {
-  try {
-    return JSON.parse(localStorage.getItem(KEY)) || def();
-  } catch (_) {
-    return def();
+// 내부 유틸: storeId 확보
+function requireStoreId() {
+  const storeId = ensureStoreInitialized();
+  if (!storeId) {
+    console.warn('[STORE] storeId not initialized');
+    return null;
   }
+  return storeId;
+}
+
+// 내부 유틸: 전체 데이터 로드
+function loadAll(storeId) {
+  return Storage.get(storeId, 'adminStore') || def();
+}
+
+// 내부 유틸: 전체 데이터 저장
+function saveAll(storeId, data) {
+  Storage.set(storeId, 'adminStore', data);
+}
+
+// ==============================
+// Public API (기존 시그니처 유지)
+// ==============================
+
+export function load() {
+  const storeId = requireStoreId();
+  if (!storeId) return def();
+  return loadAll(storeId);
 }
 
 export function save(d) {
-  localStorage.setItem(KEY, JSON.stringify(d));
+  const storeId = requireStoreId();
+  if (!storeId) return;
+  saveAll(storeId, d);
 }
 
 /**
  * patch:
- *  - path: ['admin','menuByStore','korea'] 처럼 배열
- *  - 중간 경로가 없으면 자동으로 객체 생성 (다점포 대응)
+ *  - path: ['admin','menuByStore','korea']
+ *  - 중간 경로 자동 생성 (기존 동작 유지)
  */
 export function patch(path, updater) {
-  const d = load();
+  const storeId = requireStoreId();
+  if (!storeId) return null;
+
+  const d = loadAll(storeId);
   let ref = d;
 
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
-
-    // 중간 경로가 없으면 객체로 생성
     if (ref[key] == null || typeof ref[key] !== "object") {
       ref[key] = {};
     }
@@ -61,20 +89,21 @@ export function patch(path, updater) {
 
   const k = path[path.length - 1];
   ref[k] = updater(ref[k], d);
-  save(d);
+
+  saveAll(storeId, d);
   return d;
 }
 
-export const get = (path) => path.reduce((o, k) => (o && o[k]), load());
+export const get = (path) =>
+  path.reduce((o, k) => (o && o[k]), load());
 
-export const fmt = (n) => Number(n || 0).toLocaleString();
+export const fmt = (n) =>
+  Number(n || 0).toLocaleString();
 
 /* ======================================================
-   1단계: 가짜 DB API (localStorage 기반)
-   👉 나중에 DB로 바꿀 때 여기만 수정
+   가짜 DB API (localStorage → storage.js 기반)
 ====================================================== */
 
-/* ---------- 공통 ---------- */
 export function ensureStore(storeId) {
   if (!storeId) return;
   patch(['stores', storeId], prev => prev ?? {});
