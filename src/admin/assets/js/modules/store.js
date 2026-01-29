@@ -186,3 +186,41 @@ export function setPrivacyPolicy(storeId, text) {
   if (!storeId) return;
   patch(['admin', 'privacyPolicy', storeId], () => text);
 }
+
+/* ---------- 알림 설정 ---------- */
+export function getNotifyConfig(storeId) {
+  if (!storeId) return null;
+  return (
+    get(['admin', 'notify', storeId]) ||
+    null
+  );
+}
+
+export function setNotifyConfig(storeId, cfg) {
+  if (!storeId) return;
+  patch(['admin', 'notify', storeId], () => cfg);
+}
+
+/* ---------- 직원 호출 옵션 ---------- */
+export function getCallOptions(storeId) {
+  if (!storeId) return [];
+  return (
+    get(['admin', 'callOptions', storeId]) || []
+  );
+}
+
+export function setCallOptions(storeId, list) {
+  if (!storeId) return;
+  patch(['admin', 'callOptions', storeId], () => list);
+}
+
+/* ---------- 알림 로그 ---------- */
+export function addNotifyLog(storeId, log) {
+  if (!storeId) return;
+
+  patch(['admin', 'notifyLogs'], (list = []) => {
+    const arr = Array.isArray(list) ? [...list] : [];
+    arr.unshift(log);
+    return arr.slice(0, 100);
+  });
+}
