@@ -1,4 +1,9 @@
-import { get, patch } from './store.js';
+// /src/admin/assets/js/modules/mybank.js
+
+import {
+  getOwnerBank,
+  setOwnerBank
+} from './store.js';
 
 function currentStoreId() {
   if (!window.qrnrStoreId) {
@@ -8,12 +13,10 @@ function currentStoreId() {
   return window.qrnrStoreId;
 }
 
-
-// 매장별 계좌 저장 위치: ['admin', 'ownerBank', storeId]
-const PATH = () => ['admin', 'ownerBank', currentStoreId()];
-
 export function renderMyBank() {
-  const b = get(PATH()) || {};
+  const storeId = currentStoreId();
+  const b = getOwnerBank(storeId) || {};
+
   const bankInput   = document.getElementById('mb-bank');
   const acctInput   = document.getElementById('mb-acct');
   const holderInput = document.getElementById('mb-holder');
@@ -37,6 +40,8 @@ export function bindMyBank() {
 
   if (saveBtn) {
     saveBtn.onclick = () => {
+      const storeId = currentStoreId();
+
       const bank   = (document.getElementById('mb-bank')?.value || '').trim();
       const number = (document.getElementById('mb-acct')?.value || '').trim();
       const holder = (document.getElementById('mb-holder')?.value || '').trim();
@@ -46,7 +51,7 @@ export function bindMyBank() {
         return;
       }
 
-      patch(PATH(), () => ({ bank, number, holder }));
+      setOwnerBank(storeId, { bank, number, holder });
       renderMyBank();
     };
   }
