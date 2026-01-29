@@ -23,9 +23,6 @@
 </div>
 
 <script type="module">
-  import { get } from '/src/admin/assets/js/modules/store.js';
-  import { saveToken } from '/src/admin/assets/js/modules/auth.js';
-
   const loginBtn = document.getElementById('login');
 
   loginBtn.onclick = async () => {
@@ -37,54 +34,50 @@
       return;
     }
 
-    // ─────────────────────────────
-    // 1) API 로그인 요청
-    // ─────────────────────────────
-    let data = {};
-    let res;
+    // 1️⃣ 관리자 로그인 (ENV → 쿠키 JWT)
+    let res, data;
     try {
       res = await fetch('/api/login-admin', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ uid, pwd })
+        credentials: 'include',
+        body: JSON.stringify({ id: uid, pw: pwd })
       });
+
       data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        alert('로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.');
+        return;
+      }
     } catch (e) {
-      console.error('login error', e);
+      console.error(e);
       alert('서버에 연결할 수 없습니다.');
       return;
     }
 
-    if (!res.ok || !data.token) {
-      alert('로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.');
-      return;
+    // 2️⃣ 이 관리자가 접근 가능한 매장 조회 (DB 기준)
+    try {
+      const r = await fetch('/api/stores', {
+        credentials: 'include'
+      });
+      const stores = await r.json();
+
+      if (!r.ok || !Array.isArray(stores) || stores.length === 0) {
+        alert(
+          '이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n' +
+          '슈퍼 관리자에게 문의하세요.'
+        );
+        return;
+      }
+
+      // ✅ 지금은 1개만 있다고 가정
+      const store = stores[0];
+      location.href = `/admin?store=${encodeURIComponent(store.code)}`;
+    } catch (e) {
+      console.error(e);
+      alert('매장 정보를 불러올 수 없습니다.');
     }
-
-    // ─────────────────────────────
-    // 2) JWT 토큰 저장 (기존 구조 유지)
-    // ─────────────────────────────
-    saveToken(data.token);
-
-   // ─────────────────────────────
-  // 3) 매장 관리자 매핑 확인 (필수)
-  // ─────────────────────────────
-  const map = get(['admin', 'storeAdmins']) || {};
-  const storeId = map[uid];
-  
-  // ─────────────────────────────
-  // 4) 매장 매핑 강제
-  // ─────────────────────────────
-  if (!storeId) {
-    alert(
-      '이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n' +
-      '관리자 매핑 후 다시 로그인해주세요.'
-    );
-    return; // ❗ admin 페이지로 보내지 않음
-  }
-  
-  // ✅ storeId가 있을 때만 admin 진입
-  location.href = `/admin?store=${encodeURIComponent(storeId)}`;
-
   };
 </script>
 
