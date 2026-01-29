@@ -565,7 +565,7 @@ try {
 
 /* ============================================================
    PUT /api/orders
-   PHASE 3-3: DB 기반 상태 변경
+   PHASE 3-4: DB 기반 상태 변경 + history 누적
    ============================================================ */
 async function handlePut(req, res) {
   const adminStoreId = await getAdminStoreIdFromReq(req);
@@ -609,13 +609,16 @@ async function handlePut(req, res) {
     }, 400);
   }
 
-  // ✅ DB 업데이트 (status / meta / history 포함)
+  // ✅ history만 분리 (3-4 핵심)
+  const history = metaAppend?.history || null;
+
+  // ✅ DB 업데이트 (status / meta / history)
   const r = await OrdersDB.updateOrder({
     storeId: adminStoreId,
-    orderId,
+    orderNo: orderId,   // 🔥 orderId → orderNo 로 명확화
     status,
     meta,
-    metaAppend,
+    history,
   });
 
   if (!r.ok) {
