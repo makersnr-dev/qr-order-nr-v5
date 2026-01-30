@@ -1,6 +1,6 @@
 // /api/login-admin.js
 import { signJWT } from "./_lib/jwt.server.js";  // 정상적으로 import
-import { query } from './_lib/db';  // DB 쿼리 함수 추가 (DB 연결 및 쿼리 실행)
+import { query } from './_lib/db.js';  // DB 쿼리 함수 추가 (DB 연결 및 쿼리 실행)
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
