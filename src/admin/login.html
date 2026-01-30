@@ -9,63 +9,66 @@
 </head>
 <body>
 <div class="container">
-  <h1>관리자 로그인</h1>
+  <h1 style="text-align: center; margin-bottom: 30px;">관리자 로그인</h1>
 
-  <div class="card vstack" style="max-width:520px;margin:0 auto">
-    <input id="uid" class="input" placeholder="아이디">
-    <input id="pwd" class="input" type="password" placeholder="비밀번호">
-    <button id="login" class="btn primary">로그인</button>
+  <div class="card vstack" style="max-width:420px; margin:0 auto; padding: 30px;">
+    <div class="vstack" style="gap: 15px;">
+      <input id="uid" class="input" placeholder="아이디" autofocus>
+      <input id="pwd" class="input" type="password" placeholder="비밀번호">
+      <button id="login" class="btn primary" style="height: 45px; font-weight: bold;">로그인</button>
+    </div>
+    <div id="login-msg" class="small" style="color: #ef4444; margin-top: 15px; text-align: center; min-height: 18px;"></div>
   </div>
 
-  <div class="small" style="text-align:center;margin-top:10px">
-    고객 로그인은 <a href="/order/login">/order/login</a>
+  <div class="small" style="text-align:center; margin-top:20px; opacity: 0.7;">
+    고객 전용 화면은 <a href="/order/login" style="color: var(--primary);">여기</a>를 클릭하세요
   </div>
 </div>
 
-<!-- 기존 script 부분을 이렇게 수정 -->
 <script type="module">
   const loginBtn = document.getElementById('login');
+  const msgEl = document.getElementById('login-msg');
 
-  loginBtn.onclick = async () => {
+  // 로그인 로직
+  const doLogin = async () => {
     const uid = document.getElementById('uid').value.trim();
     const pwd = document.getElementById('pwd').value.trim();
 
     if (!uid || !pwd) {
-      alert('아이디와 비밀번호를 입력하세요.');
+      msgEl.textContent = '아이디와 비밀번호를 모두 입력하세요.';
       return;
     }
+
+    msgEl.style.color = '#9ca3af';
+    msgEl.textContent = '로그인 확인 중...';
 
     try {
       const res = await fetch('/api/login-admin', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ id: uid, pw: pwd })
       });
 
       const data = await res.json();
 
-      if (!res.ok || !data.ok) {
-        // 🔥 에러 메시지 개선
-        if (data.message === "Admin is not mapped to any store") {
-          alert('이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n슈퍼 관리자에게 문의하세요.');
-        } else if (data.message === "invalid admin credentials") {
-          alert('아이디 또는 비밀번호가 올바르지 않습니다.');
-        } else {
-          alert('로그인 실패: ' + (data.message || '알 수 없는 오류'));
-        }
-        return;
+      if (res.ok && data.ok) {
+        // 🚀 DB에서 연동된 storeId를 받아서 이동
+        const sid = data.storeId || 'store1';
+        localStorage.setItem('qrnr.storeId', sid); // 브라우저에도 기록
+        location.href = `/admin?store=${encodeURIComponent(sid)}`;
+      } else {
+        msgEl.style.color = '#ef4444';
+        msgEl.textContent = data.message || '아이디 또는 비밀번호가 틀렸습니다.';
       }
-
-      // ✅ 로그인 성공 - storeId와 함께 이동
-      const storeId = data.storeId || 'store1';
-      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
-
     } catch (e) {
-      console.error('Login error:', e);
-      alert('서버에 연결할 수 없습니다.');
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '서버와 연결할 수 없습니다.';
     }
   };
+
+  // 버튼 클릭 및 엔터키 대응
+  loginBtn.onclick = doLogin;
+  window.onkeypress = (e) => { if(e.key === 'Enter') doLogin(); };
 </script>
 
 </body>
