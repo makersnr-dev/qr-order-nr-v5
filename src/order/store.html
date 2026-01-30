@@ -133,6 +133,18 @@
   import { ensureStoreInitialized } from '/src/shared/store.js';
   import { getPaymentCode } from '/src/admin/assets/js/modules/store.js';
 
+  function showToast(msg, variant = "info") {
+    const t = document.createElement('div');
+    t.className = `toast show toast-${variant}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 200);
+    }, 3000);
+  }
+
+    showToast("어서오세요!", "success");
   // ─────────────────────────────────────────
   // 직원 호출 쿨타임 설정 (초)
   // ─────────────────────────────────────────
@@ -230,7 +242,7 @@ if (callBtn) {
     // ⛔ 쿨타임 체크
     const remain = getCallRemainSec();
     if (remain > 0) {
-      alert(`직원 호출은 ${remain}초 후에 다시 가능합니다.`);
+      showToast(`직원 호출은 ${remain}초 후에 다시 가능합니다.`, "info");
       return;
     }
 
@@ -238,7 +250,7 @@ if (callBtn) {
     const note = (document.getElementById('call-reason')?.value || '').trim();
 
     if (!tableVal) {
-      alert('테이블 번호를 입력하세요.');
+      showToast('테이블 번호를 입력하세요.', "info");
       return;
     }
 
@@ -274,7 +286,7 @@ if (callBtn) {
       });
 
       const msgEl = document.getElementById('call-msg');
-      msgEl.textContent = '직원 호출이 전달되었습니다.';
+      msgEl.textContent = '🔔 직원 호출이 전달되었습니다.';
       msgEl.style.opacity = '1';
 
       setTimeout(() => {
@@ -289,7 +301,7 @@ if (callBtn) {
       updateCallButtonState();
 
     } catch (e) {
-      alert('직원 호출 실패');
+      showToast('직원 호출 실패', "error");
       console.error(e);
     }
   };
@@ -385,9 +397,9 @@ function closeOrderConfirmModal() {
   const amount = cart.total();
 
 
-  if (!table) return alert('테이블 번호를 입력하세요');
-  if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
-  if (!items.length) return alert('장바구니가 비어 있습니다');
+  if (!table) return showToast('테이블 번호를 입력하세요', "info");
+  if (inputCode !== expectedCode) return showToast('결제 코드가 올바르지 않습니다', "info");
+  if (!items.length) return showToast('장바구니가 비어 있습니다', "info");
 
   // 🔥 여기서 주문 안 보냄
   openOrderConfirmModal(items, amount);
@@ -431,8 +443,8 @@ document.getElementById('confirm-ok').onclick = async () => {
   });
 
   const j = await r.json();
-  if (!j.ok) return alert('주문 저장 실패');
-
+  if (!j.ok) return showToast('주문 저장 실패', "error");
+  
   // 🔔 관리자 알림 (매장 주문)
   try {
     const channel = new BroadcastChannel('qrnr-admin');
