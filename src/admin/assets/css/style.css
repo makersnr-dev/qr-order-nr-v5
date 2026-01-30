@@ -383,7 +383,22 @@ td[data-label="합계금액"] {
 
 .toast.show {
   opacity: 1;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
+
+/* 상황별 토스트 색상 포인트 */
+.toast-success { 
+  border-left: 5px solid #2ea043 !important; /* 초록색 포인트 */
+}
+
+.toast-error { 
+  border-left: 5px solid #ef4444 !important; /* 빨간색 포인트 */
+}
+
+.toast-info { 
+  border-left: 5px solid #74c0fc !important; /* 파란색 포인트 */
+}
+
 
 .badge-paid {
   margin-left: 6px;
