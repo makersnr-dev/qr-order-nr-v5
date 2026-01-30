@@ -439,8 +439,15 @@ async function renderStoreTable() {
       `/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`,
       { cache: 'no-store' }
     );
-    const data = await res.json().catch(() => ({ orders: [] }));
-    rows = data.orders || [];
+
+    // ✅ 추가: HTTP 에러 검증
+    if (!res.ok) {
+      console.error('[renderStore] HTTP error:', res.status);
+      rows = [];
+    } else {
+      const data = await res.json().catch(() => ({ orders: [] }));
+      rows = data.orders || [];
+    }
   } catch (e) {
     console.error('renderStore err (server)', e);
     rows = [];
@@ -597,7 +604,7 @@ async function renderStoreTable() {
 // 예약 주문 렌더링 (DB 조회)
 // ===============================
 export async function renderDeliv() {
-  const tbody = $('#tbody-deliv');
+    const tbody = $('#tbody-deliv');
   if (!tbody) return;
 
   const storeId = currentStoreId();
@@ -608,8 +615,15 @@ export async function renderDeliv() {
       `/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`,
       { cache: 'no-store' }
     );
-    const d = await r.json().catch(() => ({ orders: [] }));
-    rows = d.orders || [];
+
+    // ✅ 추가: HTTP 에러 검증
+    if (!r.ok) {
+      console.error('[renderDeliv] HTTP error:', r.status);
+      rows = [];
+    } else {
+      const d = await r.json().catch(() => ({ orders: [] }));
+      rows = d.orders || [];
+    }
   } catch (e) {
     console.error('renderDeliv err (server)', e);
     rows = [];
