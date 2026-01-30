@@ -18,6 +18,7 @@
     { "src": "/order/mypage", "dest": "/src/order/mypage.html" },
     { "src": "/order/reserve-success", "dest": "/src/order/reserve-success.html" },
 
+    { "src": "/api/admin-mappings", "dest": "/api/admin-mappings.js" },
     { "src": "/api/(.*)", "dest": "/api/$1.js" }
   ]
 }
