@@ -15,11 +15,11 @@ export default async function handler(req, res) {
   let admins = [];
 
   try {
-    admins = JSON.parse(process.env.ADMIN_LIST || "[]");
+    admins = JSON.parse(process.env.ADMIN_USERS_JSON || "[]");
   } catch (e) {
     return res.status(500).json({
       ok: false,
-      message: "ADMIN_LIST env parse error",
+      message: "ADMIN_USERS_JSON env parse error",
     });
   }
 
