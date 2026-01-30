@@ -1,670 +1,145 @@
 // /src/order/assets/js/modules/menu-cart.js
-//
-// 메뉴 카드 + 모달 상세 + 장바구니
-// - 메뉴 데이터: ['admin','menuByStore', storeId] → ['admin','menu'] → 기본 시드
-// - 필드: id, name, price, img, desc, active, soldOut
+import { currentStoreId } from './cust-store.js';
 
-import { get, patch, fmt } from './cust-store.js';
+const $ = (s, r = document) => r.querySelector(s);
 
-// 1) 현재 storeId 얻기: window 전역 → URL → 'store1' 순
-function currentStoreId() {
-  if (window.qrnrStoreId) return window.qrnrStoreId;
-  try {
-    const u = new URL(location.href);
-    return u.searchParams.get('store') || 'store1';
-  } catch (e) {
-    return 'store1';
-  }
+/**
+ * [DB 연동] 서버에서 실시간 메뉴 목록을 가져옵니다.
+ */
+export async function loadMenu() {
+    const sid = currentStoreId();
+    try {
+        const res = await fetch(`/api/menus?storeId=${sid}`);
+        const data = await res.json();
+        // 판매 중인(active) 메뉴만 반환
+        return (data.menus || []).filter(m => m.active !== false);
+    } catch (e) {
+        console.error('[menu-cart] 메뉴 로딩 실패:', e);
+        return [];
+    }
 }
 
-// 2) 스토어별 메뉴 로딩:
-//    ['admin','menuByStore', storeId] → ['admin','menu'] → 시드
-export function loadMenu() {
-  const storeId = currentStoreId();
+/**
+ * 메뉴판 렌더링
+ */
+export async function renderMenu(gridId, onAddClick) {
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
 
-  // (A) 다점포: 매장별 메뉴 우선
-  let menu = get(['admin', 'menuByStore', storeId]) || [];
+    const menu = await loadMenu();
+    grid.innerHTML = '';
 
-  // (B) 과거 전역 키 호환 (admin.menu 템플릿)
-  if (!Array.isArray(menu) || menu.length === 0) {
-    menu = get(['admin', 'menu']) || [];
-  }
+    if (!menu.length) {
+        grid.innerHTML = '<div class="small" style="padding:40px; text-align:center; opacity:0.6;">준비된 메뉴가 없습니다.</div>';
+        return;
+    }
 
-  // (C) active 필터
-  const active = (menu || []).filter(m => m && m.active !== false);
+    menu.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'menu-card hstack';
+        card.style.cssText = "background:#111922; border-radius:12px; padding:12px; margin-bottom:10px; cursor:pointer; gap:12px; border:1px solid #263241;";
+        
+        card.innerHTML = `
+            <div class="menu-img" style="width:80px; height:80px; background:#1c2632; border-radius:8px; flex-shrink:0; overflow:hidden;">
+                <img src="${item.img || '/assets/img/no-image.png'}" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <div class="vstack" style="flex:1; justify-content:center;">
+                <div style="font-weight:600; font-size:16px;">${item.name}</div>
+                <div class="small" style="color:var(--muted); margin:4px 0;">${item.desc || ''}</div>
+                <div style="color:var(--primary); font-weight:700;">${Number(item.price).toLocaleString()}원</div>
+            </div>
+        `;
 
-  // (D) 그래도 없으면 시드로 폴백
-  if (active.length) return active;
-
-  return [
-    { id: 'A1', name: '아메리카노', price: 3000, active: true },
-    { id: 'A2', name: '라떼',       price: 4000, active: true },
-    { id: 'B1', name: '크로와상',   price: 3500, active: true },
-  ];
+        card.onclick = () => onAddClick(item);
+        grid.appendChild(card);
+    });
 }
 
-// ─────────────────────────────────────────────
-// 모달 DOM 준비
-// ─────────────────────────────────────────────
-let modalInited = false;
-let modalBackdrop;
-let modalBox;
-let modalImg;
-let modalName;
-let modalDesc;
-let modalPrice;
-let modalQtyInput;
-let modalAddBtn;
-let modalCloseBtn;
+/**
+ * 옵션 선택 모달 렌더링 (사장님이 엑셀로 올린 옵션들 처리)
+ */
+export function renderOptionModal(item, onConfirm) {
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center; padding:16px;";
 
-// 한 번만 body에 모달 DOM 생성
-function ensureMenuModal() {
-  if (modalInited) return;
-  modalInited = true;
+    const options = item.options || [];
+    
+    modal.innerHTML = `
+        <div class="vstack" style="background:#0d1117; width:100%; max-width:400px; border-radius:20px; padding:20px; border:1px solid #263241; max-height:80vh; overflow-y:auto;">
+            <h3 style="margin-bottom:8px;">${item.name}</h3>
+            <div class="small" style="margin-bottom:16px; opacity:0.7;">옵션을 선택해주세요.</div>
+            
+            <div id="opt-groups-list" class="vstack" style="gap:20px;">
+                ${options.map((group, gIdx) => `
+                    <div class="opt-group vstack" data-group-idx="${gIdx}" data-required="${group.required}">
+                        <div class="hstack" style="justify-content:space-between; margin-bottom:8px;">
+                            <span style="font-weight:600;">${group.name} ${group.required ? '<span style="color:#ef4444; font-size:12px;">(필수)</span>' : ''}</span>
+                            <span class="small" style="opacity:0.5;">${group.type === 'multi' ? '복수선택' : '단일선택'}</span>
+                        </div>
+                        <div class="vstack" style="gap:8px;">
+                            ${group.items.map((opt, oIdx) => `
+                                <label class="hstack" style="background:#1c2632; padding:12px; border-radius:10px; justify-content:space-between; cursor:pointer;">
+                                    <div class="hstack" style="gap:8px;">
+                                        <input type="${group.type === 'multi' ? 'checkbox' : 'radio'}" 
+                                               name="group-${gIdx}" 
+                                               value="${oIdx}" 
+                                               style="width:18px; height:18px;">
+                                        <span>${opt.label}</span>
+                                    </div>
+                                    <span class="small" style="color:var(--primary);">+${opt.price.toLocaleString()}원</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
 
-  modalBackdrop = document.createElement('div');
-  modalBackdrop.id = 'menu-detail-backdrop';
-  modalBackdrop.style.position = 'fixed';
-  modalBackdrop.style.inset = '0';
-  modalBackdrop.style.background = 'rgba(0,0,0,0.55)';
-  modalBackdrop.style.display = 'none';
-  modalBackdrop.style.alignItems = 'center';
-  modalBackdrop.style.justifyContent = 'center';
-  modalBackdrop.style.zIndex = '9998';
-  modalBackdrop.style.padding = '16px';
-
-  modalBox = document.createElement('div');
-  modalBox.style.maxWidth = '420px';
-  modalBox.style.width = '100%';
-  modalBox.style.background = '#0b1620';
-  modalBox.style.borderRadius = '18px';
-  modalBox.style.boxShadow = '0 18px 40px rgba(0,0,0,0.6)';
-  modalBox.style.overflow = 'hidden';
-  modalBox.style.display = 'flex';
-  modalBox.style.flexDirection = 'column';
-
-  modalBox.innerHTML = `
-    <div id="menu-detail-img-wrap" style="width:100%;aspect-ratio:4/3;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden">
-      <img id="menu-detail-img" src="" alt="" style="max-width:100%;max-height:100%;object-fit:cover;display:none"/>
-      <div id="menu-detail-img-placeholder" style="font-size:12px;color:#9ca3af">이미지 없음</div>
-    </div>
-    <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
-      <div id="menu-detail-name" style="font-size:17px;font-weight:600"></div>
-      <div id="menu-detail-price" style="font-size:15px;color:#facc15"></div>
-      <div id="menu-detail-desc" style="font-size:13px;color:#9ca3af;white-space:pre-wrap"></div>
-      <div id="menu-detail-options" style="margin-top:10px;display:flex;flex-direction:column;gap:10px"></div>
-
-      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <button type="button" id="menu-detail-qty-dec" class="btn" style="min-width:32px">-</button>
-          <input id="menu-detail-qty" type="number" min="1" value="1" class="input" style="width:60px;text-align:center">
-          <button type="button" id="menu-detail-qty-inc" class="btn" style="min-width:32px">+</button>
+            <button id="opt-confirm-btn" class="btn primary" style="margin-top:24px; height:50px; font-weight:bold;">장바구니 담기</button>
+            <button id="opt-close-btn" class="btn" style="margin-top:8px; background:transparent; border:none; opacity:0.5;">취소</button>
         </div>
-        <div id="menu-detail-total" style="font-size:14px;color:#e5e7eb"></div>
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-        <button type="button" id="menu-detail-close" class="btn">닫기</button>
-        <button type="button" id="menu-detail-add" class="btn primary">장바구니 담기</button>
-      </div>
-    </div>
-  `;
-
-  modalBackdrop.appendChild(modalBox);
-  document.body.appendChild(modalBackdrop);
-
-  // 요소 참조
-  modalImg          = modalBox.querySelector('#menu-detail-img');
-  const imgPlaceholder = modalBox.querySelector('#menu-detail-img-placeholder');
-  modalName         = modalBox.querySelector('#menu-detail-name');
-  modalDesc         = modalBox.querySelector('#menu-detail-desc');
-  modalPrice        = modalBox.querySelector('#menu-detail-price');
-  modalQtyInput     = modalBox.querySelector('#menu-detail-qty');
-  modalAddBtn       = modalBox.querySelector('#menu-detail-add');
-  modalCloseBtn     = modalBox.querySelector('#menu-detail-close');
-  const decBtn      = modalBox.querySelector('#menu-detail-qty-dec');
-  const incBtn      = modalBox.querySelector('#menu-detail-qty-inc');
-  const totalEl     = modalBox.querySelector('#menu-detail-total');
-
-  function updateTotal(unitPrice) {
-    const q = Math.max(1, Number(modalQtyInput.value || 1));
-    totalEl.textContent = `${fmt(unitPrice * q)}원`;
-  }
-
-  // 수량 버튼
-  if (decBtn) {
-    decBtn.onclick = () => {
-      const v = Math.max(1, Number(modalQtyInput.value || 1) - 1);
-      modalQtyInput.value = String(v);
-      const unit = Number(modalPrice.dataset.unit || 0);
-      updateTotal(unit);
-    };
-  }
-  if (incBtn) {
-    incBtn.onclick = () => {
-      const v = Math.max(1, Number(modalQtyInput.value || 1) + 1);
-      modalQtyInput.value = String(v);
-      const unit = Number(modalPrice.dataset.unit || 0);
-      updateTotal(unit);
-    };
-  }
-  if (modalQtyInput) {
-    modalQtyInput.oninput = () => {
-      if (!modalQtyInput.value || Number(modalQtyInput.value) <= 0) {
-        modalQtyInput.value = '1';
-      }
-      const unit = Number(modalPrice.dataset.unit || 0);
-      updateTotal(unit);
-    };
-  }
-
-  // 바깥 클릭 시 닫기
-  modalBackdrop.addEventListener('click', (e) => {
-    if (e.target === modalBackdrop) {
-      hideMenuModal();
-    }
-  });
-
-  if (modalCloseBtn) {
-    modalCloseBtn.onclick = () => hideMenuModal();
-  }
-
-  // 이미지 표시/숨김 helper
-  modalBox._setImage = (src) => {
-    if (src) {
-      modalImg.src = src;
-      modalImg.style.display = 'block';
-      if (imgPlaceholder) imgPlaceholder.style.display = 'none';
-    } else {
-      modalImg.src = '';
-      modalImg.style.display = 'none';
-      if (imgPlaceholder) imgPlaceholder.style.display = 'block';
-    }
-  };
-
-  // 가격/합계 helper
-  modalBox._setUnitPrice = (p) => {
-    const unit = Number(p || 0);
-    modalPrice.dataset.unit = String(unit);
-    modalPrice.textContent = unit ? `${fmt(unit)}원` : '';
-    updateTotal(unit);
-  };
-}
-
-function showMenuModal() {
-  if (!modalBackdrop) return;
-  modalBackdrop.style.display = 'flex';
-}
-
-function hideMenuModal() {
-  if (!modalBackdrop) return;
-  modalBackdrop.style.display = 'none';
-}
-
-//
-function renderOptions(container, options) {
-  container.innerHTML = '';
-
-  if (!Array.isArray(options) || options.length === 0) {
-    container.style.display = 'none';
-    return;
-  }
-
-  options = options
-    .slice()
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-  if (!Array.isArray(options) || options.length === 0) {
-    container.style.display = 'none';
-    return;
-  }
-
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.gap = '10px';
-
-  options.forEach(group => {
-    const box = document.createElement('div');
-    box.dataset.groupName = group.name;   
-    box.dataset.groupId = group.id;      
-    box.style.border = '1px solid #263241';
-    box.style.borderRadius = '10px';
-    box.style.padding = '8px';
-    box.style.display = 'flex';
-    box.style.flexDirection = 'column';
-    box.style.gap = '6px';
-
-    const title = document.createElement('div');
-    title.textContent = group.name;
-    title.style.fontSize = '13px';
-    title.style.fontWeight = '600';
-    box.appendChild(title);
-
-    const isMulti = group.type === 'multi';
-    const max =
-      group.max !== undefined && group.max !== null
-        ? Number(group.max)
-        : Infinity;
-
-    (group.items || [])
-      .slice()
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      .forEach(opt => {
-
-      const label = document.createElement('label');
-      label.style.display = 'flex';
-      label.style.alignItems = 'center';
-      label.style.gap = '6px';
-      label.style.fontSize = '13px';
-
-      const input = document.createElement('input');
-      input.type = isMulti ? 'checkbox' : 'radio';
-      input.name = `opt-${group.id}`;
-      input.dataset.price = opt.price || 0;
-
-      const span = document.createElement('span');
-      span.textContent =
-        opt.label +
-        (opt.price ? ` (+${fmt(opt.price)}원)` : '');
-
-      label.appendChild(input);
-      label.appendChild(span);
-      box.appendChild(label);
-
-      // ⭐ max 도달 시 UI 제어
-      if (isMulti && Number.isFinite(max)) {
-        input.addEventListener('change', () => {
-          const all = box.querySelectorAll(
-            `input[name="opt-${group.id}"]`
-          );
-          const checked = box.querySelectorAll(
-            `input[name="opt-${group.id}"]:checked`
-          );
-
-          if (checked.length >= max) {
-            all.forEach(i => {
-              if (!i.checked) i.disabled = true;
-            });
-          } else {
-            all.forEach(i => {
-              i.disabled = false;
-            });
-          }
-        });
-      }
-    });
-    // ⭐ 최초 렌더 시 max 상태 동기화
-if (isMulti && Number.isFinite(max)) {
-  const all = box.querySelectorAll(`input[name="opt-${group.id}"]`);
-  const checked = box.querySelectorAll(`input[name="opt-${group.id}"]:checked`);
-
-  if (checked.length >= max) {
-    all.forEach(i => {
-      if (!i.checked) i.disabled = true;
-    });
-  }
-}
-
-    container.appendChild(box);
-  });
-}
-
-
-function calcSelectedOptionPrice(container) {
-  let sum = 0;
-  if (!container) return 0;
-
-  const inputs = container.querySelectorAll('input:checked');
-  inputs.forEach(input => {
-    const price = Number(input.dataset.price || 0);
-    sum += price;
-  });
-
-  return sum;
-}
-
-function getSelectedOptions(container) {
-  const result = [];
-  if (!container) return result;
-
-  container.querySelectorAll('input:checked').forEach(input => {
-    const groupBox = input.closest('[data-group-name]');
-    const groupName = groupBox?.dataset.groupName || '';
-
-    const labelText = input.nextElementSibling?.textContent || '';
-
-     result.push({
-      groupId: groupBox?.dataset.groupId || '',
-      group: groupName,
-      label: labelText,
-      price: Number(input.dataset.price || 0)
-    });
-
-  });
-
-  return result;
-}
-
-
-function validateOptions(optionBox, optionGroups) {
-  // 옵션이 아예 없으면 항상 OK
-  if (!Array.isArray(optionGroups) || optionGroups.length === 0) {
-    return { ok: true };
-  }
-
-  // optionBox가 없는데 옵션 그룹은 있다? -> 화면 쪽 문제지만 일단 막기
-  if (!optionBox) {
-    return { ok: false, message: '옵션 영역을 찾지 못했습니다.' };
-  }
-
-  for (const group of optionGroups) {
-    const gid = group.id;
-    const gname = group.name || '옵션';
-
-    // 이 그룹에 속한 input들만 집기 (name=opt-그룹id 로 이미 만들고 있음)
-    const inputs = optionBox.querySelectorAll(`input[name="opt-${gid}"]`);
-    const checked = optionBox.querySelectorAll(`input[name="opt-${gid}"]:checked`);
-    const count = checked.length;
-
-    // 기본값: single이면 1개, multi면 0개~무한
-    const isMulti = group.type === 'multi';
-
-    // required / min / max 규칙 계산
-    const required = !!group.required;
-
-    // min/max가 명시되면 그걸 우선, 아니면 required/type 기반 기본값
-    let min = (group.min !== undefined && group.min !== null) ? Number(group.min) : (required ? 1 : 0);
-    let max = (group.max !== undefined && group.max !== null)
-      ? Number(group.max)
-      : (isMulti ? Number.POSITIVE_INFINITY : 1);
-
-    // single인데 max를 1보다 크게 줬다면 그래도 1로 고정하는게 안전
-    if (!isMulti) max = 1;
-
-    // input이 하나도 없으면(데이터가 이상) 스킵 또는 에러 처리 선택 가능
-    if (!inputs || inputs.length === 0) {
-      // 옵션 그룹 정의는 있는데 items가 없다 = 관리자 데이터 문제
-      return { ok: false, message: `[${gname}] 옵션 항목이 없습니다.` };
-    }
-
-    if (count < min) {
-      return { ok: false, message: `[${gname}] 최소 ${min}개 선택해야 합니다.` };
-    }
-    if (count > max) {
-      // max가 무한이면 안 걸림
-      return { ok: false, message: `[${gname}] 최대 ${max}개까지 선택 가능합니다.` };
-    }
-  }
-
-  return { ok: true };
-}
-
-function isOptionSatisfied(optionBox, optionGroups) {
-  if (!Array.isArray(optionGroups) || optionGroups.length === 0) {
-    return true; // 옵션 없으면 항상 OK
-  }
-
-  for (const group of optionGroups) {
-    const gid = group.id;
-
-    const required = !!group.required;
-    const min =
-      group.min !== undefined && group.min !== null
-        ? Number(group.min)
-        : (required ? 1 : 0);
-
-    if (min <= 0) continue;
-
-    const checked = optionBox.querySelectorAll(
-      `input[name="opt-${gid}"]:checked`
-    );
-
-    if (checked.length < min) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
-
-// 특정 메뉴 아이템으로 모달 열기
-function openMenuModal(item, cart) {
-  ensureMenuModal();
-  let currentUnitPrice = Number(item.price || 0);
-  if (!modalBox || !modalName || !modalDesc || !modalPrice || !modalQtyInput || !modalAddBtn) return;
-
-  const unitPrice = Number(item.price || 0);
-
-  modalName.textContent = item.name || '';
-  modalDesc.textContent = item.desc || '';
-  renderOptions(
-  modalBox.querySelector('#menu-detail-options'),
-  item.options
-);
-
-  modalBox._setImage(item.img || '');
-  modalQtyInput.value = '1';
-  modalBox._setUnitPrice(unitPrice);
-  
-  const optionBox = modalBox.querySelector('#menu-detail-options');
-  function updateAddButtonState() {
-  if (!Array.isArray(item.options) || item.options.length === 0) {
-    modalAddBtn.disabled = false;
-    modalAddBtn.style.opacity = '1';
-    return;
-  }
-
-  const ok = isOptionSatisfied(optionBox, item.options);
-  modalAddBtn.disabled = !ok;
-  modalAddBtn.style.opacity = ok ? '1' : '0.4';
-}
-
-
-  if (optionBox) {
-    optionBox.onchange = () => {
-    const optionPrice = calcSelectedOptionPrice(optionBox);
-    const base = Number(item.price || 0);
-    const newUnit = base + optionPrice;
-
-    currentUnitPrice = newUnit;          
-    modalBox._setUnitPrice(newUnit);
-      updateAddButtonState();
-  };
-
-}
-
-
-  // "장바구니 담기" 버튼 핸들러 재설정
-  modalAddBtn.onclick = () => {
-   
-
-    const qty = Math.max(1, Number(modalQtyInput.value || 1));
-const ruleCheck = validateOptions(optionBox, item.options);
-  if (!ruleCheck.ok) {
-    alert(ruleCheck.message);
-    return;
-  }
-     const selectedOptions = getSelectedOptions(optionBox);
-
-    // ✅ 화면/전송용 옵션 문자열 생성
-    const optionText = selectedOptions.map(o => {
-      return o.label ? `${o.group}:${o.label}` : o.group;
-    });
-    
-    // ✅ 옵션 비교용 키 (문자열 기준)
-    const optionKey = JSON.stringify(optionText);
-
-    // 이미 같은 id 항목 있으면 수량만 증가
-    const idx = cart.items.findIndex(x => x.id === item.id && x.optionKey === optionKey);
-
-    if (idx >= 0) {
-      cart.items[idx].qty += qty;
-    } else {
-
-    cart.items.push({
-      id: item.id,
-      name: item.name,
-      price: currentUnitPrice,
-      qty,
-    
-      // 🔹 데이터용 (관리자 / DB 대비)
-      options: selectedOptions,
-    
-      // 🔥 화면 표시 & API 전송용
-      optionText,
-    
-      optionKey
-    });
-
-
-    }
-
-    cart.render();
-    hideMenuModal();
-  };
-  updateAddButtonState();
-  showMenuModal();
-}
-
-// ─────────────────────────────────────────────
-// 메뉴 카드 렌더링
-// ─────────────────────────────────────────────
-export function renderMenu(gridId, cart) {
-  const list = loadMenu();
-  const g = document.getElementById(gridId);
-  if (!g) return;
-  g.innerHTML = '';
-
-  ensureMenuModal();
-
-  list.forEach(item => {
-    const hasOptions =
-    Array.isArray(item.options) && item.options.length > 0;
-
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.style.cssText = [
-      'width:180px',
-      'height:140px',
-      'border-radius:14px',
-      'display:flex',
-      'flex-direction:column',
-      'justify-content:space-between',
-      'align-items:stretch',
-      'padding:8px',
-      'background:#0b1620',
-      'border:1px solid #263241',
-      'text-align:left'
-    ].join(';');
-
-    const hasImg = !!item.img;
-    const soldOut = !!item.soldOut;
-
-    // 카드 내부 구조
-    btn.innerHTML = `
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#111;margin-bottom:4px">
-        ${
-          hasImg
-            ? `<img src="${item.img}" alt="" style="max-width:100%;max-height:100%;object-fit:cover">`
-            : `<span class="small" style="color:#6b7280">이미지 없음</span>`
-        }
-      </div>
-      <div style="display:flex;flex-direction:column;gap:2px">
-        <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          ${item.name}
-        </div>
-        <div style="font-size:13px;color:#facc15">
-          ${fmt(item.price || 0)}원
-        </div>
-        ${hasOptions
-  ? `<div style="font-size:11px;color:#22c55e">옵션 선택 가능</div>`
-  : ''
-}
-
-        ${
-          soldOut
-            ? `<div style="font-size:11px;color:#f97316;">일시품절</div>`
-            : ''
-        }
-      </div>
     `;
 
-    if (soldOut) {
-      btn.onclick = () => {
-        alert('현재 일시품절 메뉴입니다.');
-      };
-    } else {
-      btn.onclick = () => {
-        openMenuModal(item, cart);
-      };
-    }
+    document.body.appendChild(modal);
 
-    g.appendChild(btn);
-  });
+    const close = () => modal.remove();
+    modal.querySelector('#opt-close-btn').onclick = close;
+
+    modal.querySelector('#opt-confirm-btn').onclick = () => {
+        const selectedOptions = [];
+        const groups = modal.querySelectorAll('.opt-group');
+        
+        for (const group of groups) {
+            const gIdx = group.dataset.groupIdx;
+            const checked = group.querySelectorAll('input:checked');
+            
+            if (group.dataset.required === 'true' && checked.length === 0) {
+                alert(`'${options[gIdx].name}' 옵션은 필수 선택입니다.`);
+                return;
+            }
+
+            checked.forEach(input => {
+                const oIdx = input.value;
+                selectedOptions.push({
+                    groupName: options[gIdx].name,
+                    label: options[gIdx].items[oIdx].label,
+                    price: options[gIdx].items[oIdx].price
+                });
+            });
+        }
+
+        onConfirm(item, selectedOptions);
+        close();
+    };
 }
 
-// ─────────────────────────────────────────────
-// 장바구니
-// ─────────────────────────────────────────────
-export function makeCart(containerId, totalId) {
-  const cart = {
-    items: [],
-    total() {
-      return this.items.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
-    },
-    render() {
-      const box = document.getElementById(containerId);
-      if (!box) return;
-      box.innerHTML = '';
-      if (!this.items.length) {
-        box.innerHTML = '<div class="small">담긴 항목이 없습니다. 메뉴를 눌러 추가해주세요.</div>';
-      }
-      this.items.forEach((it, idx) => {
-        const row = document.createElement('div');
-        row.className = 'hstack';
-        row.style.gap = '8px';
-        row.style.justifyContent = 'space-between';
-        row.style.padding = '6px 0';
-        row.innerHTML = `
-  <div>
-    <div>${it.name} x ${it.qty}</div>
-    ${
-      Array.isArray(it.optionText) && it.optionText.length
-        ? `<div class="small" style="color:#9ca3af">
-            ${it.optionText.map(t => `- ${t}`).join('<br>')}
-           </div>`
-        : ''
-    }
-
-  </div>
-  <div>${fmt(Number(it.price || 0) * Number(it.qty || 1))}원</div>
-  <div class="hstack" style="gap:6px">
-    <button class="btn" data-a="minus">-</button>
-    <button class="btn" data-a="plus">+</button>
-    <button class="btn" data-a="del">삭제</button>
-  </div>
-`;
-
-        row.querySelector('[data-a="minus"]').onclick = () => {
-          if (it.qty > 1) it.qty--;
-          else this.items.splice(idx, 1);
-          this.render();
-        };
-        row.querySelector('[data-a="plus"]').onclick = () => {
-          it.qty++;
-          this.render();
-        };
-        row.querySelector('[data-a="del"]').onclick = () => {
-          this.items.splice(idx, 1);
-          this.render();
-        };
-        box.appendChild(row);
-      });
-      const totalEl = document.getElementById(totalId);
-      if (totalEl) totalEl.textContent = fmt(this.total());
-    }
-  };
-  return cart;
+/**
+ * 장바구니 합계 계산
+ */
+export function calculateTotal(cart) {
+    return cart.reduce((sum, item) => {
+        const itemBase = Number(item.price);
+        const optTotal = (item.selectedOptions || []).reduce((s, o) => s + Number(o.price), 0);
+        return sum + (itemBase + optTotal) * (item.qty || 1);
+    }, 0);
 }
