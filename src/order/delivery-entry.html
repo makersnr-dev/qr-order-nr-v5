@@ -1,120 +1,113 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/src/admin/assets/css/style.css" />
-  <title>예약 - 방식 선택</title>
-  <style>
-    .entry-wrap {
-      max-width: 480px;
-      margin: 40px auto;
-    }
-    .entry-card {
-      padding: 24px 20px;
-      border-radius: 16px;
-      background: #0d1117;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-    }
-    .entry-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-    .entry-sub {
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 18px;
-    }
-    .entry-btn {
-      width: 100%;
-      padding: 14px 16px;
-      border-radius: 999px;
-      border: none;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    .entry-btn.primary {
-      background: #2563eb;
-      color: #fff;
-    }
-    .entry-btn.outline {
-      background: transparent;
-      color: #e5e7eb;
-      border: 1px solid #4b5563;
-    }
-    .entry-note {
-      font-size: 12px;
-      color: #9ca3af;
-      margin-top: 12px;
-      line-height: 1.5;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 시작</title>
+    <link rel="stylesheet" href="/src/order/assets/css/style.css">
+    <style>
+        .entry-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+        .store-logo {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .entry-card {
+            background: #111922;
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid #263241;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .entry-card:active {
+            transform: scale(0.98);
+        }
+    </style>
 </head>
-<body data-store-id="">
+<body>
 
-<div class="container">
-  <div class="entry-wrap">
-    <div class="entry-card">
-      <div class="entry-title">예약 주문</div>
-      <div class="entry-sub">
-        주문 방식을 선택해주세요. 회원으로 주문하면 마이페이지에서
-        <br/>이전 주문 내역을 확인할 수 있습니다.
-      </div>
+<div class="entry-container">
+    <div id="store-logo-box" class="store-logo">🏠</div>
+    <h2 id="store-name" style="margin-bottom: 8px;">매장 정보를 불러오는 중...</h2>
+    <p id="store-status" class="small" style="margin-bottom: 40px; opacity: 0.7;">잠시만 기다려주세요.</p>
 
-      <button id="btn-member" class="entry-btn primary">
-        회원 주문 (로그인 후 이용)
-      </button>
-      <button id="btn-guest" class="entry-btn outline">
-        비회원 주문 (로그인 없이 진행)
-      </button>
+    <div class="vstack" style="gap: 16px;">
+        <div class="entry-card" id="btn-guest">
+            <h3 style="color: var(--primary); margin-bottom: 4px;">비회원 주문하기</h3>
+            <p class="small">로그인 없이 바로 주문하고<br>문자로 진행 상황을 알려드려요.</p>
+        </div>
 
-      <div class="entry-note">
-        · 회원 주문: 로그인 & 마이페이지 연동<br/>
-        · 비회원 주문: 전화번호/주소만으로 빠르게 주문 가능<br/>
-      </div>
+        <div class="entry-card" id="btn-login">
+            <h3 style="margin-bottom: 4px;">회원 로그인</h3>
+            <p class="small">포인트를 적립하고<br>지난 주문 내역을 확인하세요.</p>
+        </div>
     </div>
-  </div>
+
+    <div style="margin-top: 40px;">
+        <a href="javascript:history.back()" class="small" style="color: var(--muted); text-decoration: none;">뒤로가기</a>
+    </div>
 </div>
 
 <script type="module">
-  import { ensureStoreInitialized } from '/src/shared/store.js';
+    import { currentStoreId, loadStoreInfo } from '/src/order/assets/js/modules/cust-store.js';
 
-  // ⭐ 1) storeId 초기화
-  const storeId = ensureStoreInitialized();
-  window.qrnrStoreId = storeId;
+    async function init() {
+        const storeId = currentStoreId();
+        const storeNameEl = document.getElementById('store-name');
+        const storeStatusEl = document.getElementById('store-status');
+        const guestBtn = document.getElementById('btn-guest');
+        const loginBtn = document.getElementById('btn-login');
 
-  // ⭐ 2) body에 storeId 표시
-  document.body.setAttribute("data-store-id", storeId);
+        try {
+            // 🚀 1. DB에서 실시간 매장 정보 로드
+            const info = await loadStoreInfo();
+            storeNameEl.textContent = info.name;
+            
+            if (info.active) {
+                storeStatusEl.innerHTML = '<span style="color:#2ea043">●</span> 영업 중입니다.';
+            } else {
+                storeStatusEl.innerHTML = '<span style="color:#ef4444">●</span> 지금은 영업 준비 중입니다.';
+                // 영업 중이 아닐 때 버튼 비활성화 시키려면 아래 주석 해제
+                // guestBtn.style.opacity = '0.5';
+                // guestBtn.style.pointerEvents = 'none';
+            }
 
-  // ⭐ 3) URL 자동 보정: storeId가 없으면 붙이고 재로드
-  const url = new URL(location.href);
-  if (!url.searchParams.get("store")) {
-    url.searchParams.set("store", storeId);
-    location.replace(url.toString());
-  }
+            // 🚀 2. 버튼 클릭 이벤트 (storeId 유지하며 이동)
+            guestBtn.onclick = () => {
+                location.href = `/src/order/delivery-guest.html?store=${encodeURIComponent(storeId)}`;
+            };
 
-  // ⭐ 4) 링크 생성 유틸리티
-  const makeUrl = (path) =>
-    `${path}?store=${encodeURIComponent(storeId)}`;
+            loginBtn.onclick = () => {
+                location.href = `/src/order/login.html?store=${encodeURIComponent(storeId)}`;
+            };
 
-  const btnMember = document.getElementById('btn-member');
-  const btnGuest  = document.getElementById('btn-guest');
+        } catch (e) {
+            console.error(e);
+            storeNameEl.textContent = '방문해주셔서 감사합니다';
+            storeStatusEl.textContent = '매장 정보를 확인할 수 없습니다.';
+        }
+    }
 
-  // ⭐ 5) 버튼에 스토어 유지 링크 적용
-  if (btnMember) {
-    btnMember.onclick = () => {
-      location.href = makeUrl('/src/order/delivery.html');
-    };
-  }
-
-  if (btnGuest) {
-    btnGuest.onclick = () => {
-      location.href = makeUrl('/src/order/delivery-guest.html');
-    };
-  }
+    init();
 </script>
 
 </body>
