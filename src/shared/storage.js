@@ -1,60 +1,49 @@
 // /src/shared/storage.js
-// ---------------------------------------------------------------------
-// Unified Storage Layer
-// 현재는 localStorage 기반
-// 나중에 DB 붙이면 이 파일만 수정하면 전체 프로젝트가 서버 기반으로 전환됨
-// ---------------------------------------------------------------------
-
-import { ensureStoreInitialized } from "./store.js";
-
-// 공통 prefix
-const PREFIX = "qrnr";
-
-// key 생성기
-function makeKey(storeId, key) {
-  return `${PREFIX}:${storeId}:${key}`;
-}
-
-// ==========================
-//  Public API
-// ==========================
 
 export const Storage = {
-  // GET
+  /**
+   * 데이터를 저장합니다. (매장별로 구분하여 저장)
+   * 예: Storage.set('store1', 'cart', [{id:1, qty:2}])
+   */
+  set(storeId, key, value) {
+    try {
+      const storageKey = `qrnr.${storeId}.${key}`;
+      localStorage.setItem(storageKey, JSON.stringify(value));
+    } catch (e) {
+      console.error('[Storage] 저장 실패:', e);
+    }
+  },
+
+  /**
+   * 데이터를 가져옵니다.
+   */
   get(storeId, key) {
     try {
-      const v = localStorage.getItem(makeKey(storeId, key));
-      return v ? JSON.parse(v) : null;
-    } catch (_) {
+      const storageKey = `qrnr.${storeId}.${key}`;
+      const val = localStorage.getItem(storageKey);
+      return val ? JSON.parse(val) : null;
+    } catch (e) {
       return null;
     }
   },
 
-  // SET
-  set(storeId, key, value) {
-    try {
-      localStorage.setItem(makeKey(storeId, key), JSON.stringify(value));
-      return true;
-    } catch (_) {
-      console.warn("Storage.set 실패:", key);
-      return false;
-    }
-  },
-
-  // REMOVE
+  /**
+   * 특정 매장의 특정 데이터를 삭제합니다.
+   */
   remove(storeId, key) {
-    try {
-      localStorage.removeItem(makeKey(storeId, key));
-    } catch (_) {}
+    const storageKey = `qrnr.${storeId}.${key}`;
+    localStorage.removeItem(storageKey);
   },
 
-  // CLEAR (특정 storeId의 모든 데이터 제거)
+  /**
+   * 특정 매장의 모든 임시 데이터를 비웁니다.
+   */
   clearStore(storeId) {
-    try {
-      const prefix = `${PREFIX}:${storeId}:`;
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith(prefix)) localStorage.removeItem(k);
-      });
-    } catch (_) {}
+    const prefix = `qrnr.${storeId}.`;
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(prefix)) {
+        localStorage.removeItem(key);
+      }
+    });
   }
 };
