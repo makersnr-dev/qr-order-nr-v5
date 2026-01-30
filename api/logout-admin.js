@@ -1,4 +1,3 @@
-// /api/logout-admin.js
 export const config = { runtime: "edge" };
 
 export default async function handler(req) {
@@ -6,7 +5,8 @@ export default async function handler(req) {
     status: 200,
     headers: {
       "content-type": "application/json",
-      "set-cookie": `auth_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`
+      // admin_token 쿠키를 즉시 만료시켜서 지웁니다.
+      "set-cookie": `admin_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`
     }
   });
 }
