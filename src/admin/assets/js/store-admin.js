@@ -1,5 +1,5 @@
 // /src/admin/assets/js/store-admin.js
-import { query } from "../../../api/_lib/db.js";
+import { query } from "../../../../api/_lib/db.js";
 
 const $ = (s, r=document) => r.querySelector(s);
 
