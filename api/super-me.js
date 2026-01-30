@@ -5,7 +5,7 @@ export const config = { runtime: "edge" };
 
 export default async function handler(req) {
   try {
-    // 현재 구조는 cookie 기반 → 그대로 유지
+    // 쿠키에서 super_token을 읽음
     const cookie = req.headers.get("cookie") || "";
     const token = cookie.match(/super_token=([^;]+)/)?.[1];
 
@@ -38,3 +38,4 @@ export default async function handler(req) {
     });
   }
 }
+
