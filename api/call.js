@@ -1,52 +1,34 @@
 // /api/call.js
-import fs from 'fs/promises';
+import { query } from './_lib/db.js'; // ✅ DB 연결 도구 불러오기
 
 export const config = { runtime: 'nodejs' };
 
-const STORES_FILE = '/tmp/qrnr_stores.json';
-
-async function loadStores() {
-  try {
-    const txt = await fs.readFile(STORES_FILE, 'utf8');
-    return JSON.parse(txt) || {};
-  } catch {
-    return {};
-  }
-}
-
-// 🔒 storeId 실존 매장 검증
-async function assertValidStoreId(storeId) {
-  if (!storeId) {
-    return { ok: false, error: 'MISSING_STORE_ID' };
-  }
-
-  const stores = await loadStores();
-
-  if (!stores || !stores[storeId]) {
-    return { ok: false, error: 'INVALID_STORE_ID' };
-  }
-
-  return { ok: true };
-}
-
-
 export default async function handler(req, res) {
+  // 1. POST 요청인지 확인
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false });
   }
 
-  const { storeId, table, note, senderId } = req.body || {};
+  const { storeId, table, note } = req.body || {};
 
-// 🔒 storeId 실존 매장 검증
-const check = await assertValidStoreId(storeId);
-if (!check.ok) {
-  return res.status(403).json(check);
-}
+  // 2. 필수 데이터 확인
+  if (!storeId || !table) {
+    return res.status(400).json({ ok: false, error: 'MISSING_PARAMS' });
+  }
 
+  try {
+    // 3. Neon DB의 call_logs 테이블에 기록 저장 (가장 중요!)
+    // 이 한 줄이 기존의 복잡한 파일 체크를 대신합니다.
+    await query(`
+      INSERT INTO call_logs (store_id, table_no, message, status)
+      VALUES ($1, $2, $3, '대기')
+    `, [storeId, table, note || '직원 호출']);
 
-  const ts = Date.now();
+    // 4. 성공 응답
+    return res.json({ ok: true });
 
-
-
-  return res.json({ ok: true });
+  } catch (e) {
+    console.error('[DB CALL ERROR]', e.message);
+    return res.status(500).json({ ok: false, error: 'DB_ERROR' });
+  }
 }
