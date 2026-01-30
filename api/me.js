@@ -27,6 +27,12 @@ export default async function handler(req) {
   if (auth.startsWith("Bearer ")) {
     token = auth.substring(7);
   }
+  if (!token) {
+    const cookie = req.headers.get("cookie") || "";
+    // 쿠키에서 admin_token 또는 super_token을 찾습니다.
+    const match = cookie.match(/(admin_token|super_token)=([^;]+)/);
+    if (match) token = match[2];
+  }
 
   if (!token) {
     try {
