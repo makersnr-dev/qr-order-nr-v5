@@ -1,5 +1,5 @@
 // /api/login-admin.js
-import { signJWT } from "./_lib/jwt.server.js";
+import { signJWT } from "./_lib/jwt.server.js";  // 올바르게 import
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     });
   }
 
-  const token = signJWT({
+  // signJWT 호출 시 await 사용
+  const token = await signJWT({
     role: "admin",
     adminKey: admin.id, // ⭐ 핵심
   });
