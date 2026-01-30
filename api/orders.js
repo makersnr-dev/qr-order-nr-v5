@@ -54,8 +54,9 @@ async function getAdminStoreIdFromReq(req) {
       process.env.JWT_SECRET || "dev-secret"
     );
     return payload?.storeId || null;
-  } catch {
-    return null;
+  } catch (e) {
+    console.error('[getAdminStoreIdFromReq] JWT verify error:', e);
+    return null; // ✅ 에러 발생 시 null 반환
   }
 }
 
@@ -238,15 +239,19 @@ export default async function handler(req, res) {
 /* ============================================================
    GET /api/orders
    ============================================================ */
-/* ============================================================
-   GET /api/orders
-   🔒 0-2.5: 관리자 storeId 기준 주문 조회 제한
-   ============================================================ */
+// /api/orders.js 파일에서 handleGet 함수 수정
+
 async function handleGet(req, res) {
   const { type, from, to, storeId } = req.query || {};
 
-  // 🔒 관리자 JWT에서 storeId 추출
-  const adminStoreId = await getAdminStoreIdFromReq(req);
+  // 🔒 관리자 JWT에서 storeId 추출 (에러 처리 추가)
+  let adminStoreId = null;
+  try {
+    adminStoreId = await getAdminStoreIdFromReq(req);
+  } catch (e) {
+    console.error('[handleGet] JWT verification failed:', e);
+    // ✅ JWT 에러는 무시하고 계속 진행
+  }
 
   // 🔒 관리자 + storeId 쿼리 불일치 → 차단
   if (adminStoreId && storeId && adminStoreId !== storeId) {
@@ -270,6 +275,7 @@ async function handleGet(req, res) {
       });
 
       if (!r.ok) {
+        console.error('[handleGet] DB query failed:', r.error);
         return json(res, {
           ok: false,
           error: "DB_SELECT_FAILED",
@@ -287,53 +293,12 @@ async function handleGet(req, res) {
       return json(res, {
         ok: false,
         error: "DB_SELECT_EXCEPTION",
+        detail: e.message,
       }, 500);
     }
   }
+}
 
-  // ===============================
-  // ⛳ 기존 JSON 로직 (비관리자)
-  // ===============================
-
-  const effectiveStoreId = storeId;
-
-  /*const all = await loadOrders();
-  let filtered = all.slice();
-
-  if (type) {
-    filtered = filtered.filter(o => o.type === type);
-  }
-
-  if (effectiveStoreId) {
-    filtered = filtered.filter(o => o.storeId === effectiveStoreId);
-  }
-
-  let fromTs = from ? Date.parse(from) : null;
-  let toTs = to ? Date.parse(to) : null;
-
-  if (!Number.isNaN(fromTs) && fromTs != null) {
-    filtered = filtered.filter(o => {
-      const ts = o.ts || Date.parse(o.dateTime || o.date);
-      return ts >= fromTs;
-    });
-  }
-
-  if (!Number.isNaN(toTs) && toTs != null) {
-    filtered = filtered.filter(o => {
-      const ts = o.ts || Date.parse(o.dateTime || o.date);
-      return ts <= toTs;
-    });
-  }
-
-  filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-  return json(res, {
-    ok: true,
-    orders: filtered,
-    source: "json",
-  });
-}*/
-/////////////////////////////////////////////////////////////////
 
 
 function normalizeOrderInput(body) {
