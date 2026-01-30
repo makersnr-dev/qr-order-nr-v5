@@ -415,9 +415,6 @@ td[data-label="합계금액"] {
 /* 모달 전체 배경 */
 #cancel-reason-modal {
   background: rgba(0,0,0,0.6) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* 모달 박스 */
