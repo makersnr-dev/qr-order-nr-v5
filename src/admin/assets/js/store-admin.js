@@ -1,20 +1,9 @@
 // /src/admin/assets/js/store-admin.js
-import { get, patch } from './modules/store.js';
-
-function superHeaders() {
-  return {
-    'content-type': 'application/json',
-    'authorization': `Bearer ${getSuperToken()}`
-  };
-}
-
+import { query } from '/api/_lib/db.js';
 
 const $ = (s, r=document) => r.querySelector(s);
 
-// ⚠️ 이 토큰은 SUPER 매핑 페이지 전용
-// 관리자 콘솔 / api/me 에 절대 사용 금지
 const SUPER_TOKEN_KEY = 'qrnr.super.jwt';
-const MAP_PATH = ['system', 'storeAdmins'];
 
 function getSuperToken() {
   try { return localStorage.getItem(SUPER_TOKEN_KEY) || ''; }
@@ -28,110 +17,244 @@ function setSuperToken(token) {
   } catch {}
 }
 
-function decodeToken(token) {
-  if (!token) return null;
-  const p = token.split('.');
-  if (p.length < 2) return null;
-
-  try { return JSON.parse(atob(p[1])); }
-  catch { return null; }
+function superHeaders() {
+  const token = getSuperToken();
+  return {
+    'content-type': 'application/json',
+    'authorization': token ? `Bearer ${token}` : ''
+  };
 }
 
-function loadMap() {
-  const raw = get(MAP_PATH);
-  return raw && typeof raw === 'object' ? { ...raw } : {};
+// =====================================================
+// 매장-관리자 매핑 관리 (DB 기반)
+// =====================================================
+
+async function loadMappings() {
+  try {
+    const res = await fetch('/api/admin-mappings', {
+      headers: superHeaders()
+    });
+    
+    if (!res.ok) return [];
+    
+    const data = await res.json();
+    return data.mappings || [];
+  } catch (e) {
+    console.error('[loadMappings] error:', e);
+    return [];
+  }
 }
 
-function saveMap(map) {
-  patch(MAP_PATH, () => map);
-}
-
-function renderMapTable() {
+async function renderMapTable() {
   const tbody = $('#map-body');
-  const map = loadMap();
+  if (!tbody) return;
 
-  tbody.innerHTML = '';
-  const entries = Object.entries(map);
+  tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
 
-  if (!entries.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>`;
+  const mappings = await loadMappings();
+
+  if (!mappings.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>';
     return;
   }
 
-  entries.forEach(([adminId, info]) => {
-    const storeId = info?.storeId || '';
-    const note = info?.note || '';
+  tbody.innerHTML = '';
 
+  mappings.forEach(m => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${adminId}</td>
-      <td>${storeId}</td>
-      <td>${note}</td>
+      <td>${m.admin_key}</td>
+      <td>${m.store_id}</td>
+      <td>${m.note || '-'}</td>
       <td class="right">
         <a class="btn small"
-         href="/admin?store=${encodeURIComponent(storeId)}"
-         target="_blank">관리자 콘솔</a>
-        <button class="btn small" data-del="${adminId}">삭제</button>
+           href="/admin?store=${encodeURIComponent(m.store_id)}"
+           target="_blank">관리자 콘솔</a>
+        <button class="btn small danger" data-del="${m.admin_key}" data-store="${m.store_id}">삭제</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 
+  // 삭제 버튼 바인딩
   tbody.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.dataset.del;
-      if (!confirm(`"${target}" 매핑을 삭제할까요?`)) return;
-      const map = loadMap();
-      delete map[target];
-      saveMap(map);
-      renderMapTable();
-    });
+    btn.onclick = async () => {
+      const adminKey = btn.dataset.del;
+      const storeId = btn.dataset.store;
+      
+      if (!confirm(`"${adminKey}" 매핑을 삭제할까요?`)) return;
+
+      try {
+        const res = await fetch('/api/admin-mappings', {
+          method: 'DELETE',
+          headers: superHeaders(),
+          body: JSON.stringify({ adminKey, storeId })
+        });
+
+        if (!res.ok) throw new Error();
+
+        await renderMapTable();
+      } catch (e) {
+        alert('삭제 실패');
+      }
+    };
   });
 }
 
 function bindMappingUI() {
-  $('#map-add').onclick = async () => {
-    const adminId = $('#map-admin').value.trim();
+  const addBtn = $('#map-add');
+  if (!addBtn) return;
+
+  addBtn.onclick = async () => {
+    const adminKey = $('#map-admin').value.trim();
     const storeId = $('#map-store').value.trim();
     const note = $('#map-note').value.trim();
 
-    if (!adminId || !storeId) {
+    if (!adminKey || !storeId) {
       alert('관리자 ID와 storeId는 필수입니다.');
       return;
     }
 
-    // 🔒 storeId 실존 여부 검증 (0-2.5 보완)
     try {
-      const res = await fetch('/api/stores');
-      const data = await res.json();
+      // 매장 존재 확인
+      const storeRes = await fetch('/api/stores');
+      const storeData = await storeRes.json();
 
-      if (!data.stores || !data.stores[storeId]) {
+      if (!storeData.stores || !storeData.stores[storeId]) {
         alert('존재하지 않는 storeId입니다.');
         return;
       }
+
+      // 매핑 추가
+      const res = await fetch('/api/admin-mappings', {
+        method: 'POST',
+        headers: superHeaders(),
+        body: JSON.stringify({ adminKey, storeId, note })
+      });
+
+      if (!res.ok) throw new Error();
+
+      $('#map-admin').value = '';
+      $('#map-store').value = '';
+      $('#map-note').value = '';
+
+      await renderMapTable();
     } catch (e) {
-      alert('매장 목록을 불러올 수 없습니다.');
-      return;
+      alert('매핑 추가 실패');
     }
-
-    // ✅ 검증 통과 후 매핑 저장
-    const map = loadMap();
-
-    if (map[adminId]) {
-      if (!confirm('이미 매핑된 관리자입니다. 덮어쓸까요?')) return;
-    }
-
-    map[adminId] = { storeId, note };
-    saveMap(map);
-
-    renderMapTable();
-
-    $('#map-admin').value = '';
-    $('#map-store').value = '';
-    $('#map-note').value = '';
   };
 }
 
+// =====================================================
+// 매장 관리 (DB 기반)
+// =====================================================
+
+async function renderStoreTable() {
+  const tbody = $('#store-body');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
+
+  try {
+    const res = await fetch('/api/stores');
+    const data = await res.json();
+
+    const stores = data.stores || {};
+    const entries = Object.entries(stores);
+
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="small">등록된 매장 없음</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    entries.forEach(([storeId, info]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${storeId}</td>
+        <td>${info.name || '-'}</td>
+        <td>${info.code || '-'}</td>
+        <td class="right">
+          <button class="btn small danger" data-del-store="${storeId}">삭제</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 삭제 버튼 바인딩
+    tbody.querySelectorAll('[data-del-store]').forEach(btn => {
+      btn.onclick = async () => {
+        const storeId = btn.dataset.delStore;
+        if (!confirm(`매장 "${storeId}"를 삭제할까요?`)) return;
+
+        try {
+          const res = await fetch('/api/stores', {
+            method: 'DELETE',
+            headers: superHeaders(),
+            body: JSON.stringify({ storeId })
+          });
+
+          if (!res.ok) throw new Error();
+
+          await renderStoreTable();
+        } catch (e) {
+          alert('삭제 실패');
+        }
+      };
+    });
+  } catch (e) {
+    console.error('[renderStoreTable] error:', e);
+    tbody.innerHTML = '<tr><td colspan="4" class="small">불러오기 실패</td></tr>';
+  }
+}
+
+function bindStoreUI() {
+  const saveBtn = $('#store-save');
+  if (!saveBtn) return;
+
+  saveBtn.onclick = async () => {
+    const storeId = $('#store-id').value.trim();
+    const name = $('#store-name').value.trim();
+    const code = $('#store-code').value.trim();
+
+    if (!storeId || !code) {
+      alert('storeId와 주문 코드는 필수입니다.');
+      return;
+    }
+
+    try {
+      // 기존 매장 확인
+      const checkRes = await fetch('/api/stores');
+      const checkData = await checkRes.json();
+      const exists = checkData.stores && checkData.stores[storeId];
+
+      // 생성 또는 수정
+      const res = await fetch('/api/stores', {
+        method: exists ? 'PUT' : 'POST',
+        headers: superHeaders(),
+        body: JSON.stringify({ storeId, name, code })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'SAVE_FAILED');
+      }
+
+      $('#store-id').value = '';
+      $('#store-name').value = '';
+      $('#store-code').value = '';
+
+      await renderStoreTable();
+    } catch (e) {
+      alert('저장 실패: ' + e.message);
+    }
+  };
+}
+
+// =====================================================
+// SUPER 로그인
+// =====================================================
 
 async function fetchSuperMe() {
   try {
@@ -163,6 +286,7 @@ async function init() {
   const logoutBtn = $('#super-logout');
   const loginCard = $('#super-login-card');
   const mappingCard = $('#mapping-card');
+  const storeCard = $('#store-card');
 
   const me = await fetchSuperMe();
 
@@ -171,16 +295,18 @@ async function init() {
     logoutBtn.style.display = 'inline-flex';
     loginCard.style.display = 'none';
     mappingCard.style.display = 'block';
-    $('#store-card').style.display = 'block';
-    renderMapTable();
+    storeCard.style.display = 'block';
+    
+    await renderMapTable();
+    await renderStoreTable();
     bindMappingUI();
-    renderStoreTable(); 
     bindStoreUI();
   } else {
     statusText.textContent = '';
     logoutBtn.style.display = 'none';
     loginCard.style.display = 'block';
     mappingCard.style.display = 'none';
+    storeCard.style.display = 'none';
   }
 
   $('#super-login-btn').onclick = async () => {
@@ -205,107 +331,12 @@ async function init() {
     }
   };
 
-  // 🔥 SUPER 로그아웃 버튼 — 쿠키 + localStorage 모두 삭제
   logoutBtn.onclick = async () => {
     if (!confirm('로그아웃할까요?')) return;
-
-    await superLogout();      // super_token 쿠키 삭제
-    setSuperToken('');        // localStorage 삭제
-
+    await superLogout();
+    setSuperToken('');
     location.reload();
   };
 }
 
 init();
-
-function bindStoreUI() {
-  const btn = document.getElementById('store-save');
-  if (!btn) return;
-/*
-  btn.onclick = async () => {
-    const storeId = document.getElementById('store-id').value.trim();
-    const name = document.getElementById('store-name').value.trim();
-    const code = document.getElementById('store-code').value.trim();
-
-    if (!storeId || !code) {
-      alert('storeId와 주문 코드는 필수입니다.');
-      return;
-    }
-
-    const res = await fetch('/api/stores');
-    const data = await res.json();
-    const exists = !!data.stores?.[storeId];
-    
-    await fetch('/api/stores', {
-    method: exists ? 'PUT' : 'POST',
-    headers: superHeaders(),
-    body: JSON.stringify({ storeId, name, code })
-  });
-
-
-    document.getElementById('store-id').value = '';
-    document.getElementById('store-name').value = '';
-    document.getElementById('store-code').value = '';
-
-    renderStoreTable();
-  };*/
-}
-
-async function renderStoreTable() {
-  const tbody = document.getElementById('store-body');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
-
-  const r = await fetch('/api/stores');
-   if (!r.ok) {
-     const text = await r.text();
-     console.error('stores api error:', text);
-     alert('매장 정보를 불러오지 못했습니다.');
-     return;
-   }
-  const data = await r.json();
-  const stores = data.stores || {};
-  const entries = Object.entries(stores);
-
-  if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="small">등록된 매장 없음</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = '';
-
-  // ① 행 먼저 전부 추가
-  entries.forEach(([storeId, info]) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${storeId}</td>
-      <td>${info.name || '-'}</td>
-      <td>${info.code || '-'}</td>
-      <td class="right">
-        <button class="btn small danger" data-del-store="${storeId}">
-          삭제
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // ② 그 다음 삭제 버튼 이벤트 바인딩
-  tbody.querySelectorAll('[data-del-store]').forEach(btn => {
-    btn.onclick = async () => {
-      const storeId = btn.dataset.delStore;
-      if (!confirm(`매장 "${storeId}"를 삭제할까요?`)) return;
-
-      await fetch('/api/stores', {
-      method: 'DELETE',
-      headers: superHeaders(),
-      body: JSON.stringify({ storeId })
-    });  
-
-
-      renderStoreTable();
-    };
-  });
-}
-
