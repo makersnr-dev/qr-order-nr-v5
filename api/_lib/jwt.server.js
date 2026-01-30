@@ -1,3 +1,4 @@
+/*/api/_lib/jwt.server.js*/
 import { signJWT } from "../../src/shared/jwt.js";  // 상대경로로 수정
 
 export function verifyJWT(token, secret) {
