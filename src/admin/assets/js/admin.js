@@ -167,33 +167,32 @@ function ensureToastContainer() {
   return box;
 }
 
-export function showToast(msg, variant = "info") {
-  const box = ensureToastContainer();
-  const el = document.createElement("div");
+// /src/admin/assets/js/admin.js
 
-  el.textContent = msg;
-  el.style.padding = "10px 14px";
-  el.style.borderRadius = "6px";
-  el.style.color = "#fff";
-  el.style.fontSize = "13px";
-  el.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
-  el.style.opacity = "0.95";
+/**
+ * 표준 토스트 알림 함수
+ * @param {string} msg - 표시할 메시지
+ * @param {string} variant - 'info', 'success', 'error' (색상 구분용)
+ */
+export function showToast(msg, variant = 'info') {
+  const t = document.createElement('div');
+  
+  // 기본 클래스는 toast, 상태에 따라 클래스 추가 (예: toast-success)
+  t.className = `toast toast-${variant}`; 
+  t.textContent = msg;
+  
+  document.body.appendChild(t);
 
-  el.style.background =
-    variant === "error"
-      ? "#ff4d4f"
-      : variant === "success"
-      ? "#52c41a"
-      : "#333";
+  // 브라우저가 요소를 인식한 직후에 'show' 클래스 추가 (애니메이션 시작)
+  requestAnimationFrame(() => t.classList.add('show'));
 
-  box.appendChild(el);
-
+  // 3초 후 사라짐
   setTimeout(() => {
-    el.style.opacity = "0";
-    setTimeout(() => el.remove(), 300);
-  }, 2500);
+    t.classList.remove('show');
+    // 애니메이션(0.2초)이 끝난 후 요소 삭제
+    setTimeout(() => t.remove(), 200);
+  }, 3000);
 }
-
 //------------------------------------------------------------
 // 3. BroadcastChannel
 //------------------------------------------------------------
