@@ -2,6 +2,7 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not set");
   throw new Error("❌ DATABASE_URL is not set");
 }
 
@@ -12,6 +13,24 @@ export const pool = new Pool({
     sslmode: 'verify-full',
   },
 });
+
+// ✅ 연결 테스트 추가
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
+
+export async function query(sql, params = []) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(sql, params);
+    return result;
+  } catch (e) {
+    console.error('[DB Query Error]', e.message);
+    throw e; // ✅ 에러를 상위로 전달
+  } finally {
+    client.release();
+  }
+}
 
 export async function query(sql, params = []) {
   const client = await pool.connect();
