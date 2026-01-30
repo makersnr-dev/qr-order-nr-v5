@@ -56,15 +56,14 @@ export default async function handler(req) {
   };
 
   const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET || "super-secret-dev";
-
   const token = await signJWT(payload, secret, 86400); // 24시간
 
-return new Response(JSON.stringify({ ok: true }), {
-  status: 200,
-  headers: {
-    "content-type": "application/json",
-    "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`,
-  },
-});
-
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json",
+      "set-cookie": `super_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`, // 쿠키에 JWT를 저장
+    },
+  });
 }
+
