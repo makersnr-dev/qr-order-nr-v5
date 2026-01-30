@@ -41,7 +41,7 @@ async function safeRenderAll() {
 
 function currentStoreId() {
   if (!window.qrnrStoreId) {
-    alert('매장 정보가 초기화되지 않았습니다.\n관리자 콘솔로 다시 진입해주세요.');
+    showToast('매장 정보 오류! 관리자 페이지를 새로고침 해주세요.', 'error');
     throw new Error('STORE_ID_NOT_INITIALIZED');
   }
   return window.qrnrStoreId;
@@ -78,20 +78,6 @@ const UI_TEXT = {
   PAID_DONE: '결제 완료',
   CANCEL_REASON_REQUIRED: '취소 사유를 입력하세요.'
 };
-
-function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-
-  requestAnimationFrame(() => t.classList.add('show'));
-
-  setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 200);
-  }, 3000);
-}
 
 // ===============================
 // 주문 상태 변경
@@ -356,9 +342,7 @@ export function exportOrders(type) {
   const rows = window[key] || [];
 
   if (!rows || !rows.length) {
-    alert('데이터가 없습니다.');
-    return;
-  }
+    showToast('다운로드할 주문 데이터가 없습니다.', 'error'); return; }
 
   const cols = type === 'ordersStore'
     ? ['시간', '테이블', '내역', '금액', '상태','취소사유']
@@ -766,7 +750,7 @@ export function attachGlobalHandlers() {
     ) {
       const modal = document.getElementById('cancel-reason-modal');
       if (!modal) {
-        alert('취소 사유 모달이 없습니다.');
+        showToast('시스템 오류: 취소 모달을 찾을 수 없습니다.', 'error');
         sel.value = sel.options[0].value;
         return;
       }
@@ -782,14 +766,14 @@ export function attachGlobalHandlers() {
 
     try {
       await changeOrderStatus({ id, status: nextStatus, type });
-      showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`);
+      showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`, 'success');
     } catch (err) {
       if (err.message === 'ORDER_NOT_FOUND') {
         showToast('이미 삭제되었거나 처리된 주문입니다.');
         await safeRenderAll();
         return;
       }
-      alert('상태 변경 실패');
+      showToast('상태 변경에 실패했습니다. 네트워크를 확인하세요.', 'error');
       console.error(err);
     }
   });
@@ -814,9 +798,7 @@ export function attachGlobalHandlers() {
       const order = orders.find(o => (o.id || o.orderId) === id);
 
       if (!order) {
-        alert('주문을 찾을 수 없습니다.');
-        return;
-      }
+        showToast('해당 주문 정보를 찾을 수 없습니다.', 'error'); return; }
 
       const cancelReason =
         order.meta?.cancel?.reason
@@ -884,7 +866,7 @@ export function attachGlobalHandlers() {
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
       console.error('Failed to fetch order detail:', e);
-      alert('주문 정보를 불러올 수 없습니다.');
+      showToast('데이터를 불러오지 못했습니다.', 'error');
     }
   });
 
@@ -912,7 +894,7 @@ export function attachGlobalHandlers() {
       const order = orders.find(o => (o.id || o.orderId) === id);
 
       if (!order) {
-        alert('예약 주문을 찾을 수 없습니다.');
+        showToast('예약 주문을 찾을 수 없습니다.', 'error');
         return;
       }
 
@@ -959,7 +941,7 @@ export function attachGlobalHandlers() {
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
       console.error('Failed to fetch reserve order detail:', e);
-      alert('예약 정보를 불러올 수 없습니다.');
+      showToast('예약 정보를 불러올 수 없습니다.', 'error');
     }
   });
 
@@ -1024,7 +1006,7 @@ export function attachGlobalHandlers() {
       } catch {}
     } catch (err) {
       console.error(err);
-      alert('결제 완료 처리 실패');
+      showToast('결제 완료 처리 실패', 'error');
     } finally {
       unlockOrder(id);
     }
@@ -1055,7 +1037,7 @@ export function attachGlobalHandlers() {
         type: 'store'
       });
     } catch (err) {
-      alert('상태 변경 실패');
+      showToast('상태 변경 실패', 'error');
       console.error(err);
     }
   });
@@ -1124,7 +1106,7 @@ document.getElementById('cancel-reason-confirm')
     }
     
     if (!reason) {
-      alert(UI_TEXT.CANCEL_REASON_REQUIRED);
+      showToast('취소 사유를 반드시 입력해야 합니다.', 'warning');
       return;
     }
 
@@ -1179,11 +1161,10 @@ document.getElementById('cancel-reason-confirm')
       document.getElementById('cancel-reason-input').value = '';
       modal.style.display = 'none';
     
-      showToast(`${status} 처리되었습니다.`);
+      showToast(`${status} 처리되었습니다.`, 'success');
     } catch (err) {
       console.error(err);
-      alert('취소 처리 실패');
-    } finally {
+      showToast('취소 처리에 실패했습니다.', 'error'); } finally {
       unlockOrder(id);
     }
   });
