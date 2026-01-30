@@ -35,10 +35,14 @@ export default async function handler(req, res) {
   }
 
   // signJWT 호출 시 await 사용 (비동기 처리)
+  // JWT_SECRET 환경변수에서 가져온 secret을 사용
+  const secret = process.env.JWT_SECRET || "defaultSecret"; // 환경변수에서 secret을 가져오고, 없으면 기본값 사용
+  
   const token = await signJWT({
     role: "admin",
     adminKey: admin.id, // 핵심
-  });
+  }, secret);  // secret을 signJWT에 전달
+
 
   res.setHeader(
     "Set-Cookie",
