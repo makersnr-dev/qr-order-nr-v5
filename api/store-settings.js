@@ -8,21 +8,31 @@ export default async function handler(req, res) {
     if (!storeId) return res.status(400).json({ ok: false, error: "MISSING_STORE_ID" });
 
     try {
-        // 1. 설정 불러오기 (GET)
         if (req.method === 'GET') {
-            const result = await query(`SELECT owner_bank FROM store_settings WHERE store_id = $1`, [storeId]);
+            const result = await query(`
+                SELECT owner_bank, notify_config, call_options 
+                FROM store_settings WHERE store_id = $1`, [storeId]);
             return res.json({ ok: true, settings: result.rows[0] || {} });
         }
 
-        // 2. 계좌 정보 저장하기 (PUT)
         if (req.method === 'PUT') {
-            const { ownerBank } = req.body;
+            const { ownerBank, notifyConfig, callOptions } = req.body;
+            // 보내온 데이터만 골라서 업데이트 (나머지는 기존값 유지)
             await query(`
-                INSERT INTO store_settings (store_id, owner_bank)
-                VALUES ($1, $2)
+                INSERT INTO store_settings (store_id, owner_bank, notify_config, call_options)
+                VALUES ($1, $2, $3, $4)
                 ON CONFLICT (store_id) 
-                DO UPDATE SET owner_bank = $2, updated_at = NOW()
-            `, [storeId, JSON.stringify(ownerBank)]);
+                DO UPDATE SET 
+                    owner_bank = COALESCE($2, store_settings.owner_bank),
+                    notify_config = COALESCE($3, store_settings.notify_config),
+                    call_options = COALESCE($4, store_settings.call_options),
+                    updated_at = NOW()
+            `, [
+                storeId, 
+                ownerBank ? JSON.stringify(ownerBank) : null,
+                notifyConfig ? JSON.stringify(notifyConfig) : null,
+                callOptions ? JSON.stringify(callOptions) : null
+            ]);
             return res.json({ ok: true });
         }
     } catch (e) {
