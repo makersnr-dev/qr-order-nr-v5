@@ -22,6 +22,7 @@
   </div>
 </div>
 
+<!-- 기존 script 부분을 이렇게 수정 -->
 <script type="module">
   const loginBtn = document.getElementById('login');
 
@@ -34,49 +35,35 @@
       return;
     }
 
-    // 1️⃣ 관리자 로그인 (ENV → 쿠키 JWT)
-    let res, data;
     try {
-      res = await fetch('/api/login-admin', {
+      const res = await fetch('/api/login-admin', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ id: uid, pw: pwd })
       });
 
-      data = await res.json();
+      const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        alert('로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.');
+        // 🔥 에러 메시지 개선
+        if (data.message === "Admin is not mapped to any store") {
+          alert('이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n슈퍼 관리자에게 문의하세요.');
+        } else if (data.message === "invalid admin credentials") {
+          alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+        } else {
+          alert('로그인 실패: ' + (data.message || '알 수 없는 오류'));
+        }
         return;
       }
+
+      // ✅ 로그인 성공 - storeId와 함께 이동
+      const storeId = data.storeId || 'store1';
+      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
+
     } catch (e) {
-      console.error(e);
+      console.error('Login error:', e);
       alert('서버에 연결할 수 없습니다.');
-      return;
-    }
-
-    // 2️⃣ 이 관리자가 접근 가능한 매장 조회 (DB 기준)
-    try {
-      const r = await fetch('/api/stores', {
-        credentials: 'include'
-      });
-      const stores = await r.json();
-
-      if (!r.ok || !Array.isArray(stores) || stores.length === 0) {
-        alert(
-          '이 관리자 계정은 매장에 매핑되어 있지 않습니다.\n' +
-          '슈퍼 관리자에게 문의하세요.'
-        );
-        return;
-      }
-
-      // ✅ 지금은 1개만 있다고 가정
-      const store = stores[0];
-      location.href = `/admin?store=${encodeURIComponent(store.code)}`;
-    } catch (e) {
-      console.error(e);
-      alert('매장 정보를 불러올 수 없습니다.');
     }
   };
 </script>
