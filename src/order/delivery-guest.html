@@ -1,731 +1,184 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <title>예약 (비회원)</title>
-
-  <style>
-    /* ----- 공통 레이아웃 ----- */
-    .field-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      width: 100%;
-    }
-    .field-label {
-      width: 80px;
-      flex-shrink: 0;
-      margin-top: 10px;
-    }
-    .label-lookup {
-      width: 80px;
-      text-align: center;
-      white-space: nowrap;
-      margin-top: 10px;
-    }
-
-    /* ---- 날짜 + 시간 ---- */
-    .date-field {
-  position: relative;
-  width: 180px;
-}
-
-.date-placeholder {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  font-size: 14px;
-  pointer-events: none; /* 클릭 방해 ❌ */
-  transition: opacity 0.15s ease;
-}
-
-/* 날짜가 선택되면 안내 문구 숨김 */
-.date-field input:not(:placeholder-shown) + .date-placeholder {
-  opacity: 0;
-}
-
-/* date 타입 대응 (placeholder-shown 미지원 대응) */
-.date-field input:valid + .date-placeholder {
-  opacity: 0;
-}
-
-    
-    .datetime-wrap {
-      flex: 1;
-    }
-
-    .datetime-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: nowrap;
-      width: 100%;
-    }
-
-    input[type="text"].date-input {
-      width: 180px;
-      height: 40px;
-      padding: 0 10px;
-      color: #ffffff;
-      background: #0d1117;
-    }
-
-    /* placeholder 왼쪽 정렬 */
-    .date-input::placeholder {
-      text-align: left;
-      color: #9ca3af;
-    }
-
-    /* 오전/오후 드롭다운 */
-    #time-ap {
-      padding: 8px 20px;
-      min-width: 120px;
-      text-align: left;
-    }
-
-    #time-hh,
-    #time-mm {
-      padding: 8px 12px;
-      min-width: 80px;
-      text-align: left;
-    }
-
-    /* 연월일 힌트(placeholder)를 흰색으로 보이게 */
-input.date-input::placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* Chrome / 네이버 / 삼성브라우저 */
-input.date-input::-webkit-input-placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* iOS Safari (날짜 placeholder 영역) */
-input.date-input::-webkit-datetime-edit-fields-wrapper {
-  color: #ffffff !important;
-}
-
-/* 연/월/일 각각 placeholder 스타일 */
-input.date-input::-webkit-datetime-edit-year-field,
-input.date-input::-webkit-datetime-edit-month-field,
-input.date-input::-webkit-datetime-edit-day-field {
-  color: #ffffff !important;
-  opacity: 0.7;
-}
-
-
-    /* 개인정보 보기 버튼 */
-    #privacy-open {
-      transform: scale(0.9);
-      transform-origin: right center;
-      white-space: nowrap;
-    }
-
-    /* 입금 계좌 라인 */
-    .bank-line {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: nowrap;
-    }
-
-    /* 모바일 반응형 */
-    @media (max-width: 640px) {
-      input[type="date"].date-input {
-    /*width: 100%;       전체 라인 폭 사용 */
-    min-width: 160px; /* 지나치게 작아지는 것 방지 */
-  }
-      .field-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-      }
-
-      .field-label {
-        margin-bottom: 2px;
-      }
-
-      .datetime-row {
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .datetime-row select,
-      .datetime-row input {
-        min-width: 110px;
-        flex: 1;
-      }
-       /* 공통 placeholder 스타일 */
-input[type="date"].date-input::placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* WebKit 브라우저 (Chrome, Navermobile, Samsung Browser, Android) */
-input[type="date"].date-input::-webkit-input-placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* iOS Safari */
-input[type="date"].date-input::-webkit-date-and-time-value {
-  color: #ffffff !important;
-}
-
-/* 안드로이드에서 날짜 placeholder 강제색 변경 */
-input[type="date"].date-input::-webkit-datetime-edit-fields-wrapper {
-  color: #ffffff !important;
-}
-
-/* 연/월/일 각각의 placeholder */
-input[type="date"].date-input::-webkit-datetime-edit-year-field,
-input[type="date"].date-input::-webkit-datetime-edit-month-field,
-input[type="date"].date-input::-webkit-datetime-edit-day-field {
-  color: #ffffff !important;
-  opacity: 0.75;
-}
-    }
-   
-
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비회원 주문</title>
+    <link rel="stylesheet" href="/src/order/assets/css/style.css">
 </head>
+<body>
 
-<body data-store-id="">
+<div class="container" style="max-width: 500px; padding-bottom: 100px;">
+    <header class="hstack" style="justify-content: space-between; padding: 20px 0;">
+        <h2 id="store-name-display">주문서 작성</h2>
+        <a href="javascript:history.back()" class="btn small">취소</a>
+    </header>
 
-<!-- storeId 초기화 -->
-<script type="module">
-  import { ensureStoreInitialized } from '/src/shared/store.js';
-  const storeId = ensureStoreInitialized();
-  window.qrnrStoreId = storeId;
-
-  const url = new URL(location.href);
-  if (!url.searchParams.get("store")) {
-    url.searchParams.set("store", storeId);
-    history.replaceState(null, "", url.toString());
-  }
-</script>
-
-<div class="container">
-
-  <h1>예약 (비회원)</h1>
-
-  <div class="card vstack">
-    <h3>예약 정보 *</h3>
-
-    <div class="vstack" style="gap:14px">
-
-      <!-- 배송지 -->
-      <div class="field-row">
-        <div class="field-label addr-label clickable-label">배송지</div>
-        <div class="addr-wrap" style="flex:1">
-          <input id="addr" class="input"/>
-          <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
+    <div class="card vstack" style="gap: 12px; margin-bottom: 20px;">
+        <h3 style="font-size: 16px;">주문 내역</h3>
+        <div id="order-summary" class="vstack" style="gap: 8px;">
+            </div>
+        <div class="hstack" style="justify-content: space-between; border-top: 1px solid #263241; pt: 12px; margin-top: 4px;">
+            <span style="font-weight: 600;">총 결제금액</span>
+            <span id="total-price" style="font-weight: 700; color: var(--primary); font-size: 18px;">0원</span>
         </div>
-      </div>
-
-      <!-- 주문자명 -->
-      <div class="field-row">
-        <div class="field-label">주문자명</div>
-        <input id="cust" class="input" style="flex:1"/>
-      </div>
-
-      <!-- 연락처 -->
-      <div class="field-row">
-        <div class="field-label">연락처</div>
-        <input id="phone" class="input" placeholder="숫자만 입력" inputmode="numeric" style="flex:1"/>
-      </div>
-
-      <!-- 조회 비밀번호 -->
-      <div class="field-row">
-        <div class="field-label label-lookup">조회 비밀번호</div>
-        <input id="lookupPw" class="input" placeholder="4자리 숫자" maxlength="4" inputmode="numeric" style="flex:1"/>
-      </div>
-
-      <!-- 예약일시 -->
-      <div class="field-row" id="date-row">
-        <div class="field-label">예약일시</div>
-
-        <div class="datetime-wrap">
-          <div class="datetime-row">
-           <div class="date-field">
-            <input
-              id="date"
-              type="date"
-              class="input date-input"
-            >
-            <span class="date-placeholder">예약 날짜 선택</span>
-          </div>
-
-            <select id="time-ap" class="input input-sm"></select>
-            <select id="time-hh" class="input input-sm"></select>
-            <select id="time-mm" class="input input-sm"></select>
-          </div>
-        </div>
-      </div>
-
-      <!-- 요청사항 -->
-      <div class="field-row">
-        <div class="field-label">요청사항</div>
-        <textarea id="memo" class="input" rows="4" style="flex:1"></textarea>
-      </div>
-
-      <!-- 개인정보 -->
-      <div class="field-row" id="privacy-row">
-        <div class="field-label">개인정보</div>
-        <div class="hstack" style="gap:10px">
-          <label style="display:flex;align-items:center;gap:6px;">
-            <input type="checkbox" id="agree-privacy">
-            (필수) 개인정보 수집·이용 동의
-          </label>
-          <button id="privacy-open" class="btn">보기</button>
-        </div>
-      </div>
-
-      <!-- 입금계좌 -->
-      <div class="field-row" id="bank-box">
-        <div class="field-label">입금계좌</div>
-
-        <div class="bank-line">
-          <span id="bank-text"></span>
-          <button id="bank-copy" class="btn">복사</button>
-        </div>
-
-        <div class="small" style="margin-top:4px; color:#f97316;">
-          ※ 주문자명으로 입금해주세요!
-        </div>
-      </div>
-
     </div>
-  </div>
 
-  <!-- 메뉴 -->
-  <div class="card vstack">
-    <h3>메뉴</h3>
-    <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
-  </div>
+    <div class="card vstack" style="gap: 16px;">
+        <h3 style="font-size: 16px;">예약 정보</h3>
+        
+        <div class="vstack" style="gap: 6px;">
+            <label class="small">주문자 성함</label>
+            <input type="text" id="cust-name" class="input" placeholder="성함을 입력해주세요">
+        </div>
 
-  <!-- 장바구니 -->
-  <div class="card vstack">
-    <h3>장바구니</h3>
-    <div id="cart-box" class="vstack"></div>
-  </div>
+        <div class="vstack" style="gap: 6px;">
+            <label class="small">연락처</label>
+            <input type="tel" id="cust-phone" class="input" placeholder="010-0000-0000">
+        </div>
 
-  <!-- 금액 -->
-  <div class="card hstack" style="justify-content:space-between">
-    <div>합계: <b id="total">0</b>원</div>
-    <button id="action-btn" class="btn primary">예약하기</button>
-  </div>
+        <div class="vstack" style="gap: 6px;">
+            <label class="small">배송지 주소</label>
+            <input type="text" id="cust-addr" class="input" placeholder="상세 주소까지 입력해주세요">
+        </div>
 
-</div>
+        <div class="vstack" style="gap: 6px;">
+            <label class="small">예약/희망 시간</label>
+            <select id="reserve-time" class="input">
+                </select>
+        </div>
 
-<!-- 개인정보 모달 -->
-<div id="privacy-modal" style="
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:9998;
-  align-items:center; justify-content:center;">
-  <div style="
-    background:#020617; padding:16px 18px;
-    border-radius:12px; max-width:520px;
-    width:calc(100% - 40px); max-height:80vh;
-    overflow:auto;">
-    <h3>개인정보 처리방침</h3>
-    <div id="privacy-modal-body" class="small" style="white-space:pre-wrap;"></div>
-    <div class="hstack" style="justify-content:flex-end;margin-top:12px">
-      <button id="privacy-close" class="btn">닫기</button>
+        <div class="vstack" style="gap: 6px;">
+            <label class="small">요청사항</label>
+            <textarea id="cust-memo" class="input" style="height: 80px;" placeholder="매장에 전달할 메시지를 적어주세요"></textarea>
+        </div>
     </div>
-  </div>
-</div>
 
-  <!-- 예약 완료 모달 -->
-<div id="reserve-done-modal" style="
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,0.55); z-index:9999;
-  align-items:center; justify-content:center;">
-  <div style="
-    background:#0d1117;
-    padding:24px 22px;
-    border-radius:16px;
-    max-width:420px;
-    width:calc(100% - 40px);
-    text-align:center;">
-    <h3 style="margin-bottom:8px;">예약이 완료되었습니다</h3>
-    <p class="small" style="line-height:1.6;">
-      아래 계좌로 <b>1시간 이내</b>에<br>
-      <b id="reserve-amount"></b>원을 입금해주세요.
-    </p>
-    <div class="small" style="margin:10px 0;color:#9ca3af;">
-      <span id="reserve-bank"></span>
+    <div style="margin: 20px 0; padding: 0 10px;">
+        <label class="hstack" style="gap: 10px; cursor: pointer;">
+            <input type="checkbox" id="agree-policy" style="width: 20px; height: 20px;">
+            <span class="small">개인정보 수집 및 이용 동의 (필수)</span>
+        </label>
+        <button id="view-policy" class="btn small" style="background: none; text-decoration: underline; padding: 5px 0; margin-left: 30px;">방침 보기</button>
     </div>
-    <button id="reserve-done-ok" class="btn primary" style="width:100%;">
-      확인
-    </button>
-  </div>
-</div>
 
-    <!-- 주문/예약 확인 모달 -->
-<div id="confirm-modal" style="
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.55);
-  z-index:9999;
-  align-items:center;
-  justify-content:center;
-">
-  <div style="
-    background:#0d1117;
-    padding:22px;
-    border-radius:16px;
-    max-width:420px;
-    width:calc(100% - 40px);
-  ">
-    <h3 style="margin-bottom:10px;">주문 확인</h3>
-
-    <div id="confirm-items"
-     class="small"
-     style="line-height:1.6;white-space:pre-wrap;"></div>
-
-<div class="small" style="margin-top:8px;color:#9ca3af;">
-  예약일시:
-  <b id="confirm-datetime"></b>
-</div>
-
-<div style="margin-top:12px;">
-  합계: <b id="confirm-total"></b>원
-</div>
-
-
-    <div class="hstack" style="gap:8px;margin-top:16px;">
-      <button id="confirm-cancel" class="btn" style="flex:1;">
-        취소
-      </button>
-      <button id="confirm-ok" class="btn primary" style="flex:1;">
-        확인
-      </button>
+    <div style="position: fixed; bottom: 0; left: 0; right: 0; padding: 16px; background: #0b1620; border-top: 1px solid #263241;">
+        <button id="submit-order" class="btn primary" style="width: 100%; height: 54px; font-weight: 700; font-size: 18px;">주문하기</button>
     </div>
-  </div>
 </div>
 
-
-<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<div id="policy-modal" class="modal" style="display: none;">
+    <div class="content vstack" style="max-width: 400px; max-height: 70vh;">
+        <h3>개인정보 처리방침</h3>
+        <div id="policy-content" style="white-space: pre-wrap; overflow-y: auto; margin: 15px 0; background: #111922; padding: 12px; border-radius: 8px; font-size: 13px;"></div>
+        <button id="close-policy" class="btn" style="width: 100%;">닫기</button>
+    </div>
+</div>
 
 <script type="module">
-  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
-  import { get } from '/src/order/assets/js/modules/cust-store.js';
-  import { fillTimeSelectors, getTimeValue } from '/src/order/assets/js/modules/time.js';
-  //import { setPendingOrder, startPayment } from '/src/shared/toss-client.js';
-  import { INITIAL_STATUS } from '/src/shared/constants/status.js';
+    import { currentStoreId, loadStoreInfo } from '/src/order/assets/js/modules/cust-store.js';
+    import { getAvailableTimeSlots } from '/src/order/assets/js/modules/time.js';
 
-  const adminChannel = new BroadcastChannel("qrnr-admin");
+    const sid = currentStoreId();
+    const $ = s => document.querySelector(s);
 
+    async function init() {
+        // 1. 매장 정보 로드 (헤더 반영)
+        const info = await loadStoreInfo();
+        $('#store-name-display').textContent = info.name;
 
-  const storeId = window.qrnrStoreId;
+        // 2. 예약 가능 시간 드롭다운 생성
+        const timeSelect = $('#reserve-time');
+        const slots = getAvailableTimeSlots();
+        timeSelect.innerHTML = slots.map(s => `<option value="${s}">${s}</option>`).join('');
 
-  function fail(msg) {
-  alert(msg);
-  return false; // 여기서 흐름 완전히 끊음
-}
+        // 3. 장바구니 데이터 로드 (메모리나 localStorage에서 가져옴)
+        const cart = JSON.parse(localStorage.getItem(`qrnr.cart.${sid}`) || '[]');
+        renderSummary(cart);
 
+        // 4. 개인정보 방침 모달 연동 (DB에서 가져오기)
+        $('#view-policy').onclick = async () => {
+            const res = await fetch(`/api/store-settings?storeId=${sid}`);
+            const data = await res.json();
+            $('#policy-content').textContent = data.settings?.privacy_policy || '등록된 방침이 없습니다.';
+            $('#policy-modal').style.display = 'flex';
+        };
+        $('#close-policy').onclick = () => $('#policy-modal').style.display = 'none';
 
-  async function submitReserve() {
+        // 5. 최종 주문 제출
+        $('#submit-order').onclick = async () => {
+            if (!$('#cust-name').value || !$('#cust-phone').value || !$('#cust-addr').value) {
+                alert('배송 정보를 모두 입력해주세요.'); return;
+            }
+            if (!$('#agree-policy').checked) {
+                alert('개인정보 처리방침에 동의해주세요.'); return;
+            }
 
-  const addr1 = document.getElementById("addr").value.trim();
-  const addr2 = document.getElementById("addr-detail").value.trim();
-  const fullAddr = addr2 ? addr1 + " " + addr2 : addr1;
-  const cust = document.getElementById("cust").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const memo = document.getElementById("memo").value.trim();
-  const pw = document.getElementById("lookupPw").value.trim();
-  const agree = document.getElementById("agree-privacy").checked;
-  const rawItems = cart.items || [];
+            const payload = {
+                storeId: sid,
+                type: 'reserve', // 비회원 예약/배달 주문
+                customer: {
+                    name: $('#cust-name').value,
+                    phone: $('#cust-phone').value,
+                    addr: $('#cust-addr').value,
+                    memo: $('#cust-memo').value
+                },
+                reserve: {
+                    date: new Date().toISOString().split('T')[0],
+                    time: $('#reserve-time').value
+                },
+                cart: cart,
+                amount: calculateTotal(cart),
+                status: '입금대기'
+            };
 
-  
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    // 실시간 알림 전송 (BroadcastChannel)
+                    const bc = new BroadcastChannel('qrnr-admin');
+                    bc.postMessage({ type: 'NEW_RESERVE', storeId: sid, at: Date.now() });
 
+                    alert('주문이 성공적으로 접수되었습니다!');
+                    localStorage.removeItem(`qrnr.cart.${sid}`);
+                    location.href = `/src/order/order-complete.html?store=${sid}`;
+                }
+            } catch (e) {
+                alert('주문 처리 중 오류가 발생했습니다.');
+            }
+        };
+    }
 
-    
-  if (!agree) fail("개인정보 수집·이용에 동의해주세요.");
-  if (!addr1 || !cust) fail("주소와 주문자명을 입력해주세요.");
-  if (phone.length < 9) fail("전화번호를 확인해주세요.");
-  if (pw.length !== 4) fail("조회 비밀번호 4자리를 입력해주세요.");
-  if (!cart.items.length) fail("장바구니가 비어 있습니다.");
+    function renderSummary(cart) {
+        const summary = $('#order-summary');
+        let total = 0;
+        summary.innerHTML = cart.map(item => {
+            const itemTotal = (item.price + item.selectedOptions.reduce((s,o)=>s+o.price, 0)) * item.qty;
+            total += itemTotal;
+            return `
+                <div class="hstack" style="justify-content: space-between; font-size: 14px;">
+                    <span>${item.name} x ${item.qty}</span>
+                    <span>${itemTotal.toLocaleString()}원</span>
+                </div>
+            `;
+        }).join('');
+        $('#total-price').textContent = total.toLocaleString() + '원';
+    }
 
-  const date = document.getElementById("date").value;
-  const { ap, hh, mm } = getTimeValue("time") || {};
-  if (!date) fail("예약 날짜를 선택해주세요.");
-  if (!ap || !hh || !mm) fail("예약 시간을 선택해주세요.");
+    function calculateTotal(cart) {
+        return cart.reduce((sum, item) => {
+            const optSum = item.selectedOptions.reduce((s, o) => s + o.price, 0);
+            return sum + (item.price + optSum) * item.qty;
+        }, 0);
+    }
 
-  /*const payload = {
-  orderId: 'R' + Date.now(),
-  storeId,
-  orderType: 'reserve',
-  //status: INITIAL_STATUS.reserve,
-  amount: cart.total(),
-  items: cart.items.map(i => ({
-  id: i.id,
-  name: i.name,
-  qty: i.qty,
-  unitPrice: i.price,
-  options: Array.isArray(i.options) ? i.options : []
-})),
-  customer: {
-    name: cust,
-    phone,
-    addr: fullAddr,
-    memo
-  },
-  reserve: {
-    date,
-    time: `${ap} ${hh}:${mm}`
-  },
-  createdAt: Date.now()
-};*/
-    const payload = {
-  storeId,
-  orderType: 'reserve',
-  amount: cart.total(),
-
-  items: cart.items.map(i => ({
-    id: i.id,
-    name: i.name,
-    qty: i.qty,
-    price: i.price,                 // 🔥 unitPrice ❌ → price ✅
-    options: Array.isArray(i.options) ? i.options : []
-  })),
-
-  customer: {
-    name: cust,
-    phone,
-    addr,
-    memo
-  },
-
-  reserve: {
-    date,
-    time: `${ap} ${hh}:${mm}`
-  },
-
-  agreePrivacy: true
-};
-
-
-  const r = await fetch("/api/orders", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  const j = await r.json();
-  if (!j.ok) fail("예약 저장 실패");
-
-  // 🔔 관리자 알림
-  adminChannel.postMessage({
-    type: "NEW_ORDER",
-    orderType: "reserve",
-    storeId,
-    customer: { name: cust },
-    cart: cart.items, 
-    reserveDate: date,
-    reserveTime: `${ap} ${hh}:${mm}`,
-    amount: cart.total(),
-    ts: Date.now()
-  });
-
-  // ✅ 완료 모달
-  document.getElementById("reserve-amount").textContent =
-    cart.total().toLocaleString();
-
-  document.getElementById("reserve-done-modal").style.display = "flex";
-}
-
-
-  document.getElementById("bank-copy").onclick = () => {
-    const text = document.getElementById("bank-text").textContent;
-    if (!text) fail("복사할 계좌 정보가 없습니다.");
-    navigator.clipboard.writeText(text);
-    alert("계좌번호가 복사되었습니다.");
-  };
-
-  
-  /* -------- 주소 검색 -------- */
-  function openAddrSearch() {
-    new window.daum.Postcode({
-      oncomplete(data) {
-        document.getElementById("addr").value =
-          data.roadAddress || data.jibunAddress || data.address;
-        document.getElementById("addr-detail").focus();
-      }
-    }).open();
-  }
-  document.querySelector(".addr-label").onclick = openAddrSearch;
-  document.getElementById("addr").onclick = openAddrSearch;
-
-  /* -------- 입력 제한 -------- */
-  document.getElementById("phone").addEventListener("input", e => {
-    e.target.value = e.target.value.replace(/\D/g, "");
-  });
-  document.getElementById("lookupPw").addEventListener("input", e => {
-    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
-  });
-
-
-  /* -------- 메뉴 및 카트 -------- */
-  fillTimeSelectors("time");
-  const cart = makeCart("cart-box", "total");
-  cart.render();
-  renderMenu("menu-grid", cart);
-  /* -------- 입금계좌 초기 표시 (관리자 설정값) -------- */
-  const initBank =
-    get(["admin", "ownerBank", storeId]) ||
-    get(["admin", "ownerBank"]) ||
-    {};
-
-document.getElementById("bank-text").textContent =
-  initBank.bank && initBank.number
-    ? `${initBank.bank} ${initBank.number} (${initBank.holder || ""})`
-    : "관리자 계좌 정보 없음";
-
-
-  /* -------- 개인정보 보기 -------- */
-  const modal = document.getElementById("privacy-modal");
-  document.getElementById("privacy-open").onclick = () => {
-    const t =
-      get(["admin", "privacyPolicy", storeId]) ||
-      get(["admin", "privacyPolicy"]) ||
-      "관리자에서 개인정보 처리방침이 등록되지 않았습니다.";
-    document.getElementById("privacy-modal-body").textContent = t;
-    modal.style.display = "flex";
-  };
-  document.getElementById("privacy-close").onclick = () =>
-    modal.style.display = "none";
-
-
-  
-/* -------- 결제 / 예약 처리 -------- */
-document.getElementById("action-btn").onclick = () => {
-  document.getElementById("action-btn").disabled = true;
-
-  const items = cart.items;
-
-  if (!items.length) {
-    alert("장바구니가 비어 있습니다.");
-    document.getElementById("action-btn").disabled = false;
-    return;
-  }
-
-  const date = document.getElementById("date").value;
-  const { ap, hh, mm } = getTimeValue("time") || {};
-
-  // ✅ 주문 확인용 장바구니 표시
-  document.getElementById("confirm-items").textContent =
-    items.map(i => {
-      let line = `• ${i.name} x${i.qty}`;
-
-      if (Array.isArray(i.options) && i.options.length) {
-        const optText = i.options
-          .map(o => {
-            const group = o.group || o.name || "옵션";
-            const label = o.label || "";
-            return label ? `${group}:${label}` : group;
-          })
-          .join(", ");
-
-        line += ` (${optText})`;
-      }
-
-      return line;
-    }).join("\n");
-
-  document.getElementById("confirm-total").textContent =
-    cart.total().toLocaleString();
-
-  document.getElementById("confirm-datetime").textContent =
-    date && ap && hh && mm
-      ? `${date} ${ap} ${hh}:${mm}`
-      : "-";
-
-  document.getElementById("confirm-modal").style.display = "flex";
-};
-
-  
-    /* ---- 배달 결제 ---- */
-   /* const orderId = "DELIV-" + Date.now();
-
-    setPendingOrder({
-      type: "delivery",
-      amount: cart.total(),
-      orderName: "배달 주문",
-      cart: cart.items,
-      customer: { name: cust, phone, addr: fullAddr, req: memo },
-      lookupPw: pw,
-      memo,
-      storeId,
-      agreePrivacy: true,
-      returnTo: location.pathname + location.search
-    });
-
-    await startPayment({
-      orderId,
-      amount: cart.total(),
-      orderName: "배달 주문"
-    }); };*/
-  
-
-  
-  document.getElementById("reserve-done-ok").onclick = () => {
-  document.getElementById("reserve-done-modal").style.display = "none";
-  document.getElementById("action-btn").disabled = false;
-  // 입력 초기화
-  document.getElementById("addr").value = "";
-  document.getElementById("addr-detail").value = "";
-  document.getElementById("cust").value = "";
-  document.getElementById("phone").value = "";
-  document.getElementById("lookupPw").value = "";
-  document.getElementById("memo").value = "";
-  document.getElementById("date").value = "";
-  document.getElementById("time-ap").selectedIndex = 0;
-  document.getElementById("time-hh").selectedIndex = 0;
-  document.getElementById("time-mm").selectedIndex = 0;
-  
-  cart.items.length = 0;  // 장바구니 비우기
-  cart.render();          // 화면 갱신
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-const confirmOkBtn = document.getElementById("confirm-ok");
-
-confirmOkBtn.onclick = async () => {
-  confirmOkBtn.disabled = true;          // 🔒 연타 방지
-  confirmOkBtn.textContent = "처리 중…";
-
-  document.getElementById("confirm-modal").style.display = "none";
-
-  try {
-    await submitReserve();
-  } finally {
-    confirmOkBtn.disabled = false;
-    confirmOkBtn.textContent = "확인";
-  }
-};
-
-
-document.getElementById("confirm-cancel").onclick = () => {
-  document.getElementById("confirm-modal").style.display = "none";
-  document.getElementById("action-btn").disabled = false;
-
-};
-
-
+    init();
 </script>
-
-
-
 
 </body>
-</html> 
+</html>
