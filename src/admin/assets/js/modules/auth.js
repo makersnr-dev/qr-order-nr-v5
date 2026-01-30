@@ -113,58 +113,43 @@ function hydrateAdminInfoAndStore(t, realmHint) {
 //   await requireAuth('super');
 export async function requireAuth(realm) {
   const here = location.pathname;
-  const loginPath = '/admin/login'; // 실제 로그인 페이지 경로에 맞게 필요하면 조정
+  const loginPath = '/admin/login';
 
   try {
-    const t = getToken();
-
-    // 1) 토큰조차 없으면 → 로그인 페이지로
-    if (!t) {
-      if (!here.startsWith(loginPath)) {
-        location.href = loginPath;
-      }
-      return null;
-    }
-
-    // 2) /api/verify 에 JSON 형식으로 토큰 보내기
-    const r = await fetch('/api/verify', {
+    // 서버에 "나 누구야?"라고 물어봅니다 (쿠키는 자동으로 따라갑니다)
+    const r = await fetch('/api/me', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: t }),
+      body: JSON.stringify({}), 
       cache: 'no-store',
     });
 
     const p = await r.json().catch(() => null);
-    console.log('[auth] verify response', r.status, p);
 
-    // 응답 파싱 실패 / ok:false / realm 없음 → 전부 실패 취급
-    if (!p || p.ok === false || !p.realm) {
-      clearToken();
+    // 1. 서버가 응답이 없거나 로그인이 안 되어 있다고 하면 로그인 페이지로 쫓아냅니다.
+    if (!p || p.ok === false) {
       if (!here.startsWith(loginPath)) {
         location.href = loginPath;
       }
       return null;
     }
 
-    const need = realm || 'admin'; // 기본은 admin
-    if (p.realm !== need) {
-      // SUPER 토큰으로 admin-only 페이지에 오거나, 반대의 경우 등
-      clearToken();
-      if (!here.startsWith(loginPath)) {
-        location.href = loginPath;
-      }
+    // 2. 권한 확인 (관리자 페이지인데 엉뚱한 권한이면 내쫓음)
+    const need = realm || 'admin';
+    if (p.realm !== need && !p.isSuper) {
+      location.href = loginPath;
       return null;
     }
 
-    // ✅ 여기까지 왔으면 인증 OK → adminInfo / storeId 세팅 시도
-    hydrateAdminInfoAndStore(t, p.realm);
+    // 3. 성공했다면 storeId를 브라우저에 저장해둡니다.
+    if (p.storeId) {
+      localStorage.setItem('qrnr.storeId', p.storeId);
+    }
 
-    return p;
+    return p; // 로그인 성공!
   } catch (e) {
     console.error('[auth] requireAuth error', e);
-    if (!here.startsWith(loginPath)) {
-      location.href = loginPath;
-    }
+    location.href = loginPath;
     return null;
   }
 }
