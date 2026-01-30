@@ -32,16 +32,6 @@ export async function query(sql, params = []) {
   }
 }
 
-export async function query(sql, params = []) {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(sql, params);
-    return result;
-  } finally {
-    client.release();
-  }
-}
-
 // Helper: 단일 행 반환
 export async function queryOne(sql, params = []) {
   const result = await query(sql, params);
