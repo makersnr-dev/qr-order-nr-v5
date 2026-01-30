@@ -30,8 +30,14 @@ export function clearToken() {
 // -------------------------------------------------------
 export async function requireCust() {
   const token = getToken();
+
+  // 🚀 수정: 로그인 페이지로 보낼 때 현재 매장 ID를 쿼리스트링으로 전달합니다.
+  const currentUrl = new URL(location.href);
+  const sid = currentUrl.searchParams.get('store') || localStorage.getItem('qrnr.storeId') || '';
+  const loginUrl = `/src/order/login.html${sid ? '?store=' + sid : ''}`;
+
   if (!token) {
-    location.href = '/src/order/login.html';
+    location.href = loginUrl;
     return;
   }
 
@@ -47,21 +53,22 @@ export async function requireCust() {
   } catch (e) {
     console.error('[cust-auth] verify fetch error', e);
     clearToken();
-    location.href = '/src/order/login.html';
+    location.href = loginUrl;
     return;
   }
 
   if (!res.ok) {
     clearToken();
-    location.href = '/src/order/login.html';
+    location.href = loginUrl;
     return;
   }
 
   const payload = await res.json().catch(() => null);
 
+  // realm이 'cust'인지 확인하여 관리자 토스트가 손님 화면에서 작동하지 않게 방어합니다.
   if (!payload || payload.realm !== 'cust') {
     clearToken();
-    location.href = '/src/order/login.html';
+    location.href = loginUrl;
     return;
   }
 
