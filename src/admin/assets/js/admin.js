@@ -167,7 +167,7 @@ function ensureToastContainer() {
   return box;
 }
 
-function showToast(msg, variant = "info") {
+export function showToast(msg, variant = "info") {
   const box = ensureToastContainer();
   const el = document.createElement("div");
 
