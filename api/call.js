@@ -1,34 +1,40 @@
 // /api/call.js
-import { query } from './_lib/db.js'; // ✅ DB 연결 도구 불러오기
+import { query } from './_lib/db.js';
 
 export const config = { runtime: 'nodejs' };
 
 export default async function handler(req, res) {
-  // 1. POST 요청인지 확인
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false });
-  }
-
-  const { storeId, table, note } = req.body || {};
-
-  // 2. 필수 데이터 확인
-  if (!storeId || !table) {
-    return res.status(400).json({ ok: false, error: 'MISSING_PARAMS' });
-  }
+  const { storeId, id, status } = req.query;
 
   try {
-    // 3. Neon DB의 call_logs 테이블에 기록 저장 (가장 중요!)
-    // 이 한 줄이 기존의 복잡한 파일 체크를 대신합니다.
-    await query(`
-      INSERT INTO call_logs (store_id, table_no, message, status)
-      VALUES ($1, $2, $3, '대기')
-    `, [storeId, table, note || '직원 호출']);
+    // 1. 호출 기록 불러오기 (GET)
+    if (req.method === 'GET') {
+      const result = await query(`
+        SELECT id, table_no as table, message, status, created_at as ts
+        FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100
+      `, [storeId]);
+      return res.json({ ok: true, logs: result.rows });
+    }
 
-    // 4. 성공 응답
-    return res.json({ ok: true });
+    // 2. 호출 기록 저장 (POST) - 손님이 버튼 누를 때
+    if (req.method === 'POST') {
+      const { storeId, table, note } = req.body;
+      await query(`
+        INSERT INTO call_logs (store_id, table_no, message, status)
+        VALUES ($1, $2, $3, '대기')
+      `, [storeId, table, note || '직원 호출']);
+      return res.json({ ok: true });
+    }
+
+    // 3. 상태 변경 (PUT) - 사장님이 '완료' 처리할 때
+    if (req.method === 'PUT') {
+      const { id, status } = req.body;
+      await query(`UPDATE call_logs SET status = $1 WHERE id = $2`, [status, id]);
+      return res.json({ ok: true });
+    }
 
   } catch (e) {
-    console.error('[DB CALL ERROR]', e.message);
+    console.error(e);
     return res.status(500).json({ ok: false, error: 'DB_ERROR' });
   }
 }
