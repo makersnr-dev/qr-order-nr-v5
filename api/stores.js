@@ -1,145 +1,100 @@
 // /api/stores.js
-// 슈퍼관리자용 매장 관리 API (stores.json)
-
-// PHASE 1-B
-// DB(Neon) 도입 시 FIXED_STORES → db.stores.js로 전환
-import * as StoresDB from './_lib/db.stores.js';
-
-
-//import fs from "fs";
-//import { promisify } from "util";
-//const readFile = promisify(fs.readFile);
-//const writeFile = promisify(fs.writeFile);
-
-
-import { rateLimit } from "./_lib/rate-limit.js";
-//import { verifyJWT } from "../src/shared/jwt.js";
+import { query } from './_lib/db.js';
+import { verifyJWT } from '../src/shared/jwt.js';
 
 export const config = { runtime: "nodejs" };
 
-//const STORES_FILE = "/tmp/qrnr_stores.json";
-// ✅ 임시 고정 매장 데이터 (DB 전환 전까지)
-const FIXED_STORES = {
-  narae: { code: "NC", name: "나래 테스트 매장" }
-};
-
-
-/* ---------------------------
-   공통 JSON 응답
---------------------------- */
 function json(res, body, status = 200) {
   res.status(status).setHeader("content-type", "application/json");
   return res.send(JSON.stringify(body));
 }
 
-/* ---------------------------
-   SUPER 관리자 인증
---------------------------- */
-/*async function assertSuper(req) {
+// SUPER 관리자 확인
+async function assertSuper(req) {
   const auth = req.headers.authorization || "";
+  
   if (!auth.startsWith("Bearer ")) {
-    const e = new Error("NO_TOKEN");
-    e.status = 401;
-    throw e;
+    // 쿠키에서도 확인
+    const cookie = req.headers.cookie || "";
+    const match = cookie.match(/super_token=([^;]+)/);
+    if (!match) {
+      const e = new Error("NO_TOKEN");
+      e.status = 401;
+      throw e;
+    }
+    
+    const token = match[1];
+    const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET || "super-secret-dev";
+    const payload = await verifyJWT(token, secret);
+    
+    if (!payload || payload.realm !== "super") {
+      const e = new Error("NOT_SUPER");
+      e.status = 403;
+      throw e;
+    }
+    
+    return payload;
   }
 
   const token = auth.slice(7);
+  const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET || "super-secret-dev";
+  const payload = await verifyJWT(token, secret);
 
-  const payload = await verifyJWT(
-    token,
-    process.env.JWT_SECRET || "dev-secret"
-  );
-
-  if (!payload?.isSuper) {
+  if (!payload || payload.realm !== "super") {
     const e = new Error("NOT_SUPER");
     e.status = 403;
     throw e;
   }
 
   return payload;
-}*/
-
-
-/* ---------------------------
-   stores.json 로드 / 저장
---------------------------- */
-/*async function loadStores() {
-  try {
-    const txt = await readFile(STORES_FILE, "utf8");
-    return JSON.parse(txt) || {};
-  } catch {
-    return {};
-  }
 }
 
-async function saveStores(stores) {
-  await writeFile(
-    STORES_FILE,
-    JSON.stringify(stores, null, 2),
-    "utf8"
-  );
-}*/
-
-
-/* ---------------------------
-   메인 핸들러
---------------------------- */
-/*export default async function handler(req, res) {
-  //const limit = rateLimit(req, "stores");
-  //if (!limit.ok) {
-  //  return json(res, { ok: false, error: limit.reason }, 429);
- // }
-
+export default async function handler(req, res) {
   try {
     if (req.method === "GET") return handleGet(req, res);
     if (req.method === "POST") return handlePost(req, res);
     if (req.method === "PUT") return handlePut(req, res);
     if (req.method === "DELETE") return handleDelete(req, res);
+    
     res.setHeader("Allow", "GET,POST,PUT,DELETE");
     return json(res, { ok: false, error: "METHOD_NOT_ALLOWED" }, 405);
   } catch (err) {
-  console.error("[stores] error", err);
-
-  return json(res, {
-    ok: false,
-    error: err.message || "INTERNAL_ERROR"
-  }, err.status || 500);
-}*/
-
-export default async function handler(req, res) {
-  try {
-    if (req.method === "GET") {
-      return json(res, { ok: true, stores: FIXED_STORES });
-    }
-
-    return json(res, { ok:false, error:"METHOD_NOT_ALLOWED" }, 405);
-  } catch (err) {
     console.error("[stores] error", err);
-    return json(res, { ok:false, error: err.message }, 500);
+    return json(res, {
+      ok: false,
+      error: err.message || "INTERNAL_ERROR"
+    }, err.status || 500);
   }
 }
 
-
-/* ---------------------------
-   GET /api/stores
-   전체 매장 목록
---------------------------- */
-// PHASE 0-5-3
-// stores API는 DB 도입 전까지 "읽기 전용 기준 데이터"로 사용
-// POST / PUT / DELETE 는 DB 도입 시점에 활성화
+// GET - 매장 목록 조회
 async function handleGet(req, res) {
-  //const stores = await loadStores();
-  //return json(res, { ok: true, stores });
-  return json(res, { ok: true, stores: FIXED_STORES });
+  try {
+    const result = await query(`
+      SELECT store_id, name, code, created_at, updated_at
+      FROM stores
+      ORDER BY created_at DESC
+    `);
+
+    const stores = {};
+    result.rows.forEach(row => {
+      stores[row.store_id] = {
+        name: row.name,
+        code: row.code,
+      };
+    });
+
+    return json(res, { ok: true, stores });
+  } catch (e) {
+    console.error('[stores GET] error:', e);
+    return json(res, { ok: false, error: 'DB_ERROR' }, 500);
+  }
 }
 
-
-/* ---------------------------
-   POST /api/stores
-   매장 신규 생성
---------------------------- */
-/*async function handlePost(req, res) {
+// POST - 매장 생성
+async function handlePost(req, res) {
   await assertSuper(req);
+  
   const { storeId, code, name } = req.body || {};
 
   if (!storeId || !code) {
@@ -149,31 +104,40 @@ async function handleGet(req, res) {
     }, 400);
   }
 
-  const stores = await loadStores();
+  try {
+    // 중복 확인
+    const existing = await query(
+      'SELECT store_id FROM stores WHERE store_id = $1',
+      [storeId]
+    );
 
-  if (stores[storeId]) {
-    return json(res, {
-      ok: false,
-      error: "STORE_ALREADY_EXISTS"
-    }, 400);
+    if (existing.rows.length > 0) {
+      return json(res, {
+        ok: false,
+        error: "STORE_ALREADY_EXISTS"
+      }, 400);
+    }
+
+    // 생성
+    await query(`
+      INSERT INTO stores (store_id, name, code)
+      VALUES ($1, $2, $3)
+    `, [storeId, name || '', code.toUpperCase()]);
+
+    return json(res, { 
+      ok: true, 
+      store: { name: name || '', code: code.toUpperCase() }
+    });
+  } catch (e) {
+    console.error('[stores POST] error:', e);
+    return json(res, { ok: false, error: 'DB_ERROR' }, 500);
   }
+}
 
-  stores[storeId] = {
-    code: String(code).toUpperCase(),
-    name: name || ""
-  };
-
-  await saveStores(stores);
-
-  return json(res, { ok: true, store: stores[storeId] });
-}*/
-
-/* ---------------------------
-   PUT /api/stores
-   매장 수정 (code/name)
---------------------------- */
-/*async function handlePut(req, res) {
+// PUT - 매장 수정
+async function handlePut(req, res) {
   await assertSuper(req);
+  
   const { storeId, code, name } = req.body || {};
 
   if (!storeId) {
@@ -183,30 +147,58 @@ async function handleGet(req, res) {
     }, 400);
   }
 
-  const stores = await loadStores();
+  try {
+    const sets = [];
+    const values = [];
+    let idx = 1;
 
-  if (!stores[storeId]) {
-    return json(res, {
-      ok: false,
-      error: "STORE_NOT_FOUND"
-    }, 404);
+    if (code !== undefined) {
+      sets.push(`code = $${idx++}`);
+      values.push(code.toUpperCase());
+    }
+    
+    if (name !== undefined) {
+      sets.push(`name = $${idx++}`);
+      values.push(name);
+    }
+
+    if (sets.length === 0) {
+      return json(res, { ok: false, error: "NO_FIELDS_TO_UPDATE" }, 400);
+    }
+
+    sets.push(`updated_at = NOW()`);
+    values.push(storeId);
+
+    const result = await query(`
+      UPDATE stores
+      SET ${sets.join(', ')}
+      WHERE store_id = $${idx}
+      RETURNING *
+    `, values);
+
+    if (result.rows.length === 0) {
+      return json(res, {
+        ok: false,
+        error: "STORE_NOT_FOUND"
+      }, 404);
+    }
+
+    const updated = result.rows[0];
+    return json(res, { 
+      ok: true, 
+      store: { name: updated.name, code: updated.code }
+    });
+  } catch (e) {
+    console.error('[stores PUT] error:', e);
+    return json(res, { ok: false, error: 'DB_ERROR' }, 500);
   }
-
-  if (code) {
-    stores[storeId].code = String(code).toUpperCase();
-  }
-  if (name !== undefined) {
-    stores[storeId].name = name;
-  }
-
-  await saveStores(stores);
-
-  return json(res, { ok: true, store: stores[storeId] });
 }
 
+// DELETE - 매장 삭제
 async function handleDelete(req, res) {
-   await assertSuper(req);
-   const { storeId } = req.body || {};
+  await assertSuper(req);
+  
+  const { storeId } = req.body || {};
 
   if (!storeId) {
     return json(res, {
@@ -215,19 +207,22 @@ async function handleDelete(req, res) {
     }, 400);
   }
 
-  const stores = await loadStores();
+  try {
+    const result = await query(
+      'DELETE FROM stores WHERE store_id = $1 RETURNING store_id',
+      [storeId]
+    );
 
-  if (!stores[storeId]) {
-    return json(res, {
-      ok: false,
-      error: "STORE_NOT_FOUND"
-    }, 404);
+    if (result.rows.length === 0) {
+      return json(res, {
+        ok: false,
+        error: "STORE_NOT_FOUND"
+      }, 404);
+    }
+
+    return json(res, { ok: true });
+  } catch (e) {
+    console.error('[stores DELETE] error:', e);
+    return json(res, { ok: false, error: 'DB_ERROR' }, 500);
   }
-
-  delete stores[storeId];
-  await saveStores(stores);
-
-  return json(res, { ok: true });
 }
-   */
-
