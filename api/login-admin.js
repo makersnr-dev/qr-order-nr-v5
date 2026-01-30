@@ -40,6 +40,7 @@ export default async function handler(req, res) {
     adminKey: admin.id, // ⭐ 핵심
   });
 
+  // 쿠키에 JWT 토큰 설정
   res.setHeader(
     "Set-Cookie",
     `admin_token=${token}; Path=/; HttpOnly; SameSite=Lax`
