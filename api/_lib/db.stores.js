@@ -93,3 +93,59 @@ export async function listAllMappings() {
   
   return result.rows;
 }
+
+// 매장별 메뉴 목록 조회 (DB 버전)
+export async function getStoreMenus(storeId) {
+  const result = await query(`
+    SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", img, description as desc, options
+    FROM menus
+    WHERE store_id = $1 AND active = TRUE
+    ORDER BY display_order ASC, name ASC
+  `, [storeId]);
+  
+  return result.rows;
+}
+
+// api/_lib/db.stores.js
+
+export async function getOrGeneratePaymentCode(storeId) {
+  // 1. 한국 시간 기준으로 오늘 날짜 구하기 (YYYY-MM-DD)
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // 2. DB에서 오늘 코드가 이미 있는지 확인
+  const existing = await queryOne(`
+    SELECT code FROM payment_codes 
+    WHERE store_id = $1 AND date = $2
+  `, [storeId, today]);
+
+  if (existing) {
+    return existing.code; // 이미 있으면 그대로 반환
+  }
+
+  // 3. 없으면 서버(Node.js)에서 4자리 랜덤 숫자 생성
+  const newCode = String(Math.floor(1000 + Math.random() * 9000));
+
+  // 4. 생성한 코드를 DB에 저장
+  try {
+    await query(`
+      INSERT INTO payment_codes (store_id, date, code)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (store_id, date) DO NOTHING
+    `, [storeId, today, newCode]);
+    
+    return newCode;
+  } catch (e) {
+    // 동시에 여러 명이 요청했을 경우를 대비한 안전장치
+    const retry = await queryOne(`SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2`, [storeId, today]);
+    return retry ? retry.code : newCode;
+  }
+}
+
+
+export async function getStoreSettings(storeId) {
+  return await queryOne(`
+    SELECT owner_bank, privacy_policy, notify_config, call_options
+    FROM store_settings
+    WHERE store_id = $1
+  `, [storeId]);
+}
