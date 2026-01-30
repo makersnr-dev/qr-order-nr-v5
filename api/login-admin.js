@@ -1,5 +1,5 @@
 // /api/login-admin.js
-import { signJWT } from "./_lib/jwt.server.js";  // 올바르게 import
+import { signJWT } from "./_lib/jwt.server.js";  // 정상적으로 import
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -34,13 +34,12 @@ export default async function handler(req, res) {
     });
   }
 
-  // signJWT 호출 시 await 사용
+  // signJWT 호출 시 await 사용 (비동기 처리)
   const token = await signJWT({
     role: "admin",
-    adminKey: admin.id, // ⭐ 핵심
+    adminKey: admin.id, // 핵심
   });
 
-  // 쿠키에 JWT 토큰 설정
   res.setHeader(
     "Set-Cookie",
     `admin_token=${token}; Path=/; HttpOnly; SameSite=Lax`
