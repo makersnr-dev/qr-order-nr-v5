@@ -2,28 +2,6 @@
 
 const $ = (s, r=document) => r.querySelector(s);
 
-const SUPER_TOKEN_KEY = 'qrnr.super.jwt';
-
-function getSuperToken() {
-  try { return localStorage.getItem(SUPER_TOKEN_KEY) || ''; }
-  catch { return ''; }
-}
-
-function setSuperToken(token) {
-  try {
-    if (token) localStorage.setItem(SUPER_TOKEN_KEY, token);
-    else localStorage.removeItem(SUPER_TOKEN_KEY);
-  } catch {}
-}
-
-function superHeaders() {
-  const token = getSuperToken();
-  return {
-    'content-type': 'application/json',
-    'authorization': token ? `Bearer ${token}` : ''
-  };
-}
-
 // =====================================================
 // 매장-관리자 매핑 관리 (DB 기반)
 // =====================================================
@@ -31,7 +9,7 @@ function superHeaders() {
 async function loadMappings() {
   try {
     const res = await fetch('/api/admin-mappings', {
-      headers: superHeaders()
+     headers: {'content-type': 'application/json'}
     });
     
     if (!res.ok) return [];
@@ -86,7 +64,7 @@ async function renderMapTable() {
       try {
         const res = await fetch('/api/admin-mappings', {
           method: 'DELETE',
-          headers: superHeaders(),
+          headers: {'content-type': 'application/json'},
           body: JSON.stringify({ adminKey, storeId })
         });
 
@@ -116,7 +94,7 @@ function bindMappingUI() {
 
     try {
       // 매장 존재 확인
-      const storeRes = await fetch('/api/stores');
+      const storeRes = await fetch('/api/stores', {headers: { 'content-type': 'application/json' }});
       const storeData = await storeRes.json();
 
       if (!storeData.stores || !storeData.stores[storeId]) {
@@ -127,7 +105,7 @@ function bindMappingUI() {
       // 매핑 추가
       const res = await fetch('/api/admin-mappings', {
         method: 'POST',
-        headers: superHeaders(),
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify({ adminKey, storeId, note })
       });
 
@@ -155,7 +133,7 @@ async function renderStoreTable() {
   tbody.innerHTML = '<tr><td colspan="4" class="small">불러오는 중...</td></tr>';
 
   try {
-    const res = await fetch('/api/stores');
+    const res = await fetch('/api/stores', {headers: { 'content-type': 'application/json' }});
     const data = await res.json();
 
     const stores = data.stores || {};
@@ -190,7 +168,7 @@ async function renderStoreTable() {
         try {
           const res = await fetch('/api/stores', {
             method: 'DELETE',
-            headers: superHeaders(),
+            headers: {'content-type': 'application/json'},
             body: JSON.stringify({ storeId })
           });
 
@@ -231,7 +209,7 @@ function bindStoreUI() {
       // 생성 또는 수정
       const res = await fetch('/api/stores', {
         method: exists ? 'PUT' : 'POST',
-        headers: superHeaders(),
+        headers: {'content-type': 'application/json'},
         body: JSON.stringify({ storeId, name, code })
       });
 
@@ -322,20 +300,20 @@ async function init() {
 
     const data = await superLogin(uid, pw);
 
-    if (data.ok && data.token) {
-      setSuperToken(data.token);
+    if (data.ok) {
+      await new Promise(r => setTimeout(r, 100));
       location.reload();
     } else {
       msg.textContent = '로그인 실패: 아이디 또는 비밀번호 오류';
     }
+
   };
 
   logoutBtn.onclick = async () => {
     if (!confirm('로그아웃할까요?')) return;
     await superLogout();
-    setSuperToken('');
     location.reload();
-  };
+ };
 }
 
 init();
