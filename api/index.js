@@ -22,11 +22,12 @@ export default async function handler(req, res) {
     };
 
     try {
-        // --- 0. 공통 (테스트 및 서버시간) ---
+        // --- 0. 공통 및 테스트 ---
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
         if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9*60*60*1000) });
+        if (pathname === '/api/config') return json({ tossClientKey: process.env.TOSS_CLIENT_KEY || "" });
 
-        // --- 1. 슈퍼 관리자 전용 ---
+        // --- 1. 슈퍼 관리자 전용 (로그인, me, 매장/매핑 관리) ---
         if (pathname === '/api/super-login') {
             const { uid, pwd } = req.body;
             const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
@@ -42,8 +43,36 @@ export default async function handler(req, res) {
             const auth = await getAuth();
             return auth?.realm === 'super' ? json({ ok: true, isSuper: true, superId: auth.uid }) : json({ ok: false }, 401);
         }
+        if (pathname === '/api/super-logout') {
+            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly`);
+            return json({ ok: true });
+        }
+        if (pathname === '/api/stores' || pathname === '/api/admin-mappings') {
+            const auth = await getAuth();
+            if (pathname === '/api/stores' && method === 'GET') {
+                const r = await query('SELECT store_id, name, code FROM stores ORDER BY created_at DESC');
+                const stores = {}; r.rows.forEach(s => stores[s.store_id] = { name: s.name, code: s.code });
+                return json({ ok: true, stores });
+            }
+            if (auth?.realm !== 'super') return json({ ok: false }, 403);
+            if (method === 'GET') {
+                const r = await query('SELECT * FROM admin_stores ORDER BY created_at DESC');
+                return json({ ok: true, mappings: r.rows });
+            }
+            if (method === 'DELETE') {
+                if (pathname === '/api/admin-mappings') await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
+                else await query('DELETE FROM stores WHERE store_id = $1', [req.body.storeId]);
+                return json({ ok: true });
+            }
+            if (pathname === '/api/stores') {
+                await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3) ON CONFLICT (store_id) DO UPDATE SET name=$2, code=$3', [req.body.storeId, req.body.name, req.body.code]);
+            } else {
+                await query('INSERT INTO admin_stores (admin_key, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_key, store_id) DO UPDATE SET note=$3', [req.body.adminKey, req.body.storeId, req.body.note]);
+            }
+            return json({ ok: true });
+        }
 
-        // --- 2. 매장 설정 (계좌, 방침, 알림설정) ---
+        // --- 2. 매장 설정 (계좌, 방침, 알림, 호출옵션) ---
         if (pathname === '/api/store-settings') {
             if (method === 'GET') {
                 const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
@@ -76,7 +105,44 @@ export default async function handler(req, res) {
             }
         }
 
-        // --- 4. 결제 코드 (자동 생성 로직 포함) ---
+        // --- 4. 주문 관리 (orders) ---
+        if (pathname === '/api/orders') {
+            if (method === 'GET') {
+                const type = params.get('type');
+                const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
+                return json({ ok: true, orders: r.rows.map(row => ({ ...row, orderId: row.order_no, cart: row.meta?.cart, customer: row.meta?.customer, reserve: row.meta?.reserve })) });
+            }
+            if (method === 'POST') {
+                const { type, table, cart, amount, customer, reserve } = req.body;
+                const orderNo = `${storeId}-${type}-${Date.now()}`;
+                await query('INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', 
+                            [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, JSON.stringify({ customer, reserve, cart, type, ts: Date.now() })]);
+                return json({ ok: true, orderId: orderNo });
+            }
+            if (method === 'PUT') {
+                const { orderId, status, meta } = req.body;
+                await query('UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb WHERE order_no = $3', [status, JSON.stringify(meta || {}), orderId]);
+                return json({ ok: true });
+            }
+        }
+
+        // --- 5. 호출 관리 (call) ---
+        if (pathname === '/api/call') {
+            if (method === 'GET') {
+                const r = await query('SELECT id, table_no as "table", message, status, created_at as ts FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 50', [storeId]);
+                return json({ ok: true, logs: r.rows });
+            }
+            if (method === 'POST') {
+                await query('INSERT INTO call_logs (store_id, table_no, message, status) VALUES ($1, $2, $3, \'대기\')', [storeId, req.body.table, req.body.note]);
+                return json({ ok: true });
+            }
+            if (method === 'PUT') {
+                await query('UPDATE call_logs SET status = $1 WHERE id = $2', [req.body.status, req.body.id]);
+                return json({ ok: true });
+            }
+        }
+
+        // --- 6. 결제코드 및 QR 관리 ---
         if (pathname === '/api/payment-code') {
             const today = new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
             let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
@@ -87,20 +153,6 @@ export default async function handler(req, res) {
             }
             return json({ ok: true, code: codeRow.code, date: today });
         }
-
-        // --- 5. 호출 알림 (call) ---
-        if (pathname === '/api/call') {
-            if (method === 'GET') {
-                const r = await query('SELECT id, table_no as "table", message, status, created_at as ts FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 50', [storeId]);
-                return json({ ok: true, logs: r.rows });
-            }
-            if (method === 'PUT') {
-                await query('UPDATE call_logs SET status = $1 WHERE id = $2', [req.body.status, req.body.id]);
-                return json({ ok: true });
-            }
-        }
-
-        // --- 6. QR 관리 (개수 제한 로직 포함) ---
         if (pathname === '/api/qrcodes') {
             if (method === 'GET') {
                 const r = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
@@ -123,17 +175,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // --- 7. 주문 및 기타 (원본 기능) ---
-        if (pathname === '/api/orders') {
-            if (method === 'GET') {
-                const type = params.get('type');
-                const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
-                return json({ ok: true, orders: r.rows.map(row => ({ ...row, orderId: row.order_no, cart: row.meta?.cart, customer: row.meta?.customer, reserve: row.meta?.reserve })) });
-            }
-            // POST/PUT 로직...
-        }
-
-        // --- 8. 일반 관리자 로그인 ---
+        // --- 7. 일반 관리자 로그인 및 인증 ---
         if (pathname === '/api/login-admin') {
             const { id, pw } = req.body;
             const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
@@ -143,6 +185,10 @@ export default async function handler(req, res) {
             const token = await signJWT({ realm: 'admin', uid: id, storeId: map?.store_id || 'store1' }, process.env.JWT_SECRET || 'dev-secret');
             res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400`);
             return json({ ok: true, storeId: map?.store_id || 'store1' });
+        }
+        if (pathname === '/api/me' || pathname === '/api/verify') {
+            const auth = await getAuth();
+            return auth ? json({ ok: true, ...auth }) : json({ ok: false }, 401);
         }
 
         return json({ error: 'NOT_FOUND', path: pathname }, 404);
