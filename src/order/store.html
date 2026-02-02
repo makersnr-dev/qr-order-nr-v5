@@ -180,7 +180,7 @@
     e.preventDefault();
     const table = document.getElementById('tableNo').value.trim();
     const inputCode = document.getElementById('paycode').value.trim();
-    const pc = await getPaymentCode(storeId);
+    const pc = await fetch(`/api/payment-code?storeId=${storeId}`).then(r => r.json());
     
     if (!table) return alert('테이블 번호를 입력하세요');
     if (inputCode !== pc?.code) return alert('결제 코드가 올바르지 않습니다');
@@ -198,7 +198,7 @@
       orderType: 'store',
       table: document.getElementById('tableNo').value,
       amount: cart.total(),
-      items: cart.items
+      cart: cart.items
     };
     const r = await fetch('/api/orders', {
       method: 'POST',
