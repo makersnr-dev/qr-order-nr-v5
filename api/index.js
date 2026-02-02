@@ -231,62 +231,92 @@ export default async function handler(req, res) {
         if (pathname === '/api/orders') {
 
             if (method === 'GET') {
-
-                const type = params.get('type');
-
-                const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
-
-                return json({ 
-                    ok: true, 
-                    orders: r.rows.map(row => {
-                        const meta = row.meta || {};
-                        return {
+                const type = params.get('type'); // 'store' 또는 'reserve'가 들어옴
+            
+                if (type === 'store') {
+                    // --- 🏠 매장 주문 전용 (orders 테이블) ---
+                    const r = await query(
+                        'SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = \'store\' ORDER BY created_at DESC LIMIT 100', 
+                        [storeId]
+                    );
+                    return json({
+                        ok: true,
+                        orders: r.rows.map(row => ({
                             ...row,
                             orderId: row.order_no,
-                            table: row.table_no || meta.table || '-', // DB 컬럼 우선, 없으면 meta에서 가져옴
-                            cart: meta.cart || [],         // 관리자 화면은 'cart'라는 이름을 기다립니다
-                            customer: meta.customer || {},
-                            reserve: meta.reserve || {},
-                            amount: row.amount
-                        };
-                    }) || [] 
-                });
-
+                            table: row.table_no || '-',
+                            amount: row.amount,
+                            cart: row.meta?.cart || [],  // 매장주문은 meta 안에 cart가 있음
+                            customer: {},
+                            ts: new Date(row.created_at).getTime()
+                        }))
+                    });
+            
+                } else {
+                    // --- 📅 예약 주문 전용 (orderss 테이블) ---
+                    const r = await query(
+                        'SELECT * FROM orderss WHERE store_id = $1 AND type = \'reserve\' ORDER BY created_at DESC LIMIT 100', 
+                        [storeId]
+                    );
+                    return json({
+                        ok: true,
+                        orders: r.rows.map(row => ({
+                            id: row.order_id,
+                            orderId: row.order_id,
+                            table: row.table_no || '예약',
+                            status: row.status,
+                            amount: row.total_amount,    // orderss는 total_amount 컬럼 사용
+                            cart: row.items || [],       // 예약주문은 items 컬럼 사용
+                            customer: {
+                                name: row.customer_name,
+                                phone: row.customer_phone
+                            },
+                            reserve: row.meta?.reserve || {},
+                            ts: new Date(row.created_at).getTime()
+                        }))
+                    });
+                }
             }
 
             if (method === 'POST') {
-
                 const { type, table, cart, amount, customer, reserve } = req.body;
-
                 const orderNo = `${storeId}-${type}-${Date.now()}`;
-
-                // table 정보를 meta 안에도 명시적으로 포함시킵니다.
-                const metaData = JSON.stringify({ 
-                    customer, 
-                    reserve, 
-                    cart, 
-                    type, 
-                    table, // ← 이게 빠지면 나중에 상세화면에서 테이블 번호가 안 보입니다.
-                    ts: Date.now() 
-                });
-                
-                await query(
-                    'INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', 
-                    [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, metaData]
-                );
-
-                if (Array.isArray(cart)) {
-
-                    for (const item of cart) {
-
-                        await query('INSERT INTO order_items (order_no, name, qty, unit_price, options) VALUES ($1, $2, $3, $4, $5)', [orderNo, item.name, item.qty, item.price || 0, JSON.stringify(item.options || [])]);
-
-                    }
-
+            
+                if (type === 'store') {
+                    // --- 🏠 매장 주문일 때 실행되는 코드 ---
+                    const res = await query(
+                        'INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+                        [storeId, orderNo, '주문접수', table, amount, JSON.stringify({ cart, type, table })]
+                    );
+                    const newId = res.rows[0].id;
+                    // order_items 저장 로직 (생략)
+                    
+                } else if (type === 'reserve') {
+                    // --- 📅 예약주문 전용: 'orderss' 테이블 구조에 맞춤 ---
+                    await query(
+                        `INSERT INTO orderss (
+                            order_id, store_id, type, status, 
+                            customer_name, customer_phone, table_no, 
+                            items, total_amount, meta
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            orderNo,             // 1. order_id
+                            storeId,             // 2. store_id
+                            'reserve',           // 3. type
+                            '입금 미확인',         // 4. status
+                            customer.name,       // 5. customer_name
+                            customer.phone,      // 6. customer_phone
+                            customer.addr,       // 7. table_no (여기에 주소 저장)
+                            JSON.stringify(cart),// 8. items (상세 메뉴)
+                            amount,              // 9. total_amount (DB 컬럼명에 맞춤)
+                            JSON.stringify({     // 10. meta (기타 정보 백업)
+                                reserve, 
+                                agreePrivacy, 
+                                memo: customer.memo 
+                            })
+                        ]
+                    );
                 }
-
-                return json({ ok: true, orderId: orderNo });
-
             }
 
             if (method === 'PUT') {
