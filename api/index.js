@@ -15,12 +15,25 @@ export default async function handler(req, res) {
 
     const getAuth = async () => {
         const cookie = req.headers.cookie || '';
-        const token = cookie.match(/(admin_token|super_token)=([^;]+)/)?.[1];
-        if (!token) return null;
-        try { return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); } 
-        catch { return null; }
-    };
+        
+        // 1. 이름으로 정확하게 쿠키를 찾아냅니다 (사장님 방식 보완)
+        const parts = cookie.split(';').reduce((acc, c) => {
+            const [key, val] = c.trim().split('=');
+            acc[key] = val;
+            return acc;
+        }, {});
 
+        // 2. 슈퍼 토큰 먼저 확인, 없으면 일반 관리자 토큰 확인
+        const token = parts['super_token'] || parts['admin_token'];
+        
+        if (!token) return null;
+        
+        try { 
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
+        } catch (e) { 
+            return null; 
+        }
+    };
     try {
         // --- 0. 공통 및 테스트 ---
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
