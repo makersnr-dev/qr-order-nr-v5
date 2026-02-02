@@ -45,18 +45,10 @@
     </div>
 
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
-      <input id="map-admin"
-             class="input"
-             placeholder="관리자 ID (예: owner@narae.com)"
-             style="min-width:240px">
-      <input id="map-store"
-             class="input"
-             placeholder="storeId (예: narae)"
-             style="min-width:160px">
-      <input id="map-note"
-             class="input"
-             placeholder="메모 (선택)"
-             style="min-width:200px">
+      <input id="map-admin" class="input" placeholder="관리자 ID" style="min-width:240px">
+      <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
+      <input id="map-code" class="input" placeholder="코드(예: NR)" style="width:100px">
+      <input id="map-note" class="input" placeholder="메모(선택)" style="min-width:200px">
       <button id="map-add" class="btn primary">매핑 추가/수정</button>
     </div>
 
@@ -65,6 +57,7 @@
       <tr>
         <th>관리자 ID</th>
         <th>storeId</th>
+        <th>코드</th>
         <th>메모</th>
         <th class="right">관리/삭제</th>
       </tr>
@@ -73,61 +66,7 @@
       <tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>
       </tbody>
     </table>
-
-    <p class="small" style="margin-top:10px;color:#9ca3af">
-      · 이 화면에서 저장된 매핑은 <code>['system','storeAdmins']</code> 경로로 저장됩니다.<br>
-      · 관리자 콘솔 로그인 시, 해당 관리자 ID에 매핑된 <code>storeId</code>를 기본 매장으로 사용할 수 있습니다.<br>
-      · 나중에 DB를 붙일 때는 이 JSON 구조를 그대로 테이블 하나로 옮겨 쓰면 됩니다.
-    </p>
   </div>
-
-<!-- 매장 정보 관리 카드 -->
-<div id="store-card" class="card vstack" style="display:none">
-  <h3>매장 정보 관리</h3>
-
-  <div class="small">
-    매장(storeId)별 기본 정보와 주문번호 코드를 관리합니다.<br>
-    주문번호 예: <code>NR-S-20260115-001</code>
-  </div>
-
-  <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
-    <input id="store-id"
-           class="input"
-           placeholder="storeId (예: narae)"
-           style="min-width:160px">
-
-    <input id="store-name"
-           class="input"
-           placeholder="매장명 (예: 나래카페)"
-           style="min-width:200px">
-
-    <input id="store-code"
-           class="input"
-           placeholder="주문 코드 (예: NR)"
-           style="width:120px">
-
-    <button id="store-save" class="btn primary">
-      저장
-    </button>
-  </div>
-
-  <table class="table" style="margin-top:14px">
-    <thead>
-      <tr>
-        <th>storeId</th>
-        <th>매장명</th>
-        <th>주문 코드</th>
-        <th class="right">관리</th>
-      </tr>
-    </thead>
-    <tbody id="store-body">
-      <tr><td colspan="4" class="small">등록된 매장 없음</td></tr>
-    </tbody>
-  </table>
-</div>
-  
-</div>
-
 
 
 
