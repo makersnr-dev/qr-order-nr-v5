@@ -254,8 +254,30 @@ export default async function handler(req, res) {
                 return json({ ok: true, orderId: orderNo });
             }
             if (method === 'PUT') {
-                const { orderId, status, meta } = req.body;
-                await query('UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb WHERE order_no = $3', [status, JSON.stringify(meta || {}), orderId]);
+                const { orderId, status, meta, type } = req.body;
+            
+                // 1. type이 'store'이거나, orders 테이블용 주문번호 형식인 경우
+                if (type === 'store' || orderId.includes('-store-')) {
+                    await query(
+                        'UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb, updated_at = NOW() WHERE order_no = $3', 
+                        [status, JSON.stringify(meta || {}), orderId]
+                    );
+                } 
+                // 2. type이 'reserve'이거나, orderss 테이블용 주문번호 형식인 경우
+                else if (type === 'reserve' || orderId.includes('-reserve-')) {
+                    await query(
+                        'UPDATE orderss SET status = $1, updated_at = NOW() WHERE order_id = $2', 
+                        [status, orderId]
+                    );
+                } 
+                // 3. 만약 type이 안 넘어왔을 때를 대비한 통합 처리 (순차적 업데이트)
+                else {
+                    let res = await query('UPDATE orders SET status = $1 WHERE order_no = $2', [status, orderId]);
+                    if (res.rowCount === 0) {
+                        await query('UPDATE orderss SET status = $1 WHERE order_id = $2', [status, orderId]);
+                    }
+                }
+            
                 return json({ ok: true });
             }
         }
