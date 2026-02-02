@@ -50,9 +50,9 @@ export default async function handler(req, res) {
 
         if (!token) return null;
 
-        try { 
+        try {
 
-            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
 
         } catch (e) { return null; }
 
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
 
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
 
-        if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9*60*60*1000) });
+        if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9 * 60 * 60 * 1000) });
 
         if (pathname === '/api/config') return json({ tossClientKey: process.env.TOSS_CLIENT_KEY || "" });
 
@@ -113,53 +113,43 @@ export default async function handler(req, res) {
         }
 
         if (pathname === '/api/stores' || pathname === '/api/admin-mappings') {
-
             const auth = await getAuth();
 
+            // [수정] 매장 목록 요청 시 admin_stores에서 직접 code와 함께 가져옴
             if (pathname === '/api/stores' && method === 'GET') {
-
-                const r = await query('SELECT store_id, name, code FROM stores ORDER BY created_at DESC');
-
-                const stores = {}; r.rows.forEach(s => stores[s.store_id] = { name: s.name, code: s.code });
-
+                const r = await query('SELECT store_id, code FROM admin_stores ORDER BY created_at DESC');
+                const stores = {};
+                r.rows.forEach(s => {
+                    stores[s.store_id] = { name: s.store_id + " 매장", code: s.code };
+                });
                 return json({ ok: true, stores });
-
             }
 
             if (auth?.realm !== 'super') return json({ ok: false }, 403);
 
             if (method === 'GET') {
-
-                const r = await query('SELECT * FROM admin_stores ORDER BY created_at DESC');
-
+                // [수정] 매핑 목록 조회 시 code 컬럼 포함
+                const r = await query('SELECT admin_key, store_id, code, note FROM admin_stores ORDER BY created_at DESC');
                 return json({ ok: true, mappings: r.rows || [] });
-
             }
 
             if (method === 'DELETE') {
-
-                if (pathname === '/api/admin-mappings') await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
-
-                else await query('DELETE FROM stores WHERE store_id = $1', [req.body.storeId]);
-
+                // 매핑 정보 삭제
+                await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
                 return json({ ok: true });
-
             }
 
-            if (pathname === '/api/stores') {
-
-                await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3) ON CONFLICT (store_id) DO UPDATE SET name=$2, code=$3', [req.body.storeId, req.body.name, req.body.code]);
-
-            } else {
-
-                await query('INSERT INTO admin_stores (admin_key, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_key, store_id) DO UPDATE SET note=$3', [req.body.adminKey, req.body.storeId, req.body.note]);
-
-            }
+            // [수정] 저장 로직: admin_stores에 code를 포함하여 한 번에 저장 (ON CONFLICT)
+            const { adminKey, storeId, code, note } = req.body;
+            await query(`
+                INSERT INTO admin_stores (admin_key, store_id, code, note) 
+                VALUES ($1, $2, $3, $4) 
+                ON CONFLICT (admin_key, store_id) 
+                DO UPDATE SET code = EXCLUDED.code, note = EXCLUDED.note
+            `, [adminKey, storeId, code, note]);
 
             return json({ ok: true });
-
         }
-
 
 
         // --- 2. 매장 설정 (최소 수정: 빈 데이터 및 JSON Parse 대응) ---
@@ -172,13 +162,13 @@ export default async function handler(req, res) {
 
                 const settings = r || {};
 
-                if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch(e){}
+                if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch (e) { }
 
-                if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch(e){}
+                if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch (e) { }
 
-                if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch(e){}
+                if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch (e) { }
 
-                return json({ ok: true, settings }); 
+                return json({ ok: true, settings });
 
             }
 
@@ -194,9 +184,9 @@ export default async function handler(req, res) {
 
                 await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) 
 
-                             ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), privacy_policy=COALESCE($3, store_settings.privacy_policy), notify_config=COALESCE($4, store_settings.notify_config), call_options=COALESCE($5, store_settings.call_options)`, 
+                             ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), privacy_policy=COALESCE($3, store_settings.privacy_policy), notify_config=COALESCE($4, store_settings.notify_config), call_options=COALESCE($5, store_settings.call_options)`,
 
-                             [storeId, b, privacyPolicy, n, c]);
+                    [storeId, b, privacyPolicy, n, c]);
 
                 return json({ ok: true });
 
@@ -322,7 +312,7 @@ export default async function handler(req, res) {
 
         if (pathname === '/api/payment-code') {
 
-            const today = new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
+            const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
             let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
 
