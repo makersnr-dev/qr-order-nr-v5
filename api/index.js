@@ -256,21 +256,20 @@ export default async function handler(req, res) {
             if (method === 'PUT') {
                 const { orderId, status, meta, type } = req.body;
             
-                // 1. type이 'store'이거나, orders 테이블용 주문번호 형식인 경우
-                if (type === 'store' || orderId.includes('-store-')) {
+                if (type === 'store' || (orderId && orderId.includes('-store-'))) {
+                    // 🔥 updated_at = NOW() 부분을 삭제했습니다.
                     await query(
-                        'UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb, updated_at = NOW() WHERE order_no = $3', 
+                        'UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb WHERE order_no = $3', 
                         [status, JSON.stringify(meta || {}), orderId]
                     );
                 } 
-                // 2. type이 'reserve'이거나, orderss 테이블용 주문번호 형식인 경우
-                else if (type === 'reserve' || orderId.includes('-reserve-')) {
+                else if (type === 'reserve' || (orderId && orderId.includes('-reserve-'))) {
+                    // 🔥 예약 주문 쪽도 updated_at = NOW()가 있다면 삭제하세요.
                     await query(
-                        'UPDATE orderss SET status = $1, updated_at = NOW() WHERE order_id = $2', 
+                        'UPDATE orderss SET status = $1 WHERE order_id = $2', 
                         [status, orderId]
                     );
                 } 
-                // 3. 만약 type이 안 넘어왔을 때를 대비한 통합 처리 (순차적 업데이트)
                 else {
                     let res = await query('UPDATE orders SET status = $1 WHERE order_no = $2', [status, orderId]);
                     if (res.rowCount === 0) {
