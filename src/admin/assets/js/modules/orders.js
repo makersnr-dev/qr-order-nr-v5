@@ -124,7 +124,8 @@ async function changeOrderStatus({ id, status, type }) {
 
   const payload = {
     orderId: id,
-    status
+    status,
+    type: type
   };
 
   if (isPending(id)) {
