@@ -580,16 +580,29 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   cart.render();
   renderMenu("menu-grid", cart);
   /* -------- 입금계좌 초기 표시 (관리자 설정값) -------- */
-  const initBank =
-    get(["admin", "ownerBank", storeId]) ||
-    get(["admin", "ownerBank"]) ||
-    {};
-
-document.getElementById("bank-text").textContent =
-  initBank.bank && initBank.number
-    ? `${initBank.bank} ${initBank.number} (${initBank.holder || ""})`
-    : "관리자 계좌 정보 없음";
-
+  // [추가] DB에서 계좌 정보 실시간 로드
+    try {
+        const res = await fetch(`/api/store-settings?storeId=${storeId}`);
+        const data = await res.json();
+        
+        if (data.ok && data.settings?.owner_bank) {
+            const bank = data.settings.owner_bank;
+            // 만약 서버에서 JSON 문자열로 넘어올 경우를 대비해 한 번 더 체크
+            const b = typeof bank === 'string' ? JSON.parse(bank) : bank;
+            
+            if (b.bank && b.number) {
+                document.getElementById("bank-text").textContent = 
+                    `${b.bank} ${b.number} (예금주: ${b.holder || ""})`;
+            } else {
+                document.getElementById("bank-text").textContent = "등록된 계좌 정보가 없습니다.";
+            }
+        } else {
+            document.getElementById("bank-text").textContent = "관리자 설정에서 계좌를 등록해주세요.";
+        }
+    } catch (e) {
+        console.error("계좌 로드 실패:", e);
+        document.getElementById("bank-text").textContent = "계좌 정보를 불러올 수 없습니다.";
+    }
 
   /* -------- 개인정보 보기 -------- */
   const modal = document.getElementById("privacy-modal");
