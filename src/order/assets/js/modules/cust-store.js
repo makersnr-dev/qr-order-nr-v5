@@ -72,3 +72,6 @@ export async function renderStoreHeader() {
     // 페이지 타이틀도 매장명으로 변경
     document.title = `${info.name}`;
 }
+
+export const get = loadStoreInfo;
+
