@@ -186,97 +186,83 @@ export default async function handler(req, res) {
 
 
 
-// --- 4. 주문 관리 ---
+        // --- 4. 주문 관리 ---
         if (pathname === '/api/orders') {
+            const storeId = params.get('storeId') || req.body?.storeId;
+        
             if (method === 'GET') {
                 const type = params.get('type');
                 if (type === 'store') {
-                    const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = \'store\' ORDER BY created_at DESC LIMIT 100', [storeId]);
+                    // 매장 주문: orders 테이블 (order_no, amount 사용)
+                    const r = await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100', [storeId]);
                     return json({
                         ok: true,
                         orders: r.rows.map(row => ({
-                            ...row,
-                            orderId: row.order_no,
+                            id: row.id,
+                            orderId: row.order_no, 
+                            amount: row.amount, 
                             table: row.table_no || '-',
-                            amount: row.amount,
+                            status: row.status,
                             cart: row.meta?.cart || [],
-                            customer: {},
-                            ts: new Date(row.created_at).getTime()
+                            ts: new Date(row.created_at).getTime(),
+                            type: 'store'
                         }))
                     });
                 } else {
-                    const r = await query('SELECT * FROM orderss WHERE store_id = $1 AND type = \'reserve\' ORDER BY created_at DESC LIMIT 100', [storeId]);
+                    // 예약 주문: orderss 테이블 (order_id, total_amount, items 사용)
+                    const r = await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100', [storeId]);
                     return json({
                         ok: true,
                         orders: r.rows.map(row => ({
-                            id: row.order_id,
+                            id: row.order_id, 
                             orderId: row.order_id,
-                            table: row.table_no || '예약',
+                            amount: row.total_amount, 
                             status: row.status,
-                            amount: row.total_amount,
-                            cart: row.items || [],
-                            customer: { name: row.customer_name, phone: row.customer_phone },
+                            cart: row.items || [], 
+                            customer: { name: row.customer_name, phone: row.customer_phone, addr: row.table_no },
                             reserve: row.meta?.reserve || {},
-                            ts: new Date(row.created_at).getTime()
+                            ts: new Date(row.created_at).getTime(),
+                            type: 'reserve'
                         }))
                     });
                 }
             }
-
+        
             if (method === 'POST') {
-                const { type, table, cart, amount, customer, reserve, agreePrivacy } = req.body;
-                const orderNo = `${storeId}-${type}-${Date.now()}`;
-
+                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
+                const newId = `${storeId}-${type}-${Date.now()}`;
+        
                 if (type === 'store') {
-                    // 🏠 매장 주문: orders 테이블 (id를 받아와서 order_items에 연결)
-                    const resOrder = await query(
-                        'INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                        [storeId, orderNo, '주문접수', table, amount, JSON.stringify({ cart, type, table, ts: Date.now() })]
+                    // orders 테이블 (order_no, amount)
+                    await query(
+                        `INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) 
+                         VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [storeId, newId, '주문접수', table, amount, JSON.stringify({ cart })]
                     );
-                    const newId = resOrder.rows[0].id;
-
-                    if (Array.isArray(cart)) {
-                        for (const item of cart) {
-                            await query(
-                                'INSERT INTO order_items (order_id, name, qty, unit_price, options) VALUES ($1, $2, $3, $4, $5)', 
-                                [newId, item.name, item.qty, item.price || 0, JSON.stringify(item.options || [])]
-                            );
-                        }
-                    }
-                } else if (type === 'reserve') {
-                    // 📅 예약 주문: orderss 테이블 (설계도 구조에 맞춤)
+                } else {
+                    // orderss 테이블 (order_id, total_amount, items)
+                    // 주소(addr)는 스키마에 따로 없으므로 table_no 컬럼에 저장합니다.
                     await query(
                         `INSERT INTO orderss (order_id, store_id, type, status, customer_name, customer_phone, table_no, items, total_amount, meta) 
                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                        [orderNo, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.addr, JSON.stringify(cart), amount, JSON.stringify({ reserve, agreePrivacy, memo: customer.memo })]
+                        [
+                            newId, storeId, 'reserve', '입금 미확인', 
+                            customer.name, customer.phone, customer.addr, 
+                            JSON.stringify(cart), amount, 
+                            JSON.stringify({ reserve, agreePrivacy, lookupPw, memberId })
+                        ]
                     );
                 }
-                return json({ ok: true, orderId: orderNo });
+                return json({ ok: true, orderId: newId });
             }
+        
             if (method === 'PUT') {
-                const { orderId, status, meta, type } = req.body;
-            
-                if (type === 'store' || (orderId && orderId.includes('-store-'))) {
-                    // 🔥 updated_at = NOW() 부분을 삭제했습니다.
-                    await query(
-                        'UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb WHERE order_no = $3', 
-                        [status, JSON.stringify(meta || {}), orderId]
-                    );
-                } 
-                else if (type === 'reserve' || (orderId && orderId.includes('-reserve-'))) {
-                    // 🔥 예약 주문 쪽도 updated_at = NOW()가 있다면 삭제하세요.
-                    await query(
-                        'UPDATE orderss SET status = $1 WHERE order_id = $2', 
-                        [status, orderId]
-                    );
-                } 
-                else {
-                    let res = await query('UPDATE orders SET status = $1 WHERE order_no = $2', [status, orderId]);
-                    if (res.rowCount === 0) {
-                        await query('UPDATE orderss SET status = $1 WHERE order_id = $2', [status, orderId]);
-                    }
+                const { orderId, status, type } = req.body;
+                if (type === 'store' || orderId.includes('-store-')) {
+                    await query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_no = $2', [status, orderId]);
+                } else {
+                    await query('UPDATE orderss SET status = $1, updated_at = NOW() WHERE order_id = $2', [status, orderId]);
                 }
-            
                 return json({ ok: true });
             }
         }
