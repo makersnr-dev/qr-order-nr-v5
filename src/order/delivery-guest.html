@@ -5,115 +5,256 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>예약 (비회원)</title>
+
   <style>
-    .field-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
-    .field-label { width: 80px; flex-shrink: 0; margin-top: 10px; }
-    .date-field { position: relative; width: 180px; }
-    .date-placeholder {
-      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-      color: #9ca3af; font-size: 14px; pointer-events: none; transition: opacity 0.15s ease;
+    /* ----- 공통 레이아웃 ----- */
+    .field-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      width: 100%;
     }
-    .date-field input:not(:placeholder-shown) + .date-placeholder { opacity: 0; }
+    .field-label {
+      width: 80px;
+      flex-shrink: 0;
+      margin-top: 10px;
+    }
+    .label-lookup {
+      width: 80px;
+      text-align: center;
+      white-space: nowrap;
+      margin-top: 10px;
+    }
+
+    /* ---- 날짜 + 시간 ---- */
+    .date-field {
+      position: relative;
+      width: 180px;
+    }
+    .date-placeholder {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      font-size: 14px;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    .date-field input:focus + .date-placeholder,
+    .date-field input:not(:placeholder-shown) + .date-placeholder {
+      opacity: 0;
+    }
   </style>
 </head>
 
 <body data-store-id="">
 <div class="container">
-  <h1>비회원 예약</h1>
-  
-  <div class="card vstack">
-    <div class="field-row">
-      <div class="field-label">예약 날짜</div>
-      <div class="date-field">
-        <input type="date" id="date" class="input" placeholder=" " required>
-        <span class="date-placeholder">날짜를 선택하세요</span>
-      </div>
-    </div>
+  <h1 id="store-name-display">예약 주문</h1>
+
+  <div class="card vstack" style="gap:16px;">
+    <h3>배송 및 연락처</h3>
     
     <div class="field-row">
-      <div class="field-label">예약 시간</div>
-      <div class="hstack" style="gap:8px">
-        <select id="time-ap" class="input"><option>오전</option><option>오후</option></select>
-        <select id="time-hh" class="input"></select>
-        <select id="time-mm" class="input"></select>
+      <span class="field-label">주소</span>
+      <div class="vstack" style="flex:1; gap:8px;">
+        <input id="addr" class="input" placeholder="도로명/지번 주소">
+        <input id="addr-detail" class="input" placeholder="상세주소 (동/호수 등)">
       </div>
     </div>
 
-    <input id="cust" class="input" placeholder="성함">
-    <input id="phone" class="input" placeholder="연락처">
-    <input id="addr" class="input" placeholder="주소">
-    <input id="addr-detail" class="input" placeholder="상세주소">
-    <input id="lookupPw" class="input" type="password" placeholder="조회용 비밀번호 (4자리)">
-    <textarea id="memo" class="input" placeholder="요청사항"></textarea>
+    <div class="field-row">
+      <span class="field-label">주문자</span>
+      <input id="cust" class="input" placeholder="이름을 입력하세요" style="flex:1;">
+    </div>
+
+    <div class="field-row">
+      <span class="field-label">연락처</span>
+      <input id="phone" type="tel" class="input" placeholder="010-0000-0000" style="flex:1;">
+    </div>
+
+    <div class="field-row">
+      <span class="field-label">요청사항</span>
+      <input id="memo" class="input" placeholder="기사님께 전할 말씀" style="flex:1;">
+    </div>
   </div>
 
-  <div id="menu-list" class="vstack" style="gap:16px; margin-top:20px"></div>
+  <div class="card vstack" style="gap:16px;">
+    <h3>예약 시간</h3>
+    <div class="hstack" style="gap:8px; align-items:center;">
+      <div class="date-field">
+        <input id="date" type="date" class="input" placeholder=" " style="width:100%;">
+        <span class="date-placeholder">날짜 선택</span>
+      </div>
+      <div class="hstack" id="time-picker" style="gap:4px; flex:1;">
+        <select id="time-ap" class="input" style="flex:1;"><option value="AM">오전</option><option value="PM">오후</option></select>
+        <select id="time-hh" class="input" style="flex:1;"></select>
+        <select id="time-mm" class="input" style="flex:1;"></select>
+      </div>
+    </div>
+  </div>
 
-  <div class="bottom-bar">
-    <button id="action-btn" class="btn primary w-full">예약하기</button>
+  <div class="card vstack">
+    <h3>메뉴 선택</h3>
+    <div id="menu-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px; justify-items:center; text-align:center;"></div>
+  </div>
+
+  <div class="card vstack" style="margin-bottom:100px;">
+    <h3>장바구니</h3>
+    <div id="cart-box" class="vstack" style="margin:10px 0; gap:10px;"></div>
+    
+    <div class="hstack" style="justify-content:space-between; padding:10px 0; border-top:1px solid #333;">
+      <span>총 합계</span>
+      <b id="total" style="color:var(--primary); font-size:1.2rem;">0</b>
+    </div>
+
+    <div class="field-row" style="border-top:1px solid #eee; padding-top:15px; margin-top:10px;">
+      <span class="label-lookup">조회비밀번호</span>
+      <input id="lookupPw" type="password" maxlength="4" class="input" placeholder="숫자 4자리" style="flex:1; text-align:center;">
+    </div>
+    
+    <div class="hstack" style="gap:8px; margin-top:15px; align-items:center;">
+      <input type="checkbox" id="agree-privacy" style="width:20px; height:20px;">
+      <label for="agree-privacy" class="small">개인정보 수집 및 이용 동의</label>
+    </div>
+
+    <button id="action-btn" class="btn primary large" style="width:100%; margin-top:15px; height:50px;">예약 완료하기</button>
   </div>
 </div>
 
-<div id="reserve-done-modal" class="modal-overlay">
-  <div class="modal-content">
-    <h3>예약 접수 완료</h3>
-    <p>입금 확인 후 예약이 확정됩니다.</p>
-    <button id="reserve-done-ok" class="btn primary">확인</button>
+<div id="reserve-done-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+  <div class="content" style="background:#fff; padding:24px; border-radius:16px; width:90%; max-width:360px; text-align:center; color:#333;">
+    <h3>예약이 접수되었습니다!</h3>
+    <p style="margin:10px 0; color:#666;">입금 확인 후 예약이 확정됩니다.</p>
+    <button id="reserve-done-ok" class="btn primary" style="width:100%; margin-top:15px;">확인</button>
+  </div>
+</div>
+
+<div id="confirm-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+  <div class="content" style="background:#fff; padding:20px; border-radius:16px; width:90%; max-width:400px; color:#333;">
+    <h3>예약 내용을 확인해주세요</h3>
+    <div id="confirm-info" class="vstack" style="margin:15px 0; font-size:14px; gap:4px;"></div>
+    <div class="hstack" style="gap:8px;">
+      <button id="confirm-cancel" class="btn" style="flex:1;">취소</button>
+      <button id="confirm-ok" class="btn primary" style="flex:1;">확정</button>
+    </div>
+  </div>
+</div>
+
+<div id="option-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
+  <div class="content" style="background:#fff; padding:20px; border-radius:12px; width:90%; max-width:400px; color:#333;">
+    <h3 id="opt-menu-name">옵션 선택</h3>
+    <div id="opt-container" class="vstack" style="margin:15px 0;"></div>
+    <div class="hstack" style="gap:8px;">
+      <button id="opt-close" class="btn" style="flex:1;">취소</button>
+      <button id="opt-add-cart" class="btn primary" style="flex:1;">담기</button>
+    </div>
   </div>
 </div>
 
 <script type="module">
-import cart from '/src/order/assets/js/modules/cart.js';
-import { ensureStoreInitialized } from '/src/shared/store.js';
+  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+  import { currentStoreId, loadStoreInfo } from '/src/order/assets/js/modules/cust-store.js';
 
-const storeId = ensureStoreInitialized();
-window.qrnrStoreId = storeId;
+  const storeId = currentStoreId();
+  document.body.dataset.storeId = storeId;
 
-async function loadMenus() {
-  const r = await fetch(`/api/menus?storeId=${storeId}`);
-  const j = await r.json();
-  if (j.ok) cart.init(j.menus, 'total-price', 'menu-list');
-}
-loadMenus();
+  // 1. 초기화 (매장정보, 시간셀렉트, 메뉴/장바구니)
+  async function init() {
+    const info = await loadStoreInfo();
+    if (info) document.getElementById('store-name-display').textContent = info.name + " 예약";
 
-// 시간 옵션 생성 로직 (사장님 원본 유지)
-const hh = document.getElementById("time-hh");
-for(let i=1; i<=12; i++) hh.innerHTML += `<option>${i}</option>`;
-const mm = document.getElementById("time-mm");
-['00','15','30','45'].forEach(m => mm.innerHTML += `<option>${m}</option>`);
+    // 시간 셀렉트박스 채우기
+    const hh = document.getElementById("time-hh");
+    const mm = document.getElementById("time-mm");
+    for(let i=1; i<=12; i++) hh.innerHTML += `<option value="${i}">${i}시</option>`;
+    for(let i=0; i<60; i+=10) mm.innerHTML += `<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}분</option>`;
 
-document.getElementById("action-btn").onclick = async () => {
-  if (!cart.items.length) return alert("장바구니가 비어있습니다.");
-  
-  const payload = {
-    storeId,
-    type: 'reserve',
-    amount: cart.total(),
-    table: 'GUEST',
-    customer: {
-      name: document.getElementById("cust").value,
-      phone: document.getElementById("phone").value,
-      addr: document.getElementById("addr").value,
-      addrDetail: document.getElementById("addr-detail").value,
-      pw: document.getElementById("lookupPw").value
-    },
-    reserve: {
-      date: document.getElementById("date").value,
-      time: `${document.getElementById("time-ap").value} ${document.getElementById("time-hh").value}:${document.getElementById("time-mm").value}`,
-      memo: document.getElementById("memo").value
-    },
-    cart: cart.items
-  };
+    // 메뉴 및 장바구니 로드
+    const cart = makeCart('cart-box', 'total');
+    renderMenu('menu-grid', cart);
 
-  const r = await fetch('/api/orders', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if ((await r.json()).ok) document.getElementById("reserve-done-modal").style.display = "flex";
-};
+    // 예약 전송 버튼 이벤트
+    document.getElementById("action-btn").onclick = () => {
+      const items = cart.items;
+      if(!items.length) return alert("장바구니가 비어있습니다.");
+      
+      const addr1 = document.getElementById("addr").value.trim();
+      const cust = document.getElementById("cust").value.trim();
+      if(!addr1 || !cust) return alert("주소와 이름을 입력해주세요.");
 
-document.getElementById("reserve-done-ok").onclick = () => location.reload();
+      // 확인 모달 노출
+      document.getElementById("confirm-info").innerHTML = `
+        <div><b>주문자:</b> ${cust}</div>
+        <div><b>주소:</b> ${addr1}</div>
+        <div><b>메뉴:</b> ${items.map(i=>i.name).join(', ')}</div>
+      `;
+      document.getElementById("confirm-modal").style.display = "flex";
+    };
+
+    // 최종 확정 버튼
+    document.getElementById("confirm-ok").onclick = async () => {
+      await submitReserve(cart);
+    };
+
+    document.getElementById("confirm-cancel").onclick = () => {
+      document.getElementById("confirm-modal").style.display = "none";
+    };
+    
+    document.getElementById("reserve-done-ok").onclick = () => location.reload();
+  }
+
+  // 2. 서버 전송 로직 (핵심 수정)
+  async function submitReserve(cart) {
+    const addr1 = document.getElementById("addr").value.trim();
+    const addr2 = document.getElementById("addr-detail").value.trim();
+    const cust = document.getElementById("cust").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const memo = document.getElementById("memo").value.trim();
+    const pw = document.getElementById("lookupPw").value.trim();
+    const date = document.getElementById("date").value;
+    const ap = document.getElementById("time-ap").value;
+    const hh = document.getElementById("time-hh").value;
+    const mm = document.getElementById("time-mm").value;
+
+    const payload = {
+      storeId,
+      type: 'reserve',      // api/index.js 규격
+      amount: parseInt(document.getElementById("total").textContent.replace(/,/g,'')),
+      table: '예약',
+      cart: cart.items,     // items 대신 cart
+      customer: {
+        name: cust,
+        phone,
+        addr: addr2 ? `${addr1} ${addr2}` : addr1,
+        memo,
+        pw
+      },
+      reserve: {
+        date,
+        time: `${ap} ${hh}:${mm}`
+      }
+    };
+
+    try {
+      const r = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json();
+      if (j.ok) {
+        document.getElementById("confirm-modal").style.display = "none";
+        document.getElementById("reserve-done-modal").style.display = "flex";
+      } else {
+        alert("예약 실패: " + j.error);
+      }
+    } catch(e) {
+      alert("오류가 발생했습니다.");
+    }
+  }
+
+  init();
 </script>
 </body>
 </html>
