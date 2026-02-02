@@ -19,22 +19,31 @@ import { ADMIN_EVENTS } from '/src/shared/constants/adminEvents.js';
 let __isRendering = false;
 let __renderQueued = false;
 
-async function safeRenderAll() {
+// 인자값으로 type을 받도록 수정 (기본값은 'all'로 설정)
+async function safeRenderAll(type = 'all') {
   if (__isRendering) {
-    __renderQueued = true;
+    __renderQueued = type; // 어떤 타입을 렌더링하려 했는지 저장
     return;
   }
 
   __isRendering = true;
   try {
-    await renderStore();
-    await renderDeliv();
+    if (type === 'store') {
+      await renderStore();
+    } else if (type === 'reserve') {
+      await renderDeliv();
+    } else {
+      // type이 'all'이거나 없을 경우 둘 다 실행
+      await renderStore();
+      await renderDeliv();
+    }
   } finally {
     __isRendering = false;
 
     if (__renderQueued) {
+      const nextType = __renderQueued;
       __renderQueued = false;
-      await safeRenderAll();
+      await safeRenderAll(nextType);
     }
   }
 }
@@ -149,7 +158,7 @@ async function changeOrderStatus({ id, status, type }) {
 
     const data = await res.json();
     if (!data.ok) {
-      await safeRenderAll();
+      await safeRenderAll(type);
       throw new Error(data.error || 'STATUS_CHANGE_FAILED');
     }
 
@@ -172,7 +181,8 @@ async function changeOrderStatus({ id, status, type }) {
     unlockOrder(id);
   }
 
-  await safeRenderAll();
+  await safeRenderAll(type);
+  
 }
 
 // ===============================
@@ -197,7 +207,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
     })
   });
 
-  await safeRenderAll();
+  await safeRenderAll('store');
 }
 
 // ===============================
@@ -637,7 +647,7 @@ export function attachGlobalHandlers() {
     } catch (err) {
       if (err.message === 'ORDER_NOT_FOUND') {
         showToast('이미 삭제되었거나 처리된 주문입니다.', 'warning');
-        await safeRenderAll();
+        await safeRenderAll(type);
         return;
       }
       showToast('상태 변경에 실패했습니다. 네트워크를 확인하세요.', 'error');
@@ -727,7 +737,7 @@ export function attachGlobalHandlers() {
       showToast('결제 완료 처리 실패', 'error');
     } finally {
       unlockOrder(id);
-      await safeRenderAll();
+      await safeRenderAll(type);
     }
   });
 
@@ -774,7 +784,7 @@ export function attachGlobalHandlers() {
     if (msg.senderId === ADMIN_ID) return;
     if (msg.storeId !== window.qrnrStoreId) return;
     console.log('[ADMIN EVENT] order changed → reload');
-    await safeRenderAll();
+    await safeRenderAll(msg.orderType || 'all');;
   };
 })();
 
@@ -820,7 +830,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
     showToast('취소 처리에 실패했습니다.', 'error');
   } finally {
     unlockOrder(id);
-    await safeRenderAll();
+    await safeRenderAll(type);
   }
 });
 
