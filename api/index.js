@@ -13,19 +13,33 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
+        // getAuth를 더 튼튼하게 수정
     const getAuth = async () => {
         const cookie = req.headers.cookie || '';
-        const parts = cookie.split(';').reduce((acc, c) => {
-            const [key, val] = c.trim().split('=');
-            if(key) acc[key] = val;
-            return acc;
-        }, {});
-
-        const token = parts['super_token'] || parts['admin_token'];
+        const cookies = {};
+        cookie.split(';').forEach(item => {
+            const parts = item.trim().split('=');
+            if (parts.length >= 2) cookies[parts[0]] = parts[1];
+        });
+    
+        const token = cookies['super_token'] || cookies['admin_token'];
         if (!token) return null;
-        try { return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); } 
-        catch (e) { return null; }
+        try { 
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
+        } catch (e) { return null; }
     };
+    
+    // store-settings GET 로직 수정 (무한 로딩 방지)
+    if (pathname === '/api/store-settings' && method === 'GET') {
+        const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
+        const settings = r || {};
+        // 문자열로 저장된 JSON들을 객체로 풀어서 전달 (프론트엔드 요구사항)
+        if (settings.owner_bank) try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch(e){}
+        if (settings.notify_config) try { settings.notify_config = JSON.parse(settings.notify_config); } catch(e){}
+        if (settings.call_options) try { settings.call_options = JSON.parse(settings.call_options); } catch(e){}
+        
+        return json({ ok: true, settings }); 
+    }
 
     try {
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
