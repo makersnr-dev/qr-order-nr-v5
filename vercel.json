@@ -1,41 +1,21 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.js": {
+      "runtime": "vercel-nodejs@20"
+    }
+  },
   "rewrites": [
-    /* 1. API 관련: 모든 /api 요청을 index.js 하나로 통합 */
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-
-    /* 2. 관리자(Admin) 경로 */
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/admin", "destination": "/src/admin/index.html" },
     { "source": "/admin/login", "destination": "/src/admin/login.html" },
-    { "source": "/admin/orders", "destination": "/src/admin/orders.html" },
     { "source": "/admin/store-admin", "destination": "/src/public/index.html" },
-
-    /* 3. 손님(Order) 경로 */
-    { "source": "/order/select", "destination": "/src/order/select.html" },
     { "source": "/order/store", "destination": "/src/order/store.html" },
     { "source": "/order/delivery", "destination": "/src/order/delivery.html" },
     { "source": "/order/delivery-entry", "destination": "/src/order/delivery-entry.html" },
     { "source": "/order/delivery-guest", "destination": "/src/order/delivery-guest.html" },
     { "source": "/order/login", "destination": "/src/order/login.html" },
     { "source": "/order/mypage", "destination": "/src/order/mypage.html" },
-    { "source": "/order/reserve-success", "destination": "/src/order/reserve-success.html" },
-
-    /* 4. 공통/메인 경로 */
-    { "source": "/login", "destination": "/src/public/login.html" },
     { "source": "/", "destination": "/src/public/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    }
   ]
 }
