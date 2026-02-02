@@ -344,13 +344,15 @@ export default async function handler(req, res) {
 
                 const { id, kind, table, label, url, dataUrl } = req.body;
 
-                const storeInfo = await queryOne('SELECT qr_limit FROM stores WHERE store_id = $1', [storeId]);
+ 
+                const row = await queryOne('SELECT qr_limit FROM admin_stores WHERE store_id = $1 LIMIT 1', [storeId]); 
+                const storeInfo = { qr_limit: row?.qr_limit || 20 };
 
                 const currentCount = await queryOne('SELECT COUNT(*) as count FROM qr_codes WHERE store_id = $1', [storeId]);
 
                 const exists = await queryOne('SELECT id FROM qr_codes WHERE id = $1', [id]);
 
-                if (!exists && parseInt(currentCount.count) >= (storeInfo?.qr_limit || 10)) return json({ ok: false, message: `QR 한도 초과` }, 403);
+                if (!exists && parseInt(currentCount.count) >= storeInfo.qr_limit) return json({ ok: false, message: `QR 한도 초과` }, 403);
 
                 await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7, updated_at=NOW()`, [id, storeId, kind, table, label, url, dataUrl]);
 
