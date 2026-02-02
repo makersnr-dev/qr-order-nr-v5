@@ -8,7 +8,7 @@
   <style>
     .field-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; }
     .field-label { width: 80px; flex-shrink: 0; margin-top: 10px; }
-    .label-lookup { width: 80px; text-align: center; white-space: nowrap; margin-top: 10px; }
+    .label-lookup { width: 80px; white-space: nowrap; margin-top: 10px; }
     .date-field { position: relative; width: 180px; }
     .date-placeholder { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 14px; pointer-events: none; }
     .date-field input:not(:placeholder-shown) + .date-placeholder { opacity: 0; }
@@ -41,9 +41,9 @@
       <input id="memo" class="input" placeholder="주문용/배달용" style="flex:1;">
     </div>
 
-    <div class="field-row" style="border-top:1px solid #eee; padding-top:15px;">
+    <div class="field-row">
       <span class="label-lookup">조회비밀번호</span>
-      <input id="lookupPw" type="password" maxlength="4" class="input" placeholder="숫자 4자리" style="flex:1; text-align:center;">
+      <input id="lookupPw" type="password" maxlength="4" class="input" placeholder="숫자 4자리" style="flex:1;">
     </div>
     <div class="hstack" style="gap:8px; align-items:center;">
       <input type="checkbox" id="agree-privacy" style="width:20px; height:20px;">
