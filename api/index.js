@@ -1,281 +1,427 @@
-import { query, queryOne, transaction } from './_lib/db.js';
+import { query, queryOne } from './_lib/db.js';
+
 import { verifyJWT, signJWT } from '../src/shared/jwt.js';
 
-export const config = { runtime: 'nodejs' };
 
-// --- 헬퍼 함수: 응답/시간/토큰 추출 ---
-const json = (res, data, status = 200) => res.status(status).json(data);
-
-const getKSTDate = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString();
-
-async function getAuth(req) {
-    let token = null;
-    const auth = req.headers.authorization || "";
-    if (auth.startsWith("Bearer ")) token = auth.substring(7);
-    if (!token) {
-        const cookie = req.headers.cookie || "";
-        const match = cookie.match(/(admin_token|super_token)=([^;]+)/);
-        if (match) token = match[2];
-    }
-    if (!token && req.body?.token) token = req.body.token;
-    if (!token) return null;
-    return await verifyJWT(token, process.env.JWT_SECRET || "dev-secret");
-}
 
 export default async function handler(req, res) {
+
     const url = new URL(req.url, `http://${req.headers.host}`);
-    const path = url.pathname.replace('/api', '');
+
+    const pathname = url.pathname;
+
     const method = req.method;
-    const payload = await getAuth(req);
-    
-    // 권한 변수
-    const isSuper = payload?.realm === 'super' || payload?.role === 'super';
-    const contextStoreId = payload?.storeId;
+
+    const params = url.searchParams;
+
+    const storeId = params.get('storeId') || req.body?.storeId;
+
+
+
+    const json = (body, status = 200) => {
+
+        res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        return res.send(JSON.stringify(body));
+
+    };
+
+
+
+    // [수정] 쿠키 이름으로 토큰을 찾는 가장 안전한 방식
+
+    const getAuth = async () => {
+
+        const cookie = req.headers.cookie || '';
+
+        const cookies = {};
+
+        cookie.split(';').forEach(item => {
+
+            const parts = item.trim().split('=');
+
+            if (parts.length >= 2) cookies[parts[0]] = parts[1];
+
+        });
+
+
+
+        const token = cookies['super_token'] || cookies['admin_token'];
+
+        if (!token) return null;
+
+        try { 
+
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
+
+        } catch (e) { return null; }
+
+    };
+
+
 
     try {
-        switch (path) {
-                
-            // 1. [인증] 로그인 및 상태 확인 (login-admin, login-cust, super-login, me)
-            // --- [슈퍼 관리자 상태 확인 추가] ---
-            case '/super-me':
-                // getAuth를 통해 읽어온 payload(토큰 정보)가 있는지 확인
-                if (payload && (payload.realm === 'super' || payload.role === 'super')) {
-                    return json(res, { 
-                        ok: true, 
-                        isSuper: true, 
-                        superId: payload.uid 
-                    });
-                }
-                // 슈퍼 관리자가 아니거나 토큰이 없으면
-                return json(res, { ok: true, isSuper: false });
-                // --- [슈퍼 로그인 추가] ---
-            case '/super-login':
-                if (method !== 'POST') return json(res, { ok: false }, 405);
-                const { uid: sUid, pwd: sPwd } = req.body;
-                const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
-                const sFound = superAdmins.find(a => a.id === sUid && a.pw === sPwd);
-                if (!sFound) return json(res, { ok: false }, 401);
-                
-                // 24시간(86400초) 유효한 토큰 생성
-                const sToken = await signJWT({ role: "super", realm: "super", uid: sUid, name: sFound.name }, process.env.JWT_SECRET, 86400);
-                res.setHeader("Set-Cookie", `super_token=${sToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
-                return json(res, { ok: true });
-            // --- [매핑 관리 추가] ---
-            case '/admin-mappings':
-                if (!isSuper) return json(res, { ok: false }, 403);
-                if (method === 'GET') {
-                    const r = await query('SELECT * FROM admin_stores ORDER BY created_at DESC');
-                    return json(res, { ok: true, mappings: r.rows });
-                }
-                if (method === 'POST') {
-                    const { adminKey, storeId, note } = req.body;
-                    await query('INSERT INTO admin_stores (admin_key, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_key, store_id) DO UPDATE SET note=$3', [adminKey, storeId, note]);
-                    return json(res, { ok: true });
-                }
-                if (method === 'DELETE') {
-                    await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
-                    return json(res, { ok: true });
-                }
-                break;
-            case '/login-admin':
-                if (method !== 'POST') return json(res, { ok: false }, 405);
-                const { id, pw } = req.body;
-                const admins = JSON.parse(process.env.ADMIN_USERS_JSON || "[]");
-                const admin = admins.find(a => a.id === id && a.pw === pw);
-                if (!admin) return json(res, { ok: false, message: "Invalid credentials" }, 401);
-                
-                const mapping = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
-                if (!mapping) return json(res, { ok: false, message: "매장 연결 정보 없음" }, 403);
-                
-                const token = await signJWT({ role: "admin", realm: "admin", uid: id, storeId: mapping.store_id }, process.env.JWT_SECRET, 86400);
-                res.setHeader("Set-Cookie", `admin_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
-                return json(res, { ok: true, storeId: mapping.store_id });
 
-            case '/me':
-                if (!payload) return json(res, { ok: false, error: "NO_TOKEN" });
-                return json(res, { 
-                    ok: true, 
-                    realm: payload.realm === 'super' ? 'admin' : payload.realm, 
-                    storeId: contextStoreId, 
-                    uid: payload.uid, 
-                    name: payload.name || payload.uid,
-                    isSuper: isSuper 
-                });
+        // --- 0. 공통 및 테스트 ---
 
-            case '/logout-admin':
-            case '/super-logout':
-                res.setHeader("Set-Cookie", `${path.includes('super') ? 'super_token' : 'admin_token'}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
-                return json(res, { ok: true });
+        if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
 
-            // 2. [매장 관리] (stores.js) - Super 전용
-            case '/stores':
-                // --- [stores 케이스 보강] ---
-                if (method === 'GET') {
-                    const result = await query('SELECT * FROM stores ORDER BY created_at DESC');
-                    return json(res, { ok: true, stores: result.rows.reduce((acc, row) => ({ ...acc, [row.store_id]: { name: row.name, code: row.code } }), {}) });
-                }
-                // 아래부터는 슈퍼 관리자만 가능
-                if (!isSuper) return json(res, { ok: false, error: "FORBIDDEN" }, 403);
-                if (method === 'POST') {
-                    const { storeId, code, name } = req.body;
-                    await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3) ON CONFLICT (store_id) DO UPDATE SET name=$2, code=$3', [storeId, name, code.toUpperCase()]);
-                    return json(res, { ok: true });
-                }
-                if (method === 'DELETE') {
-                    await query('DELETE FROM stores WHERE store_id = $1', [req.body.storeId]);
-                    return json(res, { ok: true });
-                }
-                break;
+        if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9*60*60*1000) });
 
-            // 3. [메뉴] (menus.js)
-            case '/menus':
-                const mSid = req.query.storeId || contextStoreId;
-                if (method === 'GET') {
-                    const result = await query('SELECT menu_id as id, * FROM menus WHERE store_id = $1 ORDER BY display_order ASC', [mSid]);
-                    return json(res, { ok: true, menus: result.rows });
-                }
-                if (method === 'PUT') {
-                    const items = Array.isArray(req.body) ? req.body : [req.body];
-                    await transaction(async (client) => {
-                        for (const item of items) {
-                            await client.query(`
-                                INSERT INTO menus (store_id, menu_id, name, price, category, active, sold_out, img, description, options)
-                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                                ON CONFLICT (store_id, menu_id) DO UPDATE SET name=$3, price=$4, category=$5, active=$6, sold_out=$7, img=$8, description=$9, options=$10, updated_at=NOW()
-                            `, [mSid, item.id, item.name, item.price, item.category, item.active, item.soldOut, item.img, item.desc, JSON.stringify(item.options || [])]);
-                        }
-                    });
-                    return json(res, { ok: true });
-                }
-                if (method === 'DELETE') {
-                    await query('DELETE FROM menus WHERE store_id = $1 AND menu_id = $2', [mSid, req.query.menuId]);
-                    return json(res, { ok: true });
-                }
-                break;
+        if (pathname === '/api/config') return json({ tossClientKey: process.env.TOSS_CLIENT_KEY || "" });
 
-            // 4. [주문] (orders.js)
-            case '/orders':
-                const oSid = contextStoreId || req.query.storeId;
-                if (method === 'GET') {
-                    const { type, from, to } = req.query;
-                    let sql = 'SELECT * FROM orders WHERE store_id = $1';
-                    const params = [oSid];
-                    if (type) { sql += ' AND meta->>\'type\' = $2'; params.push(type); }
-                    sql += ' ORDER BY created_at DESC LIMIT 100';
-                    const result = await query(sql, params);
-                    return json(res, { ok: true, orders: result.rows });
-                }
-                if (method === 'POST') {
-                    const { amount, items, table, type, customer, reserve } = req.body;
-                    const orderNo = `${oSid}-${type || 'order'}-${Date.now()}`;
-                    await query('INSERT INTO orders (store_id, order_no, amount, table_no, status, meta) VALUES ($1, $2, $3, $4, $5, $6)', 
-                                [oSid, orderNo, amount, table, '주문접수', JSON.stringify({ items, customer, reserve, type, ts: Date.now() })]);
-                    return json(res, { ok: true, orderId: orderNo, status: '주문접수' });
-                }
-                if (method === 'PUT') {
-                    const { orderId, status, meta } = req.body;
-                    await query('UPDATE orders SET status = $1, meta = COALESCE($2, meta), updated_at = NOW() WHERE store_id = $3 AND order_no = $4', [status, meta ? JSON.stringify(meta) : null, oSid, orderId]);
-                    return json(res, { ok: true });
-                }
-                break;
 
-            // 5. [QR 코드] (qrcodes.js)
-            case '/qrcodes':
-                const qSid = req.query.storeId || contextStoreId;
-                if (method === 'GET') {
-                    const result = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1 ORDER BY table_no ASC', [qSid]);
-                    return json(res, { ok: true, list: result.rows });
-                }
-                if (method === 'PUT') {
-                    const { id, kind, table, label, url: qUrl, dataUrl } = req.body;
-                    const storeInfo = await queryOne('SELECT qr_limit FROM stores WHERE store_id = $1', [qSid]);
-                    const currentCount = await queryOne('SELECT count(*) as cnt FROM qr_codes WHERE store_id = $1', [qSid]);
-                    const exists = await queryOne('SELECT id FROM qr_codes WHERE id = $1', [id]);
-                    if (!exists && parseInt(currentCount.cnt) >= (storeInfo?.qr_limit || 10)) {
-                        return json(res, { ok: false, error: "LIMIT_EXCEEDED", message: `최대 ${storeInfo?.qr_limit || 10}개까지만 가능합니다.` }, 403);
-                    }
-                    await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url) VALUES ($1, $2, $3, $4, $5, $6, $7)
-                                 ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7, updated_at=NOW()`, [id, qSid, kind, table, label, qUrl, dataUrl]);
-                    return json(res, { ok: true });
-                }
-                break;
 
-            // 6. [직원 호출] (call.js)
-            case '/call':
-                const cSid = req.query.storeId || contextStoreId;
-                if (method === 'GET') {
-                    const result = await query('SELECT id, table_no as table, message, status, created_at as ts FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100', [cSid]);
-                    return json(res, { ok: true, logs: result.rows });
-                }
-                if (method === 'POST') {
-                    const { table, note } = req.body;
-                    await query('INSERT INTO call_logs (store_id, table_no, message, status) VALUES ($1, $2, $3, $4)', [cSid, table, note || '직원 호출', '대기']);
-                    return json(res, { ok: true });
-                }
-                if (method === 'PUT') {
-                    await query('UPDATE call_logs SET status = $1 WHERE id = $2', [req.body.status, req.body.id]);
-                    return json(res, { ok: true });
-                }
-                break;
+        // --- 1. 슈퍼 관리자 전용 ---
 
-            // 7. [기타 설정] (payment-code, store-settings, policy, privacy)
-            case '/payment-code':
-                const pSid = req.query.storeId || contextStoreId;
-                const today = getKSTDate().slice(0, 10);
-                if (method === 'GET') {
-                    let data = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [pSid, today]);
-                    if (!data) {
-                        const newCode = String(Math.floor(1000 + Math.random() * 9000));
-                        await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [pSid, today, newCode]);
-                        data = { code: newCode };
-                    }
-                    return json(res, { ok: true, code: data.code, date: today });
-                }
-                if (method === 'POST') {
-                    const newCode = String(Math.floor(1000 + Math.random() * 9000));
-                    await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT (store_id, date) DO UPDATE SET code = EXCLUDED.code', [pSid, today, newCode]);
-                    return json(res, { ok: true, code: newCode, date: today });
-                }
-                break;
+        if (pathname === '/api/super-login') {
 
-            case '/store-settings':
-                const sSid = req.query.storeId || contextStoreId;
-                // --- [기존 GET 로직을 아래 내용으로 교체] ---
-                if (method === 'GET') {
-                    const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [sSid]);
-                    const settings = r || {};
-                    
-                    // DB에서 꺼낸 문자열들을 '객체'로 변환해주는 도구
-                    const parse = (val) => {
-                        if (!val) return null;
-                        try { return typeof val === 'string' ? JSON.parse(val) : val; } 
-                        catch(e) { return null; }
-                    };
-                
-                    return json(res, { 
-                        ok: true, 
-                        settings: {
-                            ...settings,
-                            owner_bank: parse(settings.owner_bank),     // 계좌정보 객체화
-                            notify_config: parse(settings.notify_config), // 알림설정 객체화
-                            call_options: parse(settings.call_options)   // 호출항목 배열화
-                        } 
-                    });
-                }
-                if (method === 'PUT') {
-                    const { ownerBank, notifyConfig, callOptions } = req.body;
-                    await query(`INSERT INTO store_settings (store_id, owner_bank, notify_config, call_options) VALUES ($1, $2, $3, $4)
-                                 ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), notify_config=COALESCE($3, store_settings.notify_config), call_options=COALESCE($4, store_settings.call_options), updated_at=NOW()`,
-                                [sSid, JSON.stringify(ownerBank), JSON.stringify(notifyConfig), JSON.stringify(callOptions)]);
-                    return json(res, { ok: true });
-                }
-                break;
+            const { uid, pwd } = req.body;
 
-            default:
-                return json(res, { ok: false, error: "NOT_FOUND", path }, 404);
+            const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
+
+            const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
+
+            if (found) {
+
+                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret');
+
+                res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400`);
+
+                return json({ ok: true });
+
+            }
+
+            return json({ ok: false }, 401);
+
         }
+
+        if (pathname === '/api/super-me') {
+
+            const auth = await getAuth();
+
+            return auth?.realm === 'super' ? json({ ok: true, isSuper: true, superId: auth.uid }) : json({ ok: false }, 401);
+
+        }
+
+        if (pathname === '/api/super-logout') {
+
+            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly`);
+
+            return json({ ok: true });
+
+        }
+
+        if (pathname === '/api/stores' || pathname === '/api/admin-mappings') {
+
+            const auth = await getAuth();
+
+            if (pathname === '/api/stores' && method === 'GET') {
+
+                const r = await query('SELECT store_id, name, code FROM stores ORDER BY created_at DESC');
+
+                const stores = {}; r.rows.forEach(s => stores[s.store_id] = { name: s.name, code: s.code });
+
+                return json({ ok: true, stores });
+
+            }
+
+            if (auth?.realm !== 'super') return json({ ok: false }, 403);
+
+            if (method === 'GET') {
+
+                const r = await query('SELECT * FROM admin_stores ORDER BY created_at DESC');
+
+                return json({ ok: true, mappings: r.rows || [] });
+
+            }
+
+            if (method === 'DELETE') {
+
+                if (pathname === '/api/admin-mappings') await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
+
+                else await query('DELETE FROM stores WHERE store_id = $1', [req.body.storeId]);
+
+                return json({ ok: true });
+
+            }
+
+            if (pathname === '/api/stores') {
+
+                await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3) ON CONFLICT (store_id) DO UPDATE SET name=$2, code=$3', [req.body.storeId, req.body.name, req.body.code]);
+
+            } else {
+
+                await query('INSERT INTO admin_stores (admin_key, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_key, store_id) DO UPDATE SET note=$3', [req.body.adminKey, req.body.storeId, req.body.note]);
+
+            }
+
+            return json({ ok: true });
+
+        }
+
+
+
+        // --- 2. 매장 설정 (최소 수정: 빈 데이터 및 JSON Parse 대응) ---
+
+        if (pathname === '/api/store-settings') {
+
+            if (method === 'GET') {
+
+                const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
+
+                const settings = r || {};
+
+                if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch(e){}
+
+                if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch(e){}
+
+                if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch(e){}
+
+                return json({ ok: true, settings }); 
+
+            }
+
+            if (method === 'PUT') {
+
+                const { ownerBank, privacyPolicy, notifyConfig, callOptions } = req.body;
+
+                const b = ownerBank ? JSON.stringify(ownerBank) : null;
+
+                const n = notifyConfig ? JSON.stringify(notifyConfig) : null;
+
+                const c = callOptions ? JSON.stringify(callOptions) : null;
+
+                await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) 
+
+                             ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), privacy_policy=COALESCE($3, store_settings.privacy_policy), notify_config=COALESCE($4, store_settings.notify_config), call_options=COALESCE($5, store_settings.call_options)`, 
+
+                             [storeId, b, privacyPolicy, n, c]);
+
+                return json({ ok: true });
+
+            }
+
+        }
+
+
+
+        // --- 3. 메뉴 관리 ---
+
+        if (pathname === '/api/menus') {
+
+            if (method === 'GET') {
+
+                const r = await query('SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", img, description as desc, options FROM menus WHERE store_id = $1 ORDER BY display_order ASC', [storeId]);
+
+                return json({ ok: true, menus: r.rows || [] });
+
+            }
+
+            if (method === 'PUT') {
+
+                const items = Array.isArray(req.body) ? req.body : [req.body];
+
+                for (const m of items) {
+
+                    await query(`INSERT INTO menus (store_id, menu_id, name, price, category, active, sold_out, img, description, options) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (store_id, menu_id) DO UPDATE SET name=$3, price=$4, category=$5, active=$6, sold_out=$7, img=$8, description=$9, options=$10`, [storeId, m.id, m.name, m.price, m.category, m.active, m.soldOut, m.img, m.desc, JSON.stringify(m.options || [])]);
+
+                }
+
+                return json({ ok: true });
+
+            }
+
+        }
+
+
+
+        // --- 4. 주문 관리 ---
+
+        if (pathname === '/api/orders') {
+
+            if (method === 'GET') {
+
+                const type = params.get('type');
+
+                const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
+
+                return json({ ok: true, orders: r.rows.map(row => ({ ...row, orderId: row.order_no, cart: row.meta?.cart, customer: row.meta?.customer, reserve: row.meta?.reserve })) || [] });
+
+            }
+
+            if (method === 'POST') {
+
+                const { type, table, cart, amount, customer, reserve } = req.body;
+
+                const orderNo = `${storeId}-${type}-${Date.now()}`;
+
+                await query('INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, JSON.stringify({ customer, reserve, cart, type, ts: Date.now() })]);
+
+                if (Array.isArray(cart)) {
+
+                    for (const item of cart) {
+
+                        await query('INSERT INTO order_items (order_no, name, qty, unit_price, options) VALUES ($1, $2, $3, $4, $5)', [orderNo, item.name, item.qty, item.price || 0, JSON.stringify(item.options || [])]);
+
+                    }
+
+                }
+
+                return json({ ok: true, orderId: orderNo });
+
+            }
+
+            if (method === 'PUT') {
+
+                const { orderId, status, meta } = req.body;
+
+                await query('UPDATE orders SET status = COALESCE($1, status), meta = meta || $2::jsonb WHERE order_no = $3', [status, JSON.stringify(meta || {}), orderId]);
+
+                return json({ ok: true });
+
+            }
+
+        }
+
+
+
+        // --- 5. 호출 관리 ---
+
+        if (pathname === '/api/call') {
+
+            if (method === 'GET') {
+
+                const r = await query('SELECT id, table_no as "table", message, status, created_at as ts FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 50', [storeId]);
+
+                return json({ ok: true, logs: r.rows || [] });
+
+            }
+
+            if (method === 'POST') {
+
+                await query('INSERT INTO call_logs (store_id, table_no, message, status) VALUES ($1, $2, $3, \'대기\')', [storeId, req.body.table, req.body.note]);
+
+                return json({ ok: true });
+
+            }
+
+            if (method === 'PUT') {
+
+                await query('UPDATE call_logs SET status = $1 WHERE id = $2', [req.body.status, req.body.id]);
+
+                return json({ ok: true });
+
+            }
+
+        }
+
+
+
+        // --- 6. 결제코드 및 QR 관리 ---
+
+        if (pathname === '/api/payment-code') {
+
+            const today = new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
+
+            let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+
+            if (!codeRow) {
+
+                const newCode = String(Math.floor(1000 + Math.random() * 9000));
+
+                await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [storeId, today, newCode]);
+
+                codeRow = { code: newCode };
+
+            }
+
+            return json({ ok: true, code: codeRow.code, date: today });
+
+        }
+
+        if (pathname === '/api/qrcodes') {
+
+            if (method === 'GET') {
+
+                const r = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
+
+                return json({ ok: true, list: r.rows || [] });
+
+            }
+
+            if (method === 'PUT') {
+
+                const { id, kind, table, label, url, dataUrl } = req.body;
+
+                const storeInfo = await queryOne('SELECT qr_limit FROM stores WHERE store_id = $1', [storeId]);
+
+                const currentCount = await queryOne('SELECT COUNT(*) as count FROM qr_codes WHERE store_id = $1', [storeId]);
+
+                const exists = await queryOne('SELECT id FROM qr_codes WHERE id = $1', [id]);
+
+                if (!exists && parseInt(currentCount.count) >= (storeInfo?.qr_limit || 10)) return json({ ok: false, message: `QR 한도 초과` }, 403);
+
+                await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7, updated_at=NOW()`, [id, storeId, kind, table, label, url, dataUrl]);
+
+                return json({ ok: true });
+
+            }
+
+            if (method === 'DELETE') {
+
+                const qrId = params.get('id');
+
+                await query('DELETE FROM qr_codes WHERE id = $1 AND store_id = $2', [qrId, storeId]);
+
+                return json({ ok: true });
+
+            }
+
+        }
+
+
+
+        // --- 7. 일반 관리자 로그인 및 인증 ---
+
+        if (pathname === '/api/login-admin') {
+
+            const { id, pw } = req.body;
+
+            const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
+
+            const found = admins.find(a => a.id === id && a.pw === pw);
+
+            if (!found) return json({ ok: false }, 401);
+
+            const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
+
+            const token = await signJWT({ realm: 'admin', uid: id, storeId: map?.store_id || 'store1' }, process.env.JWT_SECRET || 'dev-secret');
+
+            res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400`);
+
+            return json({ ok: true, storeId: map?.store_id || 'store1' });
+
+        }
+
+        if (pathname === '/api/me' || pathname === '/api/verify') {
+
+            const auth = await getAuth();
+
+            return auth ? json({ ok: true, ...auth }) : json({ ok: false }, 401);
+
+        }
+
+
+
+        return json({ error: 'NOT_FOUND', path: pathname }, 404);
+
     } catch (e) {
-        console.error(`[Error at ${path}]`, e);
-        return json(res, { ok: false, error: "SERVER_ERROR", message: e.message }, 500);
+
+        console.error(e);
+
+        return json({ ok: false, error: e.message }, 500);
+
     }
+
 }
