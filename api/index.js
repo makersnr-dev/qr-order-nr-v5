@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     const getAuth = async () => {
         const cookie = req.headers.cookie || '';
-        const token = cookie.match(/(admin_token|super_token)=([^;]+)/)?.[2];
+        const token = cookie.match(/(admin_token|super_token)=([^;]+)/)?.[1];
         if (!token) return null;
         try { return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); } 
         catch { return null; }
