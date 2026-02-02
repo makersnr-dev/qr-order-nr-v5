@@ -58,20 +58,19 @@ export default async function handler(req, res) {
         // --- 2. [Super Admin 전용] 슈퍼 로그인/로그아웃 ---
         if (pathname === '/api/super-login') {
             const { uid, pwd } = req.body;
-            if (uid === process.env.SUPER_ID && pwd === process.env.SUPER_PW) {
+            
+            // 환경변수에 저장된 JSON 뭉치를 읽어옵니다.
+            const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
+            
+            // 입력한 정보가 JSON 안에 있는지 확인합니다.
+            const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
+            
+            if (found) {
                 const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret');
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400`);
                 return json({ ok: true });
             }
-            return json({ ok: false }, 401);
-        }
-        if (pathname === '/api/super-me') {
-            const auth = await getAuth();
-            return auth?.realm === 'super' ? json({ ok: true, isSuper: true, superId: auth.uid }) : json({ ok: false }, 401);
-        }
-        if (pathname === '/api/super-logout') {
-            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0`);
-            return json({ ok: true });
+            return json({ ok: false, message: '아이디 또는 비밀번호가 틀립니다.' }, 401);
         }
 
         // --- 3. 매장 설정 (store-settings) ---
