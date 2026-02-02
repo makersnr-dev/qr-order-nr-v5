@@ -103,7 +103,7 @@
 
 <script type="module">
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
-  import { get, patch } from '/src/order/assets/js/modules/cust-store.js';
+  import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
   import { getPaymentCode } from '/src/admin/assets/js/modules/store.js';
 
