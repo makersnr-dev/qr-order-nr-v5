@@ -72,6 +72,18 @@ export default async function handler(req, res) {
             }
             return json({ ok: false, message: '아이디 또는 비밀번호가 틀립니다.' }, 401);
         }
+        if (pathname === '/api/super-me') {
+            const auth = await getAuth();
+            if (auth?.realm === 'super') {
+                return json({ ok: true, isSuper: true, superId: auth.uid });
+            }
+            return json({ ok: false }, 401);
+        }
+
+        if (pathname === '/api/super-logout') {
+            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly`);
+            return json({ ok: true });
+        }
 
         // --- 3. 매장 설정 (store-settings) ---
         if (pathname === '/api/store-settings') {
