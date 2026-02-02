@@ -15,6 +15,7 @@
             flex-direction: column;
             justify-content: center;
             text-align: center;
+            color: #fff;
         }
         .store-logo {
             width: 80px;
@@ -30,17 +31,19 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
         .entry-card {
-            background: #111922;
+            background: #1c2632;
             padding: 24px;
             border-radius: 20px;
             border: 1px solid #263241;
             margin-bottom: 16px;
             cursor: pointer;
             transition: transform 0.2s;
+            color: #fff;
         }
         .entry-card:active {
             transform: scale(0.98);
         }
+        .entry-card p { color: #9ca3af; }
     </style>
 </head>
 <body>
@@ -62,9 +65,7 @@
         </div>
     </div>
 
-    <div style="margin-top: 40px;">
-        <a href="javascript:history.back()" class="small" style="color: var(--muted); text-decoration: none;">뒤로가기</a>
-    </div>
+   
 </div>
 
 <script type="module">
@@ -83,7 +84,7 @@
             storeNameEl.textContent = info.name;
             
             if (info.active) {
-                storeStatusEl.innerHTML = '<span style="color:#2ea043">●</span> 영업 중입니다.';
+                storeStatusEl.innerHTML = '**<span style="color:#2ea043">●</span>** 영업 중입니다.';
             } else {
                 storeStatusEl.innerHTML = '<span style="color:#ef4444">●</span> 지금은 영업 준비 중입니다.';
                 // 영업 중이 아닐 때 버튼 비활성화 시키려면 아래 주석 해제
