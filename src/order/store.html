@@ -105,7 +105,7 @@
   import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
   import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
-  import { getPaymentCode } from '/src/admin/assets/js/modules/store.js';
+ 
 
   // 1. 직원 호출 쿨타임 로직 (사장님 원본 유지)
   const CALL_COOLDOWN_SEC = 10;
@@ -195,7 +195,7 @@
   document.getElementById('confirm-ok').onclick = async () => {
     const payload = {
       storeId,
-      orderType: 'store',
+      type: 'store',
       table: document.getElementById('tableNo').value,
       amount: cart.total(),
       cart: cart.items
