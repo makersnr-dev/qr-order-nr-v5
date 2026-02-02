@@ -36,6 +36,18 @@ export default async function handler(req, res) {
         switch (path) {
                 
             // 1. [인증] 로그인 및 상태 확인 (login-admin, login-cust, super-login, me)
+            // --- [슈퍼 관리자 상태 확인 추가] ---
+            case '/super-me':
+                // getAuth를 통해 읽어온 payload(토큰 정보)가 있는지 확인
+                if (payload && (payload.realm === 'super' || payload.role === 'super')) {
+                    return json(res, { 
+                        ok: true, 
+                        isSuper: true, 
+                        superId: payload.uid 
+                    });
+                }
+                // 슈퍼 관리자가 아니거나 토큰이 없으면
+                return json(res, { ok: true, isSuper: false });
                 // --- [슈퍼 로그인 추가] ---
             case '/super-login':
                 if (method !== 'POST') return json(res, { ok: false }, 405);
@@ -97,14 +109,20 @@ export default async function handler(req, res) {
 
             // 2. [매장 관리] (stores.js) - Super 전용
             case '/stores':
-                if (!isSuper) return json(res, { ok: false, error: "FORBIDDEN" }, 403);
+                // --- [stores 케이스 보강] ---
                 if (method === 'GET') {
                     const result = await query('SELECT * FROM stores ORDER BY created_at DESC');
                     return json(res, { ok: true, stores: result.rows.reduce((acc, row) => ({ ...acc, [row.store_id]: { name: row.name, code: row.code } }), {}) });
                 }
+                // 아래부터는 슈퍼 관리자만 가능
+                if (!isSuper) return json(res, { ok: false, error: "FORBIDDEN" }, 403);
                 if (method === 'POST') {
                     const { storeId, code, name } = req.body;
-                    await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3)', [storeId, name, code.toUpperCase()]);
+                    await query('INSERT INTO stores (store_id, name, code) VALUES ($1, $2, $3) ON CONFLICT (store_id) DO UPDATE SET name=$2, code=$3', [storeId, name, code.toUpperCase()]);
+                    return json(res, { ok: true });
+                }
+                if (method === 'DELETE') {
+                    await query('DELETE FROM stores WHERE store_id = $1', [req.body.storeId]);
                     return json(res, { ok: true });
                 }
                 break;
@@ -222,26 +240,25 @@ export default async function handler(req, res) {
 
             case '/store-settings':
                 const sSid = req.query.storeId || contextStoreId;
+                // --- [기존 GET 로직을 아래 내용으로 교체] ---
                 if (method === 'GET') {
-                    const result = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [sSid]);
+                    const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [sSid]);
+                    const settings = r || {};
                     
-                    // 1. 데이터가 없으면 빈 그릇이라도 만듭니다.
-                    const settings = result || {};
-            
-                    // 2. 글자 뭉치로 저장된 데이터를 '진짜 객체'로 풀어주는 함수입니다.
+                    // DB에서 꺼낸 문자열들을 '객체'로 변환해주는 도구
                     const parse = (val) => {
-                        if(!val) return null;
-                        return typeof val === 'string' ? JSON.parse(val) : val;
+                        if (!val) return null;
+                        try { return typeof val === 'string' ? JSON.parse(val) : val; } 
+                        catch(e) { return null; }
                     };
-            
-                    // 3. 풀어서 정리한 데이터를 화면에 보내줍니다.
+                
                     return json(res, { 
                         ok: true, 
                         settings: {
                             ...settings,
-                            owner_bank: parse(settings.owner_bank),   // 글자를 객체로 변환
-                            notify_config: parse(settings.notify_config), // 글자를 객체로 변환
-                            call_options: parse(settings.call_options)   // 글자를 배열로 변환
+                            owner_bank: parse(settings.owner_bank),     // 계좌정보 객체화
+                            notify_config: parse(settings.notify_config), // 알림설정 객체화
+                            call_options: parse(settings.call_options)   // 호출항목 배열화
                         } 
                     });
                 }
