@@ -180,6 +180,33 @@ export default async function handler(req, res) {
             return json({ ok: true, code: codeRow.code, date: today });
         }
 
+        // --- 6. QR 코드 관리 (qrcodes) ---
+        if (pathname === '/api/qrcodes') {
+            if (method === 'GET') {
+                const r = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1', [storeId]);
+                return json({ ok: true, list: r.rows });
+            }
+            if (method === 'PUT') {
+                const { id, kind, table, label, url, dataUrl } = req.body;
+                // 🚀 사장님 매장당 QR 개수 제한 로직 (필요시 추가)
+                await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url) 
+                             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+                             ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7`, 
+                             [id, storeId, kind, table, label, url, dataUrl]);
+                return json({ ok: true });
+            }
+            if (method === 'DELETE') {
+                const id = params.get('id');
+                const kind = params.get('kind');
+                if (id) {
+                    await query('DELETE FROM qr_codes WHERE id = $1', [id]);
+                } else if (kind) {
+                    await query('DELETE FROM qr_codes WHERE store_id = $1 AND kind = $2', [storeId, kind]);
+                }
+                return json({ ok: true });
+            }
+        }
+
         return json({ error: 'NOT_FOUND' }, 404);
     } catch (e) {
         console.error(e);
