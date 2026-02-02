@@ -15,18 +15,30 @@ export default async function handler(req, res) {
     };
 
     const getAuth = async () => {
-        const cookie = req.headers.cookie || '';
-        const cookies = {};
-        cookie.split(';').forEach(item => {
-            const parts = item.trim().split('=');
-            if (parts.length >= 2) cookies[parts[0]] = parts[1];
-        });
-        const token = cookies['super_token'] || cookies['admin_token'];
-        if (!token) return null;
-        try {
-            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
-        } catch (e) { return null; }
-    };
+    const cookieHeader = req.headers.cookie || '';
+    const cookies = Object.fromEntries(
+        cookieHeader.split(';').map(c => {
+            const [key, ...v] = c.trim().split('=');
+            return [key, v.join('=')];
+        })
+    );
+
+    // 우선순위: 슈퍼토큰 > 관리자토큰
+    const token = cookies['super_token'] || cookies['admin_token'];
+    
+    if (!token) return null;
+
+    try {
+        // 토큰 검증 (JWT_SECRET 환경변수 확인 필수)
+        const decoded = await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
+        if (!decoded) return null;
+        
+        return decoded;
+    } catch (e) {
+        console.error('[Auth Error]', e.message);
+        return null;
+    }
+};
 
     try {
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
@@ -369,33 +381,39 @@ export default async function handler(req, res) {
 
         // --- 7. 일반 관리자 로그인 및 인증 ---
 
-        if (pathname === '/api/login-admin') {
+        // /api/login-admin 처리 부분 수정
+if (pathname === '/api/login-admin') {
+    const { id, pw } = req.body;
+    const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
+    const found = admins.find(a => a.id === id && a.pw === pw);
 
-            const { id, pw } = req.body;
+    if (!found) return json({ ok: false, message: '로그인 정보가 틀렸습니다.' }, 401);
 
-            const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
+    const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
+    const storeId = map?.store_id || 'store1';
 
-            const found = admins.find(a => a.id === id && a.pw === pw);
+    const token = await signJWT(
+        { realm: 'admin', uid: id, storeId: storeId }, 
+        process.env.JWT_SECRET || 'dev-secret',
+        86400 // 24시간
+    );
 
-            if (!found) return json({ ok: false }, 401);
+    // 쿠키 옵션 보강 (SameSite, Path 설정 중요)
+    res.setHeader('Set-Cookie', [
+        `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`,
+        `qrnr.storeId=${storeId}; Path=/; Max-Age=86400; SameSite=Lax`
+    ]);
 
-            const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
-
-            const token = await signJWT({ realm: 'admin', uid: id, storeId: map?.store_id || 'store1' }, process.env.JWT_SECRET || 'dev-secret');
-
-            res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400`);
-
-            return json({ ok: true, storeId: map?.store_id || 'store1' });
-
-        }
+    return json({ ok: true, storeId });
+}
 
         if (pathname === '/api/me' || pathname === '/api/verify') {
-
-            const auth = await getAuth();
-
-            return auth ? json({ ok: true, ...auth }) : json({ ok: false }, 401);
-
-        }
+    const auth = await getAuth();
+    if (!auth) {
+        return json({ ok: false, message: '인증되지 않은 사용자입니다.' }, 401);
+    }
+    return json({ ok: true, ...auth });
+}
 
        return json({ error: 'NOT_FOUND', path: pathname }, 404);
     } catch (e) {
