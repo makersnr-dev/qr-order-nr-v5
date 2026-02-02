@@ -22,47 +22,76 @@ export default async function handler(req, res) {
         });
         const token = cookies['super_token'] || cookies['admin_token'];
         if (!token) return null;
-        try { return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); } 
-        catch (e) { return null; }
+        try { 
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
+        } catch (e) { return null; }
     };
 
     try {
-        // --- [기능 1] 매장 설정 조회 (GET) ---
-        // 이 부분이 mybank.js와 policy.js의 '...'을 지워줍니다.
-        if (pathname === '/api/store-settings' && method === 'GET') {
-            const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
+        // --- 0. 기초 연결 및 인증 확인 ---
+        if (pathname === '/api/test') return json({ ok: true, message: "2단계: 로그인 로직 추가됨" });
+        
+        if (pathname === '/api/me' || pathname === '/api/verify') {
+            const auth = await getAuth();
+            return auth ? json({ ok: true, ...auth }) : json({ ok: false }, 401);
+        }
+
+        // --- 1. 일반 관리자 로그인 (login.html 대응) ---
+        if (pathname === '/api/login-admin' && method === 'POST') {
+            const { id, pw } = req.body;
+            const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
+            const found = admins.find(a => a.id === id && a.pw === pw);
             
-            // 데이터가 아예 없을 때 보낼 "완벽한 빈 그릇"
-            const settings = r || {
-                owner_bank: { bank: '', number: '', holder: '' },
-                privacy_policy: '',
-                notify_config: { useBeep: true, beepVolume: 0.7, desktop: true },
-                call_options: ['물/수저 요청', '테이블 정리', '주문 문의']
-            };
-
-            // DB가 문자열(JSON)로 갖고 있다면 객체로 풀어서 보냄 (안 풀면 프론트에서 에러나서 ... 뜸)
-            if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch(e){}
-            if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch(e){}
-            if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch(e){}
-
-            return json({ ok: true, settings });
+            if (!found) return json({ ok: false, message: "아이디 또는 비밀번호가 틀렸습니다." }, 401);
+            
+            // DB에서 매장 매핑 정보 가져오기
+            const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
+            const finalStoreId = map?.store_id || 'store1';
+            
+            const token = await signJWT({ realm: 'admin', uid: id, storeId: finalStoreId }, process.env.JWT_SECRET || 'dev-secret');
+            res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
+            
+            return json({ ok: true, storeId: finalStoreId });
         }
 
-        // --- [기능 2] 매장 설정 저장 (PUT) ---
-        if (pathname === '/api/store-settings' && method === 'PUT') {
-            const { ownerBank, privacyPolicy, notifyConfig, callOptions } = req.body;
-            await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) 
-                         ON CONFLICT (store_id) DO UPDATE SET 
-                         owner_bank=COALESCE($2, store_settings.owner_bank), 
-                         privacy_policy=COALESCE($3, store_settings.privacy_policy), 
-                         notify_config=COALESCE($4, store_settings.notify_config), 
-                         call_options=COALESCE($5, store_settings.call_options)`, 
-                         [storeId, ownerBank ? JSON.stringify(ownerBank) : null, privacyPolicy, notifyConfig ? JSON.stringify(notifyConfig) : null, callOptions ? JSON.stringify(callOptions) : null]);
-            return json({ ok: true });
-        }
+        // --- 2. 매장 설정 조회/저장 (mybank.js, policy.js 대응) ---
+        if (pathname === '/api/store-settings') {
+            if (method === 'GET') {
+                const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
+                
+                const defaultSettings = {
+                    owner_bank: { bank: '', number: '', holder: '' },
+                    privacy_policy: '',
+                    notify_config: { useBeep: true, beepVolume: 0.7, desktop: true },
+                    call_options: ['물/수저 요청', '테이블 정리', '주문 문의']
+                };
 
-        // --- 기초 연결 확인 ---
-        if (pathname === '/api/test') return json({ ok: true, message: "1단계 로직 작동 중" });
+                const settings = r || defaultSettings;
+
+                // JSON 문자열 자동 파싱
+                if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch(e){}
+                if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch(e){}
+                if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch(e){}
+
+                return json({ ok: true, settings });
+            }
+            
+            if (method === 'PUT') {
+                const { ownerBank, privacyPolicy, notifyConfig, callOptions } = req.body;
+                const b = ownerBank ? JSON.stringify(ownerBank) : null;
+                const n = notifyConfig ? JSON.stringify(notifyConfig) : null;
+                const c = callOptions ? JSON.stringify(callOptions) : null;
+
+                await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) 
+                             ON CONFLICT (store_id) DO UPDATE SET 
+                             owner_bank=COALESCE($2, store_settings.owner_bank), 
+                             privacy_policy=COALESCE($3, store_settings.privacy_policy), 
+                             notify_config=COALESCE($4, store_settings.notify_config), 
+                             call_options=COALESCE($5, store_settings.call_options)`, 
+                             [storeId, b, privacyPolicy, n, c]);
+                return json({ ok: true });
+            }
+        }
 
         return json({ error: 'NOT_FOUND', path: pathname }, 404);
     } catch (e) {
