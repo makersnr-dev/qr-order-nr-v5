@@ -604,18 +604,29 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
         document.getElementById("bank-text").textContent = "계좌 정보를 불러올 수 없습니다.";
     }
 
-  /* -------- 개인정보 보기 -------- */
-  const modal = document.getElementById("privacy-modal");
-  document.getElementById("privacy-open").onclick = () => {
-    const t =
-      get(["admin", "privacyPolicy", storeId]) ||
-      get(["admin", "privacyPolicy"]) ||
-      "관리자에서 개인정보 처리방침이 등록되지 않았습니다.";
-    document.getElementById("privacy-modal-body").textContent = t;
+ /* -------- 개인정보 보기 (DB 연동 버전) -------- */
+const modal = document.getElementById("privacy-modal");
+document.getElementById("privacy-open").onclick = async () => {
+  try {
+    // 1. 서버에서 해당 매장의 설정값(방침 포함)을 가져옴
+    const res = await fetch(`/api/store-settings?storeId=${storeId}`);
+    const data = await res.json();
+    
+    // 2. DB에 저장된 방침이 있으면 출력, 없으면 기본 안내 문구 출력
+    const policyText = data.ok && data.settings?.privacy_policy 
+      ? data.settings.privacy_policy 
+      : "등록된 개인정보 처리방침이 없습니다. 관리자에게 문의하세요.";
+
+    document.getElementById("privacy-modal-body").textContent = policyText;
     modal.style.display = "flex";
-  };
-  document.getElementById("privacy-close").onclick = () =>
-    modal.style.display = "none";
+  } catch (e) {
+    console.error("방침 로드 실패:", e);
+    alert("데이터를 불러오는데 실패했습니다.");
+  }
+};
+
+document.getElementById("privacy-close").onclick = () =>
+  modal.style.display = "none";
 
 
   
