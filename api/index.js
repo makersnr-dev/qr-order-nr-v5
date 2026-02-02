@@ -34,7 +34,37 @@ export default async function handler(req, res) {
 
     try {
         switch (path) {
+                
             // 1. [인증] 로그인 및 상태 확인 (login-admin, login-cust, super-login, me)
+                // --- [슈퍼 로그인 추가] ---
+            case '/super-login':
+                if (method !== 'POST') return json(res, { ok: false }, 405);
+                const { uid: sUid, pwd: sPwd } = req.body;
+                const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || "[]");
+                const sFound = superAdmins.find(a => a.id === sUid && a.pw === sPwd);
+                if (!sFound) return json(res, { ok: false }, 401);
+                
+                // 24시간(86400초) 유효한 토큰 생성
+                const sToken = await signJWT({ role: "super", realm: "super", uid: sUid, name: sFound.name }, process.env.JWT_SECRET, 86400);
+                res.setHeader("Set-Cookie", `super_token=${sToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`);
+                return json(res, { ok: true });
+            // --- [매핑 관리 추가] ---
+            case '/admin-mappings':
+                if (!isSuper) return json(res, { ok: false }, 403);
+                if (method === 'GET') {
+                    const r = await query('SELECT * FROM admin_stores ORDER BY created_at DESC');
+                    return json(res, { ok: true, mappings: r.rows });
+                }
+                if (method === 'POST') {
+                    const { adminKey, storeId, note } = req.body;
+                    await query('INSERT INTO admin_stores (admin_key, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_key, store_id) DO UPDATE SET note=$3', [adminKey, storeId, note]);
+                    return json(res, { ok: true });
+                }
+                if (method === 'DELETE') {
+                    await query('DELETE FROM admin_stores WHERE admin_key = $1 AND store_id = $2', [req.body.adminKey, req.body.storeId]);
+                    return json(res, { ok: true });
+                }
+                break;
             case '/login-admin':
                 if (method !== 'POST') return json(res, { ok: false }, 405);
                 const { id, pw } = req.body;
