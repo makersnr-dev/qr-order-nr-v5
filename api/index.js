@@ -15,32 +15,24 @@ export default async function handler(req, res) {
 
     const getAuth = async () => {
         const cookie = req.headers.cookie || '';
-        
-        // 1. 이름으로 정확하게 쿠키를 찾아냅니다 (사장님 방식 보완)
         const parts = cookie.split(';').reduce((acc, c) => {
             const [key, val] = c.trim().split('=');
-            acc[key] = val;
+            if(key) acc[key] = val;
             return acc;
         }, {});
 
-        // 2. 슈퍼 토큰 먼저 확인, 없으면 일반 관리자 토큰 확인
         const token = parts['super_token'] || parts['admin_token'];
-        
         if (!token) return null;
-        
-        try { 
-            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); 
-        } catch (e) { 
-            return null; 
-        }
+        try { return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret'); } 
+        catch (e) { return null; }
     };
+
     try {
-        // --- 0. 공통 및 테스트 ---
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
         if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9*60*60*1000) });
         if (pathname === '/api/config') return json({ tossClientKey: process.env.TOSS_CLIENT_KEY || "" });
 
-        // --- 1. 슈퍼 관리자 전용 (로그인, me, 매장/매핑 관리) ---
+        // --- 1. 슈퍼 관리자 전용 ---
         if (pathname === '/api/super-login') {
             const { uid, pwd } = req.body;
             const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
@@ -85,51 +77,61 @@ export default async function handler(req, res) {
             return json({ ok: true });
         }
 
-        // --- 2. 매장 설정 (계좌, 방침, 알림, 호출옵션) ---
+        // --- 2. 매장 설정 (빈 데이터 대응 완료) ---
         if (pathname === '/api/store-settings') {
             if (method === 'GET') {
                 const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
-                return json({ ok: true, settings: r || {} });
+                // ⭐ r || {} : 데이터가 없어도 {}를 보내야 화면의 '...'이 사라집니다.
+                return json({ ok: true, settings: r || {} }); 
             }
             if (method === 'PUT') {
                 const { ownerBank, privacyPolicy, notifyConfig, callOptions } = req.body;
+                const b = ownerBank ? JSON.stringify(ownerBank) : null;
+                const n = notifyConfig ? JSON.stringify(notifyConfig) : null;
+                const c = callOptions ? JSON.stringify(callOptions) : null;
                 await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) 
-                             ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), privacy_policy=COALESCE($3, store_settings.privacy_policy), notify_config=COALESCE($4, store_settings.notify_config), call_options=COALESCE($5, store_settings.call_options)`, 
-                             [storeId, JSON.stringify(ownerBank), privacyPolicy, JSON.stringify(notifyConfig), JSON.stringify(callOptions)]);
+                             ON CONFLICT (store_id) DO UPDATE SET 
+                             owner_bank=COALESCE($2, store_settings.owner_bank), 
+                             privacy_policy=COALESCE($3, store_settings.privacy_policy), 
+                             notify_config=COALESCE($4, store_settings.notify_config), 
+                             call_options=COALESCE($5, store_settings.call_options)`, 
+                             [storeId, b, privacyPolicy, n, c]);
                 return json({ ok: true });
             }
         }
 
-        // --- 3. 메뉴 관리 (menus) ---
+        // --- 3. 메뉴 관리 (빈 데이터 대응 완료) ---
         if (pathname === '/api/menus') {
             if (method === 'GET') {
                 const r = await query('SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", img, description as desc, options FROM menus WHERE store_id = $1 ORDER BY display_order ASC', [storeId]);
-                return json({ ok: true, menus: r.rows });
+                // ⭐ r.rows || [] : 메뉴가 없어도 빈 배열을 보내야 '...'이 사라지고 추가 버튼이 나옵니다.
+                return json({ ok: true, menus: r.rows || [] });
             }
             if (method === 'PUT') {
                 const items = Array.isArray(req.body) ? req.body : [req.body];
                 for (const m of items) {
-                    await query(`INSERT INTO menus (store_id, menu_id, name, price, category, active, sold_out, img, description, options)
-                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                                 ON CONFLICT (store_id, menu_id) DO UPDATE SET name=$3, price=$4, category=$5, active=$6, sold_out=$7, img=$8, description=$9, options=$10`, 
-                                 [storeId, m.id, m.name, m.price, m.category, m.active, m.soldOut, m.img, m.desc, JSON.stringify(m.options || [])]);
+                    await query(`INSERT INTO menus (store_id, menu_id, name, price, category, active, sold_out, img, description, options) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (store_id, menu_id) DO UPDATE SET name=$3, price=$4, category=$5, active=$6, sold_out=$7, img=$8, description=$9, options=$10`, [storeId, m.id, m.name, m.price, m.category, m.active, m.soldOut, m.img, m.desc, JSON.stringify(m.options || [])]);
                 }
                 return json({ ok: true });
             }
         }
 
-        // --- 4. 주문 관리 (orders) ---
+        // --- 4. 주문 관리 ---
         if (pathname === '/api/orders') {
             if (method === 'GET') {
                 const type = params.get('type');
                 const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
-                return json({ ok: true, orders: r.rows.map(row => ({ ...row, orderId: row.order_no, cart: row.meta?.cart, customer: row.meta?.customer, reserve: row.meta?.reserve })) });
+                return json({ ok: true, orders: r.rows || [] });
             }
             if (method === 'POST') {
                 const { type, table, cart, amount, customer, reserve } = req.body;
                 const orderNo = `${storeId}-${type}-${Date.now()}`;
-                await query('INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', 
-                            [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, JSON.stringify({ customer, reserve, cart, type, ts: Date.now() })]);
+                await query('INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, JSON.stringify({ customer, reserve, cart, type, ts: Date.now() })]);
+                if (Array.isArray(cart)) {
+                    for (const item of cart) {
+                        await query('INSERT INTO order_items (order_no, name, qty, unit_price, options) VALUES ($1, $2, $3, $4, $5)', [orderNo, item.name, item.qty, item.price || 0, JSON.stringify(item.options || [])]);
+                    }
+                }
                 return json({ ok: true, orderId: orderNo });
             }
             if (method === 'PUT') {
@@ -139,11 +141,11 @@ export default async function handler(req, res) {
             }
         }
 
-        // --- 5. 호출 관리 (call) ---
+        // --- 5. 호출 관리 ---
         if (pathname === '/api/call') {
             if (method === 'GET') {
                 const r = await query('SELECT id, table_no as "table", message, status, created_at as ts FROM call_logs WHERE store_id = $1 ORDER BY created_at DESC LIMIT 50', [storeId]);
-                return json({ ok: true, logs: r.rows });
+                return json({ ok: true, logs: r.rows || [] });
             }
             if (method === 'POST') {
                 await query('INSERT INTO call_logs (store_id, table_no, message, status) VALUES ($1, $2, $3, \'대기\')', [storeId, req.body.table, req.body.note]);
@@ -155,7 +157,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // --- 6. 결제코드 및 QR 관리 ---
+        // --- 6. 결제코드 및 QR 관리 (빈 데이터 대응 완료) ---
         if (pathname === '/api/payment-code') {
             const today = new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
             let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
@@ -169,21 +171,21 @@ export default async function handler(req, res) {
         if (pathname === '/api/qrcodes') {
             if (method === 'GET') {
                 const r = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
-                return json({ ok: true, list: r.rows });
+                // ⭐ r.rows || [] : QR 리스트가 없어도 []를 보내야 '...'이 사라집니다.
+                return json({ ok: true, list: r.rows || [] });
             }
             if (method === 'PUT') {
                 const { id, kind, table, label, url, dataUrl } = req.body;
                 const storeInfo = await queryOne('SELECT qr_limit FROM stores WHERE store_id = $1', [storeId]);
                 const currentCount = await queryOne('SELECT COUNT(*) as count FROM qr_codes WHERE store_id = $1', [storeId]);
                 const exists = await queryOne('SELECT id FROM qr_codes WHERE id = $1', [id]);
-                if (!exists && parseInt(currentCount.count) >= (storeInfo?.qr_limit || 10)) {
-                    return json({ ok: false, message: `QR 한도 초과` }, 403);
-                }
+                if (!exists && parseInt(currentCount.count) >= (storeInfo?.qr_limit || 10)) return json({ ok: false, message: `QR 한도 초과` }, 403);
                 await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7, updated_at=NOW()`, [id, storeId, kind, table, label, url, dataUrl]);
                 return json({ ok: true });
             }
             if (method === 'DELETE') {
-                await query('DELETE FROM qr_codes WHERE id = $1 AND store_id = $2', [params.get('id'), storeId]);
+                const qrId = params.get('id');
+                await query('DELETE FROM qr_codes WHERE id = $1 AND store_id = $2', [qrId, storeId]);
                 return json({ ok: true });
             }
         }
