@@ -1,16 +1,19 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    {"source": "/api/(.*)","destination": "/api/index.js"},
+
     { "source": "/admin", "destination": "/src/admin/index.html" },
     { "source": "/admin/login", "destination": "/src/admin/login.html" },
     { "source": "/admin/store-admin", "destination": "/src/public/index.html" },
+
     { "source": "/order/store", "destination": "/src/order/store.html" },
     { "source": "/order/delivery", "destination": "/src/order/delivery.html" },
     { "source": "/order/delivery-entry", "destination": "/src/order/delivery-entry.html" },
     { "source": "/order/delivery-guest", "destination": "/src/order/delivery-guest.html" },
     { "source": "/order/login", "destination": "/src/order/login.html" },
-    { "source": "/order/mypage", "destination": "/src/order/mypage.html" },
+
+    { "source": "/login", "destination": "/src/public/login.html" },
     { "source": "/", "destination": "/src/public/index.html" }
   ]
 }
