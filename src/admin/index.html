@@ -33,14 +33,28 @@
   </div>
 
   <div class="card" data-panel="store">
-    <div class="hstack" style="justify-content:space-between;margin-bottom:6px">
+    <div class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:6px">
       <h3>매장 주문</h3>
       <button id="store-refresh" class="btn small">새로고침</button>
     </div>
-    <table class="table">
-      <thead><tr><th>일시</th><th>테이블</th><th>내역</th><th>금액</th><th>상태</th></tr></thead>
-      <tbody id="tbody-store"></tbody>
-    </table>
+    <div class="order-toolbar">
+      <div class="hstack" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <input type="date" class="input" id="store-from" style="width:150px">
+        <input type="date" class="input" id="store-to" style="width:150px">
+        <select class="input" id="store-status" style="width:140px">
+          <option value="">상태 전체</option>
+          <option>주문접수</option><option>준비중</option><option>주문완료</option><option>주문취소</option><option>결제취소</option>
+        </select>
+        <input class="input" id="store-search" placeholder="검색" style="width:200px">
+        <button id="store-filter" class="btn">필터</button>
+        <button id="store-reset" class="btn">초기화</button>
+      </div>
+      <button id="store-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
+      <table class="table">
+        <thead><tr><th>일시</th><th>테이블</th><th>내역</th><th>금액</th><th>상태</th></tr></thead>
+        <tbody id="tbody-store"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card" data-panel="delivery" style="display:none">
@@ -48,53 +62,67 @@
       <h3>예약 주문</h3>
       <button id="deliv-refresh" class="btn small">새로고침</button>
     </div>
+    <div class="hstack" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <input type="date" class="input" id="deliv-from" style="width:150px">
+      <input type="date" class="input" id="deliv-to" style="width:150px">
+      <select class="input" id="deliv-status" style="width:140px">
+        <option value="">상태 전체</option>
+        <option>입금 미확인</option><option>주문접수</option><option>준비중</option><option>주문완료</option><option>주문취소</option>
+      </select>
+      <input class="input" id="deliv-search" placeholder="검색" style="width:200px">
+      <button id="deliv-filter" class="btn">필터</button>
+      <button id="deliv-reset" class="btn">초기화</button>
+    </div>
+    <button id="deliv-export" class="btn small" style="margin-bottom:8px">엑셀 다운로드</button>
     <table class="table">
-      <thead><tr><th>일시</th><th>주문자</th><th>연락처</th><th>주소</th><th>구매내역</th><th>상태</th></tr></thead>
+      <thead><tr><th>일시</th><th>주문자</th><th>연락처</th><th>주소</th><th>내역</th><th>상태</th></tr></thead>
       <tbody id="tbody-deliv"></tbody>
     </table>
   </div>
 
   <div class="card" data-panel="qr-store" style="display:none">
-    <h3>매장 QR 관리</h3>
-    <div class="hstack" style="gap:10px; margin-bottom:20px;">
-      <input id="qr-table" class="input" placeholder="테이블 번호" style="width:120px">
-      <button id="qr-generate" class="btn primary">생성</button>
-      <button id="qr-clear" class="btn danger">전체삭제</button>
+    <h3>매장 QR</h3>
+    <div class="hstack" style="gap:8px;margin-bottom:10px">
+      <input id="qr-table" class="input" placeholder="테이블 번호" style="max-width:140px">
+      <input id="qr-label" class="input" placeholder="라벨" style="max-width:260px">
+      <button id="qr-generate" class="btn primary">생성 & 저장</button>
+      <button id="qr-clear" class="btn danger">전체 삭제</button>
     </div>
     <div id="qr-grid" class="grid"></div>
   </div>
 
   <div class="card" data-panel="qr-deliv" style="display:none">
-    <h3>예약용 QR 관리</h3>
-    <div class="hstack" style="gap:10px; margin-bottom:20px;">
-      <input id="qr-deliv-label" class="input" placeholder="QR 라벨" style="width:200px">
-      <button id="qr-deliv-generate" class="btn primary">생성</button>
-      <button id="qr-deliv-clear" class="btn danger">전체삭제</button>
+    <h3>예약용 QR</h3>
+    <div class="hstack" style="gap:8px;margin-bottom:10px">
+      <input id="qr-deliv-label" class="input" placeholder="QR 라벨" style="max-width:260px">
+      <button id="qr-deliv-generate" class="btn primary">생성 & 저장</button>
+      <button id="qr-deliv-clear" class="btn danger">전체 삭제</button>
     </div>
     <div id="qr-deliv-grid" class="grid"></div>
   </div>
 
   <div class="card" data-panel="menu" style="display:none">
     <h3>메뉴 관리</h3>
-    <div class="hstack" style="gap:8px; margin-bottom:16px;">
-      <input id="m-id" class="input" placeholder="ID" style="width:80px">
-      <input id="m-name" class="input" placeholder="메뉴명">
-      <input id="m-price" class="input" type="number" placeholder="가격" style="width:100px">
+    <div class="hstack" style="gap:8px;margin-bottom:10px">
+      <input id="m-id" class="input" placeholder="id" style="width:120px">
+      <input id="m-name" class="input" placeholder="이름">
+      <input id="m-price" type="number" class="input" placeholder="가격" style="width:120px">
       <button id="m-add" class="btn primary">추가</button>
-      <input type="file" id="menu-excel" style="display:none">
-      <button id="menu-excel-upload" class="btn">엑셀업로드</button>
+    </div>
+    <div class="hstack" style="gap:8px;margin-bottom:14px">
+      <input type="file" id="menu-excel" accept=".xlsx" class="btn small">
+      <button id="menu-excel-upload" class="btn small">엑셀 불러오기</button>
     </div>
     <table class="table">
-      <thead><tr><th>ID</th><th>메뉴명</th><th>가격</th><th>상태</th><th class="right">관리</th></tr></thead>
+      <thead><tr><th>ID</th><th>이름</th><th>가격</th><th>카테고리</th><th>상태</th><th>관리</th></tr></thead>
       <tbody id="m-body"></tbody>
     </table>
   </div>
 
   <div class="card" data-panel="code" style="display:none">
-    <h3>오늘의 결제 코드</h3>
-    <div class="hstack" style="margin-top:20px">
-      <span id="code-date" class="small"></span>
-      <input id="code-input" class="input" readonly style="font-size:24px; width:120px; text-align:center;">
+    <h3>오늘의 결제 코드 <span id="code-date" class="badge"></span></h3>
+    <div class="hstack" style="gap:8px">
+      <input id="code-input" class="input" readonly style="max-width:160px; text-align:center; font-size:20px; font-weight:bold">
       <button id="code-copy" class="btn">복사</button>
       <button id="code-new" class="btn primary">갱신</button>
     </div>
@@ -102,11 +130,11 @@
 
   <div class="card" data-panel="mybank" style="display:none">
     <h3>입금 계좌 설정</h3>
-    <div class="vstack" style="max-width:400px; margin-top:20px">
+    <div class="vstack" style="max-width:400px; gap:10px">
       <input id="mb-bank" class="input" placeholder="은행명">
       <input id="mb-acct" class="input" placeholder="계좌번호">
       <input id="mb-holder" class="input" placeholder="예금주">
-      <button id="mb-save" class="btn primary">정보 저장</button>
+      <button id="mb-save" class="btn primary">저장하기</button>
       <div class="small">현재: <span id="mb-current" style="color:var(--primary)">-</span></div>
     </div>
   </div>
@@ -116,40 +144,46 @@
       <h3>직원 호출 기록</h3>
       <button id="notify-log-refresh" class="btn small">새로고침</button>
     </div>
-    <table class="table"><tbody id="tbody-notify-logs"></tbody></table>
+    <table class="table">
+      <thead><tr><th>시간</th><th>테이블</th><th>내용</th><th>상태</th></tr></thead>
+      <tbody id="tbody-notify-logs"></tbody>
+    </table>
   </div>
 
   <div class="card" data-panel="notify" style="display:none">
     <h3>알림 설정</h3>
-    <div class="vstack" style="max-width:500px; margin-top:20px">
-      <label><input type="checkbox" id="n-beep"> 알림음 재생</label>
-      <input type="range" id="n-vol" min="0" max="1" step="0.1">
-      <label><input type="checkbox" id="n-desktop"> 데스크탑 알림</label>
-      <div id="call-options-box" class="vstack"></div>
+    <div class="vstack" style="gap:15px; max-width:500px">
+      <label class="hstack"><input id="n-beep" type="checkbox"> 알림음 사용</label>
+      <label class="vstack small">볼륨 <input id="n-vol" type="range" min="0" max="1" step="0.1"></label>
+      <label class="hstack"><input id="n-desktop" type="checkbox"> 데스크탑 알림</label>
+      <div id="call-options-box" class="vstack" style="gap:5px"></div>
       <button id="n-save" class="btn primary">설정 저장</button>
     </div>
   </div>
 
   <div class="card" data-panel="privacy" style="display:none">
     <h3>개인정보 처리방침</h3>
-    <textarea id="privacy-text" class="input" style="width:100%; min-height:300px; margin-top:10px;"></textarea>
-    <button id="privacy-save" class="btn primary">저장</button>
+    <textarea id="privacy-text" class="input" style="width:100%;min-height:300px;"></textarea>
+    <div class="hstack" style="gap:8px;margin-top:10px">
+      <button id="privacy-save" class="btn primary">저장</button>
+      <button id="privacy-reset" class="btn small">기본 예시</button>
+    </div>
   </div>
 </div>
 
 <div id="order-detail-modal" class="modal" style="display:none">
-  <div class="content">
+  <div class="content" style="max-width:420px">
     <h3>주문 상세</h3>
-    <pre id="order-detail-body" class="small" style="white-space:pre-wrap; background:#0b1620; padding:10px;"></pre>
-    <button id="order-detail-close" class="btn" style="width:100%">닫기</button>
+    <pre id="order-detail-body" class="small" style="white-space:pre-wrap; background:#0b1620; padding:10px; border-radius:8px;"></pre>
+    <button id="order-detail-close" class="btn" style="width:100%; margin-top:12px">닫기</button>
   </div>
 </div>
 
 <div id="cancel-reason-modal" class="modal" style="display:none">
   <div class="content">
     <h3>취소 사유</h3>
-    <textarea id="cancel-reason-input" class="input" placeholder="사유 입력"></textarea>
-    <div class="hstack" style="justify-content:flex-end; gap:8px; margin-top:10px;">
+    <textarea id="cancel-reason-input" class="input" placeholder="사유를 입력하세요" style="width:100%; height:80px"></textarea>
+    <div class="hstack" style="justify-content:flex-end; gap:8px; margin-top:12px;">
       <button id="cancel-reason-close" class="btn">취소</button>
       <button id="cancel-reason-confirm" class="btn danger">확인</button>
     </div>
