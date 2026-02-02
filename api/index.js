@@ -236,7 +236,21 @@ export default async function handler(req, res) {
 
                 const r = await query('SELECT * FROM orders WHERE store_id = $1 AND (meta->>\'type\') = $2 ORDER BY created_at DESC LIMIT 100', [storeId, type]);
 
-                return json({ ok: true, orders: r.rows.map(row => ({ ...row, orderId: row.order_no, cart: row.meta?.cart, customer: row.meta?.customer, reserve: row.meta?.reserve })) || [] });
+                return json({ 
+                    ok: true, 
+                    orders: r.rows.map(row => {
+                        const meta = row.meta || {};
+                        return {
+                            ...row,
+                            orderId: row.order_no,
+                            table: row.table_no || meta.table || '-', // DB 컬럼 우선, 없으면 meta에서 가져옴
+                            cart: meta.cart || [],         // 관리자 화면은 'cart'라는 이름을 기다립니다
+                            customer: meta.customer || {},
+                            reserve: meta.reserve || {},
+                            amount: row.amount
+                        };
+                    }) || [] 
+                });
 
             }
 
@@ -246,7 +260,20 @@ export default async function handler(req, res) {
 
                 const orderNo = `${storeId}-${type}-${Date.now()}`;
 
-                await query('INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, JSON.stringify({ customer, reserve, cart, type, ts: Date.now() })]);
+                // table 정보를 meta 안에도 명시적으로 포함시킵니다.
+                const metaData = JSON.stringify({ 
+                    customer, 
+                    reserve, 
+                    cart, 
+                    type, 
+                    table, // ← 이게 빠지면 나중에 상세화면에서 테이블 번호가 안 보입니다.
+                    ts: Date.now() 
+                });
+                
+                await query(
+                    'INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, $3, $4, $5, $6)', 
+                    [storeId, orderNo, (type === 'reserve' ? '입금 미확인' : '주문접수'), table, amount, metaData]
+                );
 
                 if (Array.isArray(cart)) {
 
