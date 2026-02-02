@@ -115,14 +115,6 @@ function bindMappingUI() {
         }
 
         try {
-            // 매장 존재 확인
-            const storeRes = await fetch('/api/stores');
-            const storeData = await storeRes.json();
-
-            if (!storeData.stores || !storeData.stores[storeId]) {
-                showSuperToast('존재하지 않는 storeId입니다.', 'error');
-                return;
-            }
 
             // 매핑 추가
             const res = await fetch('/api/admin-mappings', {
