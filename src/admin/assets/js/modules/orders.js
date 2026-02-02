@@ -476,7 +476,7 @@ async function renderStoreTable() {
       </td>
       <td data-label="테이블">${table}</td>
       <td data-label="주문내역">
-        <span class="order-detail-link" data-action="order-detail" data-id="${o.id || o.orderId || ''}" style="cursor:pointer;text-decoration:underline">
+        <span class="order-detail-link" data-action="order-detail" data-id="${o.orderId}" style="cursor:pointer;text-decoration:underline">
           ${items || '-'}
         </span>
       </td>
@@ -652,7 +652,7 @@ export function attachGlobalHandlers() {
     try {
       const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => (o.id || o.orderId) === id);
+      const order = (data.orders || []).find(o => String(o.orderId) === String(id));
       if (!order) { showToast('해당 주문 정보를 찾을 수 없습니다.', 'error'); return; }
       
       const cancelReason = order.meta?.cancel?.reason ? `❌ 취소 사유: ${order.meta.cancel.reason}` : '';
