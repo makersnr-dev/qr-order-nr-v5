@@ -687,7 +687,7 @@ export function attachGlobalHandlers() {
     try {
       const res = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => (o.id || o.orderId) === id);
+      const order = (data.orders || []).find(o => String(o.orderId) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
       const customer = order.customer || {};
