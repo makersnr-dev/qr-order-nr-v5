@@ -202,6 +202,36 @@ export default async function handler(req, res) {
                 }
                 return json({ ok: true, orderId: newOrderNo });
             }
+            // --- 4. 주문 관리 내부에 추가 ---
+            if (method === 'PUT') {
+                const { orderId, type, status, meta, metaAppend } = req.body;
+                
+                // 1. 테이블 결정 (orders 또는 orderss)
+                const tableName = type === 'store' ? 'orders' : 'orderss';
+                const idColumn = type === 'store' ? 'order_no' : 'order_id';
+            
+                // 2. 기존 데이터 가져오기 (meta 업데이트용)
+                const existing = await queryOne(`SELECT meta FROM ${tableName} WHERE ${idColumn} = $1`, [orderId]);
+                if (!existing) return json({ ok: false, error: 'ORDER_NOT_FOUND' }, 404);
+            
+                let newMeta = { ...existing.meta, ...meta };
+                
+                // history 기록 추가 로직
+                if (metaAppend?.history) {
+                    const history = existing.meta?.history || [];
+                    history.push(metaAppend.history);
+                    newMeta.history = history;
+                }
+            
+                // 3. DB 업데이트
+                if (status) {
+                    await query(`UPDATE ${tableName} SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
+                } else {
+                    await query(`UPDATE ${tableName} SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
+                }
+            
+                return json({ ok: true });
+            }
         }
 
         // --- 5. 호출 관리 (기존 상태변경 로직 포함) ---
