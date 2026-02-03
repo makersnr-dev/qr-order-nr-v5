@@ -734,7 +734,6 @@ export function attachGlobalHandlers() {
             if (combinedOptions) line += `\n${combinedOptions}`;
             return line;
         }).join('\n\n');
-    }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
