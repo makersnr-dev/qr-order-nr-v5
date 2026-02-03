@@ -385,7 +385,7 @@ export function exportOrders(type) {
         t,
         o.customer_name || '',
         o.customer_phone || '',
-        o.address || '', // 예약은 table_no에 주소저장
+        o.address || '', // 예약은 주소저장
         o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date} ${o.meta.reserve.time}` : '',
         o.total_amount || '',
         o.status || '',
@@ -555,7 +555,8 @@ export async function renderDeliv() {
   rows.forEach(o => {
     const time = fmtDateTimeFromOrder(o);
     const reserveDateTime = o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date}\n${o.meta.reserve.time}` : '-';
-    const req = truncateText(o.meta?.memo || '-', 20);
+    const rawReq = o.requestMsg || o.meta?.reserve?.note || o.meta?.memo || '-';
+    const req = truncateText(rawReq, 15);
 
     const itemTexts = (o.items || []).map(i => {
       let line = `${i.name} x${i.qty}`;
