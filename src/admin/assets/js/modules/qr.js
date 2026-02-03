@@ -110,17 +110,33 @@ export async function initQR() {
         list.sort((a, b) => (a.table || '').localeCompare(b.table || '')).forEach((q) => {
             const wrap = document.createElement('div');
             wrap.className = 'vstack';
-            wrap.style.cssText = 'gap:4px; alignItems:center; border:1px solid #263241; padding:8px; borderRadius:10px; background:#0b1620; text-align:center;';
+            wrap.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            align-items: center;      /* 가로 중앙 정렬 */
+            justify-content: center;   /* 세로 중앙 정렬 */
+            gap: 8px;
+            border: 1px solid #263241;
+            padding: 16px;
+            border-radius: 12px;
+            background: #0b1620;
+            text-align: center;        /* 텍스트 중앙 정렬 */
+            width: 100%;
+        `;
 
-            wrap.innerHTML = `
-                <img src="${q.dataUrl}" style="width:140px; height:140px; border-radius:4px;">
-                <div class="small"><b>${q.label}</b> ${q.table ? `(${q.table}번)` : ''}</div>
-                <div class="small" style="word-break:break-all; color:var(--muted); font-size:10px; max-width:140px;">${q.url}</div>
-                <div class="hstack" style="gap:4px; margin-top:5px; justify-content:center;">
-                    <a href="${q.dataUrl}" download="${downloadPrefix}-${q.table || 'qr'}.png" class="btn small">다운</a>
-                    <button class="btn small danger" data-id="${q.id}">삭제</button>
-                </div>
-            `;
+        wrap.innerHTML = `
+            <img src="${q.dataUrl}" style="width:140px; height:140px; border-radius:4px; display: block; margin: 0 auto;">
+            <div class="small" style="width: 100%; font-weight: bold; color: #fff;">
+                ${q.label} ${q.table ? `(${q.table}번)` : ''}
+            </div>
+            <div class="small" style="word-break: break-all; color: var(--muted); font-size: 10px; width: 100%; max-width: 160px;">
+                ${q.url}
+            </div>
+            <div class="hstack" style="gap: 4px; margin-top: 6px; justify-content: center; width: 100%;">
+                <a href="${q.dataUrl}" download="${downloadPrefix}-${q.table || 'qr'}.png" class="btn small">다운</a>
+                <button class="btn small danger" data-id="${q.id}">삭제</button>
+            </div>
+        `;
 
             wrap.querySelector('.danger').onclick = async () => {
                 if (!confirm('삭제할까요?')) return;
