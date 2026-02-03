@@ -691,14 +691,23 @@ document.getElementById("action-btn").onclick = () => {
   const { ap, hh, mm } = getTimeValue("time") || {};
 
   // ✅ 주문 확인용 장바구니 표시
+  // confirm-items 텍스트 생성 로직
   document.getElementById('confirm-items').textContent = cart.items.map(i => {
-  let line = `${i.name} x${i.qty}`;
-  // 옵션 내역이 있다면 추가
-  if (i.optionText && i.optionText.length > 0) {
-    line += `\n   └ ${i.optionText.join(', ')}`;
-  }
-  return line;
-}).join('\n');
+      let line = `${i.name} x${i.qty}`;
+      if (i.optionText && i.optionText.length > 0) {
+          const groups = {};
+          i.optionText.forEach(t => {
+              const [g, v] = t.split(':');
+              if (!groups[g]) groups[g] = [];
+              groups[g].push(v);
+          });
+          const optLine = Object.entries(groups)
+              .map(([g, v]) => `   └ ${g}: ${v.join(',')}`)
+              .join('\n');
+          line += `\n${optLine}`;
+      }
+      return line;
+  }).join('\n');
 
   document.getElementById("confirm-total").textContent =
     cart.total().toLocaleString();
