@@ -13,30 +13,28 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
-    // api/index.js 내부의 getAuth 함수를 아래로 교체
     const getAuth = async () => {
         const cookieHeader = req.headers.cookie || '';
-        const cookies = {};
-        cookieHeader.split(';').forEach(item => {
-            const parts = item.trim().split('=');
-            if (parts.length >= 2) {
-                // key는 첫 번째, 값은 나머지 전부를 합침 (Base64 패딩 '=' 대응)
-                const key = parts[0];
-                const value = parts.slice(1).join('='); 
-                cookies[key] = value;
-            }
-        });
+        const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
     
-        // 우선순위: 슈퍼토큰 > 관리자토큰
-        const token = cookies['super_token'] || cookies['admin_token'];
+        // 현재 요청이 슈퍼 관리자 API인지 확인
+        const isSuperPath = pathname.startsWith('/api/super-');
+        
+        // 경로에 맞는 토큰을 먼저 선택하고, 없으면 다른 토큰을 시도
+        let token;
+        if (isSuperPath) {
+            token = cookies['super_token'];
+        } else {
+            token = cookies['admin_token'] || cookies['super_token']; // 일반 API는 슈퍼관리자도 접근 가능하게
+        }
+    
         if (!token) return null;
     
         try {
-            // [주의] process.env.JWT_SECRET이 Vercel 설정에 없으면 'dev-secret' 사용
-            return await verifyJWT(token, process.env.JWT_SECRET);
+            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
         } catch (e) {
-            console.error('[Auth Error]', e.message);
-            return null;
+            console.error('JWT 검증 실패:', e.message);
+            return null; 
         }
     };
 
