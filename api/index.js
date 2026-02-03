@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
     
         // 현재 요청이 슈퍼 관리자 API인지 확인
-        const isSuperPath = pathname.startsWith('/api/super-');
+        const isSuperPath = pathname.startsWith('/api/super-') || pathname === '/api/admin-mappings';
         
         // 경로에 맞는 토큰을 먼저 선택하고, 없으면 다른 토큰을 시도
         let token;
