@@ -678,7 +678,21 @@ export function attachGlobalHandlers() {
           const statusText = h.value || h.status || h.payment || ''; 
           const adminText = h.by ? ` (by ${h.by})` : '';
           return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
-      const body = '📦 주문 메뉴\n\n' + (order.cart || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
+      const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
+          let line = `• ${i.name} x${i.qty}`;
+          
+          // ✅ 옵션(토핑) 데이터가 있다면 줄바꿈하여 추가합니다.
+          if (Array.isArray(i.options) && i.options.length > 0) {
+              // normalizeOptions 함수를 사용하여 "그룹명:라벨" 형태로 변환
+              const optLines = i.options.map(opt => {
+                  const name = opt.name || opt.group || '옵션';
+                  const val = opt.value || opt.label || '';
+                  return `    └ ${name}: ${val}`;
+              }).join('\n');
+              line += `\n${optLines}`;
+          }
+          return line;
+      }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
