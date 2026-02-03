@@ -16,6 +16,23 @@ import {
 } from '/src/shared/constants/status.js';
 import { ADMIN_EVENTS } from '/src/shared/constants/adminEvents.js';
 
+//  주문 상세 공통 수정 로직
+      const formatOptionsCombined = (optionTextArray) => {
+        if (!Array.isArray(optionTextArray) || optionTextArray.length === 0) return "";
+        
+        const groups = {};
+        optionTextArray.forEach(text => {
+            const [group, value] = text.split(':');
+            if (!groups[group]) groups[group] = [];
+            groups[group].push(value);
+        });
+        
+        // "토핑:생크림,초콜릿", "소스:꿀" 형태로 합침
+        return Object.entries(groups)
+            .map(([group, values]) => `    └ ${group}:${values.join(',')}`)
+            .join('\n');
+    };
+
 let __isRendering = false;
 let __renderQueued = false;
 
@@ -678,22 +695,7 @@ export function attachGlobalHandlers() {
           const statusText = h.value || h.status || h.payment || ''; 
           const adminText = h.by ? ` (by ${h.by})` : '';
           return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
-      //  주문 상세 공통 수정 로직
-      const formatOptionsCombined = (optionTextArray) => {
-        if (!Array.isArray(optionTextArray) || optionTextArray.length === 0) return "";
-        
-        const groups = {};
-        optionTextArray.forEach(text => {
-            const [group, value] = text.split(':');
-            if (!groups[group]) groups[group] = [];
-            groups[group].push(value);
-        });
-        
-        // "토핑:생크림,초콜릿", "소스:꿀" 형태로 합침
-        return Object.entries(groups)
-            .map(([group, values]) => `    └ ${group}:${values.join(',')}`)
-            .join('\n');
-    };
+      
     
     // 매장/예약 상세 적용 부분
     const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
@@ -727,10 +729,11 @@ export function attachGlobalHandlers() {
       const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.address || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
       const itemsBlock = '구매내역\n\n' + (order.cart || order.items || []).map(i => {
-        let line = `• ${i.name} x${i.qty}`;
-        const combinedOptions = formatOptionsCombined(i.optionText);
-        if (combinedOptions) line += `\n${combinedOptions}`;
-        return line;
+            let line = `• ${i.name} x${i.qty}`;
+            const combinedOptions = formatOptionsCombined(i.optionText); // 이제 정상 호출됨
+            if (combinedOptions) line += `\n${combinedOptions}`;
+            return line;
+        }).join('\n\n');
     }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
