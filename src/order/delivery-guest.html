@@ -7,6 +7,26 @@
   <title>예약 (비회원)</title>
 
   <style>
+    /* 토스트 알림 스타일 추가 */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111922;
+  border: 1px solid #263241;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.toast-success { border-left: 5px solid #2ea043 !important; }
+.toast-error { border-left: 5px solid #ef4444 !important; }
+.toast-info { border-left: 5px solid #74c0fc !important; }
     /* ----- 공통 레이아웃 ----- */
     .field-row {
       display: flex;
