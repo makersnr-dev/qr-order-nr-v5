@@ -199,7 +199,7 @@ export default async function handler(req, res) {
                             amount,                 // total_amount
                             lookupPw,               // lookup_pw
                             newOrderNo,             // order_no
-                            JSON.stringify({ reserve, agreePrivacy, memberId }) // meta
+                            JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo }) // meta
                         ]
                     );
                 }
