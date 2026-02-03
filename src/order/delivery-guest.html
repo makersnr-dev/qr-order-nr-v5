@@ -487,10 +487,10 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 };*/
     const payload = {
   storeId,
-  orderType: 'reserve',
+  type: 'reserve',
   amount: cart.total(),
 
-  items: cart.items.map(i => ({
+  cart: cart.items.map(i => ({
     id: i.id,
     name: i.name,
     qty: i.qty,
@@ -501,7 +501,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   customer: {
     name: cust,
     phone,
-    addr,
+    fullAddr,
     memo
   },
 
@@ -509,7 +509,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     date,
     time: `${ap} ${hh}:${mm}`
   },
-
+  lookupPw: document.getElementById("lookupPw").value.trim(),
   agreePrivacy: true
 };
 
