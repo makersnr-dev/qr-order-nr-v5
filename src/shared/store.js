@@ -1,39 +1,35 @@
 // /src/shared/store.js
 
-/**
- * 현재 접속한 매장 ID(storeId)를 초기화하고 반환합니다.
- * URL 파라미터(?store=...)를 최우선으로 하며, 없을 경우 localStorage를 확인합니다.
- */
 export function ensureStoreInitialized() {
   const url = new URL(location.href);
-  let sid = url.searchParams.get('store');
+  const sidFromUrl = url.searchParams.get('store');
 
-  // 1. URL에 storeId가 있는 경우 (가장 정확함)
-  if (sid && sid !== "[object Object]") {
-    localStorage.setItem('qrnr.storeId', sid);
-    return sid;
+  // 1. URL에 storeId가 있다면 최우선으로 사용하고 세션에 박제 (탭 고립)
+  if (sidFromUrl && sidFromUrl !== "[object Object]") {
+    sessionStorage.setItem('qrnr_active_storeId', sidFromUrl);
+    localStorage.setItem('qrnr.lastStoreId', sidFromUrl); // 마지막 방문 기억용
+    return sidFromUrl;
   }
 
-  // 2. localStorage에 저장된 값이 있는 경우
-  sid = localStorage.getItem('qrnr.storeId');
-  if (sid && sid !== "[object Object]") {
-    return sid;
+  // 2. URL에 없다면 현재 탭의 세션 저장소 확인
+  const sidFromSession = sessionStorage.getItem('qrnr_active_storeId');
+  if (sidFromSession && sidFromSession !== "[object Object]") {
+    return sidFromSession;
   }
 
-  // 3. 둘 다 없는 경우 (기본값)
-  const defaultSid = 'store1';
-  localStorage.setItem('qrnr.storeId', defaultSid);
-  return defaultSid;
+  // 3. 둘 다 없다면 마지막 방문 기록이나 기본값
+  const lastId = localStorage.getItem('qrnr.lastStoreId') || 'store1';
+  return lastId;
 }
 
 /**
- * 매장 ID를 강제로 변경해야 할 때 사용합니다.
+ * 매장 ID 변경 시 URL 파라미터를 유지하며 이동시켜 무결성을 유지합니다.
  */
 export function setGlobalStoreId(sid) {
   if (!sid) return;
-  localStorage.setItem('qrnr.storeId', sid);
+  sessionStorage.setItem('qrnr_active_storeId', sid);
+  localStorage.setItem('qrnr.lastStoreId', sid);
   
-  // URL도 함께 업데이트 (페이지 새로고침 없이)
   const url = new URL(location.href);
   if (url.searchParams.get('store') !== sid) {
     url.searchParams.set('store', sid);
