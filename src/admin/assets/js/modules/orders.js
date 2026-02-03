@@ -555,7 +555,7 @@ export async function renderDeliv() {
   rows.forEach(o => {
     const time = fmtDateTimeFromOrder(o);
     const reserveDateTime = o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date}\n${o.meta.reserve.time}` : '-';
-    const rawReq = o.requestMsg || o.meta?.reserve?.note || o.meta?.memo || '-';
+    const rawReq = o.meta?.memo || '-';
     const req = truncateText(rawReq, 15);
 
     const itemTexts = (o.items || []).map(i => {
@@ -570,12 +570,13 @@ export async function renderDeliv() {
     });
     
     const items = limitLines(summarizeItems(itemTexts), 20);
+    const displayName = truncateReserveName(o.customer_name, 3);
     const status = o.status || '대기';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="주문시간">${time}</td>
-      <td data-label="주문자">${o.customer_name || '-'}</td>
+      <td data-label="주문자">${displayName || '-'}</td>
       <td data-label="연락처">${formatPhone(o.customer_phone)}</td>
       <td data-label="주소" class="td-addr">${o.address || '-'}</td>
       <td data-label="예약일시" class="td-reserve-dt">${reserveDateTime}</td>
