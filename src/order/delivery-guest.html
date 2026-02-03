@@ -427,8 +427,33 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
   const storeId = window.qrnrStoreId;
 
+  /**
+ * 표준 토스트 알림 함수
+ * @param {string} msg - 표시할 메시지
+ * @param {string} variant - 'info', 'success', 'error' (색상 구분용)
+ */
+export function showToast(msg, variant = 'info') {
+  const t = document.createElement('div');
+  
+  // 기본 클래스는 toast, 상태에 따라 클래스 추가 (예: toast-success)
+  t.className = `toast toast-${variant}`; 
+  t.textContent = msg;
+  
+  document.body.appendChild(t);
+
+  // 브라우저가 요소를 인식한 직후에 'show' 클래스 추가 (애니메이션 시작)
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  // 3초 후 사라짐
+  setTimeout(() => {
+    t.classList.remove('show');
+    // 애니메이션(0.2초)이 끝난 후 요소 삭제
+    setTimeout(() => t.remove(), 200);
+  }, 3000);
+}
+
   function fail(msg) {
-  alert(msg);
+  showToast(msg,'error');
   return false; // 여기서 흐름 완전히 끊음
 }
 
@@ -548,7 +573,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
     const text = document.getElementById("bank-text").textContent;
     if (!text) fail("복사할 계좌 정보가 없습니다.");
     navigator.clipboard.writeText(text);
-    alert("계좌번호가 복사되었습니다.");
+    showToast("계좌번호가 복사되었습니다.",'info');
   };
 
   
@@ -621,7 +646,7 @@ document.getElementById("privacy-open").onclick = async () => {
     modal.style.display = "flex";
   } catch (e) {
     console.error("방침 로드 실패:", e);
-    alert("데이터를 불러오는데 실패했습니다.");
+    showToast("데이터를 불러오는데 실패했습니다.",'error');
   }
 };
 
@@ -637,7 +662,7 @@ document.getElementById("action-btn").onclick = () => {
   const items = cart.items;
 
   if (!items.length) {
-    alert("장바구니가 비어 있습니다.");
+    showToast("장바구니가 비어 있습니다.",'info');
     document.getElementById("action-btn").disabled = false;
     return;
   }
