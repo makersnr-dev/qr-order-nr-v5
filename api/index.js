@@ -255,15 +255,39 @@ export default async function handler(req, res) {
 
         // --- 6. 결제코드 및 QR (기존 한도 체크 로직 복구) ---
         if (pathname === '/api/payment-code') {
-            const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    
+        // 1. GET 요청: 코드 조회 (오늘 날짜의 코드가 없으면 자동으로 생성)
+        if (method === 'GET') {
             let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+            
             if (!codeRow) {
                 const newCode = String(Math.floor(1000 + Math.random() * 9000));
+                // 중복 생성 방지를 위해 ON CONFLICT DO NOTHING 사용
                 await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [storeId, today, newCode]);
-                codeRow = { code: newCode };
+                
+                // 만약 동시에 생성되었다면 방금 생성된 코드를 다시 조회
+                codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                if (!codeRow) codeRow = { code: newCode };
             }
             return json({ ok: true, code: codeRow.code, date: today });
         }
+    
+        // 2. POST 요청: 새 코드 강제 발급 (사장님이 관리자 페이지에서 갱신 버튼을 눌렀을 때)
+        if (method === 'POST') {
+            const newCode = String(Math.floor(1000 + Math.random() * 9000));
+            await query(`
+                INSERT INTO payment_codes (store_id, date, code)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (store_id, date) 
+                DO UPDATE SET code = EXCLUDED.code
+            `, [storeId, today, newCode]);
+    
+            return json({ ok: true, code: newCode, date: today });
+        }
+    
+        return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
+    }
 
         if (pathname === '/api/qrcodes') {
             if (method === 'GET') {
