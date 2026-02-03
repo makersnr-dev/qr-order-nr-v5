@@ -309,7 +309,7 @@ function matchOrder(o, from, to, status, search) {
 
   const s = (search || '').toLowerCase();
   const fields = [
-    o.table_no,
+    o.address,
     o.customer_name,
     o.customer_phone,
     o.items?.map(i => i.name).join(' ')
@@ -385,7 +385,7 @@ export function exportOrders(type) {
         t,
         o.customer_name || '',
         o.customer_phone || '',
-        o.table_no || '', // 예약은 table_no에 주소저장
+        o.address || '', // 예약은 table_no에 주소저장
         o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date} ${o.meta.reserve.time}` : '',
         o.total_amount || '',
         o.status || '',
@@ -576,7 +576,7 @@ export async function renderDeliv() {
       <td data-label="주문시간">${time}</td>
       <td data-label="주문자">${o.customer_name || '-'}</td>
       <td data-label="연락처">${formatPhone(o.customer_phone)}</td>
-      <td data-label="주소" class="td-addr">${o.table_no || '-'}</td>
+      <td data-label="주소" class="td-addr">${o.address || '-'}</td>
       <td data-label="예약일시" class="td-reserve-dt">${reserveDateTime}</td>
       <td data-label="요청사항" class="td-req">${req}</td>
       <td data-label="주문내역">
@@ -688,7 +688,7 @@ export function attachGlobalHandlers() {
       const order = (data.orders || []).find(o => String(o.order_id) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
-      const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.table_no || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
+      const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.address || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
       const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
