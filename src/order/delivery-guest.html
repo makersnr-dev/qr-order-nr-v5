@@ -429,7 +429,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
   function fail(msg) {
   alert(msg);
-  return; // 여기서 흐름 완전히 끊음
+  return false; // 여기서 흐름 완전히 끊음
 }
 
 
@@ -449,16 +449,16 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
 
     
-  if (!agree) fail("개인정보 수집·이용에 동의해주세요.");
-  if (!addr1 || !cust) fail("주소와 주문자명을 입력해주세요.");
-  if (phone.length < 9) fail("전화번호를 확인해주세요.");
-  if (pw.length !== 4) fail("조회 비밀번호 4자리를 입력해주세요.");
-  if (!cart.items.length) fail("장바구니가 비어 있습니다.");
+  if (!agree) {fail("개인정보 수집·이용에 동의해주세요.");return;}
+  if (!addr1 || !cust) {fail("주소와 주문자명을 입력해주세요.");return;}
+  if (phone.length < 9) {fail("전화번호를 확인해주세요.");return;}
+  if (pw.length !== 4) {fail("조회 비밀번호 4자리를 입력해주세요.");return;}
+  if (!cart.items.length) {fail("장바구니가 비어 있습니다.");return;}
 
   const date = document.getElementById("date").value;
   const { ap, hh, mm } = getTimeValue("time") || {};
-  if (!date) fail("예약 날짜를 선택해주세요.");
-  if (!ap || !hh || !mm) fail("예약 시간을 선택해주세요.");
+  if (!date) {fail("예약 날짜를 선택해주세요.");return;}
+  if (!ap || !hh || !mm) {fail("예약 시간을 선택해주세요.");return;}
 
   /*const payload = {
   orderId: 'R' + Date.now(),
