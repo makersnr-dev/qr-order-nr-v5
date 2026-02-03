@@ -65,21 +65,29 @@ export function makeCart(boxId, totalId) {
                 this.box.innerHTML = '<div class="small" style="padding:10px; opacity:0.5;">담긴 메뉴가 없습니다.</div>';
             } else {
                 this.box.innerHTML = this.items.map((it, idx) => `
-                    <div class="hstack" style="justify-content:space-between; ...">
-                        <div>
-                            <div style="font-size:14px; font-weight:600;">${it.name} x ${it.qty}</div>
-                            ${it.optionText && it.optionText.length 
-                                ? `<div class="small" style="color:#9ca3af; font-size:11px; margin-top:2px;">
-                                     ${it.optionText.map(opt => `└ ${opt}`).join('<br>')}
-                                   </div>` 
-                                : ''}
-                            <div style="font-size:13px; color:var(--primary); margin-top:4px;">
-                                ${fmt((Number(it.price) + it.selectedOptions.reduce((s,o)=>s+o.price,0)) * it.qty)}원
-                            </div>
-                        </div>
-                        ...
-                    </div>
-                `).join('');
+    <div class="hstack" style="justify-content:space-between; padding:10px 0; border-bottom:1px solid #263241;">
+        <div>
+            <div style="font-size:14px; font-weight:600;">${it.name} x ${it.qty}</div>
+            
+            ${(() => {
+                if (!it.optionText || it.optionText.length === 0) return "";
+                const groups = {};
+                it.optionText.forEach(t => {
+                    const [g, v] = t.split(':');
+                    if (!groups[g]) groups[g] = [];
+                    groups[g].push(v);
+                });
+                return Object.entries(groups)
+                    .map(([g, v]) => `<div class="small" style="color:#9ca3af; font-size:11px;">└ ${g}: ${v.join(',')}</div>`)
+                    .join('');
+            })()}
+
+            <div style="font-size:13px; color:var(--primary); margin-top:4px;">
+                ${fmt((Number(it.price) + (it.selectedOptions || []).reduce((s,o)=>s+Number(o.price||0),0)) * it.qty)}원
+            </div>
+        </div>
+        </div>
+`).join('');
             }
             if (this.totalEl) this.totalEl.textContent = fmt(this.total());
             window.qrnrCart = this;
