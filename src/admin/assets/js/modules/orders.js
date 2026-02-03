@@ -678,26 +678,23 @@ export function attachGlobalHandlers() {
           const statusText = h.value || h.status || h.payment || ''; 
           const adminText = h.by ? ` (by ${h.by})` : '';
           return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
-      // orders.js 내 상세 내역 생성 부분
+      //  주문 상세 공통 수정 로직
       const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
           let line = `• ${i.name} x${i.qty}`;
           
-          // 1. i.options 또는 i.selectedOptions 중 있는 것을 선택
-          let opts = i.options || i.selectedOptions; 
-          
-          // 2. 만약 데이터가 문자열(String)로 넘어왔다면 객체로 파싱
-          if (typeof opts === 'string') {
-              try { opts = JSON.parse(opts); } catch(e) { opts = []; }
-          }
-          
-          if (Array.isArray(opts) && opts.length > 0) {
-              const optLines = opts.map(opt => {
-                  const name = opt.group || opt.name || '옵션';
-                  const val = opt.label || opt.value || '';
-                  return `    └ ${name}: ${val}`;
+          // 1. 이미 가공된 optionText가 있는지 확인 (가장 정확함)
+          if (Array.isArray(i.optionText) && i.optionText.length > 0) {
+              const optLines = i.optionText.map(text => `    └ ${text}`).join('\n');
+              line += `\n${optLines}`;
+          } 
+          // 2. 만약 optionText가 없고 selectedOptions만 있다면 (백업 로직)
+          else if (Array.isArray(i.selectedOptions) && i.selectedOptions.length > 0) {
+              const optLines = i.selectedOptions.map(opt => {
+                  return `    └ ${opt.group}: ${opt.label}`;
               }).join('\n');
               line += `\n${optLines}`;
           }
+          
           return line;
       }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
@@ -727,20 +724,19 @@ export function attachGlobalHandlers() {
       const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => {
         let line = `• ${i.name} x${i.qty}`;
         
-        let opts = i.options;
-        // 문자열인 경우를 위한 파싱 로직 추가
-        if (typeof opts === 'string') {
-            try { opts = JSON.parse(opts); } catch(e) { opts = []; }
-        }
-        
-        if (Array.isArray(opts) && opts.length > 0) {
-            const optLines = opts.map(opt => {
-                const name = opt.group || opt.name || '옵션';
-                const val = opt.label || opt.value || '';
-                return `    └ ${name}: ${val}`;
+        // 1. 이미 가공된 optionText가 있는지 먼저 확인 (가장 정확함)
+        if (Array.isArray(i.optionText) && i.optionText.length > 0) {
+            const optLines = i.optionText.map(text => `    └ ${text}`).join('\n');
+            line += `\n${optLines}`;
+        } 
+        // 2. 만약 optionText가 없고 selectedOptions만 있다면 (백업 로직)
+        else if (Array.isArray(i.selectedOptions) && i.selectedOptions.length > 0) {
+            const optLines = i.selectedOptions.map(opt => {
+                return `    └ ${opt.group}: ${opt.label}`;
             }).join('\n');
             line += `\n${optLines}`;
         }
+        
         return line;
     }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
