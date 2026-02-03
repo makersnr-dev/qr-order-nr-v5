@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     
         try {
             // [주의] process.env.JWT_SECRET이 Vercel 설정에 없으면 'dev-secret' 사용
-            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
+            return await verifyJWT(token, process.env.JWT_SECRET);
         } catch (e) {
             console.error('[Auth Error]', e.message);
             return null;
