@@ -207,9 +207,11 @@ async function main() {
   document.querySelectorAll(".tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.tab;
-      if (tab === "store") safeRenderStore();
-      else if (tab === "delivery") safeRenderDeliv();
-      else if (tab === "notify-log") safeRenderNotifyLogs();
+      switch(tab) {
+        case "store": safeRenderStore(); break;
+        case "delivery": safeRenderDeliv(); break;
+        case "notify-log": safeRenderNotifyLogs(); break;
+      }
     });
   });
 
