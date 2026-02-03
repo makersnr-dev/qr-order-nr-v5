@@ -6,7 +6,7 @@
  * - localStorage는 완전히 제거
  * =====================================================
  */
-import { showToast } from '../admin.js'; // ✅ 상단 임포트 완료
+import { showToast } from '../admin.js';
 import { fmt } from './store.js';
 import {
   STATUS_FLOW,
@@ -19,22 +19,31 @@ import { ADMIN_EVENTS } from '/src/shared/constants/adminEvents.js';
 let __isRendering = false;
 let __renderQueued = false;
 
-async function safeRenderAll() {
+// 인자값으로 type을 받도록 수정 (기본값은 'all'로 설정)
+async function safeRenderAll(type = 'all') {
   if (__isRendering) {
-    __renderQueued = true;
+    __renderQueued = type; // 어떤 타입을 렌더링하려 했는지 저장
     return;
   }
 
   __isRendering = true;
   try {
-    await renderStore();
-    await renderDeliv();
+    if (type === 'store') {
+      await renderStore();
+    } else if (type === 'reserve') {
+      await renderDeliv();
+    } else {
+      // type이 'all'이거나 없을 경우 둘 다 실행
+      await renderStore();
+      await renderDeliv();
+    }
   } finally {
     __isRendering = false;
 
     if (__renderQueued) {
+      const nextType = __renderQueued;
       __renderQueued = false;
-      await safeRenderAll();
+      await safeRenderAll(nextType);
     }
   }
 }
@@ -79,8 +88,6 @@ const UI_TEXT = {
   CANCEL_REASON_REQUIRED: '취소 사유를 입력하세요.'
 };
 
-// ❌ 기존 파일 중간에 있던 function showToast(msg) { ... } 삭제됨 ✅
-
 // ===============================
 // 주문 상태 변경
 // ===============================
@@ -124,7 +131,8 @@ async function changeOrderStatus({ id, status, type }) {
 
   const payload = {
     orderId: id,
-    status
+    status,
+    type: type
   };
 
   if (isPending(id)) {
@@ -148,7 +156,7 @@ async function changeOrderStatus({ id, status, type }) {
 
     const data = await res.json();
     if (!data.ok) {
-      await safeRenderAll();
+      await safeRenderAll(type);
       throw new Error(data.error || 'STATUS_CHANGE_FAILED');
     }
 
@@ -160,7 +168,8 @@ async function changeOrderStatus({ id, status, type }) {
         storeId,
         orderId: id,
         senderId: ADMIN_ID,
-        at: Date.now()
+        at: Date.now(),
+        orderType: type
       });
     } catch {}
   } catch (err) {
@@ -171,7 +180,7 @@ async function changeOrderStatus({ id, status, type }) {
     unlockOrder(id);
   }
 
-  await safeRenderAll();
+  await safeRenderAll(type);
 }
 
 // ===============================
@@ -187,6 +196,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       orderId: id,
+      type: 'store',
       meta: {
         payment
       },
@@ -196,7 +206,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
     })
   });
 
-  await safeRenderAll();
+  await safeRenderAll('store');
 }
 
 // ===============================
@@ -299,12 +309,10 @@ function matchOrder(o, from, to, status, search) {
 
   const s = (search || '').toLowerCase();
   const fields = [
-    o.table,
-    o.customer,
-    o.phone,
-    o.addr,
-    o.reserve,
-    (o.items || []).map(i => i.name).join(' ')
+    o.fullAddr || o.address,
+    o.customer_name,
+    o.customer_phone,
+    o.items?.map(i => i.name).join(' ')
   ].join(' ').toLowerCase();
 
   if (s && !fields.includes(s)) return false;
@@ -340,7 +348,6 @@ export function bindFilters() {
 // 엑셀 내보내기
 // ===============================
 export function exportOrders(type) {
-  // DB에서 가져온 최신 데이터 사용
   const key = type === 'ordersStore' ? 'lastStoreOrders' : 'lastDelivOrders';
   const rows = window[key] || [];
 
@@ -360,15 +367,13 @@ export function exportOrders(type) {
     if (type === 'ordersStore') {
       data.push([
         t,
-        o.table || '',
+        o.table_no || '',
         (o.cart || []).map(i => {
           let line = `${i.name} x${i.qty}`;
-        
           if (Array.isArray(i.options) && i.options.length) {
             const opts = normalizeOptions(i.options);
             line += ' (' + opts.join(', ') + ')';
           }
-        
           return line;
         }).join('; '),
         o.amount || '',
@@ -378,13 +383,13 @@ export function exportOrders(type) {
     } else {
       data.push([
         t,
-        o.customer?.name || '',
-        o.customer?.phone || '',
-        o.customer?.addr || '',
-        o.reserve?.date && o.reserve?.time ? `${o.reserve.date} ${o.reserve.time}` : '',
-        o.amount || '',
+        o.customer_name || '',
+        o.customer_phone || '',
+        o.address || '', // 예약은 주소저장
+        o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date} ${o.meta.reserve.time}` : '',
+        o.total_amount || '',
         o.status || '',
-        (o.cart || []).map(i => i.name + 'x' + i.qty).join('; ')
+        (o.items || []).map(i => i.name + 'x' + i.qty).join('; ')
       ]);
     }
   });
@@ -452,7 +457,7 @@ async function renderStoreTable() {
   }
 
   rows.forEach(o => {
-    const time   = fmtDateTimeFromOrder(o);
+    const time = fmtDateTimeFromOrder(o);
     const itemTexts = (o.cart || []).map(i => {
       let line = `${i.name}x${i.qty}`;
       if (Array.isArray(i.options) && i.options.length) {
@@ -465,22 +470,21 @@ async function renderStoreTable() {
     });
     
     const items = limitLines(summarizeItems(itemTexts), 20);
-    const table  = o.table || '-';
-    const amount = Number(o.amount || 0);
     const status = o.status || '주문접수';
     const tr = document.createElement('tr');
+
     tr.innerHTML = `
       <td data-label="주문시간">
         <div>${time}</div>
-        <div class="small">주문번호 : ${o.orderNo || o.orderId || o.id}</div>
+        <div class="small">주문번호 : ${o.order_no}</div>
       </td>
-      <td data-label="테이블">${table}</td>
+      <td data-label="테이블">${o.table_no || '-'}</td>
       <td data-label="주문내역">
-        <span class="order-detail-link" data-action="order-detail" data-id="${o.id || o.orderId || ''}" style="cursor:pointer;text-decoration:underline">
+        <span class="order-detail-link" data-action="order-detail" data-id="${o.order_no}" style="cursor:pointer;text-decoration:underline">
           ${items || '-'}
         </span>
       </td>
-      <td data-label="금액">${fmt(amount)}</td>
+      <td data-label="금액">${fmt(o.amount)}</td>
       <td data-label="상태">
         <div class="order-status-box">
           <div class="order-status-line">
@@ -493,11 +497,10 @@ async function renderStoreTable() {
               if (o.meta?.payment?.paid) {
                 nextList = nextList.filter(s => s !== ORDER_STATUS.CANCELLED);
               }
-              const orderId = o.id || null;
               if (o.meta?.payment?.cancelled) return '';
               const disabled = current === ORDER_STATUS.CANCELLED ? 'disabled' : '';
               return `
-                <select class="input" data-type="store" data-id="${orderId}" ${disabled}>
+                <select class="input" data-type="store" data-id="${o.order_no}" ${disabled}>
                   <option selected>${current}</option>
                   ${nextList.map(s => `<option value="${s}">${s}</option>`).join('')}
                 </select>
@@ -506,7 +509,7 @@ async function renderStoreTable() {
             ${o.meta?.payment?.cancelled ? `<span class="badge-cancel" style="margin-left:6px">결제취소</span>` : o.meta?.payment?.paid ? `<span class="badge-paid" style="margin-left:6px">결제완료</span>` : ''}
           </div>
           <div class="order-action-line">
-            ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled ? '' : (!o.meta?.payment?.paid ? `<button class="btn primary" data-action="confirm-pos-paid" data-id="${o.id || o.orderId || ''}">POS 결제 확인</button>` : `<button class="btn danger" data-action="cancel-payment" data-id="${o.id || o.orderId || ''}">결제 취소</button>`)}
+            ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled ? '' : (!o.meta?.payment?.paid ? `<button class="btn primary" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 결제 확인</button>` : `<button class="btn danger" data-action="cancel-payment" data-id="${o.order_no}">결제 취소</button>`)}
           </div>
         </div>
       </td>
@@ -551,14 +554,11 @@ export async function renderDeliv() {
 
   rows.forEach(o => {
     const time = fmtDateTimeFromOrder(o);
-    const customer = o.customer || {};
-    const name = truncateReserveName(customer.name || o.name || '-', 3);
-    const phone = formatPhone(customer.phone || o.phone || '-');
-    const addr = customer.addr || customer.address || o.addr || '-';
-    const reserveDateTime = o.reserve?.date && o.reserve?.time ? `${o.reserve.date}\n${o.reserve.time}` : '-';
-    const req = truncateText(customer.memo || '-', 20);
+    const reserveDateTime = o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date}\n${o.meta.reserve.time}` : '-';
+    const rawReq = o.meta?.memo || '-';
+    const req = truncateText(rawReq, 15);
 
-    const itemTexts = (o.cart || []).map(i => {
+    const itemTexts = (o.items || []).map(i => {
       let line = `${i.name} x${i.qty}`;
       if (Array.isArray(i.options) && i.options.length) {
         const opts = normalizeOptions(i.options);
@@ -570,26 +570,26 @@ export async function renderDeliv() {
     });
     
     const items = limitLines(summarizeItems(itemTexts), 20);
-    const amount = Number(o.amount || 0);
+    const displayName = truncateReserveName(o.customer_name, 3);
     const status = o.status || '대기';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td data-label="주문시간">${time}</td>
-      <td data-label="주문자">${name}</td>
-      <td data-label="연락처">${phone}</td>
-      <td data-label="주소" class="td-addr">${addr}</td>
+      <td data-label="주문자">${displayName || '-'}</td>
+      <td data-label="연락처">${formatPhone(o.customer_phone)}</td>
+      <td data-label="주소" class="td-addr">${o.address || '-'}</td>
       <td data-label="예약일시" class="td-reserve-dt">${reserveDateTime}</td>
       <td data-label="요청사항" class="td-req">${req}</td>
       <td data-label="주문내역">
-        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.id || o.orderId || ''}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
+        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_id}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
       </td>
       <td data-label="합계 / 상태">
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="font-weight:600">${fmt(amount)}원</div>
+          <div style="font-weight:600">${fmt(o.total_amount)}원</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge-dot ${status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'}"></span>
-            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.id || o.orderId || ''}">
+            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_id}">
               <option selected>${status}</option>
               ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
             </select>
@@ -636,7 +636,7 @@ export function attachGlobalHandlers() {
     } catch (err) {
       if (err.message === 'ORDER_NOT_FOUND') {
         showToast('이미 삭제되었거나 처리된 주문입니다.', 'warning');
-        await safeRenderAll();
+        await safeRenderAll(type);
         return;
       }
       showToast('상태 변경에 실패했습니다. 네트워크를 확인하세요.', 'error');
@@ -652,7 +652,7 @@ export function attachGlobalHandlers() {
     try {
       const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => (o.id || o.orderId) === id);
+      const order = (data.orders || []).find(o => String(o.order_no) === String(id));
       if (!order) { showToast('해당 주문 정보를 찾을 수 없습니다.', 'error'); return; }
       
       const cancelReason = order.meta?.cancel?.reason ? `❌ 취소 사유: ${order.meta.cancel.reason}` : '';
@@ -665,7 +665,7 @@ export function attachGlobalHandlers() {
         paymentInfo = ['💳 결제 상태: 결제취소', payment?.method ? `결제 수단: ${payment.method}` : '', payment?.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : '', order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''].filter(Boolean).join('\n');
       }
 
-      const header = [`테이블: ${order.table || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
+      const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || h.status || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
       const body = '📦 주문 메뉴\n\n' + (order.cart || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
@@ -687,13 +687,12 @@ export function attachGlobalHandlers() {
     try {
       const res = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => (o.id || o.orderId) === id);
+      const order = (data.orders || []).find(o => String(o.order_id) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
-      const customer = order.customer || {};
-      const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${customer.name || '-'}`, `연락처: ${formatPhone(customer.phone || '-')}`, `주소: ${customer.addr || '-'}`, `예약일시: ${(order.reserve?.date || '-') + ' ' + (order.reserve?.time || '')}`, `요청사항: ${customer.memo || '-'}`, `합계금액: ${fmt(order.amount || 0)}원`].join('\n');
+      const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.address || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
-      const itemsBlock = '구매내역\n\n' + (order.cart || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
+      const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -713,6 +712,7 @@ export function attachGlobalHandlers() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           orderId: id,
+          type: 'store',
           meta: { payment: { paid: true, paidAt: new Date().toISOString(), method: 'POS' } },
           metaAppend: { history: { at: new Date().toISOString(), type: 'PAYMENT', action: 'PAYMENT_CONFIRMED', payment: PAYMENT_STATUS.PAID, by: ADMIN_ID, note: 'POS 결제 확인' } }
         })
@@ -721,12 +721,12 @@ export function attachGlobalHandlers() {
       if (!data.ok) throw new Error(data.error || 'PAYMENT_FAILED');
       showToast('결제 확인이 완료되었습니다.', 'success');
       const channel = new BroadcastChannel('qrnr-admin');
-      channel.postMessage({ type: ADMIN_EVENTS.ORDER_STATUS_CHANGED, storeId: currentStoreId(), orderId: id, senderId: ADMIN_ID, at: Date.now() });
+      channel.postMessage({ type: ADMIN_EVENTS.ORDER_STATUS_CHANGED, storeId: currentStoreId(), orderId: id, senderId: ADMIN_ID, at: Date.now(), orderType: 'store' });
     } catch (err) {
       showToast('결제 완료 처리 실패', 'error');
     } finally {
       unlockOrder(id);
-      await safeRenderAll();
+      await safeRenderAll('store');
     }
   });
 
@@ -737,17 +737,8 @@ export function attachGlobalHandlers() {
     const modal = document.getElementById('cancel-reason-modal');
     modal.dataset.orderId = id;
     modal.dataset.cancelStatus = PAYMENT_STATUS.CANCELLED;
+    modal.dataset.orderType = 'store';
     modal.style.display = 'flex';
-  });
-
-  document.body.addEventListener('click', async (e) => {
-    const btn = e.target;
-    if (!btn.dataset?.status || !btn.dataset?.id) return;
-    try {
-      await changeOrderStatus({ id: btn.dataset.id, status: btn.dataset.status, type: 'store' });
-    } catch (err) {
-      showToast('상태 변경 실패', 'error');
-    }
   });
 
   document.body.addEventListener('click', (e) => {
@@ -757,6 +748,7 @@ export function attachGlobalHandlers() {
     const modal = document.getElementById('cancel-reason-modal');
     modal.dataset.orderId = id;
     modal.dataset.cancelStatus = ORDER_STATUS.CANCELLED;
+    modal.dataset.orderType = e.target.dataset.type || 'store';
     modal.style.display = 'flex';
   });
 }
@@ -773,7 +765,7 @@ export function attachGlobalHandlers() {
     if (msg.senderId === ADMIN_ID) return;
     if (msg.storeId !== window.qrnrStoreId) return;
     console.log('[ADMIN EVENT] order changed → reload');
-    await safeRenderAll();
+    await safeRenderAll(msg.orderType || 'all');
   };
 })();
 
@@ -819,7 +811,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
     showToast('취소 처리에 실패했습니다.', 'error');
   } finally {
     unlockOrder(id);
-    await safeRenderAll();
+    await safeRenderAll(type);
   }
 });
 

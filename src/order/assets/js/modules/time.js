@@ -1,18 +1,15 @@
-// /src/order/assets/js/modules/time.js
-
 /**
  * 1. 현재 한국 시간(KST) 문자열 생성
- * DB 저장 시 표준이 되는 시간 포맷입니다.
  */
 export function getNowKST() {
     const now = new Date();
-    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9 보정
+    // UTC 기준 시간에 9시간을 더해 KST 생성
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
     return kst.toISOString().replace('T', ' ').substring(0, 19);
 }
 
 /**
  * 2. 주문 목록 표시용 시간 포맷
- * "2024-05-20 14:30:00" -> "05월 20일 14:30"
  */
 export function fmtTime(ts) {
     if (!ts) return '-';
@@ -25,22 +22,60 @@ export function fmtTime(ts) {
 }
 
 /**
- * 3. 예약 가능 시간 리스트 생성
- * 현재 시간 기준 +30분 후부터 매장 마감 전까지 15분 단위로 생성
+ * 🚀 3. [추가] HTML 셀렉트 박스에 시간 채우기 (에러 해결 핵심)
+ * delivery-guest.html에서 호출하는 함수입니다.
+ */
+export function fillTimeSelectors(prefix = "time") {
+    const apEl = document.getElementById(`${prefix}-ap`);
+    const hhEl = document.getElementById(`${prefix}-hh`);
+    const mmEl = document.getElementById(`${prefix}-mm`);
+
+    if (!apEl || !hhEl || !mmEl) return;
+
+    // 오전/오후
+    apEl.innerHTML = `
+        <option value="AM">오전</option>
+        <option value="PM">오후</option>
+    `;
+
+    // 시 (1~12)
+    let hOptions = "";
+    for (let i = 1; i <= 12; i++) {
+        hOptions += `<option value="${i}">${i}시</option>`;
+    }
+    hhEl.innerHTML = hOptions;
+
+    // 분 (00~50, 10분 단위)
+    let mOptions = "";
+    for (let i = 0; i < 60; i += 10) {
+        const val = String(i).padStart(2, '0');
+        mOptions += `<option value="${val}">${val}분</option>`;
+    }
+    mmEl.innerHTML = mOptions;
+}
+
+/**
+ * 🚀 4. [추가] 선택된 시간 값 가져오기 (에러 해결 핵심)
+ */
+export function getTimeValue(prefix = "time") {
+    const ap = document.getElementById(`${prefix}-ap`)?.value;
+    const hh = document.getElementById(`${prefix}-hh`)?.value;
+    const mm = document.getElementById(`${prefix}-mm`)?.value;
+    return { ap, hh, mm };
+}
+
+/**
+ * 5. 예약 가능 시간 리스트 (DB 연동 및 매장 설정용)
  */
 export function getAvailableTimeSlots(startHour = 10, endHour = 22) {
     const slots = [];
     const now = new Date();
-    
-    // 최소 30분 뒤부터 예약 가능하도록 설정
     const startTime = new Date(now.getTime() + 30 * 60 * 1000);
     
     for (let h = startHour; h < endHour; h++) {
         for (let m = 0; m < 60; m += 15) {
             const slotTime = new Date();
             slotTime.setHours(h, m, 0, 0);
-            
-            // 오늘이면서 이미 지난 시간은 제외
             if (slotTime > startTime) {
                 const hh = String(h).padStart(2, '0');
                 const mm = String(m).padStart(2, '0');
@@ -52,26 +87,14 @@ export function getAvailableTimeSlots(startHour = 10, endHour = 22) {
 }
 
 /**
- * 4. 영업 여부 판단 (Break Time 등 확장 가능)
+ * 6. 영업 여부 판단
  */
 export function isStoreOpen(openTime = "10:00", closeTime = "22:00") {
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
     const [oH, oM] = openTime.split(':').map(Number);
     const [cH, cM] = closeTime.split(':').map(Number);
-    
     const start = oH * 60 + oM;
     const end = cH * 60 + cM;
-    
     return currentTime >= start && currentTime <= end;
-}
-
-/**
- * 5. 날짜 차이 계산 (어제 주문, 오늘 주문 구분용)
- */
-export function isToday(dateStr) {
-    const target = new Date(dateStr).toDateString();
-    const today = new Date().toDateString();
-    return target === today;
 }

@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>매장 주문</title>
+  <style>
+    /* 🚀 메뉴 그리드 중앙 정렬 스타일 추가 */
+    #menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      justify-items: center; /* 아이템 가로 중앙 */
+      text-align: center;
+    }
+    /* 장바구니 아이템 옵션 스타일 */
+    .cart-item-options {
+      font-size: 0.85rem;
+      color: #666;
+      margin-left: 10px;
+      line-height: 1.4;
+    }
+  </style>
 </head>
 
 <body data-store-id="">
@@ -27,130 +44,176 @@
   <div class="card vstack">
     <h3>직원 호출</h3>
     <div class="hstack" style="gap:8px;flex-wrap:wrap">
-      <select id="call-reason" class=\"input\" style=\"max-width:240px\"></select>
-      <button id=\"call-btn\" class=\"btn\">직원 호출</button>
+      <select id="call-reason" class="input" style="max-width:240px"></select>
+      <button id="call-btn" class="btn">직원 호출</button>
     </div>
-    <div id=\"call-status\" class=\"small\" style=\"color:#9ca3af\"></div>
+    <div id="call-msg" class="small" style="color:var(--primary); margin-top:8px"></div>
   </div>
 
-  <div id=\"menu-list\" class=\"vstack\" style=\"gap:16px\"></div>
+  <div class="card vstack">
+    <h3>메뉴</h3>
+    <div id="menu-grid"></div>
+  </div>
 
-  <div class=\"bottom-bar\">
-    <div class=\"hstack\" style=\"justify-content:space-between;max-width:600px;margin:0 auto\">
-      <div class=\"vstack\">
-        <span class=\"small\">총 주문 금액</span>
-        <strong id=\"total-price\">0원</strong>
-      </div>
-      <button id=\"order-btn\" class=\"btn primary\" style=\"padding:12px 24px\">주문하기</button>
+  <div class="card vstack">
+    <h3>장바구니</h3>
+    <div id="cart-box" class="vstack" style="gap:10px; margin: 10px 0;"></div>
+  </div>
+
+  <div class="card hstack" style="justify-content:space-between;align-items:center; margin-bottom:100px;">
+    <div>합계: <b id="total" style="color:var(--primary); font-size:1.2rem;">0</b>원</div>
+    <button id="pay-btn" class="btn primary large">주문하기</button>
+  </div>
+
+  <div class="small" style="color:#9ca3af;margin-top:6px; text-align:center;">
+    주문 접수 후 카운터에서 결제를 진행해주세요.
+  </div>
+</div>
+
+<div id="option-modal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+  <div class="content" style="background:#fff; padding:20px; border-radius:12px; width:90%; max-width:400px; color:#333;">
+    <h3 id="opt-menu-name">옵션 선택</h3>
+    <div id="opt-container" class="vstack" style="margin:15px 0"></div>
+    <div class="hstack" style="gap:8px">
+      <button id="opt-close" class="btn" style="flex:1">취소</button>
+      <button id="opt-add-cart" class="btn primary" style="flex:1">장바구니 담기</button>
     </div>
   </div>
 </div>
 
-<div id=\"order-confirm-modal\" class=\"modal-overlay\">
-  <div class=\"modal-content\">
+<div id="order-confirm-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#0d1117; color:#fff; padding:20px; border-radius:16px; width:90%; max-width:420px;">
     <h3>주문 확인</h3>
-    <div id=\"order-summary\" class=\"vstack\" style=\"gap:8px; margin:16px 0\"></div>
-    <div class=\"hstack\" style=\"gap:8px\">
-      <button id=\"confirm-cancel\" class=\"btn\" style=\"flex:1\">취소</button>
-      <button id=\"confirm-ok\" class=\"btn primary\" style=\"flex:1\">주문 확정</button>
+    <pre id="confirm-items" style="white-space:pre-wrap;font-size:13px; background:#161b22; padding:10px; border-radius:8px; margin:10px 0;"></pre>
+    <div style="margin-top:10px">합계: <b id="confirm-total"></b>원</div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button id="confirm-cancel" class="btn" style="flex:1">취소</button>
+      <button id="confirm-ok" class="btn primary" style="flex:1">확인</button>
     </div>
   </div>
 </div>
 
-<script type=\"module\">
-import cart from '/src/order/assets/js/modules/cart.js';
+<div id="order-success-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#0d1117; color:#fff; padding:24px; border-radius:16px; width:90%; max-width:360px; text-align:center;">
+    <h3 style="margin-bottom:12px">주문이 접수되었습니다</h3>
+    <p style="font-size:14px;color:#9ca3af;line-height:1.5">카운터에서 결제를 진행해주세요.</p>
+    <button id="order-success-close" class="btn primary" style="margin-top:20px;width:100%">확인</button>
+  </div>
+</div>
 
-const urlParams = new URLSearchParams(window.location.search);
-const storeId = urlParams.get('store') || '';
-document.body.dataset.storeId = storeId;
+<script type="module">
+  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+  import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
+  import { ensureStoreInitialized } from '/src/shared/store.js';
+ 
 
-// 1. 오늘의 결제 코드 가져오기 (통합 API)
-let expectedCode = '';
-async function fetchExpectedCode() {
-  if(!storeId) return;
-  try {
-    const r = await fetch(`/api/payment-code?storeId=${storeId}`);
-    const j = await r.json();
-    if (j.ok) expectedCode = j.code;
-  } catch(e) { console.error(e); }
-}
-fetchExpectedCode();
-
-// 2. 메뉴 로드
-async function loadMenus() {
-  const r = await fetch(`/api/menus?storeId=${storeId}`);
-  const j = await r.json();
-  if (!j.ok) return;
-  cart.init(j.menus, 'total-price', 'menu-list');
-}
-loadMenus();
-
-// 3. 직원 호출 로직
-async function loadCallSettings() {
-  const r = await fetch(`/api/store-settings?storeId=${storeId}`);
-  const j = await r.json();
-  if (j.ok && j.settings.call_options) {
-    const opts = JSON.parse(j.settings.call_options);
-    const sel = document.getElementById('call-reason');
-    sel.innerHTML = opts.map(o => `<option value=\"${o}\">${o}</option>`).join('');
+  // 1. 직원 호출 쿨타임 로직 (사장님 원본 유지)
+  const CALL_COOLDOWN_SEC = 10;
+  const CALL_COOLDOWN_KEY = 'qrnr.call.cooldown';
+  function getCallRemainSec() {
+    const last = Number(localStorage.getItem(CALL_COOLDOWN_KEY) || 0);
+    const diff = Math.floor((Date.now() - last) / 1000);
+    return Math.max(0, CALL_COOLDOWN_SEC - diff);
   }
-}
-loadCallSettings();
+  function updateCallButtonState() {
+    const btn = document.getElementById('call-btn');
+    const msgEl = document.getElementById('call-msg');
+    if (!btn) return;
+    const remain = getCallRemainSec();
+    if (remain > 0) {
+      btn.disabled = true;
+      btn.textContent = `직원 호출 (${remain}s)`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = '직원 호출';
+    }
+  }
 
-document.getElementById('call-btn').onclick = async () => {
-  const table = document.getElementById('tableNo').value.trim();
-  if(!table) return alert('테이블 번호를 입력하세요');
-  const note = document.getElementById('call-reason').value;
-  
-  const r = await fetch('/api/call', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ storeId, table, note })
-  });
-  if ((await r.json()).ok) alert('직원을 호출했습니다.');
-};
+  // 2. 초기화
+  const storeId = ensureStoreInitialized();
+  window.qrnrStoreId = storeId;
+  document.body.dataset.storeId = storeId;
+  setInterval(updateCallButtonState, 1000);
+  updateCallButtonState();
 
-// 4. 주문 처리
-document.getElementById('order-btn').onclick = () => {
-  const table = document.getElementById('tableNo').value.trim();
-  const inputCode = document.getElementById('paycode').value.trim();
-  if (!table) return alert('테이블 번호를 입력하세요');
-  if (inputCode !== expectedCode) return alert('결제 코드가 올바르지 않습니다');
-  if (!cart.items.length) return alert('장바구니가 비어 있습니다');
+  // 테이블 번호 자동입력
+  const tableParam = new URLSearchParams(location.search).get('table') || '';
+  if (tableParam) document.getElementById('tableNo').value = tableParam;
 
-  // 모달 띄우기
-  const summary = document.getElementById('order-summary');
-  summary.innerHTML = cart.items.map(i => `<div>${i.name} x ${i.qty}</div>`).join('');
-  document.getElementById('order-confirm-modal').style.display = 'flex';
-};
+  // 3. 장바구니 & 메뉴 렌더링 (사장님 JS 함수 호출)
+  const cart = makeCart('cart-box', 'total'); 
+  cart.render();
+  renderMenu('menu-grid', cart);
 
-document.getElementById('confirm-cancel').onclick = () => {
-  document.getElementById('order-confirm-modal').style.display = 'none';
-};
+  // 4. 직원 호출 (사장님 원본 유지)
+  document.getElementById('call-btn').onclick = async () => {
+    const remain = getCallRemainSec();
+    if (remain > 0) return alert(`직원 호출은 ${remain}초 후에 다시 가능합니다.`);
+    const tableVal = document.getElementById('tableNo').value.trim();
+    const note = document.getElementById('call-reason').value.trim();
+    if (!tableVal) return alert('테이블 번호를 입력하세요.');
 
-document.getElementById('confirm-ok').onclick = async () => {
-  const payload = {
-    storeId,
-    type: 'store',
-    table: document.getElementById('tableNo').value,
-    amount: cart.total(),
-    cart: cart.items
+    const r = await fetch('/api/call', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ storeId, table: tableVal, note })
+    });
+    if (r.ok) {
+      localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
+      document.getElementById('call-msg').textContent = '직원 호출이 전달되었습니다.';
+      setTimeout(() => { document.getElementById('call-msg').textContent = ''; }, 3000);
+      updateCallButtonState();
+      // 알림 전송
+      new BroadcastChannel('qrnr-admin').postMessage({ type: 'CALL', storeId, table: tableVal, note, ts: Date.now() });
+    }
   };
 
-  const r = await fetch('/api/orders', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  // 호출 옵션 로드 (사장님 로직)
+  (function loadOptions() {
+    const select = document.getElementById('call-reason');
+    const list = ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
+    select.innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+  })();
 
-  const j = await r.json();
-  if (j.ok) {
-    alert('주문이 완료되었습니다.');
-    location.reload();
-  } else {
-    alert('주문 실패: ' + j.error);
-  }
-};
+  // 5. 주문하기 (사장님 원본 유지 + 모달 연동)
+  document.getElementById('pay-btn').onclick = async (e) => {
+    e.preventDefault();
+    const table = document.getElementById('tableNo').value.trim();
+    const inputCode = document.getElementById('paycode').value.trim();
+    const pc = await fetch(`/api/payment-code?storeId=${storeId}`).then(r => r.json());
+    
+    if (!table) return alert('테이블 번호를 입력하세요');
+    if (inputCode !== pc?.code) return alert('결제 코드가 올바르지 않습니다');
+    if (!cart.items.length) return alert('장바구니가 비어 있습니다');
+
+    // 확인 모달 열기
+    document.getElementById('confirm-items').textContent = cart.items.map(i => `${i.name} x${i.qty}`).join('\n');
+    document.getElementById('confirm-total').textContent = cart.total().toLocaleString();
+    document.getElementById('order-confirm-modal').style.display = 'flex';
+  };
+
+  document.getElementById('confirm-ok').onclick = async () => {
+    const payload = {
+      storeId,
+      type: 'store',
+      table: document.getElementById('tableNo').value,
+      amount: cart.total(),
+      cart: cart.items
+    };
+    const r = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if ((await r.json()).ok) {
+      document.getElementById('order-confirm-modal').style.display = 'none';
+      document.getElementById('order-success-modal').style.display = 'flex';
+    }
+  };
+
+  document.getElementById('confirm-cancel').onclick = () => document.getElementById('order-confirm-modal').style.display = 'none';
+  document.getElementById('order-success-close').onclick = () => location.reload();
+
 </script>
 </body>
 </html>
