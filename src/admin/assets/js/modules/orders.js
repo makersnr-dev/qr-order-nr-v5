@@ -659,10 +659,17 @@ export function attachGlobalHandlers() {
       const payment = order.meta?.payment;
       let paymentInfo = '💳 결제 상태: 미결제';
       if (payment?.paid) {
-        paymentInfo = ['💳 결제 상태: 결제완료', `결제 수단: ${payment.method || 'POS'}`, payment.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : ''].filter(Boolean).join('\n');
+        paymentInfo = ['💳 결제 상태: 결제완료', 
+                       //`결제 수단: ${payment.method || 'POS'}`, 
+                       //payment.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : ''
+                       ].filter(Boolean).join('\n');
       }
       if (order.meta?.payment?.cancelled) {
-        paymentInfo = ['💳 결제 상태: 결제취소', payment?.method ? `결제 수단: ${payment.method}` : '', payment?.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : '', order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''].filter(Boolean).join('\n');
+        paymentInfo = ['💳 결제 상태: 결제취소', 
+                       payment?.method ? `결제 수단: ${payment.method}` : '', 
+                       //payment?.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : '', 
+                       //order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''
+                       ].filter(Boolean).join('\n');
       }
 
       const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
