@@ -678,25 +678,28 @@ export function attachGlobalHandlers() {
           const statusText = h.value || h.status || h.payment || ''; 
           const adminText = h.by ? ` (by ${h.by})` : '';
           return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
+      // orders.js 내 상세 내역 생성 부분
       const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
-        let line = `• ${i.name} x${i.qty}`;
-        
-        // DB에서 가져온 options가 문자열일 경우를 대비해 파싱 시도
-        let opts = i.options;
-        if (typeof opts === 'string') {
-            try { opts = JSON.parse(opts); } catch(e) { opts = []; }
-        }
-        
-        if (Array.isArray(opts) && opts.length > 0) {
-            const optLines = opts.map(opt => {
-                const name = opt.name || opt.group || '옵션';
-                const val = opt.label || opt.value || ''; // 사용자님 DB 구조는 label을 주로 사용함
-                return `    └ ${name}: ${val}`;
-            }).join('\n');
-            line += `\n${optLines}`;
-        }
-        return line;
-    }).join('\n\n');
+          let line = `• ${i.name} x${i.qty}`;
+          
+          // 1. i.options 또는 i.selectedOptions 중 있는 것을 선택
+          let opts = i.options || i.selectedOptions; 
+          
+          // 2. 만약 데이터가 문자열(String)로 넘어왔다면 객체로 파싱
+          if (typeof opts === 'string') {
+              try { opts = JSON.parse(opts); } catch(e) { opts = []; }
+          }
+          
+          if (Array.isArray(opts) && opts.length > 0) {
+              const optLines = opts.map(opt => {
+                  const name = opt.group || opt.name || '옵션';
+                  const val = opt.label || opt.value || '';
+                  return `    └ ${name}: ${val}`;
+              }).join('\n');
+              line += `\n${optLines}`;
+          }
+          return line;
+      }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -721,7 +724,25 @@ export function attachGlobalHandlers() {
 
       const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.address || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
-      const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
+      const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => {
+        let line = `• ${i.name} x${i.qty}`;
+        
+        let opts = i.options;
+        // 문자열인 경우를 위한 파싱 로직 추가
+        if (typeof opts === 'string') {
+            try { opts = JSON.parse(opts); } catch(e) { opts = []; }
+        }
+        
+        if (Array.isArray(opts) && opts.length > 0) {
+            const optLines = opts.map(opt => {
+                const name = opt.group || opt.name || '옵션';
+                const val = opt.label || opt.value || '';
+                return `    └ ${name}: ${val}`;
+            }).join('\n');
+            line += `\n${optLines}`;
+        }
+        return line;
+    }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
