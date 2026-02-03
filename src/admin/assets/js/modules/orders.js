@@ -666,7 +666,11 @@ export function attachGlobalHandlers() {
       }
 
       const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
-      const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || h.status || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
+      const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => {
+          // value, status, payment 중 값이 있는 것을 선택
+          const statusText = h.value || h.status || h.payment || ''; 
+          const adminText = h.by ? ` (by ${h.by})` : '';
+          return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
       const body = '📦 주문 메뉴\n\n' + (order.cart || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
@@ -714,7 +718,7 @@ export function attachGlobalHandlers() {
           orderId: id,
           type: 'store',
           meta: { payment: { paid: true, paidAt: new Date().toISOString(), method: 'POS' } },
-          metaAppend: { history: { at: new Date().toISOString(), type: 'PAYMENT', action: 'PAYMENT_CONFIRMED', payment: PAYMENT_STATUS.PAID, by: ADMIN_ID, note: 'POS 결제 확인' } }
+          metaAppend: { history: { at: new Date().toISOString(), type: 'PAYMENT', action: 'PAYMENT_CONFIRMED',value:'결제완료', payment: PAYMENT_STATUS.PAID, by: ADMIN_ID, note: 'POS 결제 확인' } }
         })
       });
       const data = await res.json();
