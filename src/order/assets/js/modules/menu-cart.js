@@ -58,28 +58,33 @@ export function makeCart(boxId, totalId) {
             }, 0);
         },
 
+        // menu-cart.js 약 65라인 근처 render() 함수 수정
         render() {
             if (!this.box) return;
             if (this.items.length === 0) {
                 this.box.innerHTML = '<div class="small" style="padding:10px; opacity:0.5;">담긴 메뉴가 없습니다.</div>';
             } else {
                 this.box.innerHTML = this.items.map((it, idx) => `
-                    <div class="hstack" style="justify-content:space-between; background:#1c2632; padding:12px; border-radius:10px; margin-bottom:8px;">
+                    <div class="hstack" style="justify-content:space-between; ...">
                         <div>
                             <div style="font-size:14px; font-weight:600;">${it.name} x ${it.qty}</div>
-                            ${it.optionText && it.optionText.length ? `<div class="small" style="color:#9ca3af; font-size:11px;">${it.optionText.join(', ')}</div>` : ''}
-                            <div style="font-size:13px; color:var(--primary); margin-top:4px;">${fmt((Number(it.price) + it.selectedOptions.reduce((s,o)=>s+o.price,0)) * it.qty)}원</div>
+                            ${it.optionText && it.optionText.length 
+                                ? `<div class="small" style="color:#9ca3af; font-size:11px; margin-top:2px;">
+                                     ${it.optionText.map(opt => `└ ${opt}`).join('<br>')}
+                                   </div>` 
+                                : ''}
+                            <div style="font-size:13px; color:var(--primary); margin-top:4px;">
+                                ${fmt((Number(it.price) + it.selectedOptions.reduce((s,o)=>s+o.price,0)) * it.qty)}원
+                            </div>
                         </div>
-                        <div class="hstack" style="gap:5px;">
-                            <button class="btn small" onclick="window.qrnrCart.updateQty(${idx}, -1)">-</button>
-                            <button class="btn small" onclick="window.qrnrCart.updateQty(${idx}, 1)">+</button>
-                        </div>
+                        ...
                     </div>
                 `).join('');
             }
             if (this.totalEl) this.totalEl.textContent = fmt(this.total());
             window.qrnrCart = this;
         }
+        
     };
     window.qrnrCart = cart;
     return cart;
