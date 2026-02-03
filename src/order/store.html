@@ -230,7 +230,14 @@ export function showToast(msg, variant = 'info') {
     if (!cart.items.length) return showToast('장바구니가 비어 있습니다','info');
 
     // 확인 모달 열기
-    document.getElementById('confirm-items').textContent = cart.items.map(i => `${i.name} x${i.qty}`).join('\n');
+    document.getElementById('confirm-items').textContent = cart.items.map(i => {
+  let line = `${i.name} x${i.qty}`;
+  // 옵션 내역이 있다면 추가
+  if (i.optionText && i.optionText.length > 0) {
+    line += `\n   └ ${i.optionText.join(', ')}`;
+  }
+  return line;
+}).join('\n');
     document.getElementById('confirm-total').textContent = cart.total().toLocaleString();
     document.getElementById('order-confirm-modal').style.display = 'flex';
   };
