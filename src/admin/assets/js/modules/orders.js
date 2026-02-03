@@ -679,20 +679,24 @@ export function attachGlobalHandlers() {
           const adminText = h.by ? ` (by ${h.by})` : '';
           return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
       const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
-          let line = `• ${i.name} x${i.qty}`;
-          
-          // ✅ 옵션(토핑) 데이터가 있다면 줄바꿈하여 추가합니다.
-          if (Array.isArray(i.options) && i.options.length > 0) {
-              // normalizeOptions 함수를 사용하여 "그룹명:라벨" 형태로 변환
-              const optLines = i.options.map(opt => {
-                  const name = opt.name || opt.group || '옵션';
-                  const val = opt.value || opt.label || '';
-                  return `    └ ${name}: ${val}`;
-              }).join('\n');
-              line += `\n${optLines}`;
-          }
-          return line;
-      }).join('\n\n');
+        let line = `• ${i.name} x${i.qty}`;
+        
+        // DB에서 가져온 options가 문자열일 경우를 대비해 파싱 시도
+        let opts = i.options;
+        if (typeof opts === 'string') {
+            try { opts = JSON.parse(opts); } catch(e) { opts = []; }
+        }
+        
+        if (Array.isArray(opts) && opts.length > 0) {
+            const optLines = opts.map(opt => {
+                const name = opt.name || opt.group || '옵션';
+                const val = opt.label || opt.value || ''; // 사용자님 DB 구조는 label을 주로 사용함
+                return `    └ ${name}: ${val}`;
+            }).join('\n');
+            line += `\n${optLines}`;
+        }
+        return line;
+    }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
