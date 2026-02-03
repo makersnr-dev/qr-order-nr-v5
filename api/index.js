@@ -136,6 +136,8 @@ export default async function handler(req, res) {
                     : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
             
                 const orders = r.rows.map(row => {
+                    // meta가 문자열이면 파싱, 아니면 그대로 사용
+                    const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
                     if (type === 'store') {
                         return {
                             ...row,
@@ -155,6 +157,7 @@ export default async function handler(req, res) {
                                 addr: row.address
                             },
                             reserve: row.meta?.reserve || {},
+                            requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
                             ts: new Date(row.created_at).getTime()
                         };
                     }
