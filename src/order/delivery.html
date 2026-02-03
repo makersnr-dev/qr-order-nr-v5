@@ -6,6 +6,28 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>예약</title>
 </head>
+  <style>
+    /* 토스트 알림 스타일 추가 */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111922;
+  border: 1px solid #263241;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.toast-success { border-left: 5px solid #2ea043 !important; }
+.toast-error { border-left: 5px solid #ef4444 !important; }
+.toast-info { border-left: 5px solid #74c0fc !important; }
+    </style>
 
 <body data-store-id="">
 <script type="module">
@@ -20,6 +42,7 @@
     url.searchParams.set('store', storeId);
     history.replaceState(null, "", url.toString());
   }
+  
 </script>
 
 <div class="container">
@@ -139,7 +162,30 @@
 <script type="module">
 import cart from '/src/order/assets/js/modules/cart.js';
 import { getMyInfo } from '/src/order/assets/js/modules/cust-auth.js';
+/**
+ * 표준 토스트 알림 함수
+ * @param {string} msg - 표시할 메시지
+ * @param {string} variant - 'info', 'success', 'error' (색상 구분용)
+ */
+export function showToast(msg, variant = 'info') {
+  const t = document.createElement('div');
+  
+  // 기본 클래스는 toast, 상태에 따라 클래스 추가 (예: toast-success)
+  t.className = `toast toast-${variant}`; 
+  t.textContent = msg;
+  
+  document.body.appendChild(t);
 
+  // 브라우저가 요소를 인식한 직후에 'show' 클래스 추가 (애니메이션 시작)
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  // 3초 후 사라짐
+  setTimeout(() => {
+    t.classList.remove('show');
+    // 애니메이션(0.2초)이 끝난 후 요소 삭제
+    setTimeout(() => t.remove(), 200);
+  }, 3000);
+}
 const storeId = window.qrnrStoreId;
 
 // 1. 초기 데이터 로드
@@ -214,14 +260,14 @@ async function submitReserve() {
   if (j.ok) {
     document.getElementById("reserve-done-modal").style.display = "flex";
   } else {
-    alert("예약 저장에 실패했습니다: " + j.error);
+    showToast("예약 저장에 실패했습니다: " + j.error,'error');
   }
 }
 
 // 3. 버튼 이벤트 (사장님 원본 UI 로직 그대로)
 document.getElementById("action-btn").onclick = () => {
-  if (!cart.items.length) return alert("장바구니가 비어있습니다.");
-  if (!document.getElementById("date").value) return alert("날짜를 선택해주세요.");
+  if (!cart.items.length) return showToast("장바구니가 비어있습니다.",'info');
+  if (!document.getElementById("date").value) return showToast("날짜를 선택해주세요.",'info');
 
   const summary = document.getElementById("confirm-summary");
   summary.innerHTML = `
