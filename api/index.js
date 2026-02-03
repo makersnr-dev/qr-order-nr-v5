@@ -152,7 +152,7 @@ export default async function handler(req, res) {
                             customer: {
                                 name: row.customer_name,
                                 phone: row.customer_phone,
-                                addr: row.table_no
+                                addr: row.address
                             },
                             reserve: row.meta?.reserve || {},
                             ts: new Date(row.created_at).getTime()
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
                     await query(
                         `INSERT INTO orderss (
                             order_id, store_id, type, status, 
-                            customer_name, customer_phone, table_no, 
+                            customer_name, customer_phone, address, 
                             items, total_amount, lookup_pw, order_no, meta
                         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
                         [
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
                             '입금 미확인',           // status
                             customer.name,          // customer_name
                             customer.phone,         // customer_phone
-                            customer.addr,          // table_no (주소 저장)
+                            customer.fullAddr,          // address (주소 저장)
                             JSON.stringify(cart),   // items (jsonb, 필수값! null이면 에러남)
                             amount,                 // total_amount
                             lookupPw,               // lookup_pw
