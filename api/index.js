@@ -13,19 +13,31 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
+    // api/index.js 내부의 getAuth 함수를 아래로 교체
     const getAuth = async () => {
         const cookieHeader = req.headers.cookie || '';
-        const cookies = Object.fromEntries(
-            cookieHeader.split(';').map(c => {
-                const [key, ...v] = c.trim().split('=');
-                return [key, v.join('=')];
-            })
-        );
+        const cookies = {};
+        cookieHeader.split(';').forEach(item => {
+            const parts = item.trim().split('=');
+            if (parts.length >= 2) {
+                // key는 첫 번째, 값은 나머지 전부를 합침 (Base64 패딩 '=' 대응)
+                const key = parts[0];
+                const value = parts.slice(1).join('='); 
+                cookies[key] = value;
+            }
+        });
+    
+        // 우선순위: 슈퍼토큰 > 관리자토큰
         const token = cookies['super_token'] || cookies['admin_token'];
         if (!token) return null;
+    
         try {
+            // [주의] process.env.JWT_SECRET이 Vercel 설정에 없으면 'dev-secret' 사용
             return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
-        } catch (e) { return null; }
+        } catch (e) {
+            console.error('[Auth Error]', e.message);
+            return null;
+        }
     };
 
     try {
