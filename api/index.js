@@ -121,31 +121,82 @@ export default async function handler(req, res) {
             if (method === 'GET') {
                 const type = params.get('type');
                 if (type === 'store') {
+                    // 🏠 매장 주문: orders 테이블
                     const r = await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100', [storeId]);
-                    return json({ ok: true, orders: r.rows.map(row => ({ ...row, order_no: row.order_no, table_no: row.table_no, amount: row.amount, cart: row.meta?.cart || [], ts: new Date(row.created_at).getTime() })) });
+                    return json({
+                        ok: true,
+                        orders: r.rows.map(row => ({
+                            ...row,
+                            orderId: row.order_no,  // 프론트엔드 UI용 통합 ID
+                            order_no: row.order_no, // 실제 컬럼명
+                            table_no: row.table_no,
+                            amount: row.amount,
+                            cart: row.meta?.cart || [],
+                            ts: new Date(row.created_at).getTime()
+                        }))
+                    });
                 } else {
+                    // 📅 예약 주문: orderss 테이블
                     const r = await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 100', [storeId]);
-                    return json({ ok: true, orders: r.rows.map(row => ({ ...row, order_id: row.order_id, customer_name: row.customer_name, customer_phone: row.customer_phone, table_no: row.table_no, total_amount: row.total_amount, items: row.items || [], reserve: row.meta?.reserve || {}, ts: new Date(row.created_at).getTime() })) });
+                    return json({
+                        ok: true,
+                        orders: r.rows.map(row => ({
+                            ...row,
+                            orderId: row.order_no,       // UI에서 undefined 방지 (중요!)
+                            order_no: row.order_no,      // 새로 추가한 컬럼
+                            lookup_pw: row.lookup_pw,    // 새로 추가한 컬럼
+                            customer_name: row.customer_name,
+                            customer_phone: row.customer_phone,
+                            table_no: row.table_no,      // 주소가 저장된 곳
+                            total_amount: row.total_amount,
+                            amount: row.total_amount,    // 프론트 공통 필드용
+                            items: row.items || [],
+                            cart: row.items || [],       // 프론트 공통 필드용
+                            reserve: row.meta?.reserve || {},
+                            ts: new Date(row.created_at).getTime()
+                        }))
+                    });
                 }
             }
             if (method === 'POST') {
                 const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
-                const newId = `${storeId}-${type}-${Date.now()}`;
+                
+                // 1. 주문 식별자 생성
+                // order_id (숫자): DB 인덱싱 및 내부 관리용 (9자리 숫자)
+                const newNumericId = parseInt(String(Date.now()).slice(-9)); 
+                // order_no (문자열): 관리자 화면 표시 및 고객 확인용 (가독성 있는 번호)
+                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
+    
                 if (type === 'store') {
-                    await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newId, table, amount, JSON.stringify({ cart, type, table, ts: Date.now() })]);
+                    // 매장 주문 (orders 테이블)
+                    await query(
+                        `INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) 
+                         VALUES ($1, $2, '주문접수', $3, $4, $5)`, 
+                        [storeId, newOrderNo, table, amount, JSON.stringify({ cart, type, table, ts: Date.now() })]
+                    );
                 } else {
-                    await query(`INSERT INTO orderss (order_id, store_id, type, status, customer_name, customer_phone, table_no, items, total_amount, meta) VALUES ($1, $2, 'reserve', '입금 미확인', $3, $4, $5, $6, $7, $8)`, [newId, storeId, customer.name, customer.phone, customer.addr, JSON.stringify(cart), amount, JSON.stringify({ reserve, agreePrivacy, lookupPw, memberId })]);
+                    // 예약 주문 (orderss 테이블)
+                    // order_id(숫자형), order_no(문자열형), lookup_pw(조회비번) 모두 포함
+                    await query(
+                        `INSERT INTO orderss (order_id, order_no, store_id, type, status, customer_name, customer_phone, table_no, items, total_amount, lookup_pw, meta) 
+                         VALUES ($1, $2, $3, $4, '입금 미확인', $5, $6, $7, $8, $9, $10, $11)`, 
+                        [
+                            newNumericId,   // order_id (integer)
+                            newOrderNo,     // order_no (varying)
+                            storeId, 
+                            'reserve', 
+                            customer.name, 
+                            customer.phone, 
+                            customer.addr, 
+                            JSON.stringify(cart), 
+                            amount, 
+                            lookupPw, 
+                            JSON.stringify({ reserve, agreePrivacy, memberId })
+                        ]
+                    );
                 }
-                return json({ ok: true, orderId: newId });
-            }
-            if (method === 'PUT') {
-                const { orderId, status, type } = req.body;
-                if (type === 'store' || orderId.includes('-store-')) {
-                    await query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_no = $2', [status, orderId]);
-                } else {
-                    await query('UPDATE orderss SET status = $1, updated_at = NOW() WHERE order_id = $2', [status, orderId]);
-                }
-                return json({ ok: true });
+                // 프론트엔드에는 가독성 좋은 order_no를 반환합니다.
+                return json({ ok: true, orderId: newOrderNo });
             }
         }
 
