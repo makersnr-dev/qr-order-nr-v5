@@ -309,7 +309,7 @@ function matchOrder(o, from, to, status, search) {
 
   const s = (search || '').toLowerCase();
   const fields = [
-    o.address,
+    o.fullAddr || o.address,
     o.customer_name,
     o.customer_phone,
     o.items?.map(i => i.name).join(' ')
