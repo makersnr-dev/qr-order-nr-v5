@@ -25,7 +25,7 @@ import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
 
-let supabase = null;
+let supabaseClient = null; // 전역 변수 이름을 살짝 바꿈
 
 
 
@@ -171,13 +171,13 @@ export function showToast(msg, variant = 'info') {
 //------------------------------------------------------------
 const adminChannel = new BroadcastChannel("qrnr-admin");
 async function initRealtimeAlarm(storeId) {
-    if (!supabase || !storeId) return;
+    if (!supabaseClient || !storeId) return;
     
     // 기존 구독이 남아있으면 꼬일 수 있으므로 깨끗하게 정리
-    supabase.removeAllChannels();
+    supabaseClient.removeAllChannels();
 
     // 1. 새 주문 알람 채널 (띵동 소리 + 목록 갱신)
-    const alarmChannel = supabase.channel(`qrnr_alarm_${storeId}`);
+    const alarmChannel = supabaseClient.channel(`qrnr_alarm_${storeId}`);
     alarmChannel.on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
         const data = payload.payload;
         console.log("🔔 새 주문 도착!", data);
@@ -194,7 +194,7 @@ async function initRealtimeAlarm(storeId) {
     }).subscribe();
 
     // 2. 상태 변경 동기화 채널 (주문완료/준비중 변경 시 자동 갱신)
-    const syncChannel = supabase.channel(`qrnr_sync_${storeId}`);
+    const syncChannel = supabaseClient.channel(`qrnr_sync_${storeId}`);
     syncChannel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
         const { orderId, status, type } = payload.payload;
         console.log(`🔄 상태 변경 동기화: ${orderId} -> ${status}`);
@@ -218,13 +218,11 @@ async function main() {
   try {
     const res = await fetch('/api/config');
     const { supabaseUrl, supabaseKey } = await res.json();
-    const lib = window.supabase || supabase; 
-    if (lib && lib.createClient) {
-        supabase = lib.createClient(supabaseUrl, supabaseKey);
-    } else {
-        // 만약 모듈 방식으로 import 했다면 (import { createClient } from ...)
-        // 상단에 import { createClient } ... 가 있어야 함
-        supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // index.html에서 로드된 'supabase' 객체를 사용하여 초기화
+    // window.supabase는 라이브러리 자체이고, supabaseClient는 우리 매장 연결 통로입니다.
+    if (window.supabase && window.supabase.createClient) {
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
     }
   } catch (e) {
     console.error("Supabase 설정 로드 실패:", e);
@@ -245,7 +243,7 @@ async function main() {
   
   
   // [중요] 3. 로그인 성공 및 storeId 확정 후 알람 구독 시작
-  if (supabase) {
+  if (supabaseClient) {
   initRealtimeAlarm(sid);
   }
 
