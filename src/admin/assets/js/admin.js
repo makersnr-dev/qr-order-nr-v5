@@ -203,10 +203,6 @@ async function initRealtimeAlarm(storeId) {
         document.title = "🚨 [새 주문 발생] 🚨";
         setTimeout(() => { document.title = originalTitle; }, 3000);
     })
-    .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
-        console.log("🔄 관리자 신호: 전체 페이지 새로고침");
-        location.reload();
-    })
     .subscribe((status) => {
         if (status === 'SUBSCRIBED') console.log(`✅ 실시간 채널 연결 성공: ${channelName}`);
     });
