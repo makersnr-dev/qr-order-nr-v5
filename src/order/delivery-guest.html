@@ -214,6 +214,8 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
    
 
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body data-store-id="">
@@ -788,7 +790,35 @@ document.getElementById("confirm-cancel").onclick = () => {
   document.getElementById("action-btn").disabled = false;
 
 };
+// 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
+  async function initRealtimeSync() {
+    try {
+        // 🚨 체크 추가: 라이브러리가 로드되었는지 확인
+        if (!window.supabase) {
+            console.error("Supabase 라이브러리가 로드되지 않았습니다. 1초 후 재시도합니다.");
+            setTimeout(initRealtimeSync, 1000);
+            return;
+        }
 
+        const res = await fetch('/api/config');
+        const { supabaseUrl, supabaseKey } = await res.json();
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        supabase.channel(`qrnr_realtime_${storeId}`)
+            .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
+                console.log("🔄 관리자 신호 수신: 화면을 새로고침합니다.");
+                location.reload(); 
+            })
+            .subscribe();
+            
+        console.log("✅ 실시간 동기화 연결 성공!");
+    } catch (e) {
+        console.error("실시간 동기화 연결 실패:", e);
+    }
+}
+
+  initRealtimeSync();
 
 </script>
 
