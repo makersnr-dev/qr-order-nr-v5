@@ -120,12 +120,27 @@ async function saveCallOptions(sid, list) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callOptions: list })
     });
+
     if (res.ok) {
         showToast("호출 항목 반영됨", "success");
         renderCallOptions();
+
+        // 🚀 [추가] 실시간 신호 발송
+        if (window.supabaseClient) {
+            const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'RELOAD_SIGNAL',
+                        payload: { type: 'call_options_update', at: Date.now() }
+                    });
+                    console.log("📡 [호출항목] 손님 화면 업데이트 신호 전송 완료");
+                }
+            });
+        }
     }
 }
-
 // --- 소리 및 알림 로직 (기존 유지) ---
 let audioCtx = null;
 export function enableNotifySound() { /* 기존 동일 */ }
