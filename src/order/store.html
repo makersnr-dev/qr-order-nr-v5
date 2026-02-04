@@ -9,25 +9,30 @@
     /* 매장 주문 그리드 최적화 */
 #menu-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; /* 카드 너비 상향 조정 */
-    gap: 16px !important; /* 간격을 넓혀 더 정갈하게 변경 */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
     justify-items: center;
     text-align: center;
     margin-top: 15px;
     width: 100%;
 }
-    /* 메뉴 카드 디자인을 예약 페이지와 통일 */
+
+/* 메뉴 카드 디자인 통일 */
 .menu-card {
     background: #111922;
     border: 1px solid #263241;
-    border-radius: 18px; /* 모서리를 더 둥글게 */
-    padding: 12px;
+    border-radius: 15px;
+    padding: 10px;
     cursor: pointer;
     width: 100%;
-    transition: all 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s;
 }
-    .menu-card:hover {
-    transform: translateY(-4px); /* 마우스 오버 시 효과 추가 */
+
+.menu-card:hover {
+    transform: translateY(-5px);
     border-color: var(--primary);
 }
 
