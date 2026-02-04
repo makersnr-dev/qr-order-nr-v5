@@ -215,6 +215,14 @@ async function main() {
   // 🔊 최초 클릭 시 사운드 활성화
   document.body.addEventListener('click', () => { enableNotifySound(); }, { once: true });
 
+  try {
+    const res = await fetch('/api/config');
+    const { supabaseUrl, supabaseKey } = await res.json();
+    supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+  } catch (e) {
+    console.error("Supabase 설정 로드 실패:", e);
+  }  
+  
   // A. 인증 검사 (서버에서 storeId를 이미 받아옵니다)
   const session = await requireAuth("admin");
   if (!session) return;
@@ -227,12 +235,12 @@ async function main() {
   localStorage.setItem("qrnr.storeId", sid);
   sessionStorage.setItem('qrnr.adminId.real', adminId); // 이름 통일
 
-  const res = await fetch('/api/config');
-  const { supabaseUrl, supabaseKey } = await res.json();
-  supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+  
   
   // [중요] 3. 로그인 성공 및 storeId 확정 후 알람 구독 시작
+  if (supabase) {
   initRealtimeAlarm(sid);
+  }
 
   // B. URL 보정
   try {
