@@ -299,31 +299,40 @@ async function initRealtimeSync() {
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
             console.log("🔄 [신호 수신] 관리자가 데이터를 수정함:", payload);
 
-            // 알림 토스트 (선택 사항)
-            if (typeof showToast === 'function') {
-                showToast("📋 매장 정보가 업데이트되었습니다.", "info");
-            }
+            if (typeof showToast === 'function') showToast("📋 매장 정보가 업데이트되었습니다.", "info");
 
-            // DB 반영 시간을 고려해 0.5초 대기 후 갱신
             setTimeout(async () => {
                 try {
-                    if (typeof renderMenu === 'function') {
-                        // ❗ 중요: 여기서 'cart'는 makeCart()로 생성된 전역 변수여야 합니다.
-                        // 만약 변수명이 qrnrCart라면 그걸로 바꿔주세요.
-                        await renderMenu('menu-grid', window.qrnrCart || cart); 
-                        console.log("✅ 메뉴판 부분 업데이트 성공 (새로고침 없음)");
-                    }
-                    
-                    // 만약 계좌 정보 등 매장 정보도 같이 쓰는 페이지라면 아래도 추가 가능
-                    if (typeof loadStoreInfo === 'function') {
-                        await loadStoreInfo();
-                    }
-                } catch (updateErr) {
-                    console.error("❌ 부분 업데이트 실패, 전체 새로고침 시도:", updateErr);
-                    location.reload(); // 부분 업데이트 실패 시 최후의 수단
+                  const updateType = payload.payload.type; // 관리자가 보낸 타입 ('menu_update', 'call_options_update' 등)
+                   // 1. 메뉴 업데이트 신호일 때만 실행 (또는 전체 업데이트일 때)
+            if (updateType === 'menu_update' || !updateType) {
+                if (typeof renderMenu === 'function') {
+                    await renderMenu('menu-grid', window.qrnrCart || cart);
+                    console.log("✅ 메뉴판 실시간 업데이트 완료");
                 }
-            }, 500);
-        })
+            }
+
+            // 2. 🚀 호출 옵션 업데이트 신호일 때만 실행
+            if (updateType === 'call_options_update' || !updateType) {
+                const select = document.getElementById('call-reason');
+                if (select) {
+                    const res = await fetch(`/api/store-settings?storeId=${sid}`);
+                    const data = await res.json();
+                    const list = data.settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
+                    select.innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    console.log("✅ 직원 호출 목록 실시간 업데이트 완료");
+                }
+            }
+
+            // 공통 매장 정보 갱신
+            if (typeof loadStoreInfo === 'function') await loadStoreInfo();
+
+        } catch (updateErr) {
+            console.error("❌ 부분 업데이트 실패, 새로고침 시도:", updateErr);
+            location.reload(); 
+        }
+    }, 500);
+  })
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`✅ 실시간 수신 대기 중 (채널: ${channelName})`);
