@@ -25,9 +25,9 @@ import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
 
-//import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-const { createClient } = supabase;
 let supabase = null;
+
+
 
 //------------------------------------------------------------
 // STORE ID NORMALIZER (핵심 버그 해결)
@@ -218,10 +218,17 @@ async function main() {
   try {
     const res = await fetch('/api/config');
     const { supabaseUrl, supabaseKey } = await res.json();
-    supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+    const lib = window.supabase || supabase; 
+    if (lib && lib.createClient) {
+        supabase = lib.createClient(supabaseUrl, supabaseKey);
+    } else {
+        // 만약 모듈 방식으로 import 했다면 (import { createClient } from ...)
+        // 상단에 import { createClient } ... 가 있어야 함
+        supabase = createClient(supabaseUrl, supabaseKey);
+    }
   } catch (e) {
     console.error("Supabase 설정 로드 실패:", e);
-  }  
+  }
   
   // A. 인증 검사 (서버에서 storeId를 이미 받아옵니다)
   const session = await requireAuth("admin");
