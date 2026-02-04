@@ -276,10 +276,10 @@ export function showToast(msg, variant = 'info') {
   // 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
   async function initRealtimeSync() {
     try {
-        // 🚨 체크 추가: 라이브러리가 로드되었는지 확인
+        // 🚨 라이브러리 로드 대기 (안전장치)
         if (!window.supabase) {
-            console.error("Supabase 라이브러리가 로드되지 않았습니다. 1초 후 재시도합니다.");
-            setTimeout(initRealtimeSync, 1000);
+            console.warn("Supabase 대기 중...");
+            setTimeout(initRealtimeSync, 500);
             return;
         }
 
@@ -288,20 +288,21 @@ export function showToast(msg, variant = 'info') {
 
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+        // 관리자가 쏘는 qrnr_realtime_ 채널을 똑같이 듣습니다.
         supabase.channel(`qrnr_realtime_${storeId}`)
             .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
-                console.log("🔄 관리자 신호 수신: 화면을 새로고침합니다.");
+                console.log("🔄 관리자 신호 수신: 메뉴판을 최신으로 갱신합니다.");
                 location.reload(); 
             })
             .subscribe();
             
-        console.log("✅ 실시간 동기화 연결 성공!");
+        console.log("✅ 실시간 동기화 준비 완료");
     } catch (e) {
         console.error("실시간 동기화 연결 실패:", e);
     }
 }
 
-  initRealtimeSync();
+initRealtimeSync();
 </script>
 </body>
 </html>
