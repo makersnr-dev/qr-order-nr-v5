@@ -27,7 +27,7 @@ import { get } from './modules/store.js';
 
 import { createClient } from '@supabase/supabase-js'; // HTML에서 CDN으로 불러와도 됨
 
-const supabase = createClient('URL', 'KEY');
+let supabase = null;
 
 //------------------------------------------------------------
 // STORE ID NORMALIZER (핵심 버그 해결)
@@ -227,6 +227,10 @@ async function main() {
   localStorage.setItem("qrnr.storeId", sid);
   sessionStorage.setItem('qrnr.adminId.real', adminId); // 이름 통일
 
+  const res = await fetch('/api/config');
+  const { supabaseUrl, supabaseKey } = await res.json();
+  supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+  
   // [중요] 3. 로그인 성공 및 storeId 확정 후 알람 구독 시작
   initRealtimeAlarm(sid);
 
