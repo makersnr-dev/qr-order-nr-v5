@@ -200,11 +200,13 @@ export default async function handler(req, res) {
     
             // 🚀 [추가] Supabase 실시간 알림 발송
             try {
-                await supabase.channel(`qrnr_alarm_${storeId}`).send({
+                const channel = supabase.channel(`qrnr_realtime_${storeId}`);
+                // 서버에서는 subscribe를 기다리지 않고 바로 send를 호출하는 방식이 더 안정적입니다.
+                await channel.send({
                     type: 'broadcast',
                     event: 'NEW_ORDER',
-                    payload: {
-                        orderNo: newOrderNo,
+                    payload: { 
+                        orderNo: newOrderNo, 
                         orderType: type,
                         table: table || '예약',
                         amount: amount,
@@ -212,8 +214,9 @@ export default async function handler(req, res) {
                         at: new Date().toISOString()
                     }
                 });
+                console.log("📡 실시간 주문 알림 전송 완료");
             } catch (err) {
-                console.error('Supabase 알림 전송 실패:', err);
+                console.error("⚠️ 실시간 알림 전송 실패:", err);
             }
     
             return json({ ok: true, orderId: newOrderNo });
