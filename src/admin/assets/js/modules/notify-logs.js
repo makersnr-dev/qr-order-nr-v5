@@ -35,7 +35,7 @@ export async function renderNotifyLogs() {
       
       tr.innerHTML = `
         <td>${fmtDateTime(n.ts)}</td>
-        <td><b>${n.table}번</b></td>
+        <td><b>${n.table_no}번</b></td>
         <td>${n.message}</td>
         <td>
           <select class="input" data-id="${n.id}" style="width:90px; border-color:${status === '완료' ? '#2ea043' : '#ffda6a'}">
