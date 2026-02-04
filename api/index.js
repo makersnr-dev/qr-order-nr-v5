@@ -16,6 +16,13 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
+    if (pathname === '/api/config') {
+        return json({ 
+            supabaseUrl: process.env.SUPABASE_URL, 
+            supabaseKey: process.env.SUPABASE_ANON_KEY 
+        });
+    }
+
     const getAuth = async () => {
         const cookieHeader = req.headers.cookie || '';
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
