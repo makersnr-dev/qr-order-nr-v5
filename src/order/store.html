@@ -6,14 +6,39 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>매장 주문</title>
   <style>
-    /* 🚀 메뉴 그리드 중앙 정렬 스타일 추가 */
-    #menu-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 12px;
-      justify-items: center; /* 아이템 가로 중앙 */
-      text-align: center;
-    }
+    /* 매장 주문 그리드 최적화 */
+#menu-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; /* 카드 너비 상향 조정 */
+    gap: 16px !important; /* 간격을 넓혀 더 정갈하게 변경 */
+    justify-items: center;
+    text-align: center;
+    margin-top: 15px;
+    width: 100%;
+}
+    /* 메뉴 카드 디자인을 예약 페이지와 통일 */
+.menu-card {
+    background: #111922;
+    border: 1px solid #263241;
+    border-radius: 18px; /* 모서리를 더 둥글게 */
+    padding: 12px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s ease-in-out;
+}
+    .menu-card:hover {
+    transform: translateY(-4px); /* 마우스 오버 시 효과 추가 */
+    border-color: var(--primary);
+}
+
+/* 장바구니 영역 디자인 개선 */
+#cart-box .hstack {
+    background: #0d1117;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border: 1px solid #263241;
+}
     /* 장바구니 아이템 옵션 스타일 */
     .cart-item-options {
       font-size: 0.85rem;
