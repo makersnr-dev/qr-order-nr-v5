@@ -26,35 +26,48 @@ async function loadMenuFromServer() {
 // 2. [DB] 메뉴 저장하기 (단건 또는 배열)
 async function saveMenuToServer(menuData) {
     try {
-        const res = await fetch(`/api/menus?storeId=${currentStoreId()}`, {
+        const sid = currentStoreId();
+        const res = await fetch(`/api/menus?storeId=${sid}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(menuData)
         });
 
-        // ✅ 저장이 성공했을 때만 동기화 신호 발송
-        if (res.ok && window.supabaseClient) {
-            const sid = currentStoreId();
-            const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
-            
-            // 🚀 핵심: subscribe 호출 후 'SUBSCRIBED' 상태가 된 후에 send를 호출해야 합니다.
-            channel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log("📡 실시간 채널 연결 성공, 신호를 보냅니다...");
-                    await channel.send({
-                        type: 'broadcast',
-                        event: 'RELOAD_SIGNAL',
-                        payload: { type: 'menu_update', at: Date.now() }
-                    });
-                    
-                    // 신호를 보낸 후 채널 정리 (메모리 절약)
-                    setTimeout(() => {
-                        window.supabaseClient.removeChannel(channel);
-                    }, 1000);
-                }
-            });
+        if (res.ok) {
+            console.log("✅ DB 저장 성공, 실시간 신호 발송 준비...");
+
+            // 🚀 전역에 등록된 supabaseClient 확인 (admin.js에서 등록됨)
+            const supabase = window.supabaseClient;
+            if (supabase) {
+                // 채널 이름을 주문페이지와 100% 일치시킴
+                const channelName = `qrnr_realtime_${sid}`;
+                const channel = supabase.channel(channelName);
+
+                channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log(`📡 [${channelName}] 채널 구독 완료 -> 신호 쏩니다!`);
+                        
+                        // broadcast 방식으로 데이터 전송
+                        const sendRes = await channel.send({
+                            type: 'broadcast',
+                            event: 'RELOAD_SIGNAL',
+                            payload: { type: 'menu_update', at: Date.now() }
+                        });
+
+                        console.log("📨 신호 전송 결과:", sendRes);
+
+                        // 전송 완료 후 채널 해제 (안정성을 위해 2초 뒤 삭제)
+                        setTimeout(() => supabase.removeChannel(channel), 2000);
+                    } else if (status === 'CHANNEL_ERROR') {
+                        console.error("❌ 채널 연결 에러 발생");
+                    }
+                });
+            } else {
+                console.error("❌ supabaseClient가 정의되지 않았습니다.");
+            }
+            return true;
         }
-        return res.ok;
+        return false;
     } catch (e) {
         console.error("메뉴 저장 중 오류:", e);
         return false;
