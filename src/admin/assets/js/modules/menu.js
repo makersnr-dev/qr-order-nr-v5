@@ -31,6 +31,22 @@ async function saveMenuToServer(menuData) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(menuData)
         });
+
+        // 🚀 저장 성공 시 손님들에게 새로고침 신호 쏘기
+        if (res.ok && window.supabaseClient) {
+            const sid = currentStoreId();
+            const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
+            
+            channel.subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'RELOAD_SIGNAL',
+                        payload: { from: 'admin', type: 'menu_update' }
+                    });
+                }
+            });
+        }
         return res.ok;
     } catch (e) {
         console.error(e);
