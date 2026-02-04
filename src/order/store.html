@@ -273,45 +273,67 @@ export function showToast(msg, variant = 'info') {
 
   document.getElementById('confirm-cancel').onclick = () => document.getElementById('order-confirm-modal').style.display = 'none';
   document.getElementById('order-success-close').onclick = () => location.reload();
-  // 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
-  async function initRealtimeSync() {
+// 🔄 [실시간 동기화 최종본]
+async function initRealtimeSync() {
     try {
+        // 1. Supabase 라이브러리 로드 대기
         if (!window.supabase) {
             setTimeout(initRealtimeSync, 500);
             return;
         }
 
+        // 2. 매장 ID 및 환경 설정 가져오기
         const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
         if (!sid) return;
 
-        const res = await fetch('/api/config');
-        const { supabaseUrl, supabaseKey } = await res.json();
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-        const channel = supabase.channel(`qrnr_realtime_${sid}`);
+        const configRes = await fetch('/api/config');
+        const { supabaseUrl, supabaseKey } = await configRes.json();
         
+        // 3. 클라이언트 생성 및 채널 설정
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const channelName = `qrnr_realtime_${sid}`;
+        const channel = supabase.channel(channelName);
+        
+        console.log(`📡 [실시간] 채널 연결 시도: ${channelName}`);
+
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
-            console.log("🔄 관리자 수정 신호 수신:", payload);
+            console.log("🔄 [신호 수신] 관리자가 데이터를 수정함:", payload);
 
-            // 1. 사용자에게 알림 (선택 사항)
-            showToast("📋 메뉴 정보가 업데이트되었습니다.", "info");
+            // 알림 토스트 (선택 사항)
+            if (typeof showToast === 'function') {
+                showToast("📋 매장 정보가 업데이트되었습니다.", "info");
+            }
 
-            // 2. [핵심] 서버의 DB 처리가 완료될 시간을 아주 잠깐(0.3초) 기다린 후 다시 그리기
+            // DB 반영 시간을 고려해 0.5초 대기 후 갱신
             setTimeout(async () => {
-                if (typeof renderMenu === 'function') {
-                    // 장바구니(cart)는 유지하면서 메뉴판만 새로 고침
-                    await renderMenu('menu-grid', cart); 
-                    console.log("✅ 메뉴판 부분 업데이트 완료");
+                try {
+                    if (typeof renderMenu === 'function') {
+                        // ❗ 중요: 여기서 'cart'는 makeCart()로 생성된 전역 변수여야 합니다.
+                        // 만약 변수명이 qrnrCart라면 그걸로 바꿔주세요.
+                        await renderMenu('menu-grid', window.qrnrCart || cart); 
+                        console.log("✅ 메뉴판 부분 업데이트 성공 (새로고침 없음)");
+                    }
+                    
+                    // 만약 계좌 정보 등 매장 정보도 같이 쓰는 페이지라면 아래도 추가 가능
+                    if (typeof loadStoreInfo === 'function') {
+                        await loadStoreInfo();
+                    }
+                } catch (updateErr) {
+                    console.error("❌ 부분 업데이트 실패, 전체 새로고침 시도:", updateErr);
+                    location.reload(); // 부분 업데이트 실패 시 최후의 수단
                 }
-            }, 300);
+            }, 500);
         })
         .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
-                console.log(`✅ 실시간 수신 대기 중 (채널: qrnr_realtime_${sid})`);
+                console.log(`✅ 실시간 수신 대기 중 (채널: ${channelName})`);
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error("❌ 실시간 채널 연결 실패");
             }
         });
+
     } catch (e) {
-        console.error("실시간 동기화 에러:", e);
+        console.error("실시간 동기화 초기화 에러:", e);
     }
 }
 
