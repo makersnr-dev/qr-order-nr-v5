@@ -288,25 +288,28 @@ export function showToast(msg, variant = 'info') {
         const { supabaseUrl, supabaseKey } = await res.json();
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 채널 구독
         const channel = supabase.channel(`qrnr_realtime_${sid}`);
         
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
             console.log("🔄 관리자 수정 신호 수신:", payload);
 
-            // 1. 사용자에게 알림 (옵션)
+            // 1. 사용자에게 알림 (선택 사항)
             showToast("📋 메뉴 정보가 업데이트되었습니다.", "info");
 
-            // 2. [핵심] 페이지 새로고침 대신 메뉴판만 다시 그리기
-            // payload.payload.type이 'menu_update'인 경우에만 작동하게 할 수도 있습니다.
-            if (typeof renderMenu === 'function') {
-                // 기존 장바구니(cart)는 유지하면서 메뉴판(menu-grid)만 서버에서 다시 받아와 렌더링
-                await renderMenu('menu-grid', cart); 
-                console.log("✅ 메뉴판만 부분 업데이트 완료");
-            }
+            // 2. [핵심] 서버의 DB 처리가 완료될 시간을 아주 잠깐(0.3초) 기다린 후 다시 그리기
+            setTimeout(async () => {
+                if (typeof renderMenu === 'function') {
+                    // 장바구니(cart)는 유지하면서 메뉴판만 새로 고침
+                    await renderMenu('menu-grid', cart); 
+                    console.log("✅ 메뉴판 부분 업데이트 완료");
+                }
+            }, 300);
         })
-        .subscribe();
-        
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`✅ 실시간 수신 대기 중 (채널: qrnr_realtime_${sid})`);
+            }
+        });
     } catch (e) {
         console.error("실시간 동기화 에러:", e);
     }
