@@ -192,25 +192,41 @@ export function showToast(msg, variant = 'info') {
   // 4. 직원 호출 (사장님 원본 유지)
   document.getElementById('call-btn').onclick = async () => {
     const remain = getCallRemainSec();
-    if (remain > 0) return showToast(`직원 호출은 ${remain}초 후에 다시 가능합니다.`,'info');
+    if (remain > 0) return showToast(`직원 호출은 ${remain}초 후에 다시 가능합니다.`, 'info');
+    
     const tableVal = document.getElementById('tableNo').value.trim();
     const note = document.getElementById('call-reason').value.trim();
-    if (!tableVal) return showToast('테이블 번호를 입력하세요.','info');
+    if (!tableVal) return showToast('테이블 번호를 입력하세요.', 'info');
 
+    // 1. DB 저장 (기존 유지)
     const r = await fetch('/api/call', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ storeId, table: tableVal, note })
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ storeId, table: tableVal, note })
     });
+
     if (r.ok) {
-      localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
-      document.getElementById('call-msg').textContent = '직원 호출이 전달되었습니다.';
-      setTimeout(() => { document.getElementById('call-msg').textContent = ''; }, 3000);
-      updateCallButtonState();
-      // 알림 전송
-      new BroadcastChannel('qrnr-admin').postMessage({ type: 'CALL', storeId, table: tableVal, note, ts: Date.now() });
+        localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
+        document.getElementById('call-msg').textContent = '직원 호출이 전달되었습니다.';
+        setTimeout(() => { document.getElementById('call-msg').textContent = ''; }, 3000);
+        updateCallButtonState();
+
+        // 🚀 2. [수정] Supabase 실시간 알림 발송 (BroadcastChannel 대신 사용)
+        const configRes = await fetch('/api/config');
+        const { supabaseUrl, supabaseKey } = await configRes.json();
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        await supabase.channel(`qrnr_realtime_${storeId}`).send({
+            type: 'broadcast',
+            event: 'NEW_CALL', // 호출 전용 이벤트명
+            payload: { 
+                table: tableVal, 
+                note: note,
+                at: new Date().toISOString()
+            }
+        });
     }
-  };
+};
 
   // 호출 옵션 로드 (사장님 로직)
   (function loadOptions() {
