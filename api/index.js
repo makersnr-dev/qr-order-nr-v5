@@ -2,7 +2,7 @@ import { query, queryOne } from './_lib/db.js';
 import { verifyJWT, signJWT } from '../src/shared/jwt.js';
 //import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 // Supabase 클라이언트 초기화 (환경변수 설정 필요)
-const supabase ;//createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase =0;//createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
