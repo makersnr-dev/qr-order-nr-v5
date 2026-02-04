@@ -16,6 +16,23 @@ import {
 } from '/src/shared/constants/status.js';
 import { ADMIN_EVENTS } from '/src/shared/constants/adminEvents.js';
 
+//  주문 상세 공통 수정 로직
+      const formatOptionsCombined = (optionTextArray) => {
+        if (!Array.isArray(optionTextArray) || optionTextArray.length === 0) return "";
+        
+        const groups = {};
+        optionTextArray.forEach(text => {
+            const [group, value] = text.split(':');
+            if (!groups[group]) groups[group] = [];
+            groups[group].push(value);
+        });
+        
+        // "토핑:생크림,초콜릿", "소스:꿀" 형태로 합침
+        return Object.entries(groups)
+            .map(([group, values]) => `    └ ${group}:${values.join(',')}`)
+            .join('\n');
+    };
+
 let __isRendering = false;
 let __renderQueued = false;
 
@@ -659,15 +676,34 @@ export function attachGlobalHandlers() {
       const payment = order.meta?.payment;
       let paymentInfo = '💳 결제 상태: 미결제';
       if (payment?.paid) {
-        paymentInfo = ['💳 결제 상태: 결제완료', `결제 수단: ${payment.method || 'POS'}`, payment.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : ''].filter(Boolean).join('\n');
+        paymentInfo = ['💳 결제 상태: 결제완료', 
+                       //`결제 수단: ${payment.method || 'POS'}`, 
+                       //payment.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : ''
+                       ].filter(Boolean).join('\n');
       }
       if (order.meta?.payment?.cancelled) {
-        paymentInfo = ['💳 결제 상태: 결제취소', payment?.method ? `결제 수단: ${payment.method}` : '', payment?.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : '', order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''].filter(Boolean).join('\n');
+        paymentInfo = ['💳 결제 상태: 결제취소', 
+                       payment?.method ? `결제 수단: ${payment.method}` : '', 
+                       //payment?.paidAt ? `결제 시각: ${new Date(payment.paidAt).toLocaleString()}` : '', 
+                       //order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''
+                       ].filter(Boolean).join('\n');
       }
 
       const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
-      const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || h.status || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
-      const body = '📦 주문 메뉴\n\n' + (order.cart || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
+      const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => {
+          // value, status, payment 중 값이 있는 것을 선택
+          const statusText = h.value || h.status || h.payment || ''; 
+          const adminText = h.by ? ` (by ${h.by})` : '';
+          return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
+      
+    
+    // 매장/예약 상세 적용 부분
+    const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
+        let line = `• ${i.name} x${i.qty}`;
+        const combinedOptions = formatOptionsCombined(i.optionText);
+        if (combinedOptions) line += `\n${combinedOptions}`;
+        return line;
+    }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -690,9 +726,34 @@ export function attachGlobalHandlers() {
       const order = (data.orders || []).find(o => String(o.order_id) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
-      const infoBlock = [`주문시간: ${fmtDateTimeFromOrder(order)}`, `주문자: ${order.customer_name || '-'}`, `연락처: ${formatPhone(order.customer_phone || '-')}`, `주소: ${order.address || '-'}`, `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`, `요청사항: ${order.meta?.memo || '-'}`, `합계금액: ${fmt(order.total_amount || 0)}원`].join('\n');
-      const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`).join('\n');
-      const itemsBlock = '구매내역\n\n' + (order.items || []).map(i => `• ${i.name} x${i.qty}${Array.isArray(i.options) ? '\n' + normalizeOptions(i.options).map(opt => `    └ ${opt}`).join('\n') : ''}`).join('\n\n');
+      // 상단 정보 블록 생성
+        const infoBlock = [
+            `주문시간: ${fmtDateTimeFromOrder(order)}`,
+            `주문자: ${order.customer_name || '-'}`,
+            `연락처: ${formatPhone(order.customer_phone || '-')}`,
+            `주소: ${order.address || '-'}`,
+            `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`,
+            `요청사항: ${order.meta?.memo || '-'}`,
+            `합계금액: ${fmt(order.total_amount || 0)}원`
+        ].join('\n');
+
+        // 상태 변경 이력 생성
+        const historyLines = (order.meta?.history || [])
+            .sort((a, b) => new Date(a.at) - new Date(b.at))
+            .map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`)
+            .join('\n');
+
+        // 📦 구매 내역 및 옵션 그룹화 생성
+        const itemsBlock = '구매내역\n\n' + (order.cart || order.items || []).map(i => {
+            let line = `• ${i.name} x${i.qty}`;
+            
+            // 옵션 그룹화 함수 호출 (파일 상단에 정의된 함수 사용)
+            const combinedOptions = formatOptionsCombined(i.optionText);
+            if (combinedOptions) {
+                line += `\n${combinedOptions}`;
+            }
+            return line;
+        }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -714,7 +775,7 @@ export function attachGlobalHandlers() {
           orderId: id,
           type: 'store',
           meta: { payment: { paid: true, paidAt: new Date().toISOString(), method: 'POS' } },
-          metaAppend: { history: { at: new Date().toISOString(), type: 'PAYMENT', action: 'PAYMENT_CONFIRMED', payment: PAYMENT_STATUS.PAID, by: ADMIN_ID, note: 'POS 결제 확인' } }
+          metaAppend: { history: { at: new Date().toISOString(), type: 'PAYMENT', action: 'PAYMENT_CONFIRMED',value:'결제완료', payment: PAYMENT_STATUS.PAID, by: ADMIN_ID, note: 'POS 결제 확인' } }
         })
       });
       const data = await res.json();

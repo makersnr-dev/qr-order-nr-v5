@@ -21,6 +21,26 @@
       margin-left: 10px;
       line-height: 1.4;
     }
+    /* 토스트 알림 스타일 추가 */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111922;
+  border: 1px solid #263241;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.toast-success { border-left: 5px solid #2ea043 !important; }
+.toast-error { border-left: 5px solid #ef4444 !important; }
+.toast-info { border-left: 5px solid #74c0fc !important; }
   </style>
 </head>
 
@@ -106,7 +126,30 @@
   import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
  
+  /**
+ * 표준 토스트 알림 함수
+ * @param {string} msg - 표시할 메시지
+ * @param {string} variant - 'info', 'success', 'error' (색상 구분용)
+ */
+export function showToast(msg, variant = 'info') {
+  const t = document.createElement('div');
+  
+  // 기본 클래스는 toast, 상태에 따라 클래스 추가 (예: toast-success)
+  t.className = `toast toast-${variant}`; 
+  t.textContent = msg;
+  
+  document.body.appendChild(t);
 
+  // 브라우저가 요소를 인식한 직후에 'show' 클래스 추가 (애니메이션 시작)
+  requestAnimationFrame(() => t.classList.add('show'));
+
+  // 3초 후 사라짐
+  setTimeout(() => {
+    t.classList.remove('show');
+    // 애니메이션(0.2초)이 끝난 후 요소 삭제
+    setTimeout(() => t.remove(), 200);
+  }, 3000);
+}
   // 1. 직원 호출 쿨타임 로직 (사장님 원본 유지)
   const CALL_COOLDOWN_SEC = 10;
   const CALL_COOLDOWN_KEY = 'qrnr.call.cooldown';
@@ -148,10 +191,10 @@
   // 4. 직원 호출 (사장님 원본 유지)
   document.getElementById('call-btn').onclick = async () => {
     const remain = getCallRemainSec();
-    if (remain > 0) return alert(`직원 호출은 ${remain}초 후에 다시 가능합니다.`);
+    if (remain > 0) return showToast(`직원 호출은 ${remain}초 후에 다시 가능합니다.`,'info');
     const tableVal = document.getElementById('tableNo').value.trim();
     const note = document.getElementById('call-reason').value.trim();
-    if (!tableVal) return alert('테이블 번호를 입력하세요.');
+    if (!tableVal) return showToast('테이블 번호를 입력하세요.','info');
 
     const r = await fetch('/api/call', {
       method: 'POST',
@@ -182,12 +225,28 @@
     const inputCode = document.getElementById('paycode').value.trim();
     const pc = await fetch(`/api/payment-code?storeId=${storeId}`).then(r => r.json());
     
-    if (!table) return alert('테이블 번호를 입력하세요');
-    if (inputCode !== pc?.code) return alert('결제 코드가 올바르지 않습니다');
-    if (!cart.items.length) return alert('장바구니가 비어 있습니다');
+    if (!table) return showToast('테이블 번호를 입력하세요','info');
+    if (inputCode !== pc?.code) return showToast('결제 코드가 올바르지 않습니다','info');
+    if (!cart.items.length) return showToast('장바구니가 비어 있습니다','info');
 
     // 확인 모달 열기
-    document.getElementById('confirm-items').textContent = cart.items.map(i => `${i.name} x${i.qty}`).join('\n');
+    // confirm-items 텍스트 생성 로직
+    document.getElementById('confirm-items').textContent = cart.items.map(i => {
+        let line = `${i.name} x${i.qty}`;
+        if (i.optionText && i.optionText.length > 0) {
+            const groups = {};
+            i.optionText.forEach(t => {
+                const [g, v] = t.split(':');
+                if (!groups[g]) groups[g] = [];
+                groups[g].push(v);
+            });
+            const optLine = Object.entries(groups)
+                .map(([g, v]) => `   └ ${g}: ${v.join(',')}`)
+                .join('\n');
+            line += `\n${optLine}`;
+        }
+        return line;
+    }).join('\n');
     document.getElementById('confirm-total').textContent = cart.total().toLocaleString();
     document.getElementById('order-confirm-modal').style.display = 'flex';
   };

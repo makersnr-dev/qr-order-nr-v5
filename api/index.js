@@ -1,5 +1,8 @@
 import { query, queryOne } from './_lib/db.js';
 import { verifyJWT, signJWT } from '../src/shared/jwt.js';
+//import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+// Supabase 클라이언트 초기화 (환경변수 설정 필요)
+const supabase =0;//createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -13,12 +16,19 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
+    if (pathname === '/api/config') {
+        return json({ 
+            supabaseUrl: process.env.SUPABASE_URL, 
+            supabaseKey: process.env.SUPABASE_ANON_KEY 
+        });
+    }
+
     const getAuth = async () => {
         const cookieHeader = req.headers.cookie || '';
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
     
         // 현재 요청이 슈퍼 관리자 API인지 확인
-        const isSuperPath = pathname.startsWith('/api/super-');
+        const isSuperPath = pathname.startsWith('/api/super-') || pathname === '/api/admin-mappings';
         
         // 경로에 맞는 토큰을 먼저 선택하고, 없으면 다른 토큰을 시도
         let token;
@@ -124,118 +134,127 @@ export default async function handler(req, res) {
             }
         }
 
-        // --- 4. 주문 관리 (핵심 교정부: 기존 필터링 기능 유지) ---
-        if (pathname === '/api/orders') {
-            const auth = await getAuth();
-            if (!auth) return json({ ok: false }, 401);
-            // --- api/index.js 내 GET /api/orders 부분 ---
-            if (method === 'GET') {
-                const type = params.get('type');
-                const r = (type === 'store') 
-                    ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC', [storeId])
-                    : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
-            
-                const orders = r.rows.map(row => {
-                    // meta가 문자열이면 파싱, 아니면 그대로 사용
-                    const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
-                    if (type === 'store') {
-                        return {
-                            ...row,
-                            orderId: row.order_no,
-                            cart: row.meta?.cart || [],
-                            ts: new Date(row.created_at).getTime()
-                        };
-                    } else {
-                        return {
-                            ...row,
-                            orderId: row.order_no,      // 화면 표시용
-                            amount: row.total_amount,   // UI 공통 필드
-                            cart: row.items || [],      // UI 공통 필드 (jsonb에서 바로 가져옴)
-                            customer: {
-                                name: row.customer_name,
-                                phone: row.customer_phone,
-                                addr: row.address
-                            },
-                            reserve: row.meta?.reserve || {},
-                            requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
-                            ts: new Date(row.created_at).getTime()
-                        };
+     // --- 4. 주문 관리 (기능 추가 버전) ---
+    if (pathname === '/api/orders') {
+        const auth = await getAuth();
+        // 주문 생성(POST)은 비회원도 가능해야 하므로 auth 체크 제외
+        if (!auth && method !== 'POST') return json({ ok: false }, 401);
+    
+        // --- [GET] 주문 목록 조회 (원문 유지) ---
+        if (method === 'GET') {
+            const type = params.get('type');
+            const r = (type === 'store') 
+                ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC', [storeId])
+                : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
+        
+            const orders = r.rows.map(row => {
+                const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                if (type === 'store') {
+                    return {
+                        ...row,
+                        orderId: row.order_no,
+                        cart: row.meta?.cart || [],
+                        ts: new Date(row.created_at).getTime()
+                    };
+                } else {
+                    return {
+                        ...row,
+                        orderId: row.order_no,
+                        amount: row.total_amount,
+                        cart: row.items || [],
+                        customer: {
+                            name: row.customer_name,
+                            phone: row.customer_phone,
+                            addr: row.address
+                        },
+                        reserve: row.meta?.reserve || {},
+                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
+                        ts: new Date(row.created_at).getTime()
+                    };
+                }
+            });
+            return json({ ok: true, orders });
+        }
+    
+        // --- [POST] 주문 생성 (기존 저장 + Supabase 알림 추가) ---
+        if (method === 'POST') {
+            const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
+            const newNumericId = parseInt(String(Date.now()).slice(-9)); 
+            const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
+    
+            if (type === 'store') {
+                await query(
+                    `INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) 
+                     VALUES ($1, $2, '주문접수', $3, $4, $5)`, 
+                    [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]
+                );
+            } else {
+                await query(
+                    `INSERT INTO orderss (
+                        order_id, store_id, type, status, customer_name, customer_phone, address, 
+                        items, total_amount, lookup_pw, order_no, meta
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
+                    [newNumericId, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.fullAddr, JSON.stringify(cart), amount, lookupPw, newOrderNo, JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]
+                );
+            }
+    
+            // 🚀 [추가] Supabase 실시간 알림 발송
+            try {
+                await supabase.channel(`qrnr_alarm_${storeId}`).send({
+                    type: 'broadcast',
+                    event: 'NEW_ORDER',
+                    payload: {
+                        orderNo: newOrderNo,
+                        orderType: type,
+                        table: table || '예약',
+                        amount: amount,
+                        customerName: customer?.name || '비회원',
+                        at: new Date().toISOString()
                     }
                 });
-                return json({ ok: true, orders });
+            } catch (err) {
+                console.error('Supabase 알림 전송 실패:', err);
             }
-            // --- api/index.js 내 POST /api/orders 부분 ---
-            if (method === 'POST') {
-                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
-                
-                // DB 스키마에 맞춘 integer ID 생성 (9자리)
-                const newNumericId = parseInt(String(Date.now()).slice(-9)); 
-                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
-            
-                if (type === 'store') {
-                    // 매장 주문: orders 테이블
-                    await query(
-                        `INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) 
-                         VALUES ($1, $2, '주문접수', $3, $4, $5)`, 
-                        [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]
-                    );
-                } else {
-                    // 예약 주문: orderss 테이블 (제공해주신 스키마 컬럼명에 100% 매칭)
-                    await query(
-                        `INSERT INTO orderss (
-                            order_id, store_id, type, status, 
-                            customer_name, customer_phone, address, 
-                            items, total_amount, lookup_pw, order_no, meta
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
-                        [
-                            newNumericId,           // order_id (integer)
-                            storeId,                // store_id
-                            'reserve',              // type
-                            '입금 미확인',           // status
-                            customer.name,          // customer_name
-                            customer.phone,         // customer_phone
-                            customer.fullAddr,          // address (주소 저장)
-                            JSON.stringify(cart),   // items (jsonb, 필수값! null이면 에러남)
-                            amount,                 // total_amount
-                            lookupPw,               // lookup_pw
-                            newOrderNo,             // order_no
-                            JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo }) // meta
-                        ]
-                    );
-                }
-                return json({ ok: true, orderId: newOrderNo });
-            }
-            // --- 4. 주문 관리 내부에 추가 ---
-            if (method === 'PUT') {
-                const { orderId, type, status, meta, metaAppend } = req.body;
-                
-                // 1. 테이블 결정 (orders 또는 orderss)
-                const tableName = type === 'store' ? 'orders' : 'orderss';
-                const idColumn = type === 'store' ? 'order_no' : 'order_id';
-            
-                // 2. 기존 데이터 가져오기 (meta 업데이트용)
-                const existing = await queryOne(`SELECT meta FROM ${tableName} WHERE ${idColumn} = $1`, [orderId]);
-                if (!existing) return json({ ok: false, error: 'ORDER_NOT_FOUND' }, 404);
-            
-                let newMeta = { ...existing.meta, ...meta };
-                
-                // history 기록 추가 로직
-                if (metaAppend?.history) {
-                    const history = existing.meta?.history || [];
-                    history.push(metaAppend.history);
-                    newMeta.history = history;
-                }
-            
-                // 3. DB 업데이트
-                if (status) {
-                    await query(`UPDATE ${tableName} SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
-                } else {
-                    await query(`UPDATE ${tableName} SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
-                }
-            
-                return json({ ok: true });
-            }
+    
+            return json({ ok: true, orderId: newOrderNo });
         }
+    
+        // --- [PUT] 주문 상태 변경 (기존 업데이트 + 동기화 알림 추가) ---
+        if (method === 'PUT') {
+            const { orderId, type, status, meta, metaAppend } = req.body;
+            const tableName = type === 'store' ? 'orders' : 'orderss';
+            const idColumn = type === 'store' ? 'order_no' : 'order_id';
+    
+            const existing = await queryOne(`SELECT meta FROM ${tableName} WHERE ${idColumn} = $1`, [orderId]);
+            if (!existing) return json({ ok: false, error: 'ORDER_NOT_FOUND' }, 404);
+    
+            let newMeta = { ...existing.meta, ...meta };
+            if (metaAppend?.history) {
+                const history = existing.meta?.history || [];
+                history.push(metaAppend.history);
+                newMeta.history = history;
+            }
+    
+            if (status) {
+                await query(`UPDATE ${tableName} SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
+            } else {
+                await query(`UPDATE ${tableName} SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
+            }
+    
+            // 🚀 [추가] 상태 변경 실시간 동기화 신호
+            try {
+                await supabase.channel(`qrnr_sync_${storeId}`).send({
+                    type: 'broadcast',
+                    event: 'STATUS_CHANGED',
+                    payload: { orderId, status, type }
+                });
+            } catch (err) {
+                console.error('Supabase 동기화 실패:', err);
+            }
+    
+            return json({ ok: true });
+        }
+    }
 
         // --- 5. 호출 관리 (기존 상태변경 로직 포함) ---
         if (pathname === '/api/call') {
@@ -256,13 +275,40 @@ export default async function handler(req, res) {
         // --- 6. 결제코드 및 QR (기존 한도 체크 로직 복구) ---
         if (pathname === '/api/payment-code') {
             const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-            let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
-            if (!codeRow) {
-                const newCode = String(Math.floor(1000 + Math.random() * 9000));
-                await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [storeId, today, newCode]);
-                codeRow = { code: newCode };
+        
+            // 1. GET 요청: 코드 조회 및 오래된 코드 삭제
+            if (method === 'GET') {
+                // [추가] 오늘 이전 날짜의 코드는 보안을 위해 삭제
+                await query('DELETE FROM payment_codes WHERE store_id = $1 AND date < $2', [storeId, today]);
+        
+                let codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                
+                if (!codeRow) {
+                    const newCode = String(Math.floor(1000 + Math.random() * 9000));
+                    // 중복 생성 방지
+                    await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [storeId, today, newCode]);
+                    
+                    // 방금 생성된 코드를 다시 조회
+                    codeRow = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                    if (!codeRow) codeRow = { code: newCode };
+                }
+                return json({ ok: true, code: codeRow.code, date: today });
             }
-            return json({ ok: true, code: codeRow.code, date: today });
+        
+            // 2. POST 요청: 새 코드 강제 발급 (갱신)
+            if (method === 'POST') {
+                const newCode = String(Math.floor(1000 + Math.random() * 9000));
+                await query(`
+                    INSERT INTO payment_codes (store_id, date, code)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (store_id, date) 
+                    DO UPDATE SET code = EXCLUDED.code
+                `, [storeId, today, newCode]);
+        
+                return json({ ok: true, code: newCode, date: today });
+            }
+        
+            return json({ error: 'METHOD_NOT_ALLOWED' }, 405);
         }
 
         if (pathname === '/api/qrcodes') {
