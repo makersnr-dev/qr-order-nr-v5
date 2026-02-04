@@ -32,21 +32,25 @@ async function saveMenuToServer(menuData) {
             body: JSON.stringify(menuData)
         });
 
+        // ✅ 저장이 성공했을 때만 동기화 신호 발송
         if (res.ok && window.supabaseClient) {
             const sid = currentStoreId();
             const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
             
-            // 핵심: subscribe 호출 후 'SUBSCRIBED'가 된 후에 send를 해야 함
+            // 🚀 핵심: subscribe 호출 후 'SUBSCRIBED' 상태가 된 후에 send를 호출해야 합니다.
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    const resp = await channel.send({
+                    console.log("📡 실시간 채널 연결 성공, 신호를 보냅니다...");
+                    await channel.send({
                         type: 'broadcast',
                         event: 'RELOAD_SIGNAL',
                         payload: { type: 'menu_update', at: Date.now() }
                     });
-                    console.log("📡 신호 전송 결과:", resp);
-                    // 전송 후 약간의 시간 뒤에 채널 해제
-                    setTimeout(() => window.supabaseClient.removeChannel(channel), 1000);
+                    
+                    // 신호를 보낸 후 채널 정리 (메모리 절약)
+                    setTimeout(() => {
+                        window.supabaseClient.removeChannel(channel);
+                    }, 1000);
                 }
             });
         }
