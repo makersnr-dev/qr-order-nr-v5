@@ -790,31 +790,63 @@ document.getElementById("confirm-cancel").onclick = () => {
   document.getElementById("action-btn").disabled = false;
 
 };
-// 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
-  async function initRealtimeSync() {
+// 🔄 [delivery-guest.html 전용] 실시간 동기화 최종본
+async function initRealtimeSync() {
     try {
-        // 🚨 체크 추가: 라이브러리가 로드되었는지 확인
         if (!window.supabase) {
-            console.error("Supabase 라이브러리가 로드되지 않았습니다. 1초 후 재시도합니다.");
-            setTimeout(initRealtimeSync, 1000);
+            setTimeout(initRealtimeSync, 500);
             return;
         }
 
+        const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
+        if (!sid) return;
+
         const res = await fetch('/api/config');
-        const { supabaseUrl, supabaseKey } = await res.json();
+        const config = await res.json();
+        const supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
 
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const channel = supabase.channel(`qrnr_realtime_${sid}`);
+        
+        channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
+            console.log("🔄 관리자 수정 신호 수신:", payload);
+            const updateType = payload.payload.type;
 
-        supabase.channel(`qrnr_realtime_${storeId}`)
-            .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
-                console.log("🔄 관리자 신호 수신: 화면을 새로고침합니다.");
-                location.reload(); 
-            })
-            .subscribe();
-            
-        console.log("✅ 실시간 동기화 연결 성공!");
+            // 1. 메뉴 정보 업데이트 (메뉴판 그리드)
+            if (updateType === 'menu_update' || !updateType) {
+                if (typeof renderMenu === 'function') {
+                    // 기존 장바구니(cart) 유지하며 메뉴판만 갱신
+                    await renderMenu("menu-grid", cart);
+                    console.log("✅ 메뉴판 실시간 업데이트 완료");
+                }
+            }
+
+            // 2. 계좌 정보 업데이트 (화면 하단 입금계좌 텍스트)
+            if (updateType === 'bank_update' || !updateType) {
+                try {
+                    const res = await fetch(`/api/store-settings?storeId=${sid}`);
+                    const data = await res.json();
+                    if (data.ok && data.settings?.owner_bank) {
+                        const b = data.settings.owner_bank;
+                        document.getElementById("bank-text").textContent = 
+                            `${b.bank} ${b.number} (예금주: ${b.holder || ""})`;
+                        console.log("✅ 입금 계좌 정보 실시간 업데이트 완료");
+                    }
+                } catch (e) { console.error("계좌 정보 갱신 실패", e); }
+            }
+
+            // 3. 개인정보 방침 업데이트
+            // (방침은 '보기' 버튼 클릭 시 서버에서 새로 받아오므로 별도 UI 갱신 불필요)
+
+            showToast("📋 매장 설정이 실시간으로 변경되었습니다.", "info");
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`✅ 예약 페이지 실시간 수신 중 (채널: qrnr_realtime_${sid})`);
+            }
+        });
+
     } catch (e) {
-        console.error("실시간 동기화 연결 실패:", e);
+        console.error("실시간 동기화 에러:", e);
     }
 }
 
