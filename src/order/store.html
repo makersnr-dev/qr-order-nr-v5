@@ -276,36 +276,39 @@ export function showToast(msg, variant = 'info') {
   // 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
   async function initRealtimeSync() {
     try {
-        // 🚨 1. 라이브러리 로드 확인
         if (!window.supabase) {
             setTimeout(initRealtimeSync, 500);
             return;
         }
 
-        // 🚨 2. 매장 ID 확인 (window 객체나 전역 변수에서 정확히 가져오기)
         const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
-        if (!sid) {
-            console.error("매장 ID를 찾을 수 없어 동기화를 시작하지 못합니다.");
-            return;
-        }
+        if (!sid) return;
 
         const res = await fetch('/api/config');
         const { supabaseUrl, supabaseKey } = await res.json();
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 🚨 3. 관리자가 쏘는 채널 이름(`qrnr_realtime_매장ID`)을 정확히 구독
-        supabase.channel(`qrnr_realtime_${sid}`)
-            .on('broadcast', { event: 'RELOAD_SIGNAL' }, (payload) => {
-                console.log("🔄 관리자 수정 감지: 페이지를 새로고침합니다.", payload);
-                location.reload(); 
-            })
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.log(`✅ 실시간 동기화 준비 완료 (채널: qrnr_realtime_${sid})`);
-                }
-            });
+        // 채널 구독
+        const channel = supabase.channel(`qrnr_realtime_${sid}`);
+        
+        channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
+            console.log("🔄 관리자 수정 신호 수신:", payload);
+
+            // 1. 사용자에게 알림 (옵션)
+            showToast("📋 메뉴 정보가 업데이트되었습니다.", "info");
+
+            // 2. [핵심] 페이지 새로고침 대신 메뉴판만 다시 그리기
+            // payload.payload.type이 'menu_update'인 경우에만 작동하게 할 수도 있습니다.
+            if (typeof renderMenu === 'function') {
+                // 기존 장바구니(cart)는 유지하면서 메뉴판(menu-grid)만 서버에서 다시 받아와 렌더링
+                await renderMenu('menu-grid', cart); 
+                console.log("✅ 메뉴판만 부분 업데이트 완료");
+            }
+        })
+        .subscribe();
+        
     } catch (e) {
-        console.error("실시간 동기화 연결 실패:", e);
+        console.error("실시간 동기화 에러:", e);
     }
 }
 
