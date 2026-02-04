@@ -212,16 +212,19 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 }
     }
    /* 🚀 store.html과 동일한 메뉴 그리드 스타일 적용 */
+
 #menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  justify-items: center; 
+  display: grid !important;
+  /* 모바일 2열, PC 3열 이상으로 자동 조절되는 핵심 설정 */
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  gap: 12px !important;
+  justify-items: center;
   text-align: center;
   margin-top: 15px;
+  width: 100%;
 }
-
-/* 메뉴 카드 디자인 */
+    
+/* 메뉴 카드 내부 이미지와 텍스트 정렬 */
 .menu-card {
   background: #111922;
   border: 1px solid #263241;
@@ -229,7 +232,9 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   padding: 10px;
   cursor: pointer;
   width: 100%;
-  transition: transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .menu-card:active {
