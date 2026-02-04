@@ -76,7 +76,22 @@ export function bindNotify() {
             body: JSON.stringify({ notifyConfig })
         });
 
-        if (res.ok) showToast("✅ 알림 설정이 저장되었습니다.", "success");
+        if (res.ok) {
+            showToast("✅ 알림 설정이 저장되었습니다.", "success");
+            // 🚀 [추가] 일반 설정 변경 시에도 손님 화면에 신호를 보냅니다.
+            if (window.supabaseClient) {
+                const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
+                channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'RELOAD_SIGNAL',
+                            payload: { type: 'call_options_update', at: Date.now() } // 호출 목록 갱신 유도
+                        });
+                    }
+                });
+            }
+        }
     };
 }
 
