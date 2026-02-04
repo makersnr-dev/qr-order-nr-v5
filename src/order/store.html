@@ -276,27 +276,34 @@ export function showToast(msg, variant = 'info') {
   // 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
   async function initRealtimeSync() {
     try {
-        // 🚨 라이브러리 로드 대기 (안전장치)
+        // 🚨 1. 라이브러리 로드 확인
         if (!window.supabase) {
-            console.warn("Supabase 대기 중...");
             setTimeout(initRealtimeSync, 500);
+            return;
+        }
+
+        // 🚨 2. 매장 ID 확인 (window 객체나 전역 변수에서 정확히 가져오기)
+        const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
+        if (!sid) {
+            console.error("매장 ID를 찾을 수 없어 동기화를 시작하지 못합니다.");
             return;
         }
 
         const res = await fetch('/api/config');
         const { supabaseUrl, supabaseKey } = await res.json();
-
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 관리자가 쏘는 qrnr_realtime_ 채널을 똑같이 듣습니다.
-        supabase.channel(`qrnr_realtime_${storeId}`)
-            .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
-                console.log("🔄 관리자 신호 수신: 메뉴판을 최신으로 갱신합니다.");
+        // 🚨 3. 관리자가 쏘는 채널 이름(`qrnr_realtime_매장ID`)을 정확히 구독
+        supabase.channel(`qrnr_realtime_${sid}`)
+            .on('broadcast', { event: 'RELOAD_SIGNAL' }, (payload) => {
+                console.log("🔄 관리자 수정 감지: 페이지를 새로고침합니다.", payload);
                 location.reload(); 
             })
-            .subscribe();
-            
-        console.log("✅ 실시간 동기화 준비 완료");
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ 실시간 동기화 준비 완료 (채널: qrnr_realtime_${sid})`);
+                }
+            });
     } catch (e) {
         console.error("실시간 동기화 연결 실패:", e);
     }
