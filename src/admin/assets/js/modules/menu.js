@@ -32,24 +32,21 @@ async function saveMenuToServer(menuData) {
             body: JSON.stringify(menuData)
         });
 
-        // ✅ 저장이 성공했을 때만 동기화 신호 발송
         if (res.ok && window.supabaseClient) {
             const sid = currentStoreId();
-            // 1. 채널 생성
             const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
             
-            // 2. 구독 신청 및 성공 시 신호 발송 (이 순서가 중요합니다!)
+            // 핵심: subscribe 호출 후 'SUBSCRIBED'가 된 후에 send를 해야 함
             channel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    await channel.send({
+                    const resp = await channel.send({
                         type: 'broadcast',
                         event: 'RELOAD_SIGNAL',
                         payload: { type: 'menu_update', at: Date.now() }
                     });
-                    console.log("📡 [메뉴] 모든 기기에 새로고침 신호 전송 완료");
-                    
-                    // 전송 후 채널 정리 (리소스 절약)
-                    window.supabaseClient.removeChannel(channel);
+                    console.log("📡 신호 전송 결과:", resp);
+                    // 전송 후 약간의 시간 뒤에 채널 해제
+                    setTimeout(() => window.supabaseClient.removeChannel(channel), 1000);
                 }
             });
         }
@@ -59,6 +56,7 @@ async function saveMenuToServer(menuData) {
         return false;
     }
 }
+
 
 // ------------------------------------------------------------
 // 3. 상세 설정 모달 (이미지 업로드 + 옵션 관리 통합 버전)
