@@ -485,6 +485,27 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
 
 
   const storeId = window.qrnrStoreId;
+  /* --- 전역 변수 선언 --- */
+let globalSupabase = null;
+let globalChannel = null;
+
+/* --- 공통 연결 함수 (추가) --- */
+async function getSupabase() {
+    // 이미 만들어진 연결이 있다면 재사용 (중복 인스턴스 방지)
+    if (globalSupabase) return { supabase: globalSupabase, channel: globalChannel };
+
+    const configRes = await fetch('/api/config');
+    const { supabaseUrl, supabaseKey } = await configRes.json();
+    
+    // 딱 한 번만 클라이언트 생성
+    globalSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    globalChannel = globalSupabase.channel(`qrnr_realtime_${window.qrnrStoreId}`);
+    
+    // 즉시 구독 시작
+    globalChannel.subscribe();
+    
+    return { supabase: globalSupabase, channel: globalChannel };
+}
 
   /**
  * 표준 토스트 알림 함수
@@ -838,12 +859,17 @@ async function initRealtimeSync() {
         const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
         if (!sid) return;
 
-        const res = await fetch('/api/config');
+        /* --- ❌ 이전 코드 (삭제 대상) ---
         const config = await res.json();
         const supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseKey);
-
         const channel = supabase.channel(`qrnr_realtime_${sid}`);
+        ------------------------------- */
+
+        // ✅ [수정본] 공통 함수 호출
+        const { supabase, channel } = await getSupabase(); 
         
+        console.log(`📡 [실시간] 수신 대기 중: qrnr_realtime_${sid}`);
+
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
             console.log("🔄 관리자 수정 신호 수신:", payload);
             const updateType = payload.payload.type;
