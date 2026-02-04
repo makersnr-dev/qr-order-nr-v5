@@ -42,6 +42,7 @@
 .toast-error { border-left: 5px solid #ef4444 !important; }
 .toast-info { border-left: 5px solid #74c0fc !important; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body data-store-id="">
@@ -274,25 +275,31 @@ export function showToast(msg, variant = 'info') {
   document.getElementById('order-success-close').onclick = () => location.reload();
   // 🔄 [실시간 동기화 추가] 관리자가 설정을 바꾸면 손님 화면 자동 새로고침
   async function initRealtimeSync() {
-      try {
-          // 1. 서버에서 Supabase 접속 정보 가져오기
-          const res = await fetch('/api/config');
-          const { supabaseUrl, supabaseKey } = await res.json();
+    try {
+        // 🚨 체크 추가: 라이브러리가 로드되었는지 확인
+        if (!window.supabase) {
+            console.error("Supabase 라이브러리가 로드되지 않았습니다. 1초 후 재시도합니다.");
+            setTimeout(initRealtimeSync, 1000);
+            return;
+        }
 
-          // 2. 접속 도구(클라이언트) 만들기
-          const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const res = await fetch('/api/config');
+        const { supabaseUrl, supabaseKey } = await res.json();
 
-          // 3. 우리 매장 전용 채널(qrnr_realtime_매장ID) 구독
-          supabase.channel(`qrnr_realtime_${storeId}`)
-              .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
-                  console.log("🔄 관리자 신호 수신: 화면을 새로고침합니다.");
-                  location.reload(); 
-              })
-              .subscribe();
-      } catch (e) {
-          console.error("실시간 동기화 연결 실패:", e);
-      }
-  }
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        supabase.channel(`qrnr_realtime_${storeId}`)
+            .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
+                console.log("🔄 관리자 신호 수신: 화면을 새로고침합니다.");
+                location.reload(); 
+            })
+            .subscribe();
+            
+        console.log("✅ 실시간 동기화 연결 성공!");
+    } catch (e) {
+        console.error("실시간 동기화 연결 실패:", e);
+    }
+}
 
   initRealtimeSync();
 </script>
