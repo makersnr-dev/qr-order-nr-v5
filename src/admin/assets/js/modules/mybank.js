@@ -62,6 +62,19 @@ export function bindMyBank() {
             if (res.ok) {
                 showToast("✅ 계좌 정보가 안전하게 저장되었습니다.", "success");
                 renderMyBank();
+                if (window.supabaseClient) {
+                    const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
+                    channel.subscribe(async (status) => {
+                        if (status === 'SUBSCRIBED') {
+                            await channel.send({
+                                type: 'broadcast',
+                                event: 'RELOAD_SIGNAL',
+                                payload: { type: 'bank_update', at: Date.now() }
+                            });
+                        }
+                    });
+                }
+
             } else {
                 showToast("저장 실패", "error");
             }
