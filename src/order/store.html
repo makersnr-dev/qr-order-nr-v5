@@ -222,7 +222,7 @@ export function showToast(msg, variant = 'info') {
     const r = await fetch('/api/call', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ storeId: window.qrnrStoreId, table_no: tableVal, note })
+        body: JSON.stringify({ storeId: window.qrnrStoreId, table: tableVal, note })
     });
 
     if (r.ok) {
