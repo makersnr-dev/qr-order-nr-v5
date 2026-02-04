@@ -220,7 +220,7 @@ export function showToast(msg, variant = 'info') {
             type: 'broadcast',
             event: 'NEW_CALL', // 호출 전용 이벤트명
             payload: { 
-                table: tableVal, 
+                table_no: tableVal, 
                 note: note,
                 at: new Date().toISOString()
             }
