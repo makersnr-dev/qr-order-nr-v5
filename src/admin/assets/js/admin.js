@@ -216,7 +216,9 @@ async function initRealtimeAlarm(storeId) {
         callAudio.play().catch(() => console.log("🔈 소리 재생을 위해 화면을 클릭해주세요."));
 
         // 2. 화면 알림 (data.table 이 정확히 매칭됨)
-        showToast(`🔔 [호출] ${data.table}번 테이블: ${data.note || '직원 호출'}`, "info");
+        const tableNo = data.table_no || data.table || '??'; // 어느 이름으로 오든 찾게 함
+        const note = data.note || data.message || '직원 호출';
+        showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
 
         // 3. 호출 로그 목록 즉시 새로고침
         if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
