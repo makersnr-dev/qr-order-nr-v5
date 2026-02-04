@@ -25,7 +25,7 @@ import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
 
-import { createClient } from '@supabase/supabase-js'; // HTML에서 CDN으로 불러와도 됨
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 let supabase = null;
 
