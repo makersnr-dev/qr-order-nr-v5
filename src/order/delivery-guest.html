@@ -211,7 +211,39 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   opacity: 0.75;
 }
     }
-   
+   /* 🚀 store.html과 동일한 메뉴 그리드 스타일 적용 */
+#menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  justify-items: center; 
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* 메뉴 카드 디자인 */
+.menu-card {
+  background: #111922;
+  border: 1px solid #263241;
+  border-radius: 15px;
+  padding: 10px;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.2s;
+}
+
+.menu-card:active {
+  transform: scale(0.98);
+}
+
+.menu-card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: #1c2632;
+}
 
   </style>
 
@@ -329,7 +361,7 @@ input[type="date"].date-input::-webkit-datetime-edit-day-field {
   <!-- 메뉴 -->
   <div class="card vstack">
     <h3>메뉴</h3>
-    <div id="menu-grid" class="hstack" style="gap:12px;flex-wrap:wrap"></div>
+    <div id="menu-grid"></div>
   </div>
 
   <!-- 장바구니 -->
