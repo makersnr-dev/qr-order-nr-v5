@@ -68,6 +68,19 @@ export function bindPolicy() {
 
             if (res.ok) {
                 showToast("✅ 개인정보 처리방침이 DB에 저장되었습니다.", "success");
+                // 🚀 [추가] 방침 변경 신호 발송
+                if (window.supabaseClient) {
+                    const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
+                    channel.subscribe(async (status) => {
+                        if (status === 'SUBSCRIBED') {
+                            await channel.send({
+                                type: 'broadcast',
+                                event: 'RELOAD_SIGNAL',
+                                payload: { type: 'policy_update', at: Date.now() }
+                            });
+                        }
+                    });
+                }
             } else {
                 showToast("저장 실패", "error");
             }
