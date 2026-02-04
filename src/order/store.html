@@ -331,13 +331,12 @@ async function initRealtimeSync() {
         const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
         if (!sid) return;
 
-        const configRes = await fetch('/api/config');
-        const { supabaseUrl, supabaseKey } = await configRes.json();
+        
         
         // 3. 클라이언트 생성 및 채널 설정
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const { supabase, channel } = await getSupabase();
         const channelName = `qrnr_realtime_${sid}`;
-        const channel = supabase.channel(channelName);
+       
         
         console.log(`📡 [실시간] 채널 연결 시도: ${channelName}`);
 
