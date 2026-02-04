@@ -183,7 +183,9 @@ async function initRealtimeAlarm(storeId) {
     const channelName = `qrnr_realtime_${storeId}`;
     const realtimeChannel = window.supabaseClient.channel(channelName);
 
-    realtimeChannel.on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
+    realtimeChannel
+      // --- [1] 새 주문 수신 (딩동 소리) ---
+      .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
         const data = payload.payload;
         console.log("🔔 새 주문 발생!", data);
 
@@ -202,6 +204,22 @@ async function initRealtimeAlarm(storeId) {
         const originalTitle = document.title;
         document.title = "🚨 [새 주문 발생] 🚨";
         setTimeout(() => { document.title = originalTitle; }, 3000);
+    })
+     // --- [2] 직원 호출 수신 (call.mp3 소리) ---
+    .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
+        const data = payload.payload;
+        console.log("🔔 실시간 호출 수신:", data);
+
+        // 1. 전용 소리 재생 (원하시는 다른 사운드 파일명을 적으세요)
+        // 예: call.mp3 가 sound 폴더에 있어야 합니다.
+        const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
+        callAudio.play().catch(() => console.log("🔈 소리 재생을 위해 화면을 클릭해주세요."));
+
+        // 2. 화면 알림 (data.table 이 정확히 매칭됨)
+        showToast(`🔔 [호출] ${data.table}번 테이블: ${data.note || '직원 호출'}`, "info");
+
+        // 3. 호출 로그 목록 즉시 새로고침
+        if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
     })
     .subscribe((status) => {
         if (status === 'SUBSCRIBED') console.log(`✅ 실시간 채널 연결 성공: ${channelName}`);
