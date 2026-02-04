@@ -190,6 +190,26 @@ export function showToast(msg, variant = 'info') {
   renderMenu('menu-grid', cart);
 
   // 4. 직원 호출 (사장님 원본 유지)
+  // 전역 변수로 선언하여 중복 생성을 방지합니다.
+  let globalSupabase = null;
+  let globalChannel = null;
+  
+  async function getSupabase() {
+      if (globalSupabase) return { supabase: globalSupabase, channel: globalChannel };
+  
+      const configRes = await fetch('/api/config');
+      const { supabaseUrl, supabaseKey } = await configRes.json();
+      
+      // 클라이언트를 딱 한 번만 만듭니다. (중복 인스턴스 경고 해결)
+      globalSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+      globalChannel = globalSupabase.channel(`qrnr_realtime_${window.qrnrStoreId}`);
+      
+      // 채널 구독을 미리 완료해둡니다.
+      globalChannel.subscribe();
+      
+      return { supabase: globalSupabase, channel: globalChannel };
+  }
+  
   document.getElementById('call-btn').onclick = async () => {
     const remain = getCallRemainSec();
     if (remain > 0) return showToast(`직원 호출은 ${remain}초 후에 다시 가능합니다.`, 'info');
@@ -202,32 +222,31 @@ export function showToast(msg, variant = 'info') {
     const r = await fetch('/api/call', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ storeId, table: tableVal, note })
+        body: JSON.stringify({ storeId: window.qrnrStoreId, table_no: tableVal, note })
     });
 
     if (r.ok) {
-        localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
-        document.getElementById('call-msg').textContent = '직원 호출이 전달되었습니다.';
-        setTimeout(() => { document.getElementById('call-msg').textContent = ''; }, 3000);
-        updateCallButtonState();
+    const { channel } = await getSupabase(); // 이미 만들어진 채널 사용
+    
+    localStorage.setItem(CALL_COOLDOWN_KEY, Date.now());
+    document.getElementById('call-msg').textContent = '직원 호출이 전달되었습니다.';
+    
+    // 이 한 번의 send로 관리자에게 즉시 전달됩니다.
+    await channel.send({
+        type: 'broadcast',
+        event: 'NEW_CALL',
+        payload: { 
+            table_no: tableVal, 
+            note: note,
+            at: new Date().toISOString()
+        }
+    });
 
-        // 🚀 2. [수정] Supabase 실시간 알림 발송 (BroadcastChannel 대신 사용)
-        const configRes = await fetch('/api/config');
-        const { supabaseUrl, supabaseKey } = await configRes.json();
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-        await supabase.channel(`qrnr_realtime_${storeId}`).send({
-            type: 'broadcast',
-            event: 'NEW_CALL', // 호출 전용 이벤트명
-            payload: { 
-                table_no: tableVal, 
-                note: note,
-                at: new Date().toISOString()
-            }
-        });
-    }
+    showToast("🔔 호출이 전달되었습니다.", "success");
+    updateCallButtonState();
+}
 };
-
+  getSupabase();
   // 호출 옵션 로드 (사장님 로직)
   (function loadOptions() {
     const select = document.getElementById('call-reason');
