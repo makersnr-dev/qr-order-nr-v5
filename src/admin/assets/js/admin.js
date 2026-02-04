@@ -207,22 +207,24 @@ async function initRealtimeAlarm(storeId) {
     })
      // --- [2] 직원 호출 수신 (call.mp3 소리) ---
     .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
-        const data = payload.payload;
-        console.log("🔔 실시간 호출 수신:", data);
-
-        // 1. 전용 소리 재생 (원하시는 다른 사운드 파일명을 적으세요)
-        // 예: call.mp3 가 sound 폴더에 있어야 합니다.
-        const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
-        callAudio.play().catch(() => console.log("🔈 소리 재생을 위해 화면을 클릭해주세요."));
-
-        // 2. 화면 알림 (data.table 이 정확히 매칭됨)
-        const tableNo = data.table_no || data.table || '??'; // 어느 이름으로 오든 찾게 함
-        const note = data.note || data.message || '직원 호출';
-        showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
-
-        // 3. 호출 로그 목록 즉시 새로고침
-        if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
-    })
+      // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
+      const data = payload.payload;
+      console.log("🔔 실시간 호출 수신 데이터:", data);
+  
+      // 테이블 번호 추출 (data.table 또는 data.table_no 둘 다 대응)
+      const tableNo = data.table_no || data.table || '??';
+      const note = data.note || data.message || '직원 호출';
+  
+      // 1. 소리 재생
+      const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
+      callAudio.play().catch(() => console.log("🔈 소리 재생 권한 필요"));
+  
+      // 2. 토스트 알림 (undefined 방지)
+      showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
+  
+      // 3. 호출 로그 목록 새로고침
+      if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
+  })
     .subscribe((status) => {
         if (status === 'SUBSCRIBED') console.log(`✅ 실시간 채널 연결 성공: ${channelName}`);
     });
