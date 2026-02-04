@@ -171,40 +171,50 @@ export function showToast(msg, variant = 'info') {
 //------------------------------------------------------------
 const adminChannel = new BroadcastChannel("qrnr-admin");
 async function initRealtimeAlarm(storeId) {
-    if (!supabaseClient || !storeId) return;
-    
-    // 기존 구독이 남아있으면 꼬일 수 있으므로 깨끗하게 정리
-    supabaseClient.removeAllChannels();
+    if (!supabaseClient || !storeId) {
+        console.error("❌ 실시간 연결 실패: 클라이언트나 StoreId가 없음");
+        return;
+    }
 
-    // 1. 새 주문 알람 채널 (띵동 소리 + 목록 갱신)
-    const alarmChannel = supabaseClient.channel(`qrnr_alarm_${storeId}`);
-    alarmChannel.on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
-        const data = payload.payload;
-        console.log("🔔 새 주문 도착!", data);
+    // 1. 기존 연결 모두 정리
+    await supabaseClient.removeAllChannels();
 
-        // 음성 재생
-        const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
-        audio.play().catch(() => console.log("소리 재생을 위해 화면 클릭 필요"));
+    // 2. 알람 및 동기화 통합 채널 생성
+    const channelName = `qrnr_realtime_${storeId}`;
+    const realtimeChannel = supabaseClient.channel(channelName);
 
-        // 목록 자동 새로고침
-        if (data.orderType === 'store') safeRenderStore();
-        else safeRenderDeliv();
-
-        showToast(`📦 새 주문 도착! (${data.table}번)`, "success");
-    }).subscribe();
-
-    // 2. 상태 변경 동기화 채널 (주문완료/준비중 변경 시 자동 갱신)
-    const syncChannel = supabaseClient.channel(`qrnr_sync_${storeId}`);
-    syncChannel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
-        const { orderId, status, type } = payload.payload;
-        console.log(`🔄 상태 변경 동기화: ${orderId} -> ${status}`);
-        
-        // 목록 자동 새로고침
-        if (type === 'store') safeRenderStore();
-        else safeRenderDeliv();
-        
-        showToast(`🔄 주문 상태가 [${status}](으)로 업데이트되었습니다.`, 'info');
-    }).subscribe();
+    realtimeChannel
+        .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
+            console.log("🔔 새 주문 발생!", payload);
+            // 알람 소리 재생
+            if (window.playAlarmSound) window.playAlarmSound();
+            // 주문 목록 즉시 새로고침
+            if (window.loadOrders) window.loadOrders();
+            
+            // 브라우저 탭 알림 (깜빡임)
+            let isFlash = false;
+            const originalTitle = document.title;
+            const flashInterval = setInterval(() => {
+                document.title = isFlash ? "!!! 새 주문 발생 !!!" : originalTitle;
+                isFlash = !isFlash;
+            }, 500);
+            
+            // 화면 클릭 시 깜빡임 멈춤
+            window.onclick = () => {
+                clearInterval(flashInterval);
+                document.title = originalTitle;
+                window.onclick = null;
+            };
+        })
+        .on('broadcast', { event: 'RELOAD_SIGNAL' }, () => {
+            console.log("🔄 서버 신호: 페이지 새로고침");
+            location.reload();
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`✅ 실시간 연결 성공! 채널: ${channelName}`);
+            }
+        });
 }
 //------------------------------------------------------------
 // 4. main()
