@@ -32,18 +32,20 @@ async function saveMenuToServer(menuData) {
             body: JSON.stringify(menuData)
         });
 
-        // 🚀 저장 성공 시 손님들에게 새로고침 신호 쏘기
+        // 🚀 [중요] 저장 성공 시 손님 기기들 깨우기
         if (res.ok && window.supabaseClient) {
             const sid = currentStoreId();
             const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
             
+            // 한 번만 구독해서 즉시 전송
             channel.subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
                     channel.send({
                         type: 'broadcast',
                         event: 'RELOAD_SIGNAL',
-                        payload: { from: 'admin', type: 'menu_update' }
+                        payload: { type: 'menu_update' }
                     });
+                    console.log("📡 모든 기기에 메뉴 변경 신호를 보냈습니다.");
                 }
             });
         }
