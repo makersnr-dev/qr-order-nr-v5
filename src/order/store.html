@@ -286,7 +286,7 @@ export function showToast(msg, variant = 'info') {
     updateCallButtonState();
 }
 };
-  getSupabase();
+  //getSupabase();
   // 호출 옵션 로드 (사장님 로직)
   (function loadOptions() {
     const select = document.getElementById('call-reason');
@@ -407,14 +407,14 @@ async function initRealtimeSync() {
         }
     }, 500);
   })
-        .subscribe((status) => {
+       /* .subscribe((status) => {
             if (status === 'SUBSCRIBED') {
                 console.log(`✅ 실시간 수신 대기 중 (채널: ${channelName})`);
             } else if (status === 'CHANNEL_ERROR') {
                 console.error("❌ 실시간 채널 연결 실패");
             }
-        });
-
+        });*/
+    console.log(`✅ 실시간 수신 대기 설정 완료: ${channelName}`);
     } catch (e) {
         console.error("실시간 동기화 초기화 에러:", e);
     }
