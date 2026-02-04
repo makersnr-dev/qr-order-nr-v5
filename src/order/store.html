@@ -241,8 +241,18 @@ export function showToast(msg, variant = 'info') {
             at: new Date().toISOString()
         }
     });
-
-    showToast("🔔 호출이 전달되었습니다.", "success");
+    const msgEl = document.getElementById('call-msg');
+    if (msgEl) {
+        msgEl.textContent = '직원 호출이 전달되었습니다.';
+        
+        // 기존에 작동하던 타이머가 있다면 초기화하고 새로 설정
+        if (window.callMsgTimer) clearTimeout(window.callMsgTimer);
+        
+        window.callMsgTimer = setTimeout(() => {
+            msgEl.textContent = '';
+        }, 3000); // 3초 뒤에 사라짐
+    }
+    //showToast("🔔 호출이 전달되었습니다.", "success");
     updateCallButtonState();
 }
 };
