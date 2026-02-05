@@ -1,4 +1,4 @@
-/* --- 카테고리 탭 스타일 --- */
+/* --- 카테고리 탭바 --- */
 .tabbar {
     display: flex;
     gap: 10px;
@@ -7,7 +7,7 @@
     padding: 10px 5px;
     margin-bottom: 15px;
 }
-.tabbar::-webkit-scrollbar { display: none; } /* 스크롤바 숨김 */
+.tabbar::-webkit-scrollbar { display: none; }
 
 .tab {
     padding: 10px 18px;
@@ -21,13 +21,13 @@
     flex: 0 0 auto;
 }
 .tab.active {
-    background: var(--primary);
+    background: var(--primary); /* style.css에 정의된 초록색 */
     border-color: var(--primary);
     color: white;
     font-weight: bold;
 }
 
-/* --- 메뉴 그리드 공통 스타일 --- */
+/* --- 메뉴 그리드 --- */
 #menu-grid {
     display: grid !important;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
@@ -44,21 +44,25 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    transition: transform 0.2s;
-}
-.menu-card:active { transform: scale(0.98); }
-.menu-card img {
-    width: 100%;
-    aspect-ratio: 1/1;
-    object-fit: cover;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    background: #1c2632;
 }
 
-/* --- 장바구니 옵션 텍스트 --- */
-.cart-item-opt {
-    color: #9ca3af;
-    font-size: 11px;
-    margin-top: 2px;
+/* --- 토스트 알림 --- */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111922;
+    border: 1px solid #263241;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    z-index: 99999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
+.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.toast-success { border-left: 5px solid #2ea043 !important; }
+.toast-error { border-left: 5px solid #ef4444 !important; }
+.toast-info { border-left: 5px solid #74c0fc !important; }
