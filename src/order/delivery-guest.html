@@ -504,7 +504,7 @@ export function showToast(msg, variant = 'info') {
     name: i.name,
     qty: i.qty,
     price: i.price,                 // 🔥 unitPrice ❌ → price ✅
-    options: Array.isArray(i.options) ? i.options : []
+    optionText: i.optionText || []
   })),
 
   customer: {
