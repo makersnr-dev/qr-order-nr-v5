@@ -198,9 +198,10 @@ export default async function handler(req, res) {
                             phone: row.customer_phone,
                             addr: row.address
                         },
-                        reserve: row.meta?.reserve || {},
-                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
-                        ts: new Date(row.created_at).getTime()
+                        reserve: metaData.reserve || {},
+                        requestMsg: metaData.reserve?.note || metaData.reserve?.message || metaData.memo || '-' ,
+                        ts: new Date(row.created_at).getTime(),
+                        meta: metaData
                     };
                 }
             });
