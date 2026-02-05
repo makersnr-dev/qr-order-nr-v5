@@ -538,7 +538,7 @@ export function showToast(msg, variant = 'info') {
   if (!j.ok) fail("예약 저장 실패");
 
   // 🔔 관리자 알림
-  adminChannel.postMessage({
+  /*adminChannel.postMessage({
     type: "NEW_ORDER",
     orderType: "reserve",
     storeId,
@@ -548,7 +548,7 @@ export function showToast(msg, variant = 'info') {
     reserveTime: `${ap} ${hh}:${mm}`,
     amount: cart.total(),
     ts: Date.now()
-  });
+  });*/
 
   // ✅ 완료 모달
   document.getElementById("reserve-amount").textContent =
