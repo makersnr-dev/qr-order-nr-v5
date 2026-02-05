@@ -335,14 +335,72 @@ function renderCategoryTabs(categories, allMenu) {
         };
     });
 }
+let currentAllMenus = [];
+const initMenuEvents = () => {
+    const body = document.getElementById('m-body');
+    if (!body || body.dataset.eventBound === 'true') return;
+        body.onclick = async (e) => {
+            const btn = e.target.closest('button');
+            if (!btn || !btn.dataset.act) return;
+    
+            const act = btn.dataset.act;
+            const tr = btn.closest('tr');
+            const mId = tr.dataset.id;
+    
+            const m = currentAllMenus.find(item => item.id === mId); 
+            if (!m) return;
 
+            btn.disabled = true;
+    
+            if (act === 'save') {
+            const updated = {
+                ...m,
+                name: tr.querySelector('[data-k="name"]').value,
+                price: Number(tr.querySelector('[data-k="price"]').value),
+                category: tr.querySelector('[data-k="category"]').value,
+                active: tr.querySelector('[data-k="active"]').checked,
+                soldOut: tr.querySelector('[data-k="soldOut"]').checked
+            };
+            if (await saveMenuToServer(updated)) {
+                showToast(`✅ [${updated.name}] 저장 완료!`, 'success');
+                await renderMenu(); // 최신 데이터 리로드
+            }
+        } 
+        else if (act === 'detail') {
+            openMenuDetailModal(m, async () => {
+                if (await saveMenuToServer(m)) {
+                    showToast('상세 설정 저장 완료', 'success');
+                    renderMenu();
+                }
+            });
+        } 
+        else if (act === 'del') {
+            if (confirm(`[${m.name}] 삭제할까요?`)) {
+                const res = await fetch(`/api/menus?storeId=${currentStoreId()}&menuId=${m.id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showToast('삭제되었습니다.', 'success');
+                    renderMenu();
+                }
+            }
+        }
+        
+        if (btn) btn.disabled = false; // 잠금 해제
+    };
+    body.dataset.eventBound = 'true';
+};
 // 실제 테이블 내용 그리기 및 이벤트 바인딩 합치기
+// 실제 테이블 내용 그리기
 function filterAndRenderTable(menu, tab) {
     const body = document.getElementById('m-body');
     if (!body) return;
-    body.innerHTML = '';
+    
+    // 🚩 전역 변수 업데이트
+    currentAllMenus = menu; 
+    
+    // 🚩 이벤트 핸들러 초기화 (딱 한 번만 실행됨)
+    initMenuEvents();
 
-    // ID 첫 글자가 현재 탭과 일치하는 것만 필터링
+    body.innerHTML = '';
     const filtered = menu.filter(m => m.id.charAt(0).toUpperCase() === tab);
 
     if (!filtered.length) {
@@ -352,6 +410,8 @@ function filterAndRenderTable(menu, tab) {
 
     filtered.forEach((m) => {
         const tr = document.createElement('tr');
+        tr.dataset.id = m.id; // 이벤트 위임용 ID
+        
         const active = m.active !== false;
         const soldOut = !!m.soldOut;
 
@@ -371,59 +431,32 @@ function filterAndRenderTable(menu, tab) {
             </td>
         `;
         body.appendChild(tr);
-
-        // --- 이벤트 바인딩 ---
-
-        // 1. 저장 버튼
-        tr.querySelector('[data-act="save"]').onclick = async () => {
-            const updated = {
-                ...m,
-                name: tr.querySelector('[data-k="name"]').value,
-                price: Number(tr.querySelector('[data-k="price"]').value),
-                category: tr.querySelector('[data-k="category"]').value,
-                active: tr.querySelector('[data-k="active"]').checked,
-                soldOut: tr.querySelector('[data-k="soldOut"]').checked
-            };
-            if (await saveMenuToServer(updated)) {
-                showToast(`✅ [${updated.name}] 저장 완료!`, 'success');
-                renderMenu(); // 탭 이름 업데이트를 위해 전체 다시 렌더링
-            }
-        };
-
-        // 2. 상세 설정 버튼
-        tr.querySelector('[data-act="detail"]').onclick = () => {
-            openMenuDetailModal(m, async () => {
-                if (await saveMenuToServer(m)) {
-                    showToast('상세 설정 저장 완료', 'success');
-                    renderMenu();
-                }
-            });
-        };
-
-        // 3. 삭제 버튼
-        tr.querySelector('[data-act="del"]').onclick = async () => {
-            if (!confirm(`[${m.name}] 삭제할까요?`)) return;
-            const res = await fetch(`/api/menus?storeId=${currentStoreId()}&menuId=${m.id}`, { method: 'DELETE' });
-            if (res.ok) { 
-                showToast('삭제되었습니다.', 'success');
-                renderMenu(); 
-            }
-        };
     });
 }
-
 export function bindMenu() {
+    initMenuEvents();
     const addBtn = document.getElementById('m-add');
     if (addBtn) {
         addBtn.onclick = async () => {
-            const id = document.getElementById('m-id').value.trim();
-            const name = document.getElementById('m-name').value.trim();
-            const price = Number(document.getElementById('m-price').value);
+            const idInput = document.getElementById('m-id');
+            const nameInput = document.getElementById('m-name');
+            const priceInput = document.getElementById('m-price');
+
+            const id = idInput.value.trim();
+            const name = nameInput.value.trim();
+            const price = Number(priceInput.value);
+            
             if (!id || !name) return showToast('ID와 이름을 입력하세요.', 'info');
             window.currentMenuTab = id.charAt(0).toUpperCase();
-            if (await saveMenuToServer({ id, name, price, active: true, soldOut: false, options: [] })) {
+            
+            const success = await saveMenuToServer({ 
+                id, name, price, active: true, soldOut: false, options: [] 
+            });
+
+            if (success) {
+                showToast('새 메뉴가 등록되었습니다.', 'success');
                 renderMenu();
-                ['m-id', 'm-name', 'm-price'].forEach(el => document.getElementById(el).value = '');
+                [idInput, nameInput, priceInput].forEach(el => el.value = '');
             }
         };
     }
@@ -431,3 +464,4 @@ export function bindMenu() {
     const excelBtn = document.getElementById('menu-excel-upload');
     if(excelBtn) excelBtn.onclick = () => showToast('엑셀 기능은 별도 구현되어 있습니다.', 'info');
 }
+
