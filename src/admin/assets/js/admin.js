@@ -221,37 +221,43 @@ async function initRealtimeAlarm(storeId) {
         const data = payload.payload;
         console.log("🔔 새 주문 발생!", data);
         
-        const eventId = data.orderId || data.id;
+        const eventId = data.orderNo || data.id;
 
-        // [목록 갱신] 사장님이 만든 안전한 함수 호출
-        if (data.orderType === 'store') safeRenderStore();
-        else safeRenderDeliv();
-        
-        // [중복 방지] 다른 탭에서 이미 처리된 이벤트인지 확인
-        if (lastProcessedEventId === eventId) return;
-        lastProcessedEventId = eventId;
+    // 1. 목록 갱신 실행
+    if (data.orderType === 'store') {
+        if (typeof safeRenderStore === 'function') safeRenderStore();
+    } else {
+        // 예약 주문('reserve')일 때 이 함수가 실행되어야 함
+        if (typeof safeRenderDeliv === 'function') safeRenderDeliv();
+    }
+    
+    // [중복 방지]
+    if (lastProcessedEventId === eventId) return;
+    lastProcessedEventId = eventId;
+    adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
+    
+    // 2. 소리 재생
+    const now = Date.now();
+    if (now - lastAlarmTime > 2000) {
+        const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
+        audio.play().catch(() => {
+            console.log("🔊 화면을 클릭해야 소리가 재생됩니다.");
+        });
+        lastAlarmTime = now;
+    }
 
-        // 다른 탭들에게 "이 이벤트 내가 처리했음" 알림
-        adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
-        
-        const now = Date.now();
-        if (now - lastAlarmTime > 2000) { // 2초 이내 중복 알림은 소리 생략
-            const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
-            audio.play().catch(() => {});
-            lastAlarmTime = now;
-        }
+    // 3. 토스트 알림 표시 (데이터 필드명 보정: customerName)
+    const orderTitle = data.orderType === 'store' ? '매장' : '예약';
+    const cName = data.customerName || '비회원';
+    showToast(`📦 새 ${orderTitle} 주문 도착! (${cName})`, "success");
 
-        
-        
-        // [토스트] 화면 알림
-        showToast('📦 새 주문 도착!', "success");
-        showDesktopNotification("🚨 새 주문 발생", `주문이 들어왔습니다.`);
+    // 4. 데스크탑 팝업 알림
+    showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${cName}님의 주문이 들어왔습니다.`);
 
-        // [탭 깜빡임] 시각적 알림 추가 (원하시면 이대로 유지)
-        const originalTitle = document.title;
-        document.title = "🚨 [새 주문 발생] 🚨";
-        setTimeout(() => { document.title = originalTitle; }, 3000);
-    })
+    // [탭 깜빡임]
+    const originalTitle = document.title;
+    document.title = "🚨 [새 주문 발생] 🚨";
+    setTimeout(() => { document.title = originalTitle; }, 3000);    })
      // --- [2] 직원 호출 수신 (call.mp3 소리) ---
     .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
       // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
