@@ -9,24 +9,76 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <link rel="stylesheet" href="/src/order/assets/css/order-common.css"/>
  <style>
-    /* 3. 이 페이지에서만 쓰이는 특수 스타일 (날짜 입력창 관련) */
-    .date-field { position: relative; width: 100%; max-width: 180px; }
-    
-    /* 날짜 placeholder 강제 흰색 처리 (브라우저별 대응) */
+    /* 1. 날짜 및 시간 영역 레이아웃 복구 */
+    .datetime-wrap { flex: 1; width: 100%; }
+    .datetime-row { 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+        flex-wrap: nowrap; /* PC에서 한 줄 유지 */
+    }
+
+    /* 2. 날짜 입력창 특수 구조 복구 */
+    .date-field { 
+        position: relative; 
+        min-width: 160px; 
+        flex: 1.2; 
+    }
+
+    /* 날짜 입력창 내부 텍스트(연/월/일) 흰색 강제 */
+    input[type="date"].date-input {
+        width: 100%;
+        color: #ffffff !important;
+        background: #0d1117;
+        text-align: left;
+    }
+
+    /* 브라우저별 내부 텍스트 색상 대응 */
     input[type="date"].date-input::-webkit-datetime-edit-text,
     input[type="date"].date-input::-webkit-datetime-edit-month-field,
     input[type="date"].date-input::-webkit-datetime-edit-day-field,
     input[type="date"].date-input::-webkit-datetime-edit-year-field {
-      color: #ffffff !important;
+        color: #ffffff !important;
     }
-    
-    input[type="date"].date-input::placeholder { color: #ffffff !important; opacity: 1; }
 
-    /* 모바일에서 날짜 입력창이 좁아지지 않게 조정 */
-    @media (max-width: 640px) {
-      .date-field { max-width: 100%; }
+    /* 안내 문구(placeholder) 위치 잡기 */
+    .date-placeholder {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 14px;
+        pointer-events: none;
+        transition: opacity 0.15s;
     }
-  </style>
+
+    /* 날짜가 선택되면 placeholder 숨김 */
+    input[type="date"]:valid + .date-placeholder,
+    input[type="date"]:focus + .date-placeholder {
+        opacity: 0;
+    }
+
+    /* 3. 모바일 최적화 (깨짐 방지) */
+    @media (max-width: 640px) {
+        .datetime-row { 
+            flex-wrap: wrap; /* 모바일은 줄바꿈 */
+        }
+        .date-field { 
+            min-width: 100%; 
+            margin-bottom: 4px;
+        }
+        .datetime-row select {
+            flex: 1;
+            min-width: 80px;
+        }
+    }
+
+    /* 4. 탭바 추가 보정 (통합 CSS 보조) */
+    #order-cat-tabs {
+        padding: 5px 0 15px 0;
+    }
+</style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
