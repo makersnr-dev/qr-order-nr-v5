@@ -85,11 +85,11 @@
       letter-spacing: -0.5px;    /* 글자 간격을 좁혀서 더 깔끔하게 */
   }
 
-   /* 전체 영역을 우측 중앙 정렬 구조로 */
+ 
 .bank-container-wrapper {
     display: flex;
-    align-items: center; /* 🚀 핵심: 수직 중앙 정렬 */
-    justify-content: space-between;
+    align-items: center; /* 수직 중앙 정렬 유지 */
+    justify-content: flex-start; /* 🚀 왼쪽으로 붙임 */
     width: 100%;
 }
    
@@ -122,10 +122,12 @@
 }
 /* 복사 버튼 스타일 살짝 보정 */
 #bank-copy {
-    padding: 6px 12px; /* 버튼을 조금 더 클릭하기 편하게 */
-    font-size: 12px;
-    height: fit-content; /* 내용물 높이에 맞춤 */
-    flex-shrink: 0; /* 버튼 모양 찌그러짐 방지 */
+    padding: 5px 10px;
+    font-size: 11px;
+    height: fit-content;
+    flex-shrink: 0;
+    background: #1c2632; /* 주변보다 약간 밝은 배경색으로 구분감 주기 */
+    border: 1px solid #30363d;
 }
    
 </style>
@@ -225,26 +227,26 @@
 
       
       <!-- 입금계좌 -->
-      <div class="field-row" id="bank-box">
-  <div class="field-label">입금계좌</div>
-  
-  <div class="bank-container-wrapper" style="flex:1; display:flex; align-items:center; gap:10px;">
+    <div class="field-row" id="bank-box">
+    <div class="field-label">입금계좌</div>
     
-    <div class="vstack" style="flex:1; gap:4px;">
-      <div class="bank-line">
-        <span id="bank-text"></span>
-      </div>
-      <div class="bank-info-sub">
-        <span id="bank-holder-display"></span>
-        <p class="warning-text">※ 주문자명으로 입금해주세요!</p>
-      </div>
-    </div>
-    
-    <button id="bank-copy" class="btn">복사</button>
-    
-  </div>
-</div>
+    <div class="bank-container-wrapper" style="flex:1; display:flex; align-items:center; gap:12px;">
       
+      <div class="vstack" style="gap:2px;">
+        <div class="bank-line">
+          <span id="bank-text"></span>
+        </div>
+        <div class="bank-info-sub">
+          <span id="bank-holder-display"></span>
+          <p class="warning-text">※ 주문자명으로 입금해주세요!</p>
+        </div>
+      </div>
+      
+      <button id="bank-copy" class="btn">복사</button>
+      
+    </div>
+  </div>
+        
 
   <!-- 메뉴 -->
   <div class="card vstack">
@@ -534,15 +536,15 @@ export function showToast(msg, variant = 'info') {
 
   document.getElementById("bank-copy").onclick = () => {
     const bankNumber = document.getElementById("bank-text").textContent;
-    const holder = document.getElementById("bank-holder-display").textContent;
+    //const holder = document.getElementById("bank-holder-display").textContent;
     
     if (!bankNumber || bankNumber.includes("등록된")) {
         showToast("복사할 계좌 정보가 없습니다.", "error");
         return;
     }
-    const fullText = `${bankNumber} ${holder}`;
+    //const fullText = `${bankNumber} ${holder}`;
     
-    navigator.clipboard.writeText(fullText).then(() => {
+    navigator.clipboard.writeText(bankNumber).then(() => {
         showToast("계좌번호가 복사되었습니다.", "info");
     });
   };
