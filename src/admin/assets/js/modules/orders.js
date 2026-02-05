@@ -688,23 +688,23 @@ export function attachGlobalHandlers() {
                        //order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''
                        ].filter(Boolean).join('\n');
       }
-      
+ 
       const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => {
-          // value, status, payment 중 값이 있는 것을 선택
-          const statusText = h.value || h.status || h.payment || ''; 
-          const adminText = h.by ? ` (by ${h.by})` : '';
-          return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;}).join('\n');
-      
-    
-    // 매장/예약 상세 적용 부분
-      const menuData = order.cart || (order.meta && order.meta.cart) || [];
-    const body = '📦 주문 메뉴\n\n' + menuData.map(i => {
+        // value, status, payment 중 값이 있는 것을 선택
+        const statusText = h.value || h.status || h.payment || '';
+        const adminText = h.by ? ` (by ${h.by})` : '';
+        return `- ${new Date(h.at).toLocaleString()} ${statusText}${adminText}`;
+      }).join('\n');
+
+
+      // 매장/예약 상세 적용 부분
+      const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
         let line = `• ${i.name} x${i.qty}`;
         const combinedOptions = formatOptionsCombined(i.optionText);
         if (combinedOptions) line += `\n${combinedOptions}`;
         return line;
-    }).join('\n\n');
+      }).join('\n\n');
       document.getElementById('order-detail-body').textContent = header + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + body;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -728,37 +728,33 @@ export function attachGlobalHandlers() {
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
       // 상단 정보 블록 생성
-        const infoBlock = [
-            `주문시간: ${fmtDateTimeFromOrder(order)}`,
-            `주문자: ${order.customer_name || '-'}`,
-            `연락처: ${formatPhone(order.customer_phone || '-')}`,
-            `주소: ${order.address || '-'}`,
-            `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`,
-            `요청사항: ${order.meta?.memo || '-'}`,
-            `합계금액: ${fmt(order.total_amount || 0)}원`
-        ].join('\n');
+      const infoBlock = [
+        `주문시간: ${fmtDateTimeFromOrder(order)}`,
+        `주문자: ${order.customer_name || '-'}`,
+        `연락처: ${formatPhone(order.customer_phone || '-')}`,
+        `주소: ${order.address || '-'}`,
+        `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`,
+        `요청사항: ${order.meta?.memo || '-'}`,
+        `합계금액: ${fmt(order.total_amount || 0)}원`
+      ].join('\n');
 
-        // 상태 변경 이력 생성
-        const historyLines = (order.meta?.history || [])
-            .sort((a, b) => new Date(a.at) - new Date(b.at))
-            .map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`)
-            .join('\n');
+      // 상태 변경 이력 생성
+      const historyLines = (order.meta?.history || [])
+        .sort((a, b) => new Date(a.at) - new Date(b.at))
+        .map(h => `- ${new Date(h.at).toLocaleString()} ${h.value || ''}${h.by ? ` (by ${h.by})` : ''}`)
+        .join('\n');
 
-        // 📦 구매 내역 및 옵션 그룹화 생성
-      let menuItems = [];
-      try {
-          menuItems = (typeof order.items === 'string') ? JSON.parse(order.items) : (order.items || []);
-      } catch(e) { menuItems = []; }
-        const itemsBlock = '📦 구매 내역\n\n' + menuItems.map(i => {
-            let line = `• ${i.name} x${i.qty}`;
-            
-            // 옵션 그룹화 함수 호출 (파일 상단에 정의된 함수 사용)
-            const combinedOptions = formatOptionsCombined(i.optionText);
-            if (combinedOptions) {
-                line += `\n${combinedOptions}`;
-            }
-            return line;
-        }).join('\n\n');
+      // 📦 구매 내역 및 옵션 그룹화 생성
+      const itemsBlock = '구매내역\n\n' + (order.cart || order.items || []).map(i => {
+        let line = `• ${i.name} x${i.qty}`;
+
+        // 옵션 그룹화 함수 호출 (파일 상단에 정의된 함수 사용)
+        const combinedOptions = formatOptionsCombined(i.optionText);
+        if (combinedOptions) {
+          line += `\n${combinedOptions}`;
+        }
+        return line;
+      }).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
