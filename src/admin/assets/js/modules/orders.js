@@ -752,31 +752,45 @@ export function attachGlobalHandlers() {
       try {
           menuItems = (typeof order.items === 'string') ? JSON.parse(order.items) : (order.items || []);
       } catch(e) { menuItems = []; }
-      const itemsBlock = '📦 주문 내역\n\n' + menuItems.map(it => {
-      let line = `• ${it.name} x${it.qty}`;
+      const itemsBlock = '📦 구매 내역\n\n' + menuItems.map(i => {
+      let line = `• ${i.name} x${i.qty}`;
       
-      // 예약 주문 데이터 구조(optionText 또는 options) 대응
-      const rawOptions = it.optionText || it.options || [];
+      // 🚩 예약 주문의 옵션 데이터 (optionText) 안전하게 가져오기
+      let rawOptions = i.optionText || i.options || [];
       
+      // 만약 옵션이 문자열로 뭉쳐서 들어왔다면 배열로 변환 시도
+      if (typeof rawOptions === 'string') {
+          try { rawOptions = JSON.parse(rawOptions); } catch(e) { rawOptions = [rawOptions]; }
+      }
+  
       if (Array.isArray(rawOptions) && rawOptions.length > 0) {
           const groups = {};
+          
           rawOptions.forEach(opt => {
-              // 문자열("그룹:값")인 경우와 객체({group: "그룹", label: "값"})인 경우 모두 대응
-              let g = "옵션", v = "";
-              if (typeof opt === 'string') {
-                  [g, v] = opt.includes(':') ? opt.split(':') : ["옵션", opt];
-              } else {
-                  g = opt.group || opt.name || "옵션";
-                  v = opt.label || opt.value || "";
+              // "토핑:초콜릿" 형태인지 확인
+              if (typeof opt === 'string' && opt.includes(':')) {
+                  const parts = opt.split(':');
+                  const groupName = parts[0].trim();
+                  const valueName = parts.slice(1).join(':').trim(); // 콜론이 여러개일 경우 대비
+                  
+                  if (!groups[groupName]) groups[groupName] = [];
+                  groups[groupName].push(valueName);
+              } 
+              // 만약 객체 형태 {group: "토핑", label: "초콜릿"} 일 경우 대응
+              else if (typeof opt === 'object' && opt !== null) {
+                  const groupName = opt.group || opt.name || "옵션";
+                  const valueName = opt.label || opt.value || "";
+                  if (!groups[groupName]) groups[groupName] = [];
+                  groups[groupName].push(valueName);
               }
-              if (!groups[g]) groups[g] = [];
-              groups[g].push(v);
           });
   
-          const optionStrings = Object.entries(groups)
-              .map(([groupName, values]) => `  └ ${groupName}: ${values.join(', ')}`);
-          
-          line += '\n' + optionStrings.join('\n');
+          // "토핑: 초콜릿, 꿀" 형태로 합치기
+          const optionLines = Object.entries(groups)
+              .map(([g, vList]) => `    └ ${g}: ${vList.join(', ')}`)
+              .join('\n');
+              
+          if (optionLines) line += `\n${optionLines}`;
       }
       return line;
   }).join('\n\n');
