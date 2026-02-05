@@ -84,6 +84,40 @@ export async function initQR() {
     const delivClearBtn = $('#qr-deliv-clear');
     const delivGrid = $('#qr-deliv-grid');
 
+    // [보완] 이미 이벤트가 걸려있다면 다시 걸지 않도록 방어
+    if (grid && grid.dataset.eventBound === 'true') {
+        refreshAllLists(); // 리스트만 갱신하고 종료
+        return;
+    }
+
+    // ── [추가된 부분] 이벤트 위임용 공통 처리 함수 ──
+    const handleGridClick = async (e) => {
+        const btn = e.target.closest('button');
+        // 클릭된 게 버튼이 아니거나, 삭제 버튼(data-act="del")이 아니면 무시
+        if (!btn || btn.dataset.act !== 'del') return; 
+
+        // 버튼 상위의 .qr-card에서 ID를 가져옴
+        const qId = btn.closest('.qr-card')?.dataset.id; 
+        if (!qId || !confirm('삭제할까요?')) return;
+
+        const res = await fetch(`/api/qrcodes?storeId=${storeId}&id=${qId}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('QR 코드가 삭제되었습니다.', 'success');
+            refreshAllLists(); // 리스트 새로고침
+        }
+    };
+
+    // ── [추가된 부분] 부모 그리드에 딱 한 번만 이벤트 바인딩 ──
+    // 이렇게 부모에 걸어두면 innerHTML로 자식들이 계속 바뀌어도 이벤트가 유지됩니다.
+    if (grid) {
+        grid.addEventListener('click', handleGridClick);
+        grid.dataset.eventBound = 'true'; // 플래그 설정
+    }
+    if (delivGrid) {
+        delivGrid.addEventListener('click', handleGridClick);
+        delivGrid.dataset.eventBound = 'true'; // 플래그 설정
+    }
+
     // ── 리스트 새로고침 함수 ──
     async function refreshAllLists() {
         const all = await loadQrListFromServer(storeId);
@@ -93,7 +127,7 @@ export async function initQR() {
             const storeList = all.filter(q => q.kind === 'store' || !q.kind);
             renderItems(grid, storeList, 'table');
         }
-        // 2) 배달/예약용 렌더
+        // 2) 예약용 렌더
         if (delivGrid) {
             const delivList = all.filter(q => q.kind === 'deliv');
             renderItems(delivGrid, delivList, 'delivery');
@@ -101,54 +135,35 @@ export async function initQR() {
     }
 
     function renderItems(targetGrid, list, downloadPrefix) {
-        targetGrid.innerHTML = '';
-        if (!list.length) {
-            targetGrid.innerHTML = '<div class="small">저장된 QR이 없습니다.</div>';
-            return;
-        }
+    targetGrid.innerHTML = '';
+    if (!list.length) {
+        targetGrid.innerHTML = '<div class="small">저장된 QR이 없습니다.</div>';
+        return;
+    }
 
-        list.sort((a, b) => (a.table || '').localeCompare(b.table || '')).forEach((q) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'vstack';
-            wrap.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            align-items: center;      /* 가로 중앙 정렬 */
-            justify-content: center;   /* 세로 중앙 정렬 */
-            gap: 8px;
-            border: 1px solid #263241;
-            padding: 16px;
-            border-radius: 12px;
-            background: #0b1620;
-            text-align: center;        /* 텍스트 중앙 정렬 */
-            width: 100%;
-        `;
+    list.sort((a, b) => (a.table || '').localeCompare(b.table || '')).forEach((q) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'vstack qr-card'; // [수정] 식별용 클래스 추가
+        wrap.dataset.id = q.id;           // [추가] 삭제를 위한 ID 저장
+        wrap.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border:1px solid #263241; padding:16px; border-radius:12px; background:#0b1620; text-align:center; width:100%;`;
 
         wrap.innerHTML = `
             <img src="${q.dataUrl}" style="width:140px; height:140px; border-radius:4px; display: block; margin: 0 auto;">
-            <div class="small" style="width: 100%; font-weight: bold; color: #fff;">
+            <div class="small" style="width:100%; font-weight:bold; color:#fff;">
                 ${q.label} ${q.table ? `(${q.table}번)` : ''}
             </div>
-            <div class="small" style="word-break: break-all; color: var(--muted); font-size: 10px; width: 100%; max-width: 160px;">
+            <div class="small" style="word-break:break-all; color:var(--muted); font-size:10px; width:100%; max-width:160px;">
                 ${q.url}
             </div>
-            <div class="hstack" style="gap: 4px; margin-top: 6px; justify-content: center; width: 100%;">
+            <div class="hstack" style="gap:4px; margin-top:6px; justify-content:center; width:100%;">
                 <a href="${q.dataUrl}" download="${downloadPrefix}-${q.table || 'qr'}.png" class="btn small">다운</a>
-                <button class="btn small danger" data-id="${q.id}">삭제</button>
+                <button class="btn small danger" data-act="del">삭제</button> 
             </div>
         `;
-
-            wrap.querySelector('.danger').onclick = async () => {
-                if (!confirm('삭제할까요?')) return;
-                const res = await fetch(`/api/qrcodes?storeId=${storeId}&id=${q.id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    showToast('QR 코드가 삭제되었습니다.', 'success');
-                    refreshAllLists();
-                }
-            };
-            targetGrid.appendChild(wrap);
-        });
-    }
+        // [삭제] wrap.querySelector('.danger').onclick = ... (개별 이벤트 삭제)
+        targetGrid.appendChild(wrap);
+    });
+}
 
     // ── 1) 매장 QR 생성 ──
     if (genBtn) {
@@ -158,6 +173,7 @@ export async function initQR() {
             if (!table) return showToast('테이블 번호를 입력하세요.', 'info');
 
             const url = `${location.origin}/order/store?store=${encodeURIComponent(storeId)}&table=${encodeURIComponent(table)}`;
+            genBtn.disabled = true;
             
             try {
                 const dataUrl = await makeQRDataUrl(url);
@@ -175,17 +191,19 @@ export async function initQR() {
                     showToast(result.message || '생성 실패', 'error');
                 }
             } catch (e) {
-                showToast('QR 생성 중 오류가 발생했습니다.', 'error');
-            }
+            console.error(e);
+            showToast('QR 생성 중 오류가 발생했습니다.', 'error');
+        } finally {
+            genBtn.disabled = false; // 성공/실패 여부와 상관없이 마지막에 활성화
+        }
         };
     }
-
-    // ── 2) 배달/예약 QR 생성 ──
+    // ── 2) 예약 QR 생성 ──
     if (delivGenBtn) {
         delivGenBtn.onclick = async () => {
-            const label = (delivLabelInput.value || '').trim() || '배달/예약 주문';
+            const label = (delivLabelInput.value || '').trim() || '예약 주문';
             const url = `${location.origin}/src/order/delivery-entry.html?store=${encodeURIComponent(storeId)}`;
-            
+            delivGenBtn.disabled = true;
             try {
                 const dataUrl = await makeQRDataUrl(url);
                 const qrItem = { id: `QR-DELIV-${Date.now()}`, kind: 'deliv', label, url, dataUrl };
@@ -194,15 +212,18 @@ export async function initQR() {
                 const result = await res.json();
 
                 if (res.ok) {
-                    showToast('✅ 배달/예약용 QR 생성 완료', 'success');
+                    showToast('✅ 예약용 QR 생성 완료', 'success');
                     delivLabelInput.value = '';
                     refreshAllLists();
                 } else {
                     showToast(result.message || '생성 실패', 'error');
                 }
             } catch (e) {
+                console.error(e);
                 showToast('QR 생성 실패', 'error');
-            }
+            }finally {
+            delivGenBtn.disabled = false; // 성공/실패 여부와 상관없이 마지막에 활성화
+        }
         };
     }
 
@@ -219,10 +240,10 @@ export async function initQR() {
     }
     if (delivClearBtn) {
         delivClearBtn.onclick = async () => {
-            if (!confirm('배달/예약용 QR을 모두 삭제할까요?')) return;
+            if (!confirm('예약용 QR을 모두 삭제할까요?')) return;
             const res = await fetch(`/api/qrcodes?storeId=${storeId}&kind=deliv`, { method: 'DELETE' });
             if (res.ok) {
-                showToast('배달 QR이 모두 삭제되었습니다.', 'success');
+                showToast('예약 QR이 모두 삭제되었습니다.', 'success');
                 refreshAllLists();
             }
         };
