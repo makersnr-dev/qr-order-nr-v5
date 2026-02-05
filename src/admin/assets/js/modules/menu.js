@@ -219,9 +219,35 @@ function renderOptionGroups(groups, mountEl) {
 // ------------------------------------------------------------
 // 4. 테이블 렌더링 및 이벤트 바인딩
 // ------------------------------------------------------------
-
+window.currentMenuTab = window.currentMenuTab || 'A';
 export async function renderMenu() {
     const menu = await loadMenuFromServer();
+
+    // 데이터가 없을 때의 예외 처리
+    if (!menu || menu.length === 0) {
+        const body = document.getElementById('m-body');
+        if (body) body.innerHTML = '<tr><td colspan="6" class="small">등록된 메뉴가 없습니다.</td></tr>';
+        // 기존 탭 영역이 있다면 비워줌
+        const oldTabs = document.getElementById('menu-cat-tabs');
+        if (oldTabs) oldTabs.innerHTML = '';
+        return;
+    }
+    
+    // 1. 카테고리 추출 (ID의 첫 글자 기준: a, b, c...)
+    const categories = [...new Set(menu.map(m => m.id.charAt(0).toUpperCase()))].sort();
+    
+    // 2. 탭 생성 영역 (상단에 탭 버튼 추가)
+    renderCategoryTabs(categories, menu);
+
+   // 3. 현재 선택된 탭이 데이터에 존재하는지 확인 (삭제 시 대비)
+    if (!categories.includes(window.currentMenuTab)) {
+        window.currentMenuTab = categories[0];
+    }
+
+    // 4. 현재 선택된 탭의 메뉴만 렌더링
+    filterAndRenderTable(menu, window.currentMenuTab);
+    
+    /*
     const body = document.getElementById('m-body');
     if (!body) return;
     body.innerHTML = '';
@@ -278,6 +304,111 @@ export async function renderMenu() {
             const res = await fetch(`/api/menus?storeId=${currentStoreId()}&menuId=${m.id}`, { method: 'DELETE' });
             if (res.ok) { renderMenu(); showToast('삭제되었습니다.', 'success'); }
         };
+    });*/
+}
+
+// 카테고리 탭 버튼 생성 함수
+function renderCategoryTabs(categories, allMenu) {
+    let tabContainer = document.getElementById('menu-cat-tabs');
+    if (!tabContainer) {
+        tabContainer = document.createElement('div');
+        tabContainer.id = 'menu-cat-tabs';
+        tabContainer.className = 'tabbar';
+        // 메뉴 입력창 아래, 테이블 위에 배치
+        const mBody = document.getElementById('m-body');
+        if (mBody) mBody.closest('table').before(tabContainer);
+    }
+    
+    tabContainer.innerHTML = categories.map(cat => {
+        const firstItem = allMenu.find(m => m.id.charAt(0).toUpperCase() === cat);
+        const label = (firstItem && firstItem.category) ? firstItem.category : cat;
+        const activeClass = window.currentMenuTab === cat ? 'active' : '';
+        
+        return `<button class="tab ${activeClass}" data-cat="${cat}">${label} (${cat})</button>`;
+    }).join('');
+
+    // 탭 클릭 이벤트 바인딩
+    tabContainer.querySelectorAll('.tab').forEach(btn => {
+        btn.onclick = () => {
+            window.currentMenuTab = btn.dataset.cat;
+            renderMenu(); // 다시 그리기
+        };
+    });
+}
+
+// 실제 테이블 내용 그리기 및 이벤트 바인딩 합치기
+function filterAndRenderTable(menu, tab) {
+    const body = document.getElementById('m-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    // ID 첫 글자가 현재 탭과 일치하는 것만 필터링
+    const filtered = menu.filter(m => m.id.charAt(0).toUpperCase() === tab);
+
+    if (!filtered.length) {
+        body.innerHTML = '<tr><td colspan="6" class="small">이 카테고리에 메뉴가 없습니다.</td></tr>';
+        return;
+    }
+
+    filtered.forEach((m) => {
+        const tr = document.createElement('tr');
+        const active = m.active !== false;
+        const soldOut = !!m.soldOut;
+
+        tr.innerHTML = `
+            <td>${m.id}</td>
+            <td><input class="input" value="${m.name || ''}" data-k="name"></td>
+            <td><input class="input" type="number" value="${m.price || 0}" data-k="price"></td>
+            <td><input class="input" value="${m.category || ''}" data-k="category"></td>
+            <td>
+                <label class="small"><input type="checkbox" ${active ? 'checked' : ''} data-k="active"> 판매</label>
+                <label class="small"><input type="checkbox" ${soldOut ? 'checked' : ''} data-k="soldOut"> 품절</label>
+            </td>
+            <td class="right">
+                <button class="btn small" data-act="detail">상세</button>
+                <button class="btn small" data-act="save">저장</button>
+                <button class="btn small" data-act="del">삭제</button>
+            </td>
+        `;
+        body.appendChild(tr);
+
+        // --- 이벤트 바인딩 ---
+
+        // 1. 저장 버튼
+        tr.querySelector('[data-act="save"]').onclick = async () => {
+            const updated = {
+                ...m,
+                name: tr.querySelector('[data-k="name"]').value,
+                price: Number(tr.querySelector('[data-k="price"]').value),
+                category: tr.querySelector('[data-k="category"]').value,
+                active: tr.querySelector('[data-k="active"]').checked,
+                soldOut: tr.querySelector('[data-k="soldOut"]').checked
+            };
+            if (await saveMenuToServer(updated)) {
+                showToast(`✅ [${updated.name}] 저장 완료!`, 'success');
+                renderMenu(); // 탭 이름 업데이트를 위해 전체 다시 렌더링
+            }
+        };
+
+        // 2. 상세 설정 버튼
+        tr.querySelector('[data-act="detail"]').onclick = () => {
+            openMenuDetailModal(m, async () => {
+                if (await saveMenuToServer(m)) {
+                    showToast('상세 설정 저장 완료', 'success');
+                    renderMenu();
+                }
+            });
+        };
+
+        // 3. 삭제 버튼
+        tr.querySelector('[data-act="del"]').onclick = async () => {
+            if (!confirm(`[${m.name}] 삭제할까요?`)) return;
+            const res = await fetch(`/api/menus?storeId=${currentStoreId()}&menuId=${m.id}`, { method: 'DELETE' });
+            if (res.ok) { 
+                showToast('삭제되었습니다.', 'success');
+                renderMenu(); 
+            }
+        };
     });
 }
 
@@ -289,6 +420,7 @@ export function bindMenu() {
             const name = document.getElementById('m-name').value.trim();
             const price = Number(document.getElementById('m-price').value);
             if (!id || !name) return showToast('ID와 이름을 입력하세요.', 'info');
+            window.currentMenuTab = id.charAt(0).toUpperCase();
             if (await saveMenuToServer({ id, name, price, active: true, soldOut: false, options: [] })) {
                 renderMenu();
                 ['m-id', 'm-name', 'm-price'].forEach(el => document.getElementById(el).value = '');
