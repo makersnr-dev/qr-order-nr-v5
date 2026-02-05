@@ -623,7 +623,11 @@ export async function renderDeliv() {
 // ===============================
 let isGlobalHandlerAttached = false;
 export function attachGlobalHandlers() {
-  if (isGlobalHandlerAttached) return;
+  // 🚩 [추가] 1. 물리적 중복 방지 (DOM 플래그 체크)
+  // 변수(isGlobalHandlerAttached)는 메모리 초기화 시 위험할 수 있어 DOM에 직접 기록합니다.
+  if (document.body.dataset.ordersEventBound === 'true') return;
+  
+  // 1. 상태 변경 (SELECT) 핸들러
   document.body.addEventListener('change', async (e) => {
     const sel = e.target;
     if (sel.tagName !== 'SELECT') return;
@@ -633,6 +637,12 @@ export function attachGlobalHandlers() {
     const nextStatus = sel.value;
 
     if (!id || !type || !nextStatus) return;
+
+    // 🚩 [추가] 상태 변경 시도 전 중복 요청 잠금 확인
+    if (isPending(id)) {
+      showToast('이미 처리 중인 주문입니다.', 'info');
+      return;
+    }
 
     if (nextStatus === ORDER_STATUS.CANCELLED || nextStatus === PAYMENT_STATUS.CANCELLED) {
       const modal = document.getElementById('cancel-reason-modal');
@@ -663,6 +673,7 @@ export function attachGlobalHandlers() {
     }
   });
 
+  // 2. 클릭 이벤트 핸들러 (상세보기, POS 결제 확인 등)
   document.body.addEventListener('click', async (e) => {
     if (e.target.dataset.action !== 'order-detail') return;
     const id = e.target.dataset.id;
@@ -853,6 +864,7 @@ export function attachGlobalHandlers() {
     modal.dataset.orderType = e.target.dataset.type || 'store';
     modal.style.display = 'flex';
   });
+  document.body.dataset.ordersEventBound = 'true';
   isGlobalHandlerAttached = true;
 }
 
