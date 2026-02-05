@@ -436,9 +436,14 @@ export function showToast(msg, variant = 'info') {
   }, 3000);
 }
 
-  function fail(msg) {
-  showToast(msg,'error');
-  return false; // 여기서 흐름 완전히 끊음
+ function fail(msg) {
+  showToast(msg, 'error');
+  // 에러 발생 시 잠겨있던 버튼들을 다시 사용할 수 있게 풀어줍니다.
+  document.getElementById("action-btn").disabled = false; 
+  const confirmOkBtn = document.getElementById("confirm-ok");
+  if (confirmOkBtn) confirmOkBtn.disabled = false;
+  
+  return false; 
 }
 
 
@@ -648,18 +653,15 @@ document.getElementById("privacy-close").onclick = () =>
 
 
   
-/* -------- 결제 / 예약 처리 -------- */
+/* -------- 예약 처리 -------- */
 document.getElementById("action-btn").onclick = () => {
   document.getElementById("action-btn").disabled = true;
-
   const items = cart.items;
-
   if (!items.length) {
     showToast("장바구니가 비어 있습니다.",'info');
     document.getElementById("action-btn").disabled = false;
     return;
   }
-
   const date = document.getElementById("date").value;
   const { ap, hh, mm } = getTimeValue("time") || {};
 
