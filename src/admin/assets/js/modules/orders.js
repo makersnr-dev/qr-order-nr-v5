@@ -688,7 +688,7 @@ export function attachGlobalHandlers() {
                        //order.meta?.cancel?.at ? `취소 시각: ${new Date(order.meta.cancel.at).toLocaleString()}` : ''
                        ].filter(Boolean).join('\n');
       }
-
+      
       const header = [`테이블: ${order.table_no || '-'}`, `주문시간: ${fmtDateTimeFromOrder(order)}`, `금액: ${fmt(order.amount || 0)}원`, paymentInfo, cancelReason].filter(Boolean).join('\n');
       const historyLines = (order.meta?.history || []).sort((a, b) => new Date(a.at) - new Date(b.at)).map(h => {
           // value, status, payment 중 값이 있는 것을 선택
@@ -698,7 +698,8 @@ export function attachGlobalHandlers() {
       
     
     // 매장/예약 상세 적용 부분
-    const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
+      const menuData = order.cart || (order.meta && order.meta.cart) || [];
+    const body = '📦 주문 메뉴\n\n' + menuData.map(i => {
         let line = `• ${i.name} x${i.qty}`;
         const combinedOptions = formatOptionsCombined(i.optionText);
         if (combinedOptions) line += `\n${combinedOptions}`;
@@ -744,7 +745,11 @@ export function attachGlobalHandlers() {
             .join('\n');
 
         // 📦 구매 내역 및 옵션 그룹화 생성
-        const itemsBlock = '구매내역\n\n' + (order.cart || order.items || []).map(i => {
+      let menuItems = [];
+      try {
+          menuItems = (typeof order.items === 'string') ? JSON.parse(order.items) : (order.items || []);
+      } catch(e) { menuItems = []; }
+        const itemsBlock = '📦 구매 내역\n\n' + menuItems.map(i => {
             let line = `• ${i.name} x${i.qty}`;
             
             // 옵션 그룹화 함수 호출 (파일 상단에 정의된 함수 사용)
