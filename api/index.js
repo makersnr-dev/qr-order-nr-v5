@@ -122,7 +122,14 @@ export default async function handler(req, res) {
         // --- 3. 메뉴 관리 (ON CONFLICT 및 상세 옵션 유지) ---
         if (pathname === '/api/menus') {
             if (method === 'GET') {
-                const r = await query('SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", img, description as desc, options FROM menus WHERE store_id = $1 ORDER BY display_order ASC', [storeId]);
+                // 수정 후: ORDER BY menu_id ASC 를 추가하여 a1, a2, b1 순서로 정렬합니다.
+                const r = await query(`
+                    SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", 
+                           img, description as desc, options 
+                    FROM menus 
+                    WHERE store_id = $1 
+                    ORDER BY menu_id ASC
+                `, [storeId]);
                 return json({ ok: true, menus: r.rows || [] });
             }
             if (method === 'PUT') {
