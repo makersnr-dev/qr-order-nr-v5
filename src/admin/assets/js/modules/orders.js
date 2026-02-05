@@ -621,7 +621,9 @@ export async function renderDeliv() {
 // ===============================
 // 글로벌 이벤트 핸들러
 // ===============================
+let isGlobalHandlerAttached = false;
 export function attachGlobalHandlers() {
+  if (isGlobalHandlerAttached) return;
   document.body.addEventListener('change', async (e) => {
     const sel = e.target;
     if (sel.tagName !== 'SELECT') return;
@@ -750,30 +752,35 @@ export function attachGlobalHandlers() {
       try {
           menuItems = (typeof order.items === 'string') ? JSON.parse(order.items) : (order.items || []);
       } catch(e) { menuItems = []; }
-      const itemsBlock = '구매내역\n\n' + menuItems.map(i => {
-        let line = `• ${i.name} x${i.qty}`;
-// 2. 옵션 데이터 추출 (orderss 테이블은 보통 i.optionText 배열을 사용)
-    const options = i.optionText || i.options || [];
-
-    if (Array.isArray(options) && options.length > 0) {
-        // 옵션이 ["그룹:선택", "그룹:선택"] 형태인 경우 그룹화해서 출력
-        const groups = {};
-        options.forEach(text => {
-            if (typeof text !== 'string') return;
-            const [group, value] = text.includes(':') ? text.split(':') : ['옵션', text];
-            if (!groups[group]) groups[group] = [];
-            groups[group].push(value);
-        });
-
-        const optionLine = Object.entries(groups)
-            .map(([group, values]) => `    └ ${group}: ${values.join(', ')}`)
-            .join('\n');
-            
-        line += `\n${optionLine}`;
-    }
-    
-    return line;
-}).join('\n\n');
+      const itemsBlock = '📦 주문 내역\n\n' + menuItems.map(it => {
+      let line = `• ${it.name} x${it.qty}`;
+      
+      // 예약 주문 데이터 구조(optionText 또는 options) 대응
+      const rawOptions = it.optionText || it.options || [];
+      
+      if (Array.isArray(rawOptions) && rawOptions.length > 0) {
+          const groups = {};
+          rawOptions.forEach(opt => {
+              // 문자열("그룹:값")인 경우와 객체({group: "그룹", label: "값"})인 경우 모두 대응
+              let g = "옵션", v = "";
+              if (typeof opt === 'string') {
+                  [g, v] = opt.includes(':') ? opt.split(':') : ["옵션", opt];
+              } else {
+                  g = opt.group || opt.name || "옵션";
+                  v = opt.label || opt.value || "";
+              }
+              if (!groups[g]) groups[g] = [];
+              groups[g].push(v);
+          });
+  
+          const optionStrings = Object.entries(groups)
+              .map(([groupName, values]) => `  └ ${groupName}: ${values.join(', ')}`);
+          
+          line += '\n' + optionStrings.join('\n');
+      }
+      return line;
+  }).join('\n\n');
+        
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
@@ -832,6 +839,7 @@ export function attachGlobalHandlers() {
     modal.dataset.orderType = e.target.dataset.type || 'store';
     modal.style.display = 'flex';
   });
+  isGlobalHandlerAttached = true;
 }
 
 // ===============================
