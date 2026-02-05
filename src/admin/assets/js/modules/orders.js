@@ -698,8 +698,9 @@ export function attachGlobalHandlers() {
       }).join('\n');
 
 
-      // 매장/예약 상세 적용 부분
-      const body = '📦 주문 메뉴\n\n' + (order.cart || order.items || []).map(i => {
+      // 매장 상세 적용 부분
+      const menuData = order.cart || (order.meta && order.meta.cart) || [];
+      const body = '📦 주문 메뉴\n\n' + menuData.map(i => {
         let line = `• ${i.name} x${i.qty}`;
         const combinedOptions = formatOptionsCombined(i.optionText);
         if (combinedOptions) line += `\n${combinedOptions}`;
@@ -745,16 +746,34 @@ export function attachGlobalHandlers() {
         .join('\n');
 
       // 📦 구매 내역 및 옵션 그룹화 생성
-      const itemsBlock = '구매내역\n\n' + (order.cart || order.items || []).map(i => {
+      let menuItems = [];
+      try {
+          menuItems = (typeof order.items === 'string') ? JSON.parse(order.items) : (order.items || []);
+      } catch(e) { menuItems = []; }
+      const itemsBlock = '구매내역\n\n' + menuItems.map(i => {
         let line = `• ${i.name} x${i.qty}`;
+// 2. 옵션 데이터 추출 (orderss 테이블은 보통 i.optionText 배열을 사용)
+    const options = i.optionText || i.options || [];
 
-        // 옵션 그룹화 함수 호출 (파일 상단에 정의된 함수 사용)
-        const combinedOptions = formatOptionsCombined(i.optionText);
-        if (combinedOptions) {
-          line += `\n${combinedOptions}`;
-        }
-        return line;
-      }).join('\n\n');
+    if (Array.isArray(options) && options.length > 0) {
+        // 옵션이 ["그룹:선택", "그룹:선택"] 형태인 경우 그룹화해서 출력
+        const groups = {};
+        options.forEach(text => {
+            if (typeof text !== 'string') return;
+            const [group, value] = text.includes(':') ? text.split(':') : ['옵션', text];
+            if (!groups[group]) groups[group] = [];
+            groups[group].push(value);
+        });
+
+        const optionLine = Object.entries(groups)
+            .map(([group, values]) => `    └ ${group}: ${values.join(', ')}`)
+            .join('\n');
+            
+        line += `\n${optionLine}`;
+    }
+    
+    return line;
+}).join('\n\n');
       document.getElementById('order-detail-body').textContent = infoBlock + (historyLines ? `\n\n상태 변경 이력:\n${historyLines}` : '') + '\n\n' + itemsBlock;
       document.getElementById('order-detail-modal').style.display = 'flex';
     } catch (e) {
