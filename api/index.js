@@ -198,10 +198,11 @@ export default async function handler(req, res) {
                             phone: row.customer_phone,
                             addr: row.address
                         },
-                        reserve: metaData.reserve || {},
-                        requestMsg: metaData.reserve?.note || metaData.reserve?.message || metaData.memo || '-' ,
+                        reserve: meta.reserve || {},
+                        // 🚩 에러 지점 해결: 위에서 정의한 'meta' 변수 사용
+                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
                         ts: new Date(row.created_at).getTime(),
-                        meta: metaData
+                        meta: meta
                     };
                 }
             });
