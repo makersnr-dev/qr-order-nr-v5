@@ -180,11 +180,19 @@ export default async function handler(req, res) {
                         ts: new Date(row.created_at).getTime()
                     };
                 } else {
+                    let parsedItems = [];
+                    try {
+                        parsedItems = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []);
+                    } catch (e) {
+                        console.error("항목 파싱 에러:", e);
+                        parsedItems = [];
+                    }
                     return {
                         ...row,
                         orderId: row.order_no,
                         amount: row.total_amount,
-                        cart: row.items || [],
+                        items: parsedItems, 
+                        cart: parsedItems,
                         customer: {
                             name: row.customer_name,
                             phone: row.customer_phone,
