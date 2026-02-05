@@ -5,72 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>매장 주문</title>
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <link rel="stylesheet" href="/src/order/assets/css/order-common.css"/>
   <style>
-    /* 매장 주문 그리드 최적화 */
-#menu-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-    gap: 12px !important;
-    justify-items: center;
-    text-align: center;
-    margin-top: 15px;
-    width: 100%;
-}
-
-/* 메뉴 카드 디자인 통일 */
-.menu-card {
-    background: #111922;
-    border: 1px solid #263241;
-    border-radius: 15px;
-    padding: 10px;
-    cursor: pointer;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transition: transform 0.2s;
-}
-
-.menu-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--primary);
-}
-
-/* 장바구니 영역 디자인 개선 */
-#cart-box .hstack {
-    background: #0d1117;
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 8px;
-    border: 1px solid #263241;
-}
-    /* 장바구니 아이템 옵션 스타일 */
-    .cart-item-options {
-      font-size: 0.85rem;
-      color: #666;
-      margin-left: 10px;
-      line-height: 1.4;
+/* 매장 주문 페이지만의 특수 스타일 (필요 시 추가) */
+    .large-total { font-size: 1.2rem; color: var(--primary); font-weight: bold; }
+    #confirm-items { 
+        white-space: pre-wrap; font-size: 13px; background: #161b22; 
+        padding: 10px; border-radius: 8px; margin: 10px 0; 
     }
-    /* 토스트 알림 스타일 추가 */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #111922;
-  border: 1px solid #263241;
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  z-index: 99999;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-.toast-success { border-left: 5px solid #2ea043 !important; }
-.toast-error { border-left: 5px solid #ef4444 !important; }
-.toast-info { border-left: 5px solid #74c0fc !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
