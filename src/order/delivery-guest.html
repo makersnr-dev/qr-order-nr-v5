@@ -80,15 +80,36 @@
     }
 
    #privacy-row label {
-      font-size: 12px !important; /* 확실하게 줄이기 */
-      color: #9ca3af;            /* 눈에 덜 띄는 회색으로 변경 */
+      font-size: 13px !important; /* 확실하게 줄이기 */
+      color: #e5e7eb;           
       letter-spacing: -0.5px;    /* 글자 간격을 좁혀서 더 깔끔하게 */
   }
    #bank-text {
-      font-size: 13px !important;
-      color: #e5e7eb;
-      font-weight: normal;
-  }
+    font-size: 13px !important;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+/* 아래칸으로 내려간 예금주 & 주의사항 묶음 */
+.bank-info-sub {
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* 예금주 글씨 */
+#bank-holder-display {
+    font-size: 13px;
+    color: #e5e7eb; /* 흐릿한 회색 */
+}
+
+/* '주문자명으로 입금...' 주의사항 */
+.warning-text {
+    font-size: 11px !important;
+    color: #f97316 !important; /* 오렌지색 유지 */
+    margin: 0;
+}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -186,20 +207,17 @@
 
       <!-- 입금계좌 -->
       <div class="field-row" id="bank-box">
-        <div class="field-label">입금계좌</div>
-
-        <div class="bank-line">
-          <span id="bank-text"></span>
-          <button id="bank-copy" class="btn">복사</button>
-        </div>
-
-        <div class="small" style="margin-top:4px; color:#f97316;">
-          ※ 주문자명으로 입금해주세요!
-        </div>
-      </div>
-
+  <div class="field-label">입금계좌</div>
+  <div class="vstack" style="flex:1; gap:4px;">
+    <div class="bank-line">
+      <span id="bank-text"></span>
+      <button id="bank-copy" class="btn">복사</button>
     </div>
+    
+    <div class="bank-info-sub">
+      <span id="bank-holder-display"></span> <p class="warning-text">※ 주문자명으로 입금해주세요!</p> </div>
   </div>
+</div>
 
   <!-- 메뉴 -->
   <div class="card vstack">
@@ -525,24 +543,25 @@ export function showToast(msg, variant = 'info') {
   /* -------- 입금계좌 초기 표시 (관리자 설정값) -------- */
   // [추가] DB에서 계좌 정보 실시간 로드
     try {
-        const res = await fetch(`/api/store-settings?storeId=${storeId}`);
-        const data = await res.json();
+    const res = await fetch(`/api/store-settings?storeId=${storeId}`);
+    const data = await res.json();
+    
+    if (data.ok && data.settings?.owner_bank) {
+        const bank = data.settings.owner_bank;
+        const b = typeof bank === 'string' ? JSON.parse(bank) : bank;
         
-        if (data.ok && data.settings?.owner_bank) {
-            const bank = data.settings.owner_bank;
-            // 만약 서버에서 JSON 문자열로 넘어올 경우를 대비해 한 번 더 체크
-            const b = typeof bank === 'string' ? JSON.parse(bank) : bank;
-            
-            if (b.bank && b.number) {
-                document.getElementById("bank-text").textContent = 
-                    `${b.bank} ${b.number} (예금주: ${b.holder || ""})`;
-            } else {
-                document.getElementById("bank-text").textContent = "등록된 계좌 정보가 없습니다.";
-            }
+        if (b.bank && b.number) {
+            // 1. 계좌번호 칸에는 은행과 번호만
+            document.getElementById("bank-text").textContent = `${b.bank} ${b.number}`;
+            // 2. 예금주 칸에 예금주명 따로 입력
+            document.getElementById("bank-holder-display").textContent = `예금주: ${b.holder || ""}`;
         } else {
-            document.getElementById("bank-text").textContent = "관리자 설정에서 계좌를 등록해주세요.";
+            document.getElementById("bank-text").textContent = "등록된 계좌 정보가 없습니다.";
         }
-    } catch (e) {
+    } else {
+        document.getElementById("bank-text").textContent = "관리자 설정에서 계좌를 등록해주세요.";
+    }
+}catch (e) {
         console.error("계좌 로드 실패:", e);
         document.getElementById("bank-text").textContent = "계좌 정보를 불러올 수 없습니다.";
     }
