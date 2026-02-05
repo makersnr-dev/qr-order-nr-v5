@@ -81,8 +81,19 @@ function resolveStoreId(adminId) {
   const stored = normalizeStoreId(localStorage.getItem("qrnr.storeId"));
   if (stored) return stored;
 
-  // 3) Fallback
-  return "store1";
+  // 3. Fallback: 매장 정보가 전혀 없을 때
+  console.error("❌ 매장 식별 정보가 없습니다.");
+  showToast("매장 정보를 찾을 수 없습니다. 다시 로그인해 주세요.", "error");
+  
+  // [추가] 화면 클릭 방지 (안정성)
+  document.body.style.pointerEvents = "none";
+  document.body.style.opacity = "0.5";
+    
+  setTimeout(() => {
+    location.href = "/admin/login?error=no_store";
+  }, 2000);
+    
+  return null;
 }
 
 //------------------------------------------------------------
@@ -148,28 +159,49 @@ function ensureToastContainer() {
  * @param {string} variant - 'info', 'success', 'error' (색상 구분용)
  */
 export function showToast(msg, variant = 'info') {
+  const container = ensureToastContainer(); // 컨테이너 활용
   const t = document.createElement('div');
-  
-  // 기본 클래스는 toast, 상태에 따라 클래스 추가 (예: toast-success)
   t.className = `toast toast-${variant}`; 
   t.textContent = msg;
   
-  document.body.appendChild(t);
+  container.appendChild(t); // body가 아닌 container에 삽입
 
-  // 브라우저가 요소를 인식한 직후에 'show' 클래스 추가 (애니메이션 시작)
   requestAnimationFrame(() => t.classList.add('show'));
 
-  // 3초 후 사라짐
   setTimeout(() => {
     t.classList.remove('show');
-    // 애니메이션(0.2초)이 끝난 후 요소 삭제
     setTimeout(() => t.remove(), 200);
   }, 3000);
 }
+
 //------------------------------------------------------------
 // 3. BroadcastChannel
 //------------------------------------------------------------
 const adminChannel = new BroadcastChannel("qrnr-admin");
+// --- [추가] 실제 데스크탑 알림 팝업 함수 ---
+function showDesktopNotification(title, body) {
+  if (!("Notification" in window)) return;
+
+  if (Notification.permission === "granted") {
+    try {
+      // 팝업 생성
+      const n = new Notification(title, {
+        body: String(body), // 반드시 문자열 확인
+        icon: location.origin + '/favicon.ico', // 절대 경로로 보정
+        silent: true // 브라우저 자체 기본음은 끄고, 사장님의 mp3만 재생되도록 함
+      });
+
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    } catch (e) {
+      console.error("데스크탑 알림 생성 실패:", e);
+    }
+  }
+}
+let lastAlarmTime = 0;
+let lastProcessedEventId = null;
 async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
     if (!window.supabaseClient || !storeId) {
@@ -188,17 +220,32 @@ async function initRealtimeAlarm(storeId) {
       .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
         const data = payload.payload;
         console.log("🔔 새 주문 발생!", data);
-
-        // [소리] 즉시 재생
-        const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
-        audio.play().catch(() => console.log("🔈 소리 재생을 위해 화면을 한 번 클릭해주세요."));
+        
+        const eventId = data.orderId || data.id;
 
         // [목록 갱신] 사장님이 만든 안전한 함수 호출
         if (data.orderType === 'store') safeRenderStore();
         else safeRenderDeliv();
         
+        // [중복 방지] 다른 탭에서 이미 처리된 이벤트인지 확인
+        if (lastProcessedEventId === eventId) return;
+        lastProcessedEventId = eventId;
+
+        // 다른 탭들에게 "이 이벤트 내가 처리했음" 알림
+        adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
+        
+        const now = Date.now();
+        if (now - lastAlarmTime > 2000) { // 2초 이내 중복 알림은 소리 생략
+            const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
+            audio.play().catch(() => {});
+            lastAlarmTime = now;
+        }
+
+        
+        
         // [토스트] 화면 알림
-        showToast(`📦 새 주문 도착! (${data.table}번)`, "success");
+        showToast('📦 새 주문 도착!', "success");
+        showDesktopNotification("🚨 새 주문 발생", `주문이 들어왔습니다.`);
 
         // [탭 깜빡임] 시각적 알림 추가 (원하시면 이대로 유지)
         const originalTitle = document.title;
@@ -210,30 +257,80 @@ async function initRealtimeAlarm(storeId) {
       // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
       const data = payload.payload;
       console.log("🔔 실시간 호출 수신 데이터:", data);
-  
+      
+      const eventId = data.id || data.orderId || ('call-' + Date.now());
+        // [중복 방지] 다른 탭에서 이미 처리된 이벤트인지 확인
+        if (lastProcessedEventId === eventId) return;
+        lastProcessedEventId = eventId;
+        adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
       // 테이블 번호 추출 (data.table 또는 data.table_no 둘 다 대응)
       const tableNo = data.table_no || data.table || '??';
       const note = data.note || data.message || '직원 호출';
-  
-      // 1. 소리 재생
-      const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
-      callAudio.play().catch(() => console.log("🔈 소리 재생 권한 필요"));
+
+      // 🔊 중복 소리 방지 필터 (2초)
+      const now = Date.now();
+      if (now - lastAlarmTime > 2000) {
+          const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
+          callAudio.play().catch(() => {});
+          lastAlarmTime = now;
+      }
   
       // 2. 토스트 알림 (undefined 방지)
       showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
+      showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
   
       // 3. 호출 로그 목록 새로고침
       if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
   })
-    .subscribe((status) => {
-        if (status === 'SUBSCRIBED') console.log(`✅ 실시간 채널 연결 성공: ${channelName}`);
-    });
+    .subscribe((status, err) => {
+    if (status === 'SUBSCRIBED') {
+        console.log("✅ 실시간 연결 성공");
+        showToast("연결됨: 실시간 주문 수신 중", "success");
+        updateStatusUI('CONNECTED'); // 🟢 초록불 켜기
+    }
+
+    if (status === 'CLOSED') {
+        console.warn("⚠️ 연결이 닫혔습니다.");
+        updateStatusUI('DISCONNECTED'); // 🔴 빨간불 켜기
+        setTimeout(() => initRealtimeAlarm(storeId), 5000);
+    }
+
+    if (status === 'CHANNEL_ERROR') {
+        console.error("❌ 연결 에러 발생:", err);
+        showToast("실시간 연결 문제 발생", "error");
+        updateStatusUI('DISCONNECTED'); // 🔴 빨간불 켜기
+        
+        // 에러 시에도 재연결 시도를 하는 것이 안전합니다.
+        setTimeout(() => initRealtimeAlarm(storeId), 5000);
+    }
+});
 }
+
+function updateStatusUI(status) {
+    const dot = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    if (!dot || !text) return;
+
+    switch (status) {
+        case 'CONNECTED':
+            dot.style.backgroundColor = '#10b981'; // 녹색
+            dot.style.boxShadow = '0 0 8px #10b981';
+            text.textContent = '실시간 연결됨';
+            break;
+        case 'DISCONNECTED':
+            dot.style.backgroundColor = '#ef4444'; // 빨간색
+            dot.style.boxShadow = '0 0 8px #ef4444';
+            text.textContent = '연결 끊김 (재시도 중)';
+            break;
+        default:
+            dot.style.backgroundColor = '#ccc';
+            text.textContent = '연결 중...';
+    }
+}
+
 //------------------------------------------------------------
 // 4. main()
 //------------------------------------------------------------
-
-
 async function main() {
   // 🔊 최초 클릭 시 사운드 활성화
   document.body.addEventListener('click', () => { enableNotifySound(); }, { once: true });
@@ -369,9 +466,13 @@ if (delivRefreshBtn) {
 //------------------------------------------------------------------
   // G. 실시간 이벤트 처리 (알림 중복 방지 수정)
   //------------------------------------------------------------------
+  adminChannel.onmessage = null;
   adminChannel.onmessage = (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
+    if (msg.type === 'EVENT_PROCESSED') {
+        lastProcessedEventId = msg.eventId; // 다른 탭이 처리했음을 기록
+    }
 
     // 🔕 내가 보낸 이벤트는 무시 (adminId.real 로 이름 일치시킴)
     const myAdminId = sessionStorage.getItem('qrnr.adminId.real');
