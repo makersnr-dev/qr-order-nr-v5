@@ -139,6 +139,22 @@ export default async function handler(req, res) {
                 }
                 return json({ ok: true });
             }
+            // 🚀 [추가] 메뉴 삭제 로직
+            if (method === 'DELETE') {
+                const menuId = params.get('menuId'); // URL 쿼리스트링에서 menuId 추출
+                
+                if (!storeId || !menuId) {
+                    return json({ ok: false, error: 'MISSING_PARAMETERS' }, 400);
+                }
+        
+                try {
+                    await query('DELETE FROM menus WHERE store_id = $1 AND menu_id = $2', [storeId, menuId]);
+                    return json({ ok: true });
+                } catch (e) {
+                    console.error('메뉴 삭제 오류:', e);
+                    return json({ ok: false, error: e.message }, 500);
+                }
+            }
         }
 
      // --- 4. 주문 관리 (기능 추가 버전) ---
