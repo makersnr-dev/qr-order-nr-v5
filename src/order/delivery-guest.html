@@ -84,10 +84,20 @@
       color: #e5e7eb;           
       letter-spacing: -0.5px;    /* 글자 간격을 좁혀서 더 깔끔하게 */
   }
+
+   /* 전체 영역을 우측 중앙 정렬 구조로 */
+.bank-container-wrapper {
+    display: flex;
+    align-items: center; /* 🚀 핵심: 수직 중앙 정렬 */
+    justify-content: space-between;
+    width: 100%;
+}
+   
    #bank-text {
     font-size: 13px !important;
     font-weight: 600;
     color: #e5e7eb;
+     display: block;
 }
 
 /* 아래칸으로 내려간 예금주 & 주의사항 묶음 */
@@ -110,6 +120,14 @@
     color: #f97316 !important; /* 오렌지색 유지 */
     margin: 0;
 }
+/* 복사 버튼 스타일 살짝 보정 */
+#bank-copy {
+    padding: 6px 12px; /* 버튼을 조금 더 클릭하기 편하게 */
+    font-size: 12px;
+    height: fit-content; /* 내용물 높이에 맞춤 */
+    flex-shrink: 0; /* 버튼 모양 찌그러짐 방지 */
+}
+   
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -205,19 +223,28 @@
         </div>
       </div>
 
+      
       <!-- 입금계좌 -->
       <div class="field-row" id="bank-box">
   <div class="field-label">입금계좌</div>
-  <div class="vstack" style="flex:1; gap:4px;">
-    <div class="bank-line">
-      <span id="bank-text"></span>
-      <button id="bank-copy" class="btn">복사</button>
+  
+  <div class="bank-container-wrapper" style="flex:1; display:flex; align-items:center; gap:10px;">
+    
+    <div class="vstack" style="flex:1; gap:4px;">
+      <div class="bank-line">
+        <span id="bank-text"></span>
+      </div>
+      <div class="bank-info-sub">
+        <span id="bank-holder-display"></span>
+        <p class="warning-text">※ 주문자명으로 입금해주세요!</p>
+      </div>
     </div>
     
-    <div class="bank-info-sub">
-      <span id="bank-holder-display"></span> <p class="warning-text">※ 주문자명으로 입금해주세요!</p> </div>
+    <button id="bank-copy" class="btn">복사</button>
+    
   </div>
 </div>
+      
 
   <!-- 메뉴 -->
   <div class="card vstack">
@@ -506,10 +533,18 @@ export function showToast(msg, variant = 'info') {
 
 
   document.getElementById("bank-copy").onclick = () => {
-    const text = document.getElementById("bank-text").textContent;
-    if (!text) fail("복사할 계좌 정보가 없습니다.");
-    navigator.clipboard.writeText(text);
-    showToast("계좌번호가 복사되었습니다.",'info');
+    const bankNumber = document.getElementById("bank-text").textContent;
+    const holder = document.getElementById("bank-holder-display").textContent;
+    
+    if (!bankNumber || bankNumber.includes("등록된")) {
+        showToast("복사할 계좌 정보가 없습니다.", "error");
+        return;
+    }
+    const fullText = `${bankNumber} ${holder}`;
+    
+    navigator.clipboard.writeText(fullText).then(() => {
+        showToast("계좌번호가 복사되었습니다.", "info");
+    });
   };
 
   
