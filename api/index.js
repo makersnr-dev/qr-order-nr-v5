@@ -222,38 +222,37 @@ export default async function handler(req, res) {
                     [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]
                 );
             } else {
-                await query(
-                    `INSERT INTO orderss (
-                        order_id, store_id, type, status, customer_name, customer_phone, address, 
-                        items, total_amount, lookup_pw, order_no, meta
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
-                    [newNumericId, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.fullAddr, JSON.stringify(cart), amount, lookupPw, newOrderNo, JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]
-                );
-            }
-    
-            // 🚀 [추가] Supabase 실시간 알림 발송
-            try {
-                const channel = supabase.channel(`qrnr_realtime_${storeId}`);
-                // 서버에서는 subscribe를 기다리지 않고 바로 send를 호출하는 방식이 더 안정적입니다.
-                await channel.send({
-                    type: 'broadcast',
-                    event: 'NEW_ORDER',
-                    payload: { 
-                        orderNo: newOrderNo, 
-                        orderType: type,
-                        table: table || '예약',
-                        amount: amount,
-                        customerName: customer?.name || '비회원',
-                        at: new Date().toISOString()
-                    }
-                });
-                console.log("📡 실시간 주문 알림 전송 완료");
-            } catch (err) {
-                console.error("⚠️ 실시간 알림 전송 실패:", err);
-            }
-    
-            return json({ ok: true, orderId: newOrderNo });
+            await query(
+                `INSERT INTO orderss (
+                    order_id, store_id, type, status, customer_name, customer_phone, address, 
+                    items, total_amount, lookup_pw, order_no, meta
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
+                [newNumericId, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.fullAddr, JSON.stringify(cart), amount, lookupPw, newOrderNo, JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]
+            );
         }
+        
+                // 🚀 [수정 핵심] 여기서부터 알림 로직 시작 (매장/예약 공통)
+        try {
+            const channel = supabase.channel(`qrnr_realtime_${storeId}`);
+            await channel.send({
+                type: 'broadcast',
+                event: 'NEW_ORDER',
+                payload: { 
+                    orderNo: newOrderNo, 
+                    orderType: type,          // 'store' 또는 'reserve'
+                    table: table || '예약',   // 예약 주문일 경우 '예약'으로 표시
+                    amount: amount,
+                    customerName: customer?.name || '비회원',
+                    at: new Date().toISOString()
+                }
+            });
+            console.log(`📡 [서버 알림] ${type} 주문 전송 완료: ${newOrderNo}`);
+        } catch (err) {
+            console.error("⚠️ 실시간 알림 전송 실패:", err);
+        }
+    
+        return json({ ok: true, orderId: newOrderNo });
+    }
     
         // --- [PUT] 주문 상태 변경 (기존 업데이트 + 동기화 알림 추가) ---
         if (method === 'PUT') {
