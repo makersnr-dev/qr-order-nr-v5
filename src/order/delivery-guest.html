@@ -6,252 +6,27 @@
   <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
   <title>예약 (비회원)</title>
 
-  <style>
-    /* 토스트 알림 스타일 추가 */
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #111922;
-  border: 1px solid #263241;
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  z-index: 99999;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-.toast-success { border-left: 5px solid #2ea043 !important; }
-.toast-error { border-left: 5px solid #ef4444 !important; }
-.toast-info { border-left: 5px solid #74c0fc !important; }
-    /* ----- 공통 레이아웃 ----- */
-    .field-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      width: 100%;
-    }
-    .field-label {
-      width: 80px;
-      flex-shrink: 0;
-      margin-top: 10px;
-    }
-    .label-lookup {
-      width: 80px;
-      text-align: center;
-      white-space: nowrap;
-      margin-top: 10px;
-    }
-
-    /* ---- 날짜 + 시간 ---- */
-    .date-field {
-  position: relative;
-  width: 180px;
-}
-
-.date-placeholder {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  font-size: 14px;
-  pointer-events: none; /* 클릭 방해 ❌ */
-  transition: opacity 0.15s ease;
-}
-
-/* 날짜가 선택되면 안내 문구 숨김 */
-.date-field input:not(:placeholder-shown) + .date-placeholder {
-  opacity: 0;
-}
-
-/* date 타입 대응 (placeholder-shown 미지원 대응) */
-.date-field input:valid + .date-placeholder {
-  opacity: 0;
-}
-
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+  <link rel="stylesheet" href="/src/order/assets/css/order-common.css"/>
+ <style>
+    /* 3. 이 페이지에서만 쓰이는 특수 스타일 (날짜 입력창 관련) */
+    .date-field { position: relative; width: 100%; max-width: 180px; }
     
-    .datetime-wrap {
-      flex: 1;
+    /* 날짜 placeholder 강제 흰색 처리 (브라우저별 대응) */
+    input[type="date"].date-input::-webkit-datetime-edit-text,
+    input[type="date"].date-input::-webkit-datetime-edit-month-field,
+    input[type="date"].date-input::-webkit-datetime-edit-day-field,
+    input[type="date"].date-input::-webkit-datetime-edit-year-field {
+      color: #ffffff !important;
     }
+    
+    input[type="date"].date-input::placeholder { color: #ffffff !important; opacity: 1; }
 
-    .datetime-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: nowrap;
-      width: 100%;
-    }
-
-    input[type="text"].date-input {
-      width: 180px;
-      height: 40px;
-      padding: 0 10px;
-      color: #ffffff;
-      background: #0d1117;
-    }
-
-    /* placeholder 왼쪽 정렬 */
-    .date-input::placeholder {
-      text-align: left;
-      color: #9ca3af;
-    }
-
-    /* 오전/오후 드롭다운 */
-    #time-ap {
-      padding: 8px 20px;
-      min-width: 120px;
-      text-align: left;
-    }
-
-    #time-hh,
-    #time-mm {
-      padding: 8px 12px;
-      min-width: 80px;
-      text-align: left;
-    }
-
-    /* 연월일 힌트(placeholder)를 흰색으로 보이게 */
-input.date-input::placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* Chrome / 네이버 / 삼성브라우저 */
-input.date-input::-webkit-input-placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* iOS Safari (날짜 placeholder 영역) */
-input.date-input::-webkit-datetime-edit-fields-wrapper {
-  color: #ffffff !important;
-}
-
-/* 연/월/일 각각 placeholder 스타일 */
-input.date-input::-webkit-datetime-edit-year-field,
-input.date-input::-webkit-datetime-edit-month-field,
-input.date-input::-webkit-datetime-edit-day-field {
-  color: #ffffff !important;
-  opacity: 0.7;
-}
-
-
-    /* 개인정보 보기 버튼 */
-    #privacy-open {
-      transform: scale(0.9);
-      transform-origin: right center;
-      white-space: nowrap;
-    }
-
-    /* 입금 계좌 라인 */
-    .bank-line {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: nowrap;
-    }
-
-    /* 모바일 반응형 */
+    /* 모바일에서 날짜 입력창이 좁아지지 않게 조정 */
     @media (max-width: 640px) {
-      input[type="date"].date-input {
-    /*width: 100%;       전체 라인 폭 사용 */
-    min-width: 160px; /* 지나치게 작아지는 것 방지 */
-  }
-      .field-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-      }
-
-      .field-label {
-        margin-bottom: 2px;
-      }
-
-      .datetime-row {
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .datetime-row select,
-      .datetime-row input {
-        min-width: 110px;
-        flex: 1;
-      }
-       /* 공통 placeholder 스타일 */
-input[type="date"].date-input::placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* WebKit 브라우저 (Chrome, Navermobile, Samsung Browser, Android) */
-input[type="date"].date-input::-webkit-input-placeholder {
-  color: #ffffff !important;
-  opacity: 1;
-}
-
-/* iOS Safari */
-input[type="date"].date-input::-webkit-date-and-time-value {
-  color: #ffffff !important;
-}
-
-/* 안드로이드에서 날짜 placeholder 강제색 변경 */
-input[type="date"].date-input::-webkit-datetime-edit-fields-wrapper {
-  color: #ffffff !important;
-}
-
-/* 연/월/일 각각의 placeholder */
-input[type="date"].date-input::-webkit-datetime-edit-year-field,
-input[type="date"].date-input::-webkit-datetime-edit-month-field,
-input[type="date"].date-input::-webkit-datetime-edit-day-field {
-  color: #ffffff !important;
-  opacity: 0.75;
-}
+      .date-field { max-width: 100%; }
     }
-   /* 🚀 store.html과 동일한 메뉴 그리드 스타일 적용 */
-
-#menu-grid {
-  display: grid !important;
-  /* 모바일 2열, PC 3열 이상으로 자동 조절되는 핵심 설정 */
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
-  gap: 12px !important;
-  justify-items: center;
-  text-align: center;
-  margin-top: 15px;
-  width: 100%;
-}
-    
-/* 메뉴 카드 내부 이미지와 텍스트 정렬 */
-.menu-card {
-  background: #111922;
-  border: 1px solid #263241;
-  border-radius: 15px;
-  padding: 10px;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.menu-card:active {
-  transform: scale(0.98);
-}
-
-.menu-card img {
-  width: 100%;
-  aspect-ratio: 1/1;
-  object-fit: cover;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  background: #1c2632;
-}
-
   </style>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
