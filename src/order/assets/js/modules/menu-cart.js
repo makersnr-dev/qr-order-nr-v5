@@ -177,3 +177,71 @@ function openMenuModal(item, cartObj) {
     modal.innerHTML = `
         <div class="vstack" style="background:#0d1117; width:100%; max-width:400px; border-radius:20px; padding:20px; border:1px solid #263241; max-height:90vh; overflow-y:auto;">
             <div style="width:100%; aspect-ratio:1.5/1; background:#1c2632; border-radius:12px; overflow:hidden; margin-bottom:15px;">
+                <img src="${item.img || ''}" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <h2 style="margin:0;">${item.name}</h2>
+            <p style="color:#9ca3af; font-size:14px; margin:8px 0 15px;">${item.desc || '맛있는 메뉴입니다.'}</p>
+            
+            <div id="modal-options-bin" class="vstack" style="gap:15px; margin-bottom:20px;">
+                ${options.map((grp, gIdx) => `
+                    <div class="opt-group vstack" data-gidx="${gIdx}" data-req="${grp.required}">
+                        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">${grp.name} ${grp.required ? '<span style="color:#ef4444; font-size:12px;">(필수)</span>' : ''}</div>
+                        <div class="vstack" style="gap:8px;">
+                            ${grp.items.map((opt, oIdx) => `
+                                <label class="hstack" style="background:#1c2632; padding:12px; border-radius:10px; justify-content:space-between; cursor:pointer;">
+                                    <div class="hstack" style="gap:8px;">
+                                        <input type="${grp.type === 'multi' ? 'checkbox' : 'radio'}" name="grp-${gIdx}" value="${oIdx}">
+                                        <span>${opt.label}</span>
+                                    </div>
+                                    <span style="font-size:13px; color:var(--primary);">+${fmt(opt.price)}원</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="hstack" style="justify-content:space-between; padding:15px 0; border-top:1px solid #263241;">
+                <span>수량</span>
+                <div class="hstack" style="gap:15px;">
+                    <button class="btn" id="m-minus">-</button>
+                    <b id="m-qty">1</b>
+                    <button class="btn" id="m-plus">+</button>
+                </div>
+            </div>
+
+            <button id="m-add-btn" class="btn primary" style="height:50px; font-weight:700; margin-top:10px;">장바구니 담기</button>
+            <button id="m-close-btn" class="btn" style="margin-top:10px; background:transparent; border:none; opacity:0.5;">닫기</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#m-plus').onclick = () => { qty++; modal.querySelector('#m-qty').textContent = qty; };
+    modal.querySelector('#m-minus').onclick = () => { if(qty > 1) qty--; modal.querySelector('#m-qty').textContent = qty; };
+    modal.querySelector('#m-close-btn').onclick = () => modal.remove();
+
+    modal.querySelector('#m-add-btn').onclick = () => {
+        const selectedOptions = [];
+        const optionText = [];
+        const groups = modal.querySelectorAll('.opt-group');
+
+        for (const grp of groups) {
+            const gIdx = grp.dataset.gidx;
+            const checked = grp.querySelectorAll('input:checked');
+            if (grp.dataset.req === 'true' && checked.length === 0) {
+                alert(`'${options[gIdx].name}' 옵션은 필수입니다.`);
+                return;
+            }
+            checked.forEach(input => {
+                const oIdx = input.value;
+                const optObj = options[gIdx].items[oIdx];
+                selectedOptions.push({ group: options[gIdx].name, label: optObj.label, price: optObj.price });
+                optionText.push(`${options[gIdx].name}:${optObj.label}`);
+            });
+        }
+
+        cartObj.add(item, qty, selectedOptions, optionText);
+        modal.remove();
+    };
+}
