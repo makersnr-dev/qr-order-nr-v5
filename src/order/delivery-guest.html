@@ -85,6 +85,25 @@
       letter-spacing: -0.5px;    /* 글자 간격을 좁혀서 더 깔끔하게 */
   }
 
+   /* 공통으로 사용할 작은 보조 버튼 스타일 */
+.btn-sub-small {
+    padding: 4px 10px !important; /* 복사 버튼과 동일한 패딩 */
+    font-size: 11px !important;    /* 작은 글씨 */
+    height: 26px !important;      /* 버튼 높이 통일 */
+    line-height: 1 !important;
+    background: #1c2632 !important; /* 어두운 배경색 */
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+    color: #e5e7eb !important;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.btn-sub-small:active {
+    background: #263241 !important;
+    transform: scale(0.95);
+}
+
  
 .bank-container-wrapper {
     display: flex;
@@ -121,7 +140,7 @@
     margin: 0;
 }
 /* 복사 버튼 스타일 살짝 보정 */
-#bank-copy {
+#bank-copy, #privacy-open {
     padding: 5px 10px;
     font-size: 11px;
     height: fit-content;
@@ -216,12 +235,12 @@
       <!-- 개인정보 -->
       <div class="field-row" id="privacy-row">
         <div class="field-label">개인정보</div>
-        <div class="hstack" style="gap:10px">
-          <label style="display:flex;align-items:center;gap:6px;">
+        <div class="hstack" style="flex:1; justify-content: flex-start; align-items: center; gap: 10px;">
+          <label style="display:flex; align-items:center; gap:6px; margin:0;">
             <input type="checkbox" id="agree-privacy">
             (필수) 개인정보 수집·이용 동의
           </label>
-          <button id="privacy-open" class="btn">보기</button>
+          <button id="privacy-open" class="btn btn-sub-small">보기</button>
         </div>
       </div>
 
