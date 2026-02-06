@@ -150,7 +150,9 @@ export async function initQR() {
         wrap.innerHTML = `
             <img src="${q.dataUrl}" style="width:140px; height:140px; border-radius:4px; display: block; margin: 0 auto;">
             <div class="small" style="width:100%; font-weight:bold; color:#fff;">
-                ${q.label} ${q.table ? `(${q.table}번)` : ''}
+                ${q.label ? `${q.table}번 테이블 (${q.label})` // 🚀 라벨이 있으면: 2번 테이블 (테스트)
+                          : `${q.table}번 테이블`              // 🚀 라벨이 없으면: 빈칸 (아무것도 안 나옴)
+                  }
             </div>
             <div class="small" style="word-break:break-all; color:var(--muted); font-size:10px; width:100%; max-width:160px;">
                 ${q.url}
@@ -169,7 +171,7 @@ export async function initQR() {
     if (genBtn) {
         genBtn.onclick = async () => {
             const table = (tableInput.value || '').trim();
-            const label = (labelInput.value || '').trim() || `${table}번 테이블`;
+            const label = (labelInput.value || '').trim();
             if (!table) return showToast('테이블 번호를 입력하세요.', 'info');
 
             const url = `${location.origin}/order/store?store=${encodeURIComponent(storeId)}&table=${encodeURIComponent(table)}`;
