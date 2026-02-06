@@ -207,18 +207,31 @@ export default async function handler(req, res) {
                     if (items.length > 0) {
                         const first = items[0];
                         
+                        // 1. 옵션 데이터 추출 (예약/매장 통합 대응)
                         let rawOpts = first.optionText || first.options || [];
                         if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
-            
-                        // 옵션 텍스트 추출 (예: "토핑:초콜릿")
-                        const opts = Array.isArray(rawOpts) 
-                            ? rawOpts.slice(0, 2).map(o => typeof o === 'string' ? o.split(':').pop() : (o.label || o.name)).join(',')
-                            : '';
                         
-                        const optText = opts ? ` [${opts}]` : '';
+                        // 2. 옵션 텍스트 생성 (최대 1개 노출 + '외 n')
+                        let optText = '';
+                        if (rawOpts.length > 0) {
+                            // 첫 번째 옵션 이름만 추출 (예: "샷추가")
+                            const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
+                            
+                            // 옵션이 2개 이상이면 '외 n' 표시 (옵션임을 명시)
+                            if (rawOpts.length > 1) {
+                                optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
+                            } else {
+                                optText = ` [${firstOpt}]`;
+                            }
+                        }
+                    
+                        // 3. 전체 요약 구성
                         displaySummary = `${first.name} x ${first.qty}${optText}`;
-                        if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
-                       
+                        
+                        // 4. 다른 메뉴가 더 있다면 '외 n건' (메뉴임을 명시)
+                        if (items.length > 1) {
+                            displaySummary += ` 외 ${items.length - 1}건`;
+                        }
                     }
 
                     // 3. 기존 필드 유지 + displaySummary 추가
