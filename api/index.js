@@ -371,8 +371,21 @@ export default async function handler(req, res) {
                 await query(`INSERT INTO qr_codes (id, store_id, kind, table_no, label, url, data_url, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) ON CONFLICT (id) DO UPDATE SET label=$5, data_url=$7, updated_at=NOW()`, [id, storeId, kind, table, label, url, dataUrl]);
                 return json({ ok: true });
             }
+            // api/index.js 내 /api/qrcodes DELETE 부분
             if (method === 'DELETE') {
-                await query('DELETE FROM qr_codes WHERE id = $1 AND store_id = $2', [params.get('id'), storeId]);
+                const kind = params.get('kind'); // 'store' 또는 'deliv'
+                const id = params.get('id');     // 개별 삭제 시 사용
+            
+                if (id) {
+                    // 1. 개별 삭제
+                    await query('DELETE FROM qr_codes WHERE id = $1 AND store_id = $2', [id, storeId]);
+                } else if (kind) {
+                    // 2. 종류별 전체 삭제 (매장용만 또는 예약용만)
+                    await query('DELETE FROM qr_codes WHERE store_id = $1 AND kind = $2', [storeId, kind]);
+                } else {
+                    // 3. 안전을 위해 기본적으로는 전체 삭제를 막거나 명시적 처리가 필요함
+                    return json({ ok: false, message: '삭제 대상을 지정해주세요.' }, 400);
+                }
                 return json({ ok: true });
             }
         }
