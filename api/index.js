@@ -5,15 +5,23 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
-// --- [최소 수정: Body 데이터 읽기 로직 추가] ---
-    if (req.method === 'POST' || req.method === 'PUT') {
-        if (!req.body && req.headers['content-type']?.includes('application/json')) {
+// 1. [핵심 수정] 모든 요청에 대해 Body를 안전하게 파싱
+    if (!req.body && (method === 'POST' || method === 'PUT')) {
+        try {
             const buffers = [];
-            for await (const chunk of req) buffers.push(chunk);
+            for await (const chunk of req) {
+                buffers.push(chunk);
+            }
             const data = Buffer.concat(buffers).toString();
-            try { req.body = JSON.parse(data); } catch (e) { req.body = {}; }
+            req.body = data ? JSON.parse(data) : {};
+        } catch (e) {
+            console.error("Body parsing error:", e);
+            req.body = {}; // 에러 시 빈 객체로 초기화하여 'undefined' 에러 방지
         }
     }
+
+    // 2. req.body가 여전히 없을 경우를 대비한 2중 안전장치
+    const safeBody = req.body || {};
     
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
