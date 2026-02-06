@@ -91,10 +91,11 @@ input[type="date"].input::-webkit-calendar-picker-indicator {
 }
 
 .field-label{
-  width:52px;     /* 70 -> 52 정도가 딱 적당 */
+  width:60px;     /* 70 -> 52 정도가 딱 적당 */
   font-size:13px;
   color:var(--text);
   flex-shrink:0;
+  word-break: keep-all;
 }
 
 .addr-wrap{
