@@ -165,97 +165,71 @@ export default async function handler(req, res) {
     
         // --- [GET] 주문 목록 조회 (원문 유지) ---
         if (method === 'GET') {
-        const type = params.get('type'); // 'store' 또는 'reserve'
+            const type = params.get('type');
+            const r = (type === 'store') 
+                ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC', [storeId])
+                : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
         
-        // 1. 통합된 orders 테이블에서 데이터를 가져옵니다.
-        const r = await query(
-            'SELECT * FROM orders WHERE store_id = $1 AND type = $2 ORDER BY created_at DESC', 
-            [storeId, type]
-        );
-    
-        const orders = r.rows.map(row => {
-            // DB에 저장된 meta(JSON) 데이터를 안전하게 파싱합니다.
-            let meta = {};
-            try {
-                meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
-            } catch (e) {
-                meta = {};
-            }
-    
-            if (type === 'store') {
-                // --- [매장 주문 가공] ---
-                return {
-                    ...row,
-                    orderId: row.order_no,
-                    // 매장 주문은 보통 meta 안에 cart 정보가 들어있습니다.
-                    cart: meta.cart || [], 
-                    ts: new Date(row.created_at).getTime()
-                };
-            } else {
-                // --- [예약 주문 가공] ---
-                let parsedItems = [];
-                try {
-                    // 예약 주문은 아까 만든 items 칸에서 메뉴를 가져옵니다.
-                    parsedItems = typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []);
-                } catch (e) {
-                    console.error("항목 파싱 에러:", e);
+            const orders = r.rows.map(row => {
+                const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                if (type === 'store') {
+                    return {
+                        ...row,
+                        orderId: row.order_no,
+                        cart: row.meta?.cart || [],
+                        ts: new Date(row.created_at).getTime()
+                    };
+                } else {
+                    let parsedItems = [];
+                    try {
+                        parsedItems = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []);
+                    } catch (e) {
+                        console.error("항목 파싱 에러:", e);
+                        parsedItems = [];
+                    }
+                    return {
+                        ...row,
+                        orderId: row.order_no,
+                        amount: row.total_amount,
+                        items: parsedItems, 
+                        cart: parsedItems,
+                        customer: {
+                            name: row.customer_name,
+                            phone: row.customer_phone,
+                            addr: row.address
+                        },
+                        reserve: meta.reserve || {},
+                        // 🚩 에러 지점 해결: 위에서 정의한 'meta' 변수 사용
+                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
+                        ts: new Date(row.created_at).getTime(),
+                        meta: meta
+                    };
                 }
-    
-                return {
-                    ...row,
-                    orderId: row.order_no, // 예약도 이제 order_no를 ID로 씁니다.
-                    amount: row.amount,    // 👈 row.total_amount 대신 합쳐진 amount 컬럼 사용
-                    items: parsedItems, 
-                    cart: parsedItems,    // 관리자 화면 호환성을 위해 cart도 items와 동일하게 세팅
-                    customer: {
-                        name: row.customer_name,
-                        phone: row.customer_phone,
-                        addr: row.address
-                    },
-                    reserve: meta.reserve || {},
-                    // 요청사항(메모)을 안전하게 가져옵니다.
-                    requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-' ,
-                    ts: new Date(row.created_at).getTime(),
-                    meta: meta
-                };
-            }
-        });
-    
-        return json({ ok: true, orders });
-    }
+            });
+            return json({ ok: true, orders });
+        }
     
         // --- [POST] 주문 생성 (기존 저장 + Supabase 알림 추가) ---
         if (method === 'POST') {
             const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
-            //const newNumericId = parseInt(String(Date.now()).slice(-9)); 
+            const newNumericId = parseInt(String(Date.now()).slice(-9)); 
             const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
     
-                // ✅ SQL 쿼리 수정: 12개 컬럼과 12개 매개변수($1~$12)를 정확히 매칭
-    const sql = `
-        INSERT INTO orders (
-            store_id, order_no, type, status, table_no, 
-            amount, customer_name, customer_phone, address, items, 
-            lookup_pw, meta
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-    `;
-
-    const values = [
-        storeId,                                     // $1
-        newOrderNo,                                  // $2
-        type,                                        // $3
-        (type === 'store' ? '주문접수' : '입금 미확인'), // $4
-        table || null,                               // $5
-        amount,                                      // $6
-        customer?.name || null,                      // $7
-        customer?.phone || null,                     // $8
-        customer?.fullAddr || null,                  // $9
-        JSON.stringify(cart || []),                  // $10 (items 컬럼)
-        lookupPw || null,                            // $11
-        JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer?.memo }) // $12 (meta 컬럼)
-    ];
-
-    await query(sql, values);
-            
+            if (type === 'store') {
+                await query(
+                    `INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) 
+                     VALUES ($1, $2, '주문접수', $3, $4, $5)`, 
+                    [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]
+                );
+            } else {
+            await query(
+                `INSERT INTO orderss (
+                    order_id, store_id, type, status, customer_name, customer_phone, address, 
+                    items, total_amount, lookup_pw, order_no, meta
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
+                [newNumericId, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.fullAddr, JSON.stringify(cart), amount, lookupPw, newOrderNo, JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]
+            );
+        }
         
                 // 🚀 [수정 핵심] 여기서부터 알림 로직 시작 (매장/예약 공통)
         try {
@@ -283,8 +257,10 @@ export default async function handler(req, res) {
         // --- [PUT] 주문 상태 변경 (기존 업데이트 + 동기화 알림 추가) ---
         if (method === 'PUT') {
             const { orderId, type, status, meta, metaAppend } = req.body;
+            const tableName = type === 'store' ? 'orders' : 'orderss';
+            const idColumn = type === 'store' ? 'order_no' : 'order_id';
     
-            const existing = await queryOne(`SELECT meta FROM orders WHERE order_no = $1`, [orderId]);
+            const existing = await queryOne(`SELECT meta FROM ${tableName} WHERE ${idColumn} = $1`, [orderId]);
             if (!existing) return json({ ok: false, error: 'ORDER_NOT_FOUND' }, 404);
     
             let newMeta = { ...existing.meta, ...meta };
@@ -295,15 +271,9 @@ export default async function handler(req, res) {
             }
     
             if (status) {
-                await query(
-                    `UPDATE orders SET status = $1, meta = $2, updated_at = NOW() WHERE order_no = $3`, 
-                    [status, JSON.stringify(newMeta), orderId]
-                );
+                await query(`UPDATE ${tableName} SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
             } else {
-                await query(
-                    `UPDATE orders SET meta = $1, updated_at = NOW() WHERE order_no = $2`, 
-                    [JSON.stringify(newMeta), orderId]
-                );
+                await query(`UPDATE ${tableName} SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
             }
     
             // 🚀 [추가] 상태 변경 실시간 동기화 신호
@@ -422,3 +392,5 @@ export default async function handler(req, res) {
         return json({ ok: false, error: e.message }, 500);
     }
 }
+
+
