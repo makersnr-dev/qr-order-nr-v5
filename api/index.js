@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const ipMap = new Map(); // 🛡️ 주문 폭탄 방지용
 const menuCache = new Map();
+const settingsCache = new Map();
 
 export default async function handler(req, res) {
     const json = (body, status = 200) => {
@@ -112,14 +113,26 @@ export default async function handler(req, res) {
         // --- 3. 매장 설정 (COALESCE 보존 로직 유지) ---
         if (pathname === '/api/store-settings') {
             if (method === 'GET') {
+                // 🚀 1. 캐시 확인 (5분 유지)
+                const now = Date.now();
+                const cached = settingsCache.get(storeId);
+                if (cached && now < cached.expire) {
+                    return json({ ok: true, settings: cached.data, cached: true });
+                }
+
                 const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
                 const settings = r || {};
                 if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch (e) { }
                 if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch (e) { }
                 if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch (e) { }
+                
+                // 🚀 2. 캐시 저장 (5분 = 300,000ms)
+                settingsCache.set(storeId, { data: settings, expire: now + 300000 });
+
                 return json({ ok: true, settings });
             }
             if (method === 'PUT') {
+                settingsCache.delete(storeId);
                 const { ownerBank, privacyPolicy, notifyConfig, callOptions } = safeBody;
                 const b = ownerBank ? JSON.stringify(ownerBank) : null;
                 const n = notifyConfig ? JSON.stringify(notifyConfig) : null;
