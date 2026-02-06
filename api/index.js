@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const ipMap = new Map(); // 🛡️ 주문 폭탄 방지용
+const menuCache = new Map();
 
 export default async function handler(req, res) {
     const json = (body, status = 200) => {
@@ -131,10 +132,31 @@ export default async function handler(req, res) {
         // --- 4. 메뉴 관리 ---
         if (pathname === '/api/menus') {
             if (method === 'GET') {
-                const r = await query(`SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", img, description as desc, options FROM menus WHERE store_id = $1 ORDER BY menu_id ASC`, [storeId]);
-                return json({ ok: true, menus: r.rows || [] });
+                const now = Date.now();
+                const cached = menuCache.get(storeId);
+            
+                // 🚀 캐시가 있고 1분(60,000ms)이 안 지났다면 바로 반환! (DB 안 감)
+                if (cached && now < cached.expire) {
+                    console.log(`⚡ 캐시된 메뉴 반환 (${storeId})`);
+                    return json({ ok: true, menus: cached.data });
+                }
+            
+                const r = await query(`
+                    SELECT menu_id as id, name, price, category, active, sold_out as "soldOut", 
+                           img, description as desc, options 
+                    FROM menus 
+                    WHERE store_id = $1 
+                    ORDER BY menu_id ASC
+                `, [storeId]);
+                const menus = r.rows || [];
+            
+                // DB 조회 후 캐시에 저장 (유효기간 1분)
+                menuCache.set(storeId, { data: menus, expire: now + 60000 });
+                
+                return json({ ok: true, menus });
             }
             if (method === 'PUT') {
+                menuCache.delete(storeId);
                 const items = Array.isArray(safeBody) ? safeBody : [safeBody];
                 for (const m of items) {
                     await query(`INSERT INTO menus (store_id, menu_id, name, price, category, active, sold_out, img, description, options) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (store_id, menu_id) DO UPDATE SET name=$3, price=$4, category=$5, active=$6, sold_out=$7, img=$8, description=$9, options=$10`, [storeId, m.id, m.name, m.price, m.category, m.active, m.soldOut, m.img, m.desc, JSON.stringify(m.options || [])]);
@@ -142,6 +164,7 @@ export default async function handler(req, res) {
                 return json({ ok: true });
             }
             if (method === 'DELETE') {
+                menuCache.delete(storeId);
                 const menuId = params.get('menuId');
                 if (!storeId || !menuId) return json({ ok: false, error: 'MISSING_PARAMETERS' }, 400);
                 await query('DELETE FROM menus WHERE store_id = $1 AND menu_id = $2', [storeId, menuId]);
@@ -283,18 +306,55 @@ export default async function handler(req, res) {
                 res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
                 return json({ ok: true, token, storeId: sid });
             }
-            const dbAdmin = await queryOne(`SELECT id, name, role, is_active FROM admins WHERE id = $1 AND pw_hash = $2`, [uid, await hashPassword(pwd)]);
-            if (dbAdmin) {
-                if (!dbAdmin.is_active) return json({ ok: false, message: "비활성화된 계정" }, 403);
-                const mappings = await query(`SELECT store_id FROM admin_store_mapping WHERE admin_id = $1 ORDER BY created_at DESC`, [uid]);
-                const stores = mappings.rows.map(r => ({ storeId: r.store_id, storeName: r.store_id + " 매장" }));
+
+            // B. DB 확인 (JOIN으로 한 번에 가져오기)
+            const pwHash = await hashPassword(pwd);
+            const queryText = `
+                SELECT a.id, a.name, a.role, a.is_active, m.store_id
+                FROM admins a
+                LEFT JOIN admin_store_mapping m ON a.id = m.admin_id
+                WHERE a.id = $1 AND a.pw_hash = $2
+            `;
+            const dbResult = await query(queryText, [uid, pwHash]);
+
+            if (dbResult.rows.length > 0) {
+                const rows = dbResult.rows;
+                const firstRow = rows[0];
+
+                // 1. 비활성화 계정 체크 (기존 기능)
+                if (!firstRow.is_active) return json({ ok: false, message: "비활성화된 계정입니다." }, 403);
+
+                // 2. 매장 목록 생성 (기존 mappings.rows.map 로직 통합)
+                const stores = rows
+                    .filter(r => r.store_id) // 매장이 연결된 경우만
+                    .map(r => ({ storeId: r.store_id, storeName: r.store_id + " 매장" }));
+
+                // 3. 기본 매장 ID 결정 (기존 sid 로직)
                 const sid = stores.length > 0 ? stores[0].storeId : 'store1';
-                const token = await signJWT({ realm: 'admin', uid, storeId: sid, role: dbAdmin.role }, process.env.JWT_SECRET || 'dev-secret', 86400);
+                
+                // 4. 토큰 발급 및 쿠키 설정 (기존 signJWT 로직)
+                const token = await signJWT(
+                    { realm: 'admin', uid, storeId: sid, role: firstRow.role }, 
+                    process.env.JWT_SECRET || 'dev-secret', 
+                    86400
+                );
+
                 res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
-                return json({ ok: true, token, storeId: sid, admin: { id: dbAdmin.id, name: dbAdmin.name, stores } });
+                
+                // 5. 최종 응답 (기존 admin 객체 포함 데이터 반환)
+                return json({ 
+                    ok: true, 
+                    token, 
+                    storeId: sid, 
+                    admin: { id: firstRow.id, name: firstRow.name, stores } 
+                });
             }
-            return json({ ok: false, message: '로그인 실패' }, 401);
-        }
+
+            // 로그인 실패 시 (기존 기능)
+            return json({ ok: false, message: '로그인 정보가 틀렸습니다.' }, 401);
+            }
+            
+            
 
         // --- 8. 관리자 관리 API ---
         if (pathname.startsWith('/api/admin/')) {
