@@ -68,8 +68,10 @@ export default async function handler(req, res) {
             const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
             if (found) {
                 const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret');
+                // 1. 브라우저용 쿠키 설정
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
-                return json({ ok: true });
+                // 2. [추가] 프론트엔드 스크립트가 로컬스토리지에 저장할 수 있도록 토큰 반환
+                return json({ ok: true, token });
             }
             return json({ ok: false }, 401);
         }
