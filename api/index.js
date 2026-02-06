@@ -209,7 +209,6 @@ export default async function handler(req, res) {
                         // 첫 메뉴 옵션 최대 2개만 추출
                         const opts = (first.options || []).slice(0, 2).map(o => o.name).join(',');
                         const optText = opts ? ` [${opts}]` : '';
-                        
                         displaySummary = `${first.name} x ${first.qty}${optText}`;
                         if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
                     }
@@ -222,7 +221,7 @@ export default async function handler(req, res) {
                             ...row, 
                             orderId: row.order_no, 
                             amount: row.total_amount, 
-                            items, 
+                            //items, 
                             cart: items, 
                             displaySummary, // 요약 필드 추가
                             customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
