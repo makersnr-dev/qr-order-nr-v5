@@ -745,7 +745,7 @@ async function init() {
   }
 
   // Login Button
-  $('#super-login-btn').onclick = async () => {
+ $('#super-login-btn').onclick = async () => {
     const uid = $('#super-id').value.trim();
     const pw = $('#super-pw').value.trim();
     const msg = $('#super-login-msg');
@@ -754,33 +754,44 @@ async function init() {
       msg.textContent = '아이디와 비밀번호를 입력하세요.';
       return;
     }
-    msg.textContent = '로그인 중...';
 
-      try {
-          const res = await fetch('/api/super-login', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ uid, pwd: pw }), // 변수명 pw 확인
-          });
-          const data = await res.json();
+    msg.style.color = '#3b82f6';
+    msg.textContent = '로그인 시도 중...';
 
-          if (data.ok) {
-              // 1. 서버가 준 토큰을 로컬 스토리지에도 명시적으로 저장 (Headers에 사용하기 위함)
-              if (data.token) setSuperToken(data.token);
-              
-              // 2. 새로고침 없이 메인 컨텐츠 표시 로직 호출
-              msg.textContent = '로그인 성공!';
-              
-              // 🚀 핵심: 새로고침 대신 내부 상태를 갱신하거나 페이지를 리로드
-              location.reload(); 
-              // 만약 새로고침이 싫다면 아래처럼 UI만 바꿉니다.
-              // await checkAuthAndRender(); 
-          } else {
-              msg.textContent = '❌ 로그인 실패: 정보를 확인하세요.';
-          }
-      } catch (e) {
-          msg.textContent = '❌ 서버 응답 없음';
+    try {
+      // 1. 서버에 로그인 요청
+      const res = await fetch('/api/super-login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uid, pwd: pw }), // 백엔드 필드명 pwd 확인
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // 2. [핵심] 서버가 준 토큰을 로컬 스토리지에 저장 (403 에러 방지용)
+        // 위에서 정의한 SUPER_TOKEN_KEY ('qrnr.super.jwt')를 사용합니다.
+        if (data.token) {
+            setSuperToken(data.token);
+        }
+
+        msg.style.color = '#10b981';
+        msg.textContent = '✅ 로그인 성공! 페이지를 불러옵니다.';
+
+        // 3. [핵심] 새로고침을 통해 즉시 UI 상태(fetchSuperMe)를 갱신
+        // 가장 안정적인 방법입니다.
+        setTimeout(() => {
+            location.reload();
+        }, 500); 
+
+      } else {
+        msg.style.color = '#ef4444';
+        msg.textContent = '❌ 로그인 실패: 아이디 또는 비밀번호를 확인하세요.';
       }
+    } catch (e) {
+      console.error(e);
+      msg.style.color = '#ef4444';
+      msg.textContent = '❌ 서버와 통신할 수 없습니다.';
+    }
   };
 
   logoutBtn.onclick = async () => {
