@@ -475,18 +475,7 @@ async function renderStoreTable() {
 
   rows.forEach(o => {
     const time = fmtDateTimeFromOrder(o);
-    const itemTexts = (o.cart || []).map(i => {
-      let line = `${i.name}x${i.qty}`;
-      if (Array.isArray(i.options) && i.options.length) {
-        const opts = normalizeOptions(i.options);
-        if (opts.length) {
-          line += ` (${opts[0]}${opts.length > 1 ? ` 외 ${opts.length - 1}개` : ''})`;
-        }
-      }
-      return line;
-    });
-    
-    const items = limitLines(summarizeItems(itemTexts), 20);
+    const items = o.displaySummary || '-';
     const status = o.status || '주문접수';
     const tr = document.createElement('tr');
 
@@ -575,18 +564,7 @@ export async function renderDeliv() {
     const rawReq = o.meta?.memo || '-';
     const req = truncateText(rawReq, 15);
 
-    const itemTexts = (o.items || []).map(i => {
-      let line = `${i.name} x${i.qty}`;
-      if (Array.isArray(i.options) && i.options.length) {
-        const opts = normalizeOptions(i.options);
-        if (opts.length) {
-          line += ` (${opts[0]}${opts.length > 1 ? ` 외 ${opts.length - 1}개` : ''})`;
-        }
-      }
-      return line;
-    });
-    
-    const items = limitLines(summarizeItems(itemTexts), 20);
+    const items = o.displaySummary || '-';
     const displayName = truncateReserveName(o.customer_name, 3);
     const status = o.status || '대기';
 
