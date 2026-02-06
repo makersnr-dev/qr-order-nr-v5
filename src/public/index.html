@@ -1,78 +1,240 @@
 <!doctype html>
 <html lang="ko">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="/src/admin/assets/css/style.css" />
   <title>매장 관리자 매핑</title>
 </head>
+
 <body>
-<div class="container">
-  <h1>매장 관리자 매핑</h1>
+  <div class="container">
+    <h1>매장 관리자 매핑</h1>
 
-  <!-- 로그인 상태 / 로그아웃 -->
-  <div id="super-status" class="hstack"
-       style="justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div id="super-status-text" class="small"></div>
-    <button id="super-logout" class="btn small" style="display:none">
-      SUPER 로그아웃
-    </button>
-  </div>
+    <!-- 로그인 상태 / 로그아웃 -->
+    <div id="super-status" class="hstack" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div id="super-status-text" class="small"></div>
+      <button id="super-logout" class="btn small" style="display:none">
+        SUPER 로그아웃
+      </button>
+    </div>
 
-  <!-- SUPER 로그인 카드 -->
-  <div id="super-login-card"
-       class="card vstack"
-       style="display:none;max-width:420px;margin-bottom:16px">
-    <h3>SUPER 로그인</h3>
-    <!-- 설명 문구 제거 -->
+    <!-- SUPER 로그인 카드 (처음에만 보임) -->
+    <div id="super-login-card" class="card vstack" style="display:none;max-width:420px;margin-bottom:16px">
+      <h3>SUPER 로그인</h3>
+      <div class="vstack" style="gap:8px;margin-top:8px">
+        <input id="super-id" class="input" placeholder="아이디">
+        <input id="super-pw" class="input" type="password" placeholder="비밀번호">
+        <button id="super-login-btn" class="btn primary">로그인</button>
+        <div id="super-login-msg" class="small" style="color:#f97316;margin-top:4px"></div>
+      </div>
+    </div>
 
-    <div class="vstack" style="gap:8px;margin-top:8px">
-      <input id="super-id" class="input" placeholder="아이디">
-      <input id="super-pw" class="input" type="password" placeholder="비밀번호">
-      <button id="super-login-btn" class="btn primary">로그인</button>
-      <div id="super-login-msg"
-           class="small"
-           style="color:#f97316;margin-top:4px"></div>
+    <!-- 메인 컨텐츠 (로그인 후 보임) -->
+    <div id="main-content" style="display:none">
+
+      <!-- 탭 네비게이션 -->
+      <div class="hstack" style="gap:10px;margin-bottom:16px;border-bottom:1px solid #e5e7eb;padding-bottom:10px">
+        <button id="tab-btn-store" class="btn" style="flex:1">매장 관리</button>
+        <button id="tab-btn-register" class="btn" style="flex:1">관리자 등록</button>
+        <button id="tab-btn-mapping" class="btn" style="flex:1">매핑 관리</button>
+      </div>
+
+      <!-- 1. 매장 관리 탭 -->
+      <div id="section-store" style="display:none">
+        <div class="card vstack">
+          <h3>매장 정보 관리</h3>
+          <div class="small" style="margin-bottom:8px">매장명/코드로 검색하여 관리합니다.</div>
+
+          <!-- 검색 및 입력 폼 -->
+          <div class="hstack"
+            style="gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #e5e7eb;align-items:center">
+            <input id="store-search-input" class="input" placeholder="매장명 또는 ID로 검색" style="flex:1;max-width:300px">
+            <button id="store-search-btn" class="btn">검색</button>
+            <button id="store-clear-btn" class="btn small">초기화</button>
+          </div>
+
+          <!-- 매장 생성/수정 입력 -->
+          <div class="hstack"
+            style="gap:10px;flex-wrap:wrap;background:#0b1620;padding:12px;border-radius:8px;align-items:flex-end;border:1px solid var(--border)">
+            <div class="vstack" style="gap:4px;flex:1;min-width:200px">
+              <label class="small" style="color:#9fb0c0">Store ID</label>
+              <input id="store-id" class="input" placeholder="예: narae" style="width:100%">
+            </div>
+
+            <div class="vstack" style="gap:4px;flex:2;min-width:250px">
+              <label class="small" style="color:#9fb0c0">매장명</label>
+              <input id="store-name" class="input" placeholder="예: 나래카페 강남점" style="width:100%">
+            </div>
+
+            <div class="vstack" style="gap:4px;width:100px">
+              <label class="small" style="color:#9fb0c0">주문코드</label>
+              <input id="store-code" class="input" placeholder="예: NR" style="width:100%">
+            </div>
+
+            <button id="store-save" class="btn primary" style="height:42px;margin-bottom:1px">저장</button>
+          </div>
+
+          <table class="table" style="margin-top:16px">
+            <thead>
+              <tr>
+                <th style="width:30%">storeId</th>
+                <th style="width:40%">매장명</th>
+                <th style="width:20%">주문 코드</th>
+                <th style="width:10%" class="right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="store-body">
+              <tr>
+                <td colspan="4" class="small" style="text-align:center;padding:20px;color:#9fb0c0">검색 버튼을 눌러 매장 목록을
+                  조회하세요.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 페이지네이션 -->
+          <div id="pagination-store" class="hstack" style="justify-content:center;gap:8px;margin-top:16px"></div>
+        </div>
+      </div>
+
+      <!-- 2. 관리자 등록 탭 -->
+      <div id="section-register" style="display:none">
+        <div id="admin-register-card" class="card vstack">
+          <h3>신규 관리자 등록</h3>
+
+          <div class="vstack" style="gap:16px">
+            <!-- ID / 이름 -->
+            <div class="hstack" style="gap:12px">
+              <div class="vstack" style="flex:1">
+                <label class="small">관리자 ID</label>
+                <input id="new-admin-id" class="input" placeholder="user_id">
+              </div>
+              <div class="vstack" style="flex:1">
+                <label class="small">이름</label>
+                <input id="new-admin-name" class="input" placeholder="홍길동">
+              </div>
+            </div>
+
+            <!-- 비밀번호 / 매장선택 -->
+            <div class="hstack" style="gap:12px">
+              <div class="vstack" style="flex:1">
+                <label class="small">비밀번호</label>
+                <input id="new-admin-pw" class="input" type="password" placeholder="4자 이상">
+              </div>
+              <div class="vstack" style="flex:1;position:relative">
+                <label class="small">매장 선택</label>
+                <input id="new-admin-store" class="input" placeholder="검색..." autocomplete="off">
+                <ul id="store-search-results"
+                  style="display:none;position:absolute;top:100%;left:0;right:0;background:#111922;border:1px solid var(--border);max-height:200px;overflow-y:auto;z-index:99;">
+                </ul>
+              </div>
+            </div>
+
+            <!-- 연락처 -->
+            <div class="hstack" style="gap:12px">
+              <div class="vstack" style="flex:1">
+                <label class="small">이메일 (선택)</label>
+                <input id="new-admin-email" class="input" type="email">
+              </div>
+              <div class="vstack" style="flex:1">
+                <label class="small">전화번호 (선택)</label>
+                <input id="new-admin-phone" class="input">
+              </div>
+            </div>
+
+            <button id="btn-register-admin" class="btn primary" style="margin-top:8px">관리자 등록</button>
+            <div id="register-result" style="font-size:14px;text-align:center"></div>
+          </div>
+        </div>
+
+        <!-- 👤 기존 관리자 관리 목록 추가 -->
+        <div class="card vstack" style="margin-top:20px">
+          <h3>기존 관리자 관리</h3>
+          <div class="small" style="margin-bottom:8px">등록된 관리자를 검색하고 삭제할 수 있습니다. (매핑된 매장이 있으면 삭제 불가)</div>
+
+          <div class="hstack" style="gap:8px;margin-bottom:12px;align-items:center">
+            <input id="admin-search-input" class="input" placeholder="관리자 ID 또는 이름으로 검색" style="flex:1;max-width:300px">
+            <button id="admin-search-btn" class="btn">검색</button>
+            <button id="admin-clear-btn" class="btn small">초기화</button>
+          </div>
+
+          <table class="table" style="margin-top:8px">
+            <thead>
+              <tr>
+                <th style="width:25%">ID</th>
+                <th style="width:25%">이름</th>
+                <th style="width:30%">등록일</th>
+                <th style="width:20%" class="right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="admin-list-body">
+              <tr>
+                <td colspan="4" class="small" style="text-align:center;padding:20px;color:#9fb0c0">불러오는 중...</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div id="pagination-admin" class="hstack" style="justify-content:center;gap:8px;margin-top:16px"></div>
+        </div>
+      </div>
+
+      <!-- 3. 매핑 관리 탭 -->
+      <div id="section-mapping" style="display:none">
+        <div id="mapping-card" class="card vstack">
+          <h3>관리자-매장 매핑 관리</h3>
+
+          <div class="hstack" style="gap:8px;margin-bottom:12px;align-items:center">
+            <input id="map-search-input" class="input" placeholder="관리자ID, 매장ID 또는 이름으로 검색"
+              style="flex:1;max-width:300px">
+            <button id="map-search-btn" class="btn">검색</button>
+            <button id="map-clear-btn" class="btn small">초기화</button>
+          </div>
+
+          <div class="hstack"
+            style="gap:10px;flex-wrap:wrap;background:#0b1620;padding:12px;border-radius:8px;align-items:flex-end;border:1px solid var(--border)">
+            <div class="vstack" style="gap:4px;flex:1;min-width:150px">
+              <label class="small" style="color:#9fb0c0">관리자 ID</label>
+              <input id="map-admin" class="input" placeholder="admin_id" style="width:100%">
+            </div>
+            <div class="vstack" style="gap:4px;flex:1;min-width:150px">
+              <label class="small" style="color:#9fb0c0">Store ID</label>
+              <input id="map-store" class="input" placeholder="store_id" style="width:100%">
+            </div>
+            <div class="vstack" style="gap:4px;flex:2;min-width:200px">
+              <label class="small" style="color:#9fb0c0">메모</label>
+              <input id="map-note" class="input" placeholder="메모 (선택)" style="width:100%">
+            </div>
+            <button id="map-add" class="btn primary" style="height:42px;margin-bottom:1px">저장</button>
+          </div>
+
+          <table class="table" style="margin-top:16px">
+            <thead>
+              <tr>
+                <th style="width:30%">관리자 ID</th>
+                <th style="width:30%">Store ID</th>
+                <th style="width:25%;text-align:center">상태</th>
+                <th style="width:15%" class="right">관리</th>
+              </tr>
+            </thead>
+            <tbody id="map-body">
+              <tr>
+                <td colspan="4" class="small" style="text-align:center;padding:20px;color:#9fb0c0">검색 버튼을 눌러 매핑 목록을
+                  조회하세요.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 페이지네이션 -->
+          <div id="pagination-mapping" class="hstack" style="justify-content:center;gap:8px;margin-top:16px"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <!-- 매핑 카드 (SUPER 로그인 시에만 보임) -->
-  <div id="mapping-card" class="card vstack" style="display:none">
-    <div class="small">
-      관리자 계정(아이디/이메일)을 매장 ID(<code>storeId</code>)와 연결합니다.<br>
-      데이터 구조는 <code>['system','storeAdmins']</code>에<br>
-      <code>{ [adminId]: { storeId, note? } }</code> 형태로 저장됩니다.
-    </div>
-
-    <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-top:10px">
-      <input id="map-admin" class="input" placeholder="관리자 ID" style="min-width:240px">
-      <input id="map-store" class="input" placeholder="storeId (예: narae)" style="min-width:160px">
-      <input id="map-code" class="input" placeholder="코드(예: NR)" style="width:100px">
-      <input id="map-note" class="input" placeholder="메모(선택)" style="min-width:200px">
-      <button id="map-add" class="btn primary">매핑 추가/수정</button>
-    </div>
-
-    <table class="table" style="margin-top:14px">
-      <thead>
-      <tr>
-        <th>관리자 ID</th>
-        <th>storeId</th>
-        <th>코드</th>
-        <th>메모</th>
-        <th class="right">관리/삭제</th>
-      </tr>
-      </thead>
-      <tbody id="map-body">
-      <tr><td colspan="4" class="small">등록된 매핑 없음</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-
-
-  
-
-<!-- SUPER JWT + 매장 매핑 스크립트 -->
-<script type="module" src="/src/admin/assets/js/store-admin.js"></script>
+  <!-- SUPER JWT + 매장 매핑 스크립트 -->
+  <script type="module" src="/src/admin/assets/js/store-admin.js"></script>
 </body>
+
 </html>
