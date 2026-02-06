@@ -16,6 +16,13 @@ export default async function handler(req, res) {
     const method = req.method;
     const headers = req.headers;
 
+    // 🛡️ [추가] Body Size 제한 (200KB)
+    // 이미지는 Supabase 직접 업로드이므로, 서버로는 텍스트 데이터만 들어옵니다.
+    const contentLen = parseInt(headers['content-length'] || '0');
+    if (contentLen > 204800) { // 200 * 1024 = 204,800 bytes
+        return json({ ok: false, message: '요청 데이터가 너무 큽니다. (최대 200KB)' }, 413);
+    }
+
     // 1. Body 파싱 (순서 교정: ReferenceError 방지)
     let parsedBody = req.body;
     if (!parsedBody && (method === 'POST' || method === 'PUT')) {
