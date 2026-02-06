@@ -227,16 +227,34 @@ export default async function handler(req, res) {
         // --- [POST] 주문 생성 (기존 저장 + Supabase 알림 추가) ---
         if (method === 'POST') {
             const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = req.body;
-            const newNumericId = parseInt(String(Date.now()).slice(-9)); 
+            //const newNumericId = parseInt(String(Date.now()).slice(-9)); 
             const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
     
-                await query(
-                    `INSERT INTO orders (store_id, order_no, type, status, table_no, amount,customer_name, customer_phone, address, items,lookup_pw, meta) 
-                     VALUES ($1, $2, '주문접수', $3, $4, $5)`, 
-                    [storeId, newOrderNo, type, (type === 'store' ? '주문접수' : '입금 미확인'),table, amount, 
-                     customer.name, customer.phone, customer.fullAddr,JSON.stringify({cart, ts: Date.now()}), lookupPw || null,
-                     JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]
-                );
+                // ✅ SQL 쿼리 수정: 12개 컬럼과 12개 매개변수($1~$12)를 정확히 매칭
+    const sql = `
+        INSERT INTO orders (
+            store_id, order_no, type, status, table_no, 
+            amount, customer_name, customer_phone, address, items, 
+            lookup_pw, meta
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `;
+
+    const values = [
+        storeId,                                     // $1
+        newOrderNo,                                  // $2
+        type,                                        // $3
+        (type === 'store' ? '주문접수' : '입금 미확인'), // $4
+        table || null,                               // $5
+        amount,                                      // $6
+        customer?.name || null,                      // $7
+        customer?.phone || null,                     // $8
+        customer?.fullAddr || null,                  // $9
+        JSON.stringify(cart || []),                  // $10 (items 컬럼)
+        lookupPw || null,                            // $11
+        JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer?.memo }) // $12 (meta 컬럼)
+    ];
+
+    await query(sql, values);
             
         
                 // 🚀 [수정 핵심] 여기서부터 알림 로직 시작 (매장/예약 공통)
