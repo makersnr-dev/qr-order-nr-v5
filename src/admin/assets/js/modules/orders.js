@@ -364,71 +364,68 @@ export function bindFilters() {
 // ===============================
 // 엑셀 내보내기
 // ===============================
+// /src/admin/assets/js/modules/orders.js 내 exportOrders 함수 수정
+
 export function exportOrders(type) {
-  const key = type === 'ordersStore' ? 'lastStoreOrders' : 'lastDelivOrders';
-  const rows = window[key] || [];
+    const key = type === 'ordersStore' ? 'lastStoreOrders' : 'lastDelivOrders';
+    const rows = window[key] || [];
 
-  if (!rows || !rows.length) {
-    showToast('다운로드할 주문 데이터가 없습니다.', 'error'); 
-    return; 
-  }
-
-  const cols = type === 'ordersStore'
-    ? ['시간', '테이블', '내역', '금액', '상태','취소사유']
-    : ['시간', '주문자', '연락처', '주소', '예약', '금액', '상태', '내역'];
-
-  const data = [cols];
-
-  rows.forEach(o => {
-    const t = fmtDateTimeFromOrder(o);
-    if (type === 'ordersStore') {
-      data.push([
-        t,
-        o.table_no || '',
-        (o.cart || []).map(i => {
-          let line = `${i.name} x${i.qty}`;
-          if (Array.isArray(i.options) && i.options.length) {
-            const opts = normalizeOptions(i.options);
-            line += ' (' + opts.join(', ') + ')';
-          }
-          return line;
-        }).join('; '),
-        o.amount || '',
-        o.status || '',
-        o.meta?.cancel?.reason || ''
-      ]);
-    } else {
-      data.push([
-        t,
-        o.customer_name || '',
-        o.customer_phone || '',
-        o.address || '', // 예약은 주소저장
-        o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date} ${o.meta.reserve.time}` : '',
-        o.total_amount || '',
-        o.status || '',
-        (o.items || []).map(i => i.name + 'x' + i.qty).join('; ')
-      ]);
+    if (!rows || !rows.length) {
+        showToast('다운로드할 주문 데이터가 없습니다.', 'error');
+        return;
     }
-  });
 
-  const csv = data
-    .map(r => r.map(
-      v => ('"' + String(v).replaceAll('"','""') + '"')
-    ).join(","))
-    .join("\n");
+    // 1. 헤더 설정
+    const cols = type === 'ordersStore'
+        ? ['시간', '테이블', '내역', '금액', '상태', '취소사유']
+        : ['시간', '주문자', '연락처', '주소', '예약일시', '요청사항', '금액', '상태', '구매내역'];
 
-  const blob = new Blob([csv], {
-    type: "application/vnd.ms-excel;charset=utf-8"
-  });
+    // 2. 데이터 행 구성
+    const data = rows.map(o => {
+        const t = fmtDateTimeFromOrder(o);
+        if (type === 'ordersStore') {
+            return [
+                t,
+                o.table_no || '',
+                o.displaySummary || '',
+                o.amount || 0,
+                o.status || '',
+                o.meta?.cancel?.reason || ''
+            ];
+        } else {
+            return [
+                t,
+                o.customer_name || '',
+                o.customer_phone || '',
+                o.address || '',
+                (o.meta?.reserve?.date || '') + ' ' + (o.meta?.reserve?.time || ''),
+                o.meta?.memo || '',
+                o.total_amount || 0,
+                o.status || '',
+                o.displaySummary || ''
+            ];
+        }
+    });
 
-  const a = document.createElement('a');
-  const today = new Date().toISOString().slice(0,10);
-  a.href = URL.createObjectURL(blob);
-  a.download = (type === 'ordersStore'
-    ? `store_${today}.xlsx`
-    : `delivery_${today}.xlsx`);
-  a.click();
-  URL.revokeObjectURL(a.href);
+    // 3. SheetJS를 이용해 진짜 엑셀 파일 생성
+    try {
+        // 워크북과 워크시트 생성
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([cols, ...data]);
+
+        // 워크북에 시트 추가
+        XLSX.utils.book_append_sheet(wb, ws, "주문내역");
+
+        // 파일 쓰기 및 다운로드 (XLSX 라이브러리의 기능을 직접 사용)
+        const today = new Date().toISOString().slice(0, 10);
+        const filename = type === 'ordersStore' ? `매장주문_${today}.xlsx` : `예약주문_${today}.xlsx`;
+        
+        XLSX.writeFile(wb, filename);
+        showToast('엑셀 다운로드가 완료되었습니다.', 'success');
+    } catch (e) {
+        console.error('Excel Export Error:', e);
+        showToast('엑셀 파일 생성 중 오류가 발생했습니다.', 'error');
+    }
 }
 
 // ===============================
