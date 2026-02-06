@@ -27,15 +27,6 @@ import { get } from './modules/store.js';
 
 let supabaseClient = null; // 전역 변수 이름을 살짝 바꿈
 
-window.addEventListener('click', () => {
-    // 사장님이 압축하신 가벼운 파일을 활용하세요!
-    const silentAudio = new Audio('/src/admin/assets/sound/dingdong.mp3');
-    silentAudio.volume = 0; 
-    silentAudio.play()
-        .then(() => console.log("✅ 알림음 재생 준비 완료!"))
-        .catch(e => console.error("❌ 승인 실패:", e));
-}, { once: true });
-
 //------------------------------------------------------------
 // STORE ID NORMALIZER (핵심 버그 해결)
 //------------------------------------------------------------
