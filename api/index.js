@@ -5,7 +5,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
-// 1. [핵심 수정] 모든 요청에 대해 Body를 안전하게 파싱
+// 1. [순서 교정] method와 headers를 먼저 정의합니다.
+    const method = req.method;
+    const headers = req.headers;
+
+    // 2. [Body 파싱] POST/PUT일 때만 실행하며, 에러 발생 시 빈 객체 부여
     if (!req.body && (method === 'POST' || method === 'PUT')) {
         try {
             const buffers = [];
@@ -15,12 +19,12 @@ export default async function handler(req, res) {
             const data = Buffer.concat(buffers).toString();
             req.body = data ? JSON.parse(data) : {};
         } catch (e) {
-            console.error("Body parsing error:", e);
-            req.body = {}; // 에러 시 빈 객체로 초기화하여 'undefined' 에러 방지
+            console.error("❌ Body Parsing Error:", e.message);
+            req.body = {}; 
         }
     }
 
-    // 2. req.body가 여전히 없을 경우를 대비한 2중 안전장치
+    // 3. [안전장치] req.body가 없으면 빈 객체로 고정하여 destructuring 에러 방지
     const safeBody = req.body || {};
     
     const url = new URL(req.url, `http://${req.headers.host}`);
