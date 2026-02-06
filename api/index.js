@@ -5,26 +5,29 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
-// 1. [순서 교정] method와 headers를 먼저 정의합니다.
+// 1. 응답 함수 정의 (가장 먼저 실행)
+    const json = (body, status = 200) => {
+        if (!res.headersSent) {
+            res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+            return res.send(JSON.stringify(body));
+        }
+    };
+
+    // 2. 기본 변수 정의
     const method = req.method;
     const headers = req.headers;
 
-    // 2. [Body 파싱] POST/PUT일 때만 실행하며, 에러 발생 시 빈 객체 부여
+    // 3. Body 파싱 (PostgreSQL 및 로직 실행 전 반드시 완료)
     if (!req.body && (method === 'POST' || method === 'PUT')) {
         try {
             const buffers = [];
-            for await (const chunk of req) {
-                buffers.push(chunk);
-            }
+            for await (const chunk of req) { buffers.push(chunk); }
             const data = Buffer.concat(buffers).toString();
             req.body = data ? JSON.parse(data) : {};
         } catch (e) {
-            console.error("❌ Body Parsing Error:", e.message);
-            req.body = {}; 
+            req.body = {};
         }
     }
-
-    // 3. [안전장치] req.body가 없으면 빈 객체로 고정하여 destructuring 에러 방지
     const safeBody = req.body || {};
     
     const url = new URL(req.url, `http://${req.headers.host}`);
