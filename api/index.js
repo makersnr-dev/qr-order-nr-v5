@@ -5,6 +5,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export default async function handler(req, res) {
+// --- [최소 수정: Body 데이터 읽기 로직 추가] ---
+    if (req.method === 'POST' || req.method === 'PUT') {
+        if (!req.body && req.headers['content-type']?.includes('application/json')) {
+            const buffers = [];
+            for await (const chunk of req) buffers.push(chunk);
+            const data = Buffer.concat(buffers).toString();
+            try { req.body = JSON.parse(data); } catch (e) { req.body = {}; }
+        }
+    }
+    
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
     const method = req.method;
