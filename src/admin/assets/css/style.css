@@ -107,8 +107,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
   
   /* td 앞에 라벨 표시 */
   .table tbody td::before {
-    content: attr(data-label); width: 80px; font-size: 12px;
-    color: var(--muted); flex-shrink: 0; padding-top: 2px;
+    content: attr(data-label);
+    width: 95px;            /* 80px -> 95px로 확장 (글자가 안 잘리게) */
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+    padding-top: 2px;
+    white-space: nowrap;    /* 🚀 글자가 절대 아래로 떨어지지 않게 고정 */
+    text-align: left;
   }
 
   /* 터치 영역 최적화 */
