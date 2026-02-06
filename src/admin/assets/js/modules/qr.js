@@ -233,10 +233,22 @@ export async function initQR() {
     if (clearBtn) {
         clearBtn.onclick = async () => {
             if (!confirm('매장 테이블용 QR을 모두 삭제할까요?')) return;
-            const res = await fetch(`/api/qrcodes?storeId=${storeId}&kind=store`, { method: 'DELETE' });
+            
+            // 🚀 Kind를 'store'로 확실히 지정해서 호출
+            const res = await fetch(`/api/qrcodes?storeId=${storeId}&kind=store`, { 
+                method: 'DELETE' 
+            });
+            
             if (res.ok) {
-                showToast('매장 QR이 모두 삭제되었습니다.', 'success');
-                refreshAllLists();
+                showToast('매장용 QR이 모두 삭제되었습니다.', 'success');
+                // ✅ 삭제 후 목록 새로고침 함수 호출 (이게 있어야 화면에서 바로 사라짐)
+                if (typeof refreshAllLists === 'function') {
+                    await refreshAllLists();
+                } else {
+                    location.reload(); // 함수가 없으면 페이지 새로고침
+                }
+            } else {
+                showToast('삭제 실패: 서버 오류가 발생했습니다.', 'error');
             }
         };
     }
