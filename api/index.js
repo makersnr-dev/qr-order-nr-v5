@@ -206,11 +206,19 @@ export default async function handler(req, res) {
                     let displaySummary = '상품 없음';
                     if (items.length > 0) {
                         const first = items[0];
-                        // 첫 메뉴 옵션 최대 2개만 추출
-                        const opts = (first.options || []).slice(0, 2).map(o => o.name).join(',');
+                        
+                        let rawOpts = first.optionText || first.options || [];
+                        if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
+            
+                        // 옵션 텍스트 추출 (예: "토핑:초콜릿")
+                        const opts = Array.isArray(rawOpts) 
+                            ? rawOpts.slice(0, 2).map(o => typeof o === 'string' ? o.split(':').pop() : (o.label || o.name)).join(',')
+                            : '';
+                        
                         const optText = opts ? ` [${opts}]` : '';
                         displaySummary = `${first.name} x ${first.qty}${optText}`;
                         if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
+                       
                     }
 
                     // 3. 기존 필드 유지 + displaySummary 추가
