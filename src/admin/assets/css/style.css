@@ -167,3 +167,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
   .td-addr { max-width: 220px; word-break: keep-all; }
   .td-req { max-width: 260px; white-space: pre-line; }
 }
+
+/* 예약주문 목록 합계금액 중앙 정렬 */
+  td[data-label="합계금액"], 
+  td[data-label="합계 / 상태"] {
+    text-align: center !important;
+    vertical-align: middle;
+  }
+
+  /* 합계금액 내부의 정렬을 보조하기 위해 flex가 걸려있다면 해제 또는 중앙화 */
+  td[data-label="합계 / 상태"] > div {
+    align-items: center;
+    justify-content: center;
+  }
+}
