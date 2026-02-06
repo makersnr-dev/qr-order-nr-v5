@@ -16,6 +16,14 @@ export default async function handler(req, res) {
         return res.send(JSON.stringify(body));
     };
 
+    async function hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     if (pathname === '/api/config') {
         return json({ 
             supabaseUrl: process.env.SUPABASE_URL, 
@@ -369,15 +377,90 @@ export default async function handler(req, res) {
 
         // --- 7. 관리자 인증 및 정보 조회 ---
         if (pathname === '/api/login-admin') {
-            const { id, pw } = req.body;
+            const { id: uid, pw: pwd } = req.body;
+            if (!uid || !pwd) return json({ ok: false, message: 'ID와 비밀번호를 입력하세요.' }, 400);
+            
+            // A. 먼저 환경 변수 계정 확인 (기존 로직 유지)
             const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
-            const found = admins.find(a => a.id === id && a.pw === pw);
-            if (!found) return json({ ok: false, message: '로그인 정보가 틀렸습니다.' }, 401);
-            const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [id]);
-            const sid = map?.store_id || 'store1';
-            const token = await signJWT({ realm: 'admin', uid: id, storeId: sid }, process.env.JWT_SECRET || 'dev-secret', 86400);
-            res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
-            return json({ ok: true, storeId: sid });
+            const envFound = admins.find(a => a.id === uid && a.pw === pwd);
+
+            if (envFound) {
+                const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [uid]);
+                const sid = map?.store_id || 'store1';
+                const token = await signJWT({ realm: 'admin', uid, storeId: sid }, process.env.JWT_SECRET || 'dev-secret', 86400);
+                res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
+                return json({ ok: true, storeId: sid, message: "환경변수 계정 로그인 성공" });
+            }
+
+            // B. 환경변수에 없으면 DB 확인 (새 로직 추가)
+            const pwHash = await hashPassword(pwd);
+            const dbAdmin = await queryOne(
+                `SELECT id, name, role, is_active FROM admins WHERE id = $1 AND pw_hash = $2`,
+                [uid, pwHash]
+            );
+
+            if (dbAdmin) {
+                if (!dbAdmin.is_active) return json({ ok: false, message: "비활성화된 계정입니다." }, 403);
+
+                // 매핑된 매장들 조회
+                const mappings = await query(`SELECT store_id FROM admin_store_mapping WHERE admin_id = $1 ORDER BY created_at DESC`, [uid]);
+                const stores = mappings.rows.map(r => ({ storeId: r.store_id, storeName: r.store_id + " 매장" }));
+                
+                const firstSid = stores.length > 0 ? stores[0].storeId : 'store1';
+                const token = await signJWT({ realm: 'admin', uid, storeId: firstSid, role: dbAdmin.role }, process.env.JWT_SECRET || 'dev-secret', 86400);
+                
+                res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
+                return json({ 
+                    ok: true, 
+                    token, // 프론트엔드 호환용
+                    storeId: firstSid, 
+                    admin: { id: dbAdmin.id, name: dbAdmin.name, stores } 
+                });
+            }
+
+            return json({ ok: false, message: '로그인 정보가 틀렸습니다.' }, 401);
+        }
+
+        // --- 8. [신규] 관리자 관리 API (슈퍼 관리자 전용) ---
+        if (pathname.startsWith('/api/admin/')) {
+            const auth = await getAuth();
+            if (auth?.realm !== 'super') return json({ ok: false, message: '권한이 없습니다.' }, 403);
+
+            // A. 관리자 등록
+            if (pathname === '/api/admin/register' && method === 'POST') {
+                const { id, password, name, storeId, role = 'admin' } = req.body;
+                const hashed = await hashPassword(password);
+                
+                await query(
+                    `INSERT INTO admins (id, pw_hash, name, role, is_active) VALUES ($1, $2, $3, $4, true) ON CONFLICT (id) DO UPDATE SET pw_hash=$2, name=$3`,
+                    [id, hashed, name, role]
+                );
+
+                if (storeId) {
+                    await query(`INSERT INTO admin_store_mapping (admin_id, store_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, storeId]);
+                }
+                return json({ ok: true, admin: { id, name } });
+            }
+
+            // B. 관리자 목록 조회
+            if (pathname === '/api/admin/list-admins' && method === 'GET') {
+                const r = await query(`SELECT id, name, created_at FROM admins ORDER BY created_at DESC`);
+                return json({ ok: true, admins: r.rows, total: r.rowCount });
+            }
+
+            // C. 매핑 추가
+            if (pathname === '/api/admin/add-mapping' && method === 'POST') {
+                const { adminId, storeId, note } = req.body;
+                await query(`INSERT INTO admin_store_mapping (admin_id, store_id, note) VALUES ($1, $2, $3) ON CONFLICT (admin_id, store_id) DO UPDATE SET note=EXCLUDED.note`, [adminId, storeId, note]);
+                return json({ ok: true });
+            }
+
+            // D. 관리자 삭제
+            if (pathname === '/api/admin/delete-admin' && method === 'POST') {
+                const { adminId } = req.body;
+                await query(`DELETE FROM admins WHERE id = $1`, [adminId]);
+                return json({ ok: true });
+            }
         }
 
         if (pathname === '/api/me' || pathname === '/api/verify') {
