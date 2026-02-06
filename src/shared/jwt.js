@@ -26,7 +26,7 @@ function base64UrlDecodeToBytes(b64url) {
 // ----------------------------------------------------
 // HS256 SIGN
 // ----------------------------------------------------
-export async function signJWT(payload, secret, expiresInSec = 3600) {
+export async function signJWT(payload, secret, expiresInSec = 86400) {
   const header = { alg: "HS256", typ: "JWT" };
   const exp = Math.floor(Date.now() / 1000) + expiresInSec;
 
