@@ -48,8 +48,11 @@
         res = await fetch('/api/login-admin', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ uid, pwd })
-        });
+          body: JSON.stringify({ 
+              uid: uid, // id 아님! uid로 변경
+              pwd: pwd  // pw 아님! pwd로 변경
+          })
+      });
         data = await res.json();
       } catch (e) {
         console.error('login error', e);
