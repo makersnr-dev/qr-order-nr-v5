@@ -404,7 +404,7 @@ export function exportOrders(type) {
         o.customer_phone || '',
         o.address || '', // 예약은 주소저장
         o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date} ${o.meta.reserve.time}` : '',
-        o.amount || '',
+        o.total_amount || '',
         o.status || '',
         (o.items || []).map(i => i.name + 'x' + i.qty).join('; ')
       ]);
@@ -599,14 +599,14 @@ export async function renderDeliv() {
       <td data-label="예약일시" class="td-reserve-dt">${reserveDateTime}</td>
       <td data-label="요청사항" class="td-req">${req}</td>
       <td data-label="주문내역">
-        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_no}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
+        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_id}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
       </td>
       <td data-label="합계 / 상태">
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="font-weight:600">${fmt(o.amount)}원</div>
+          <div style="font-weight:600">${fmt(o.total_amount)}원</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge-dot ${status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'}"></span>
-            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_no}">
+            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_id}">
               <option selected>${status}</option>
               ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
             </select>
@@ -738,7 +738,7 @@ export function attachGlobalHandlers() {
     try {
       const res = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => String(o.order_no) === String(id));
+      const order = (data.orders || []).find(o => String(o.order_id) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
 
       // 상단 정보 블록 생성
