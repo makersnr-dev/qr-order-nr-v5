@@ -150,8 +150,11 @@ export async function initQR() {
         wrap.innerHTML = `
             <img src="${q.dataUrl}" style="width:140px; height:140px; border-radius:4px; display: block; margin: 0 auto;">
             <div class="small" style="width:100%; font-weight:bold; color:#fff;">
-                ${q.label ? `${q.table}번 테이블 (${q.label})` // 🚀 라벨이 있으면: 2번 테이블 (테스트)
-                          : `${q.table}번 테이블`              // 🚀 라벨이 없으면: 빈칸 (아무것도 안 나옴)
+                ${
+                  q.kind === 'deliv' 
+                    ? (q.label || '예약 주문') // 🚀 예약용: 라벨이 있으면 라벨, 없으면 '예약 주문'만 표시
+                    : (q.label ? `${q.table}번 테이블 (${q.label})` // 🚀 라벨이 있으면: 2번 테이블 (테스트)
+                               : `${q.table}번 테이블`              // 🚀 라벨이 없으면: 빈칸 (아무것도 안 나옴)
                   }
             </div>
             <div class="small" style="word-break:break-all; color:var(--muted); font-size:10px; width:100%; max-width:160px;">
