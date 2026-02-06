@@ -1,75 +1,169 @@
 <!doctype html>
 <html lang="ko">
+
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
-  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/src/admin/assets/css/style.css" />
+  <link rel="stylesheet" href="/src/admin/assets/css/override-white.css" />
   <title>관리자 로그인</title>
 </head>
+
 <body>
-<div class="container">
-  <h1 style="text-align: center; margin-bottom: 30px;">관리자 로그인</h1>
+  <div class="container">
+    <h1>관리자 로그인</h1>
 
-  <div class="card vstack" style="max-width:420px; margin:0 auto; padding: 30px;">
-    <div class="vstack" style="gap: 15px;">
-      <input id="uid" class="input" placeholder="아이디" autofocus>
+    <div class="card vstack" style="max-width:520px;margin:0 auto">
+      <input id="uid" class="input" placeholder="아이디">
       <input id="pwd" class="input" type="password" placeholder="비밀번호">
-      <button id="login" class="btn primary" style="height: 45px; font-weight: bold;">로그인</button>
+      <button id="login" class="btn primary">로그인</button>
     </div>
-    <div id="login-msg" class="small" style="color: #ef4444; margin-top: 15px; text-align: center; min-height: 18px;"></div>
+
+    <div class="small" style="text-align:center;margin-top:10px">
+      고객 로그인은 <a href="/order/login">/order/login</a>
+    </div>
   </div>
 
-  <div class="small" style="text-align:center; margin-top:20px; opacity: 0.7;">
-    고객 전용 화면은 <a href="/order/login" style="color: var(--primary);">여기</a>를 클릭하세요
-  </div>
-</div>
+  <script type="module">
+    import { get } from '/src/admin/assets/js/modules/store.js';
+    import { saveToken } from '/src/admin/assets/js/modules/auth.js';
 
-<script type="module">
-  const loginBtn = document.getElementById('login');
-  const msgEl = document.getElementById('login-msg');
+    const loginBtn = document.getElementById('login');
 
-  // 로그인 로직
-  const doLogin = async () => {
-    const uid = document.getElementById('uid').value.trim();
-    const pwd = document.getElementById('pwd').value.trim();
+    loginBtn.onclick = async () => {
+      const uid = document.getElementById('uid').value.trim();
+      const pwd = document.getElementById('pwd').value.trim();
 
-    if (!uid || !pwd) {
-      msgEl.textContent = '아이디와 비밀번호를 모두 입력하세요.';
-      return;
-    }
-
-    msgEl.style.color = '#9ca3af';
-    msgEl.textContent = '로그인 확인 중...';
-
-    try {
-      const res = await fetch('/api/login-admin', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: uid, pw: pwd })
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.ok) {
-        // 🚀 DB에서 연동된 storeId를 받아서 이동
-        const sid = data.storeId || 'store1';
-        localStorage.setItem('qrnr.storeId', sid); // 브라우저에도 기록
-        location.href = `/admin?store=${encodeURIComponent(sid)}`;
-      } else {
-        msgEl.style.color = '#ef4444';
-        msgEl.textContent = data.message || '아이디 또는 비밀번호가 틀렸습니다.';
+      if (!uid || !pwd) {
+        alert('아이디와 비밀번호를 입력하세요.');
+        return;
       }
-    } catch (e) {
-      msgEl.style.color = '#ef4444';
-      msgEl.textContent = '서버와 연결할 수 없습니다.';
-    }
-  };
 
-  // 버튼 클릭 및 엔터키 대응
-  loginBtn.onclick = doLogin;
-  window.onkeypress = (e) => { if(e.key === 'Enter') doLogin(); };
-</script>
+      // ─────────────────────────────
+      // 1) API 로그인 요청
+      // ─────────────────────────────
+      let data = {};
+      let res;
+      try {
+        res = await fetch('/api/login-admin', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ uid, pwd })
+        });
+        data = await res.json();
+      } catch (e) {
+        console.error('login error', e);
+        alert('서버에 연결할 수 없습니다.');
+        return;
+      }
+
+      if (!res.ok || !data.token) {
+        alert('로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.');
+        return;
+      }
+
+      // ─────────────────────────────
+      // 2) JWT 토큰 저장
+      // ─────────────────────────────
+      saveToken(data.token);
+
+      // ─────────────────────────────
+      // 3) 매장 매핑 확인 (localStorage + DB)
+      // ─────────────────────────────
+
+      // 3-1) API 응답에 stores 목록이 있으면 우선 사용 (DB 계정 다중 매장)
+      if (data.admin && data.admin.stores && data.admin.stores.length > 0) {
+        const stores = data.admin.stores;
+
+        // 매장이 1개면 바로 이동
+        if (stores.length === 1) {
+          location.href = `/admin?store=${encodeURIComponent(stores[0].storeId)}`;
+          return;
+        }
+
+        // 매장이 여러 개면 선택 모달 표시
+        showStoreModal(stores);
+        return;
+      }
+
+      // 3-2) 기존 단일 storeId fallback (하위 호환)
+      let storeId = null;
+      if (data.admin && data.admin.storeId) {
+        storeId = data.admin.storeId;
+      } else {
+        // localStorage (환경 변수 계정용)
+        const localMap = get(['admin', 'storeAdmins']) || {};
+        storeId = localMap[uid];
+      }
+
+      // 3-3) 둘 다 없으면 추가 조회 (레거시)
+      if (!storeId) {
+        try {
+          const mappingRes = await fetch('/api/admin/get-mapping', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'authorization': `Bearer ${data.token}`
+            },
+            body: JSON.stringify({ adminId: uid })
+          });
+
+          if (mappingRes.ok) {
+            const mappingData = await mappingRes.json();
+            if (mappingData.ok && mappingData.storeId) {
+              storeId = mappingData.storeId;
+            }
+          }
+        } catch (e) {
+          console.error('매핑 조회 오류:', e);
+        }
+      }
+
+      // ─────────────────────────────
+      // 4) 매핑 확인 후 이동
+      // ─────────────────────────────
+      if (!storeId) {
+        alert(
+          '⚠️ 이 계정은 매장에 매핑되어 있지 않습니다.\n' +
+          '관리자에게 문의하여 매장을 할당받으세요.'
+        );
+        location.href = '/admin?store=null';
+        return;
+      }
+
+      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
+    };
+
+    // 매장 선택 모달 표시 함수
+    function showStoreModal(stores) {
+      const modalHtml = `
+      <div id="storeModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;">
+        <div class="card vstack" style="width:340px;max-width:90%;border:1px solid var(--border);box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+          <h3 style="margin-top:0;text-align:center;border-bottom:1px solid var(--border);padding-bottom:12px">매장 선택</h3>
+          <p class="small" style="text-align:center;margin-bottom:8px">접속할 매장을 선택해 주세요.</p>
+          <div class="vstack" style="gap:10px;max-height:300px;overflow-y:auto;padding:4px">
+            ${stores.map(s => `
+              <button onclick="selectStore('${s.storeId}')" class="btn" style="width:100%;text-align:left;display:flex;flex-direction:column;gap:4px;padding:12px">
+                <span style="font-weight:600;font-size:15px">${s.storeName}</span>
+                <span class="small" style="opacity:0.7">${s.storeId}</span>
+              </button>
+            `).join('')}
+          </div>
+          <button onclick="document.getElementById('storeModal').remove()" class="btn secondary" style="width:100%;margin-top:10px;border-color:transparent;color:var(--muted)">
+            취소
+          </button>
+        </div>
+      </div>
+    `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // 전역 함수로 등록 (HTML 문자열 내에서 호출하기 위해)
+    window.selectStore = (storeId) => {
+      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
+    };
+  </script>
 
 </body>
+
 </html>
