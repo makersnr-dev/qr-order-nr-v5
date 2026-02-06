@@ -70,7 +70,7 @@ export default async function handler(req, res) {
             const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
             const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
             if (found) {
-                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret');
+                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret', 86400); // 🚀 만료시간 추가
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
                 return json({ ok: true, token });
             }
@@ -316,6 +316,7 @@ export default async function handler(req, res) {
                 await query(`DELETE FROM admins WHERE id = $1`, [safeBody.adminId]);
                 return json({ ok: true });
             }
+        
         }
 
         if (pathname === '/api/me' || pathname === '/api/verify') {
