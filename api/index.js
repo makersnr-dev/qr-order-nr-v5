@@ -196,22 +196,40 @@ export default async function handler(req, res) {
                     : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
                 const orders = r.rows.map(row => {
                     const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                    
+                    // 1. 상품 데이터 소스 통일 (매장은 meta.cart, 예약은 items 컬럼)
+                    const items = (type === 'store') 
+                        ? (meta.cart || []) 
+                        : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+
+                    // 2. 관리자용 요약 문구 생성 (옵션 포함 + 외 n건)
+                    let displaySummary = '상품 없음';
+                    if (items.length > 0) {
+                        const first = items[0];
+                        // 첫 메뉴 옵션 최대 2개만 추출
+                        const opts = (first.options || []).slice(0, 2).map(o => o.name).join(',');
+                        const optText = opts ? ` [${opts}]` : '';
+                        
+                        displaySummary = `${first.name} x ${first.count}${optText}`;
+                        if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
+                    }
+
+                    // 3. 기존 필드 유지 + displaySummary 추가
                     if (type === 'store') {
-                        return { ...row, orderId: row.order_no, cart: meta.cart || [], ts: new Date(row.created_at).getTime() };
+                        return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
                     } else {
-                        let parsedItems = [];
-                        try { parsedItems = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []); } catch (e) { parsedItems = []; }
                         return { 
                             ...row, 
                             orderId: row.order_no, 
                             amount: row.total_amount, 
-                            items: parsedItems, 
-                            cart: parsedItems, 
+                            items, 
+                            cart: items, 
+                            displaySummary, // 요약 필드 추가
                             customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
                             reserve: meta.reserve || {}, 
                             requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
                             ts: new Date(row.created_at).getTime(), 
-                            meta: meta 
+                            meta 
                         };
                     }
                 });
