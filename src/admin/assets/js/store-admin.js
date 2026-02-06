@@ -754,11 +754,33 @@ async function init() {
       msg.textContent = '아이디와 비밀번호를 입력하세요.';
       return;
     }
-    const data = await superLogin(uid, pw);
-    if (data.ok && data.token) {
-      setSuperToken(data.token);
-      location.reload();
-    }
+    msg.textContent = '로그인 중...';
+
+      try {
+          const res = await fetch('/api/super-login', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ uid, pwd: pw }), // 변수명 pw 확인
+          });
+          const data = await res.json();
+
+          if (data.ok) {
+              // 1. 서버가 준 토큰을 로컬 스토리지에도 명시적으로 저장 (Headers에 사용하기 위함)
+              if (data.token) setSuperToken(data.token);
+              
+              // 2. 새로고침 없이 메인 컨텐츠 표시 로직 호출
+              msg.textContent = '로그인 성공!';
+              
+              // 🚀 핵심: 새로고침 대신 내부 상태를 갱신하거나 페이지를 리로드
+              location.reload(); 
+              // 만약 새로고침이 싫다면 아래처럼 UI만 바꿉니다.
+              // await checkAuthAndRender(); 
+          } else {
+              msg.textContent = '❌ 로그인 실패: 정보를 확인하세요.';
+          }
+      } catch (e) {
+          msg.textContent = '❌ 서버 응답 없음';
+      }
   };
 
   logoutBtn.onclick = async () => {
