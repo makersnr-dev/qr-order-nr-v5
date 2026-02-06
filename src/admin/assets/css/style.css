@@ -1,506 +1,134 @@
-:root{--bg:#0f141a;--panel:#111922;--text:#e6edf3;--muted:#9fb0c0;--primary:#2ea043;--border:#263241}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Helvetica,Arial}
-.container{max-width:1200px;margin:40px auto;padding:0 20px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px}
-.hstack{display:flex;gap:10px;align-items:center}
-.vstack{display:flex;flex-direction:column;gap:12px}
-.tabbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
-.tab{padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:#0b1620;cursor:pointer}
-.tab.active{outline:2px solid #2ea04355}
-.table{width:100%;border-collapse:collapse}
-.table th,.table td{border-bottom:1px solid var(--border);padding:10px;text-align:left}
-.input{background:#0b1620;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 12px;outline:none;width:100%}
-.btn{background:#0b1620;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;cursor:pointer}
-.btn.primary{background:var(--primary);border-color:transparent;color:white}
-.small{font-size:12px;color:var(--muted)}
-.badge{border:1px solid var(--border);padding:2px 8px;border-radius:999px;color:var(--muted);font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.qrbox{border:1px solid var(--border);border-radius:10px;padding:10px}
-.right{margin-left:auto}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0008;justify-content:center;align-items:center;z-index:9999}
-.modal > .content{background:#111922;padding:20px;border-radius:12px;width:90%;max-width:540px;max-height:80%;overflow:auto}
-.badge-dot{display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:6px}
-.badge-wait{background:#ffda6a}
-.badge-cook{background:#74c0fc}
-.badge-done{background:#63e6be}
-
-/* 날짜 입력 달력 아이콘을 어두운 배경에서 잘 보이게 반전 */
-input[type="date"].input {
-  padding-right: 28px;  /*아이콘 들어갈 자리 확보 (선택사항) */
+/* [1] 기본 변수 및 초기화 */
+:root {
+  --bg: #0f141a;
+  --panel: #111922;
+  --text: #e6edf3;
+  --muted: #9fb0c0;
+  --primary: #2ea043;
+  --border: #263241;
 }
 
-input[type="date"].input::-webkit-calendar-picker-indicator {
-  opacity: 1;
-  filter: invert(1);      /* 아이콘 색 반전 */
-  cursor: pointer;
-}
-
-/*.field-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}*/
-
-/*.field-label{
-  width:70px;
-  font-size:13px;           /h3보다 살짝 작게 
-  color:var(--text);        /흰색 계열 (배달/예약 정보 글씨보다 조금 가볍게) 
-  flex-shrink:0;
-}*/
-
-/* 일자 + 예약시간 줄 전체 */
-.date-time-row{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-  width:100%;
-}
-
-/* 날짜 인풋 살짝 더 넓게 */
-.date-input{
-  max-width:220px;
-}
-
-/* "예약시간" 텍스트 */
-.time-label{
-  font-size:13px;        /* field-label 과 맞춤 */
-  color:var(--text);     /* 흰색 계열 */
-  margin:0 6px 0 10px;   /* 날짜 입력 뒤 살짝 띄우기 */
-  flex-shrink:0;
-}
-
-/* 시간 선택 셀렉트는 조금 낮고 컴팩트하게 */
-.input-sm{
-  width:90px;
-  padding:8px 10px;
-}
-
-/* 오전/오후 셀렉트는 글자가 잘리지 않도록 조금 더 넓게 */
-.time-ap{
-  width: 110px;      /* 오전/오후 여유 있게 보이도록 */
-}
-
-
-/* 필드 라벨/여백 살짝 줄이기 */
-.field-row{
-  display:flex;
-  align-items:center;
-  gap:6px;        /* 10 -> 6 */
-}
-
-.field-label{
-  width:60px;     /* 70 -> 52 정도가 딱 적당 */
-  font-size:13px;
-  color:var(--text);
-  flex-shrink:0;
-  word-break: keep-all;
-}
-
-.addr-wrap{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  width:100%;
-}
-
-.addr-wrap #addr{
-  flex:2; /* 기본 주소가 더 넓게 */
-}
-
-.addr-wrap #addr-detail{
-  flex:1.5; /* 상세주소도 충분히 */
-}
-
-
-.clickable-label{
-  cursor:pointer;
-}
-
-.clickable-label:hover{
-  color:var(--primary);
-}
-
-
-/* =========================
-   예약 주문 컬럼 정리 (PC + 모바일 공통)
-========================= */
-
-/* 🔹 컬럼 제목은 줄바꿈 금지 */
-.table th {
-  white-space: nowrap;
-}
-
-/* 🔹 주문자 이름 */
-td[data-label="주문자"] {
-  max-width: 90px;
-  word-break: keep-all;
-}
-
-/* 🔹 연락처: 자동 줄바꿈 허용 */
-td[data-label="연락처"] {
-  white-space: normal;        /* 줄바꿈 허용 */
-  word-break: break-word;     /* 숫자 강제 줄바꿈 */
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
-}
-
-
-/* 🔹 주소는 여러 줄 허용 (이미 좋음, 유지) */
-td[data-label="주소"] {
-  word-break: keep-all;
-  white-space: normal;
-}
-
-/* 🔹 요청사항 여러 줄 허용 */
-td[data-label="요청사항"] {
-  white-space: pre-line;
-  word-break: break-word;
-  line-height: 1.45;
-}
-
-
-/* 주소 */
-.td-addr{
-  word-break: keep-all;   /* 한글 주소 자연스럽게 */
-  white-space: normal;
-  max-width: 220px;
-}
-
-/* 요청사항 */
-.td-req{
-  white-space: pre-line;     /* \n 줄바꿈 허용 */
-  word-break: break-word;    /* 긴 숫자/영문 강제 줄바꿈 */
-  max-width: 260px;
-  line-height: 1.45;
-}
-
-/* 구매내역 */
-.td-items{
-  white-space: normal;
-  max-width: 220px;
-}
-
-/* 합계금액 */
-td[data-label="합계금액"] {
-  text-align: center;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-@media (max-width: 768px) {
-  td[data-label="합계금액"] {
-    justify-content: space-between;
-    font-size: 15px;
-  }
-}
-
-
-/*@media (max-width: 768px) {
-  .table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-}*/
-/* =========================
-   관리자 주문 화면 반응형 분리
-========================= */
-
-/* 모바일 */
-@media (max-width: 768px) {
-  .desktop-only {
-    display: none !important;
-  }
-}
-
-/* PC */
-@media (min-width: 769px) {
-  .mobile-only {
-    display: none !important;
-  }
-}
-
-
-.order-card {
-  background: #111922;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
-}
-
-.order-card-header {
-  display:flex;
-  justify-content:space-between;
-  font-weight:600;
-}
-
-.order-actions {
-  display:grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap:8px;
-  margin-top:10px;
-}
-
-.order-actions button {
-  padding:12px;
-  border-radius:10px;
-  font-size:14px;
-}
-
-/* ===============================
-   📱 메뉴관리 모바일 카드화
-=============================== */
-@media (max-width: 768px) {
-
-  /* 메뉴관리 테이블만 카드처럼 */
-  #m-body tr {
-    display: block;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
-  }
-
-  #m-body td {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: none;
-    padding: 6px 0;
-  }
-
-  #m-body td::before {
-    content: attr(data-label);
-    width: 72px;
-    font-size: 12px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-
-  #m-body input,
-  #m-body select {
-    width: 100%;
-    font-size: 14px;
-  }
-
-  #m-body .right {
-    justify-content: flex-end;
-    gap: 6px;
-  }
-}
-
-/* ===============================
-   📱 주문 테이블 모바일 카드화
-   (매장주문 + 예약주문 공통)
-================================ */
-@media (max-width: 768px) {
-
-  /* ✅ 테이블 헤더 완전히 숨기기 */
-  .table thead {
-    display: none;
-  }
-
-  /* 테이블 자체 스크롤 제거 */
-  .table {
-    display: block;
-    overflow: visible;
-    white-space: normal;
-  }
-
-  /* 한 주문 = 카드 */
-  .table tbody tr {
-    display: block;
-    background: #111922;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 14px;
-  }
-
-  /* 각 칸을 세로로 */
-  .table tbody td {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    border: none;
-    padding: 6px 0;
-    white-space: normal;
-  }
-
-  /* td 앞에 라벨 붙이기 */
-  .table tbody td::before {
-    content: attr(data-label);
-    width: 80px;
-    font-size: 12px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
-}
-
-/* =========================
-   매장주문 상태 영역 정리
-========================= */
-
-.order-status-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.order-status-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.order-select-line select {
-  width: 100%;
-}
-
-.order-action-line button {
-  width: 100%;
-}
-
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #111922;
-  border: 1px solid var(--border);
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
   color: var(--text);
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  z-index: 99999;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-.toast.show {
-  opacity: 1;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+/* [2] 공용 레이아웃 요소 */
+.container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-bottom: 20px; }
+.hstack { display: flex; gap: 10px; align-items: center; }
+.vstack { display: flex; flex-direction: column; gap: 12px; }
+
+/* 탭바 */
+.tabbar { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+.tab { padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: #0b1620; cursor: pointer; color: var(--text); }
+.tab.active { outline: 2px solid #2ea04355; border-color: var(--primary); }
+
+/* 테이블 공통 */
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { border-bottom: 1px solid var(--border); padding: 10px; text-align: left; }
+.table th { white-space: nowrap; color: var(--muted); font-size: 13px; }
+
+/* 입력창 및 버튼 */
+.input { background: #0b1620; border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 12px; outline: none; width: 100%; }
+.btn { background: #0b1620; border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 10px 14px; cursor: pointer; transition: 0.2s; }
+.btn.primary { background: var(--primary); border-color: transparent; color: white; }
+.btn:active { transform: scale(0.98); opacity: 0.8; }
+
+/* 유틸리티 */
+.small { font-size: 12px; color: var(--muted); }
+.badge { border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px; color: var(--muted); font-size: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.right { margin-left: auto; }
+
+/* 상태 표시 점 */
+.badge-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 6px; }
+.badge-wait { background: #ffda6a; }
+.badge-cook { background: #74c0fc; }
+.badge-done { background: #63e6be; }
+.badge-paid { margin-left: 6px; padding: 2px 6px; border-radius: 6px; font-size: 11px; background: #2ea043; color: #fff; }
+.badge-cancel { background: #ff5c5c; color: #fff; }
+
+/* [3] 필드 및 입력 폼 상세 */
+.field-row { display: flex; align-items: center; gap: 8px; }
+.field-label { width: 60px; font-size: 13px; flex-shrink: 0; color: var(--muted); }
+.date-time-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; }
+.input-sm { width: 90px; padding: 8px 10px; }
+
+/* 날짜 입력 아이콘 반전 */
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+
+/* [4] 토스트 알림 */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: #111922; border: 1px solid var(--border); color: var(--text);
+  padding: 12px 20px; border-radius: 12px; font-size: 14px;
+  z-index: 99999; opacity: 0; transition: 0.3s ease;
+}
+.toast.show { opacity: 1; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+.toast-success { border-left: 5px solid var(--primary); }
+.toast-error { border-left: 5px solid #ef4444; }
+.toast-info { border-left: 5px solid #74c0fc; }
+
+/* [5] 모달창 공통 (취소 사유 포함) */
+.modal {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 9999;
+}
+.modal > .content {
+  background: var(--panel); padding: 24px; border-radius: 18px;
+  width: 92%; max-width: 420px; border: 1px solid var(--border);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.modal textarea { width: 100%; height: 100px; background: #0b1620; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 12px; resize: none; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* [6] 📱 모바일 통합 최적화 (768px 이하) */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  
+  /* 테이블을 카드 형태로 전환 */
+  .table thead { display: none; }
+  .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+  
+  .table tbody tr {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; margin-bottom: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  
+  .table tbody td {
+    display: flex; align-items: flex-start; gap: 10px;
+    border: none; padding: 6px 0; font-size: 14px;
+  }
+  
+  /* td 앞에 라벨 표시 */
+  .table tbody td::before {
+    content: attr(data-label); width: 80px; font-size: 12px;
+    color: var(--muted); flex-shrink: 0; padding-top: 2px;
+  }
+
+  /* 터치 영역 최적화 */
+  .btn, .input { min-height: 46px; }
+  .tab { padding: 12px 16px; }
+  
+  /* 주문내역 텍스트 강조 */
+  .order-detail-link {
+    font-size: 15px; font-weight: 600; color: #58a6ff !important;
+    text-decoration: underline; line-height: 1.4; display: block; width: 100%;
+  }
+
+  /* 상태 박스 가로 가득 채우기 */
+  .order-status-box, .order-action-line button { width: 100%; }
+  .order-action-line { margin-top: 8px; }
 }
 
-/* 상황별 토스트 색상 포인트 */
-.toast-success { 
-  border-left: 5px solid #2ea043 !important; /* 초록색 포인트 */
+/* [7] 🖥 PC 전용 */
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+  .td-addr { max-width: 220px; word-break: keep-all; }
+  .td-req { max-width: 260px; white-space: pre-line; }
 }
-
-.toast-error { 
-  border-left: 5px solid #ef4444 !important; /* 빨간색 포인트 */
-}
-
-.toast-info { 
-  border-left: 5px solid #74c0fc !important; /* 파란색 포인트 */
-}
-
-
-.badge-paid {
-  margin-left: 6px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  background: #2ecc71;
-  color: #000;
-}
-
-.badge-cancel {
-  background: #ff5c5c;
-  color: #fff;
-}
-
-.badge-cancel-text {
-  margin-left: 6px;
-  font-size: 12px;
-  color: #ff6b6b;
-  font-weight: 600;
-}
-
-
-
-/* =========================
-   취소 사유 모달 - 최종 UI
-========================= */
-
-/* 모달 전체 배경 */
-#cancel-reason-modal {
-  background: rgba(0,0,0,0.6) !important;
-}
-
-/* 모달 박스 */
-#cancel-reason-modal .content {
-  background: #111922;
-  border: 1px solid #263241;
-  border-radius: 18px;              /* 🔥 둥근 모서리 */
-  padding: 24px;
-  width: 92%;
-  max-width: 420px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
-}
-
-/* 제목 */
-#cancel-reason-modal h3 {
-  margin: 0 0 14px;
-  font-size: 17px;
-  font-weight: 700;
-  color: #e6edf3;
-}
-
-/* textarea */
-#cancel-reason-modal textarea {
-  width: 100%;
-  height: 96px;
-  background: #0b1620;
-  color: #e6edf3;
-  border: 1px solid #263241;
-  border-radius: 12px;
-  padding: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: none;
-}
-
-#cancel-reason-modal textarea:focus {
-  outline: none;
-  border-color: #2ea043;
-}
-
-/* placeholder */
-#cancel-reason-modal textarea::placeholder {
-  color: #9fb0c0;
-}
-
-/* 버튼 영역 */
-#cancel-reason-modal .modal-actions {
-  display: flex;
-  justify-content: flex-end;   /* 🔥 오른쪽 정렬 */
-  gap: 8px;
-  margin-top: 16px;
-}
-
-/* 기본 버튼 */
-#cancel-reason-modal .modal-actions button {
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: #0b1620;
-  border: 1px solid #263241;
-  color: #e6edf3;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-/* 확인(위험) 버튼 */
-#cancel-reason-modal .modal-actions button.danger {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: #fff;
-  font-weight: 600;
-}
-
-
