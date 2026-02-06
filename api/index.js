@@ -32,14 +32,9 @@ export default async function handler(req, res) {
     
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
-    const method = req.method;
+    //const method = req.method;
     const params = url.searchParams;
     const storeId = params.get('storeId') || req.body?.storeId;
-
-    const json = (body, status = 200) => {
-        res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
-        return res.send(JSON.stringify(body));
-    };
 
     async function hashPassword(password) {
         const encoder = new TextEncoder();
@@ -49,42 +44,22 @@ export default async function handler(req, res) {
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    if (pathname === '/api/config') {
-        return json({ 
-            supabaseUrl: process.env.SUPABASE_URL, 
-            supabaseKey: process.env.SUPABASE_ANON_KEY 
-        });
-    }
-
     const getAuth = async () => {
         const cookieHeader = req.headers.cookie || '';
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
-    
-        // 현재 요청이 슈퍼 관리자 API인지 확인
-        const isSuperPath = pathname.startsWith('/api/super-') || pathname === '/api/admin-mappings';
-        
-        // 경로에 맞는 토큰을 먼저 선택하고, 없으면 다른 토큰을 시도
-        let token;
-        if (isSuperPath) {
-            token = cookies['super_token'];
-        } else {
-            token = cookies['admin_token'] || cookies['super_token']; // 일반 API는 슈퍼관리자도 접근 가능하게
-        }
-    
+        const isSuperPath = pathname.startsWith('/api/super-') || pathname.startsWith('/api/admin/');
+        let token = isSuperPath ? cookies['super_token'] : (cookies['admin_token'] || cookies['super_token']);
         if (!token) return null;
-    
         try {
             return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
-        } catch (e) {
-            console.error('JWT 검증 실패:', e.message);
-            return null; 
-        }
+        } catch (e) { return null; }
     };
 
     try {
+        if (pathname === '/api/config') return json({ supabaseUrl: process.env.SUPABASE_URL, supabaseKey: process.env.SUPABASE_ANON_KEY });
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
         if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9 * 60 * 60 * 1000) });
-        if (pathname === '/api/config') return json({ tossClientKey: process.env.TOSS_CLIENT_KEY || "" });
+        
         
         // --- 1. 슈퍼 관리자 전용 로직 (원문 그대로 복구) ---
         if (pathname === '/api/super-login') {
@@ -404,47 +379,34 @@ export default async function handler(req, res) {
 
         // --- 7. 관리자 인증 및 정보 조회 ---
         if (pathname === '/api/login-admin') {
-            const { id: uid, pw: pwd } = req.body;
+            const uid = safeBody.uid || safeBody.id;
+            const pwd = safeBody.pwd || safeBody.pw;
+
             if (!uid || !pwd) return json({ ok: false, message: 'ID와 비밀번호를 입력하세요.' }, 400);
-            
-            // A. 먼저 환경 변수 계정 확인 (기존 로직 유지)
+
+            // A. 환경변수 확인
             const admins = JSON.parse(process.env.ADMIN_USERS_JSON || '[]');
             const envFound = admins.find(a => a.id === uid && a.pw === pwd);
-
             if (envFound) {
                 const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [uid]);
                 const sid = map?.store_id || 'store1';
                 const token = await signJWT({ realm: 'admin', uid, storeId: sid }, process.env.JWT_SECRET || 'dev-secret', 86400);
                 res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
-                return json({ ok: true, storeId: sid, message: "환경변수 계정 로그인 성공" });
+                return json({ ok: true, token, storeId: sid });
             }
 
-            // B. 환경변수에 없으면 DB 확인 (새 로직 추가)
+            // B. DB 확인
             const pwHash = await hashPassword(pwd);
-            const dbAdmin = await queryOne(
-                `SELECT id, name, role, is_active FROM admins WHERE id = $1 AND pw_hash = $2`,
-                [uid, pwHash]
-            );
-
+            const dbAdmin = await queryOne(`SELECT id, name, role, is_active FROM admins WHERE id = $1 AND pw_hash = $2`, [uid, pwHash]);
             if (dbAdmin) {
                 if (!dbAdmin.is_active) return json({ ok: false, message: "비활성화된 계정입니다." }, 403);
-
-                // 매핑된 매장들 조회
                 const mappings = await query(`SELECT store_id FROM admin_store_mapping WHERE admin_id = $1 ORDER BY created_at DESC`, [uid]);
                 const stores = mappings.rows.map(r => ({ storeId: r.store_id, storeName: r.store_id + " 매장" }));
-                
                 const firstSid = stores.length > 0 ? stores[0].storeId : 'store1';
                 const token = await signJWT({ realm: 'admin', uid, storeId: firstSid, role: dbAdmin.role }, process.env.JWT_SECRET || 'dev-secret', 86400);
-                
                 res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
-                return json({ 
-                    ok: true, 
-                    token, // 프론트엔드 호환용
-                    storeId: firstSid, 
-                    admin: { id: dbAdmin.id, name: dbAdmin.name, stores } 
-                });
+                return json({ ok: true, token, storeId: firstSid, admin: { id: dbAdmin.id, name: dbAdmin.name, stores } });
             }
-
             return json({ ok: false, message: '로그인 정보가 틀렸습니다.' }, 401);
         }
 
