@@ -210,7 +210,7 @@ export default async function handler(req, res) {
                         const opts = (first.options || []).slice(0, 2).map(o => o.name).join(',');
                         const optText = opts ? ` [${opts}]` : '';
                         
-                        displaySummary = `${first.name} x ${first.count}${optText}`;
+                        displaySummary = `${first.name} x ${first.qty}${optText}`;
                         if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
                     }
 
