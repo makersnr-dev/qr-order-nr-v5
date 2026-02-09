@@ -292,7 +292,7 @@ export default async function handler(req, res) {
                 return json({ ok: true });
             }
             // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
-            if (pathname === '/api/orders/lookup') {
+            if (pathname.includes('/api/orders/lookup')) {
                 if (method !== 'POST') return json({ ok: false, message: '지원하지 않는 방식입니다.' }, 405);
             
                 // 사용자가 입력한 이름, 번호 뒤자리(또는 전체), 비번, 매장ID 추출
@@ -304,6 +304,7 @@ export default async function handler(req, res) {
                 }
             
                 try {
+                    const cleanPhone = phone.replace(/\D/g, ''); // 숫자만 남김
                     // 이름과 비밀번호가 정확히 일치하고, 전화번호가 해당 숫자로 끝나는 주문 찾기
                     // (orderss 테이블은 예약주문용 테이블입니다)
                     const r = await query(`
@@ -311,10 +312,10 @@ export default async function handler(req, res) {
                         FROM orderss 
                         WHERE store_id = $1 
                           AND customer_name = $2 
-                          AND customer_phone LIKE $3 
                           AND lookup_pw = $4
+                          AND (customer_phone LIKE $3 OR REPLACE(customer_phone, '-', '') LIKE $3)
                         ORDER BY created_at DESC
-                    `, [storeId, name, `%${phone}`, pw]);
+                    `, [storeId, name, `%${cleanPhone}`, pw]);
             
                     const orders = r.rows.map(row => ({
                         id: row.order_no,
