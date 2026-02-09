@@ -291,6 +291,46 @@ export default async function handler(req, res) {
                 try { await supabase.channel(`qrnr_sync_${storeId}`).send({ type: 'broadcast', event: 'STATUS_CHANGED', payload: { orderId, status, type } }); } catch (err) {}
                 return json({ ok: true });
             }
+            // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
+            if (pathname === '/api/orders/lookup') {
+                if (method !== 'POST') return json({ ok: false, message: '지원하지 않는 방식입니다.' }, 405);
+            
+                // 사용자가 입력한 이름, 번호 뒤자리(또는 전체), 비번, 매장ID 추출
+                const { name, phone, pw, storeId } = safeBody;
+                
+                // 필수값 검증
+                if (!name || !phone || !pw || !storeId) {
+                    return json({ ok: false, message: '조회 정보를 모두 입력해주세요.' }, 400);
+                }
+            
+                try {
+                    // 이름과 비밀번호가 정확히 일치하고, 전화번호가 해당 숫자로 끝나는 주문 찾기
+                    // (orderss 테이블은 예약주문용 테이블입니다)
+                    const r = await query(`
+                        SELECT order_no, status, total_amount as amount, items, created_at
+                        FROM orderss 
+                        WHERE store_id = $1 
+                          AND customer_name = $2 
+                          AND customer_phone LIKE $3 
+                          AND lookup_pw = $4
+                        ORDER BY created_at DESC
+                    `, [storeId, name, `%${phone}`, pw]);
+            
+                    const orders = r.rows.map(row => ({
+                        id: row.order_no,
+                        status: row.status,
+                        amount: row.amount,
+                        // DB에 저장된 JSON 문자열을 객체로 변환
+                        items: typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []),
+                        ts: new Date(row.created_at).getTime()
+                    }));
+            
+                    return json({ ok: true, orders });
+                } catch (err) {
+                    console.error("조회 에러:", err);
+                    return json({ ok: false, message: '서버 오류가 발생했습니다.' }, 500);
+                }
+            }
         }
 
         // --- 6. 호출/결제코드/QR (누락 없음) ---
