@@ -1,7 +1,7 @@
 {
   "version": 2,
   "rewrites": [
-    {"source": "/api/(.*)/(.*)","destination": "/api/index.js"},
+    {"source": "/api/orders/lookup","destination": "/api/index.js"},
     {"source": "/api/(.*)","destination": "/api/index.js"},
 
     { "source": "/admin", "destination": "/src/admin/index.html" },
