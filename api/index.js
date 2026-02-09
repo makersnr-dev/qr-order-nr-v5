@@ -292,7 +292,7 @@ export default async function handler(req, res) {
                 return json({ ok: true });
             }
             // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
-            if (pathname.includes('/api/orders/lookup')) {
+            if (pathname === '/api/orders/lookup') {
                 if (method !== 'POST') return json({ ok: false, message: '지원하지 않는 방식입니다.' }, 405);
             
                 // 사용자가 입력한 이름, 번호 뒤자리(또는 전체), 비번, 매장ID 추출
