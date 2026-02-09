@@ -437,16 +437,28 @@ document.getElementById('btn-show-history').onclick = () => {
         listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">주문 내역이 없습니다.</div>';
     } else {
         // 최근 주문이 위로 오도록 역순 배치
-        listEl.innerHTML = history.slice().reverse().map(o => `
-            <div style="background:#161b22; padding:12px; border-radius:10px; border:1px solid #263241;">
-                <div class="hstack" style="justify-content:space-between; margin-bottom:6px;">
-                    <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleTimeString()}</span>
-                    <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status}</b>
-                </div>
-                <div style="font-size:14px; font-weight:bold; margin-bottom:4px;">${o.items}</div>
-                <div class="small" style="color:#2ea043;">${o.amount.toLocaleString()}원</div>
+        listEl.innerHTML = history.slice().reverse().map(o => {
+    // 💡 옵션 텍스트 정리 (예: "샷추가, 시럽추가")
+    const itemDetails = (o.cartItems || []).map(i => {
+        let text = `• ${i.name} x${i.qty}`;
+        if (i.optionText && i.optionText.length > 0) {
+            const opts = i.optionText.map(t => t.split(':')[1]).join(', ');
+            text += ` <span style="font-size:11px; color:#9ca3af;">(${opts})</span>`;
+        }
+        return `<div>${text}</div>`;
+    }).join('');
+
+    return `
+        <div style="background:#161b22; padding:12px; border-radius:10px; border:1px solid #263241; margin-bottom:10px;">
+            <div class="hstack" style="justify-content:space-between; margin-bottom:8px;">
+                <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleTimeString()}</span>
+                <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status}</b>
             </div>
-        `).join('');
+            <div style="font-size:13px; line-height:1.5;">${itemDetails}</div>
+            <div class="small" style="color:#2ea043; text-align:right; margin-top:6px; font-weight:bold;">합계: ${o.amount.toLocaleString()}원</div>
+        </div>
+    `;
+}).join('');
     }
     
     document.getElementById('history-modal').style.display = 'flex';
