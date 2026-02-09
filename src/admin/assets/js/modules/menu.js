@@ -71,6 +71,145 @@ async function saveMenuToServer(menuData) {
         return false;
     }
 }
+// ==============================
+// 엑셀 → 메뉴 JSON 변환 유틸
+// ==============================
+
+// 1) 엑셀 한 행(row)을 메뉴 객체로 변환
+function convertRowToMenu(row) {
+    const optText = String(row['옵션'] || row['options'] || '').trim();
+    return {
+        id: String(row['ID'] || row['id'] || '').trim(),
+        name: String(row['메뉴명'] || row['name'] || '').trim(),
+        price: Number(row['가격'] || row['price'] || 0),
+        category: String(row['카테고리명'] || row['category'] || '').trim(),
+        active: row['판매상태'] !== '중지' && row['active'] !== false,
+        soldOut: row['품절여부'] === '품절' || row['soldOut'] === true,
+        desc: String(row['설명'] || row['desc'] || '').trim(),
+        img: String(row['이미지URL'] || row['img'] || '').trim(),
+        options: parseOptions(optText) // 3번에서 만든 parseOptions 연결
+    };
+}
+
+// 2) options 컬럼 문자열을 옵션 스키마로 변환
+// 예시: "사이즈:톨=0,그란데=500; 샷:1샷=500,2샷=1000"
+function parseOptions(str) {
+    if (!str || !String(str).trim()) return [];
+    return String(str).split(';').map(s => s.trim()).filter(Boolean).map((grp) => {
+        const [meta, itemsPart] = grp.split(':');
+        if (!itemsPart) return null;
+        const [name, type, required] = meta.split('|').map(s => s.trim());
+        const items = itemsPart.split(',').map(s => s.trim()).filter(Boolean).map((it) => {
+            const [label, price] = it.split('=');
+            return { label: (label || '').trim(), price: Number(price || 0) };
+        });
+        // DB 저장 시 필요한 구조로 반환
+        return { 
+            id: crypto.randomUUID(), 
+            name, 
+            type: (type === 'multi' ? 'multi' : 'single'), 
+            required: (required === '1' || required === 'true'), 
+            items 
+        };
+    }).filter(Boolean);
+}
+
+
+function validateOptionGroups(groups) {
+  if (!Array.isArray(groups)) return true;
+
+  return groups.every(g => {
+    if (!g.name || !String(g.name).trim()) return false;
+    if (!Array.isArray(g.items) || g.items.length === 0) return false;
+
+    return g.items.every(it =>
+      it.label && String(it.label).trim()
+    );
+  });
+}
+
+
+
+
+// 3) 기존 메뉴 + 새 메뉴(엑셀)를 ID 기준으로 병합
+function mergeMenu(oldMenu, newMenu) {
+  const map = {};
+
+  oldMenu.forEach((m) => {
+    if (m && m.id) map[m.id] = m;
+  });
+
+  newMenu.forEach((m) => {
+    if (!m || !m.id) return;
+
+    if (map[m.id]) {
+      map[m.id] = {
+        ...map[m.id],
+        ...m,
+        options: (m.options && m.options.length)
+          ? m.options
+          : map[m.id].options
+      };
+    } else {
+      map[m.id] = m;
+    }
+  });
+
+  return Object.values(map);
+}
+
+export async function exportMenuToExcel() {
+    const menus = await loadMenuFromServer();
+    if (!menus.length) return showToast('다운로드할 메뉴가 없습니다.', 'error');
+
+    const data = menus.map(m => {
+        const optStr = (m.options || []).map(g => {
+            const items = (g.items || []).map(i => `${i.label}=${i.price}`).join(',');
+            return `${g.name}|${g.type}|${g.required ? '1' : '0'}:${items}`;
+        }).join('; ');
+
+        return {
+            'ID': m.id, '메뉴명': m.name, '가격': m.price, '카테고리명': m.category || '',
+            '판매상태': m.active !== false ? '판매중' : '중지', '품절여부': m.soldOut ? '품절' : '정상',
+            '옵션': optStr, '이미지URL': m.img || '', '설명': m.desc || ''
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "메뉴관리");
+    XLSX.writeFile(workbook, `메뉴관리_${currentStoreId()}.xlsx`);
+    showToast('엑셀 다운로드 완료!', 'success');
+}
+async function handleMenuExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+            const newMenus = rows.map(convertRowToMenu).filter(m => m.id && m.name);
+            if (!newMenus.length) return showToast('유효한 데이터가 없습니다.', 'error');
+
+            if (confirm(`${newMenus.length}개의 메뉴를 서버에 반영할까요?`)) {
+                if (await saveMenuToServer(newMenus)) {
+                    showToast('엑셀 반영 성공!', 'success');
+                    renderMenu();
+                }
+            }
+        } catch (err) {
+            showToast('엑셀 처리 오류', 'error');
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
 
 
 // ------------------------------------------------------------
@@ -460,8 +599,19 @@ export function bindMenu() {
             }
         };
     }
+    
     // 엑셀 바인딩은 기존 코드 유지
-    const excelBtn = document.getElementById('menu-excel-upload');
-    if(excelBtn) excelBtn.onclick = () => showToast('엑셀 기능은 별도 구현되어 있습니다.', 'info');
+    // 엑셀 업로드 연결
+    const excelInput = document.getElementById('menu-excel');
+    const uploadBtn = document.getElementById('menu-excel-upload');
+    if (uploadBtn && excelInput) {
+        uploadBtn.onclick = () => excelInput.click();
+        excelInput.onchange = handleMenuExcelUpload;
+    }
+    // [추가] 엑셀 다운로드 버튼 연결
+    const downloadBtn = document.getElementById('menu-excel-download');
+    if (downloadBtn) {
+        downloadBtn.onclick = exportMenuToExcel;
+    }
 }
 
