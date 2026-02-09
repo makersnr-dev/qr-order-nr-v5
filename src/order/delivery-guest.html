@@ -899,18 +899,57 @@ document.getElementById('btn-do-lookup').onclick = async () => {
 
         if (data.ok && data.orders.length > 0) {
             const listEl = document.getElementById('lookup-result-list');
-            listEl.innerHTML = data.orders.map(o => `
-                <div style="background:#161b22; padding:12px; border-radius:10px; border:1px solid #263241;">
-                    <div class="hstack" style="justify-content:space-between; margin-bottom:6px;">
-                        <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
-                        <b style="color:${(o.status === '주문취소') ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status}</b>
-                    </div>
-                    <div style="font-size:14px; font-weight:bold; margin-bottom:4px;">
-                        ${o.items.map(i => i.name).join(', ')}
-                    </div>
-                    <div class="small" style="color:#2ea043;">합계: ${Number(o.amount).toLocaleString()}원</div>
-                </div>
-            `).join('');
+            listEl.innerHTML = data.orders.map(o => {
+    // 1. 메뉴 및 옵션 정리
+    const itemsHtml = o.items.map(i => {
+        let optStr = "";
+        if (i.optionText && i.optionText.length > 0) {
+            const opts = i.optionText.map(t => t.split(':')[1]).join(', ');
+            optStr = `<div style="font-size:11px; color:#9ca3af; margin-left:10px;">└ 옵션: ${opts}</div>`;
+        }
+        return `<div style="margin-bottom:4px;">• ${i.name} x${i.qty} ${optStr}</div>`;
+    }).join('');
+
+    // 2. 메타 정보 (예약일시, 메모 등) - 서버에서 보낸 meta 객체 활용
+    const meta = o.meta || {};
+    const resDate = meta.reserve?.date || '-';
+    const resTime = meta.reserve?.time || '-';
+    const memo = meta.memo || '없음';
+
+    return `
+        <div style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #2ea043; line-height:1.6; font-size:13px;">
+            <div class="hstack" style="justify-content:space-between; border-bottom:1px solid #263241; padding-bottom:8px; margin-bottom:10px;">
+                <b style="color:#2ea043; font-size:14px;">예약번호: ${o.id.split('-').pop()}</b>
+                <b style="background:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; padding:2px 8px; border-radius:4px; font-size:11px;">${o.status}</b>
+            </div>
+            
+            <div style="margin-bottom:8px;">
+                <div style="color:#9ca3af; font-size:11px;">📍 배송지 / 주문자</div>
+                <div>${o.address || '-'}</div>
+                <div>${o.customer_name} (${o.customer_phone})</div>
+            </div>
+
+            <div style="margin-bottom:8px;">
+                <div style="color:#9ca3af; font-size:11px;">⏰ 예약 일시</div>
+                <div style="color:#f97316; font-weight:bold;">${resDate} ${resTime}</div>
+            </div>
+
+            <div style="margin-bottom:8px;">
+                <div style="color:#9ca3af; font-size:11px;">💬 요청사항</div>
+                <div style="font-style:italic;">"${memo}"</div>
+            </div>
+
+            <div style="margin-bottom:8px; background:#0d1117; padding:8px; border-radius:8px;">
+                <div style="color:#9ca3af; font-size:11px; margin-bottom:4px;">📦 주문 메뉴</div>
+                ${itemsHtml}
+            </div>
+
+            <div style="text-align:right; font-weight:bold; font-size:15px; color:#2ea043; margin-top:10px;">
+                최종 결제 금액: ${Number(o.amount).toLocaleString()}원
+            </div>
+        </div>
+    `;
+}).join('');
 
             document.getElementById('lookup-modal').style.display = 'none';
             document.getElementById('result-modal').style.display = 'flex';
