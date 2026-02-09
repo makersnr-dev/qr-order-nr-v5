@@ -605,22 +605,24 @@ export function bindMenu() {
             const idInput = document.getElementById('m-id');
             const nameInput = document.getElementById('m-name');
             const priceInput = document.getElementById('m-price');
+            const catInput = document.getElementById('m-category');
 
             const id = idInput.value.trim();
             const name = nameInput.value.trim();
             const price = Number(priceInput.value);
+            const category = catInput.value.trim();
             
             if (!id || !name) return showToast('ID와 이름을 입력하세요.', 'info');
             window.currentMenuTab = id.charAt(0).toUpperCase();
             
             const success = await saveMenuToServer({ 
-                id, name, price, active: true, soldOut: false, options: [] 
+                id, name, price, active: false, soldOut: false, options: [] 
             });
 
             if (success) {
                 showToast('새 메뉴가 등록되었습니다.', 'success');
                 renderMenu();
-                [idInput, nameInput, priceInput].forEach(el => el.value = '');
+                [idInput, nameInput, priceInput,catInput].forEach(el => el.value = '');
             }
         };
     }
