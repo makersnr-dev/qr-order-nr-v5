@@ -375,22 +375,48 @@ export function exportOrders(type) {
         return;
     }
 
-    // 1. 헤더 설정
+    // 1. 헤더 설정 (히스토리 컬럼 추가)
     const cols = type === 'ordersStore'
-        ? ['시간', '테이블', '내역', '금액', '상태', '취소사유']
-        : ['시간', '주문자', '연락처', '주소', '예약일시', '요청사항', '금액', '상태', '구매내역'];
+        ? ['시간', '테이블', '전체 주문 내역', '금액', '상태', '취소사유', '변경 이력']
+        : ['시간', '주문자', '연락처', '주소', '예약일시', '요청사항', '금액', '상태', '전체 주문 내역', '변경 이력'];
 
-    // 2. 데이터 행 구성
+    // 2. 데이터 구성 로직
     const data = rows.map(o => {
         const t = fmtDateTimeFromOrder(o);
+        
+        // [A] 전체 메뉴 내역 상세화 (상세 모달 로직 이식)
+        const menuData = (type === 'ordersStore') ? (o.cart || []) : (o.cart || o.items || []);
+        const fullMenuDetail = menuData.map(i => {
+            let line = `• ${i.name} x${i.qty}`;
+            // 옵션 처리 (예약/매장 통합 대응)
+            const rawOpts = i.optionText || i.options || [];
+            const opts = Array.isArray(rawOpts) ? rawOpts : (typeof rawOpts === 'string' ? JSON.parse(rawOpts) : []);
+            
+            if (opts.length > 0) {
+                const optLines = opts.map(opt => {
+                    const text = typeof opt === 'string' ? opt : (opt.label || opt.name || '');
+                    return `  └ ${text}`;
+                }).join('\n');
+                line += `\n${optLines}`;
+            }
+            return line;
+        }).join('\n\n');
+
+        // [B] 히스토리 정리 (시간 역순 또는 정순)
+        const historyLines = (o.meta?.history || [])
+            .sort((a, b) => new Date(a.at) - new Date(b.at))
+            .map(h => `[${new Date(h.at).toLocaleString()}] ${h.value || h.payment || ''}${h.by ? ` (by ${h.by})` : ''}${h.note ? ` - ${h.note}` : ''}`)
+            .join('\n');
+
         if (type === 'ordersStore') {
             return [
                 t,
                 o.table_no || '',
-                o.displaySummary || '',
+                fullMenuDetail,
                 o.amount || 0,
                 o.status || '',
-                o.meta?.cancel?.reason || ''
+                o.meta?.cancel?.reason || '',
+                historyLines
             ];
         } else {
             return [
@@ -402,29 +428,40 @@ export function exportOrders(type) {
                 o.meta?.memo || '',
                 o.total_amount || 0,
                 o.status || '',
-                o.displaySummary || ''
+                fullMenuDetail,
+                historyLines
             ];
         }
     });
 
-    // 3. SheetJS를 이용해 진짜 엑셀 파일 생성
+    // 3. XLSX 생성 및 다운로드
     try {
-        // 워크북과 워크시트 생성
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet([cols, ...data]);
 
-        // 워크북에 시트 추가
-        XLSX.utils.book_append_sheet(wb, ws, "주문내역");
+        // 셀 내 줄바꿈(Wrap Text) 적용을 위한 설정
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cell_address = { c: C, r: R };
+                const cell_ref = XLSX.utils.encode_cell(cell_address);
+                if (!ws[cell_ref]) continue;
+                ws[cell_ref].s = { alignment: { wrapText: true, vertical: 'top' } };
+            }
+        }
 
-        // 파일 쓰기 및 다운로드 (XLSX 라이브러리의 기능을 직접 사용)
+        // 열 너비 자동 조절 (내용이 길어지므로)
+        ws['!cols'] = type === 'ordersStore' 
+            ? [{wch: 20}, {wch: 10}, {wch: 40}, {wch: 12}, {wch: 12}, {wch: 20}, {wch: 50}]
+            : [{wch: 20}, {wch: 15}, {wch: 15}, {wch: 30}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 12}, {wch: 40}, {wch: 50}];
+
+        XLSX.utils.book_append_sheet(wb, ws, "주문상세내역");
         const today = new Date().toISOString().slice(0, 10);
-        const filename = type === 'ordersStore' ? `매장주문_${today}.xlsx` : `예약주문_${today}.xlsx`;
-        
-        XLSX.writeFile(wb, filename);
-        showToast('엑셀 다운로드가 완료되었습니다.', 'success');
+        XLSX.writeFile(wb, `${type === 'ordersStore' ? '매장' : '예약'}상세_${today}.xlsx`);
+        showToast('상세 내역 엑셀 다운로드 완료', 'success');
     } catch (e) {
         console.error('Excel Export Error:', e);
-        showToast('엑셀 파일 생성 중 오류가 발생했습니다.', 'error');
+        showToast('엑셀 생성 중 오류 발생', 'error');
     }
 }
 
