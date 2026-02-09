@@ -515,9 +515,34 @@ const initMenuEvents = () => {
         } 
         else if (act === 'del') {
             if (confirm(`[${m.name}] 삭제할까요?`)) {
-                const res = await fetch(`/api/menus?storeId=${currentStoreId()}&menuId=${m.id}`, { method: 'DELETE' });
+                const sid = currentStoreId();
+                const res = await fetch(`/api/menus?storeId=${sid}&menuId=${m.id}`, { method: 'DELETE' });
                 if (res.ok) {
                     showToast('삭제되었습니다.', 'success');
+                    
+                    // 🚀 [추가] 삭제 성공 후 실시간 신호 발송
+                    if (window.supabaseClient) {
+                        const channelName = `qrnr_realtime_${sid}`;
+                        let channel = window.supabaseClient.getChannels().find(c => c.name === channelName);
+                        if (!channel) channel = window.supabaseClient.channel(channelName);
+        
+                        const sendSignal = async () => {
+                            await channel.send({
+                                type: 'broadcast',
+                                event: 'RELOAD_SIGNAL',
+                                payload: { type: 'menu_update', at: Date.now() }
+                            });
+                        };
+        
+                        if (channel.state === 'joined') {
+                            await sendSignal();
+                        } else {
+                            channel.subscribe(async (status) => {
+                                if (status === 'SUBSCRIBED') await sendSignal();
+                            });
+                        }
+                    }
+                    
                     renderMenu();
                 }
             }
