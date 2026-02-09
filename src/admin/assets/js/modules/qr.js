@@ -84,6 +84,50 @@ export async function initQR() {
     const delivClearBtn = $('#qr-deliv-clear');
     const delivGrid = $('#qr-deliv-grid');
 
+    const downloadAllBtn = $('#qr-download-all');
+    const delivDownloadAllBtn = $('#qr-deliv-download-all');
+
+    // 🚀 전체 다운로드 함수 (ZIP 압축)
+    async function downloadAllAsZip(kind) {
+        const all = await loadQrListFromServer(storeId);
+        const list = all.filter(q => q.kind === kind);
+        
+        if (list.length === 0) {
+            showToast("다운로드할 QR 코드가 없습니다.", "error");
+            return;
+        }
+
+        const zip = new JSZip();
+        const folderName = kind === 'store' ? '매장_테이블_QR' : '예약_주문_QR';
+        const folder = zip.folder(folderName);
+
+        list.forEach(q => {
+            // base64 데이터에서 실제 파일 데이터만 추출
+            const imgData = q.dataUrl.split(',')[1];
+            const fileName = kind === 'store' 
+                ? `table-${q.table}${q.label ? '_' + q.label : ''}.png`
+                : `reserve${q.label ? '_' + q.label : ''}.png`;
+            
+            folder.file(fileName, imgData, {base64: true});
+        });
+
+        const content = await zip.generateAsync({type: "blob"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = `${folderName}_${storeId}.zip`;
+        link.click();
+        
+        showToast(`${list.length}개의 QR 코드가 압축 파일로 다운로드됩니다.`, "success");
+    }
+
+    // 버튼 이벤트 바인딩
+    if (downloadAllBtn) {
+        downloadAllBtn.onclick = () => downloadAllAsZip('store');
+    }
+    if (delivDownloadAllBtn) {
+        delivDownloadAllBtn.onclick = () => downloadAllAsZip('deliv');
+    }
+
     // [보완] 이미 이벤트가 걸려있다면 다시 걸지 않도록 방어
     if (grid && grid.dataset.eventBound === 'true') {
         refreshAllLists(); // 리스트만 갱신하고 종료
