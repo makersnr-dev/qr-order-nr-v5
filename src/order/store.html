@@ -327,7 +327,7 @@ export function showToast(msg, variant = 'info') {
         document.getElementById('order-success-modal').style.display = 'flex';
         
         // 하단 주문 바 즉시 갱신
-        checkRecentOrder();
+        //checkRecentOrder();
     }
     
   };
@@ -409,7 +409,7 @@ async function initRealtimeSync() {
 initRealtimeSync();
 
   // 🚀 최근 주문 확인 및 실시간 동기화 함수
-function checkRecentOrder() {
+/*function checkRecentOrder() {
     const storeId = window.qrnrStoreId;
     const cached = localStorage.getItem(`last_order_${storeId}`);
     
@@ -423,9 +423,9 @@ function checkRecentOrder() {
         return;
     }
 
-    renderRecentOrderBar(order);
+    //renderRecentOrderBar(order);
     subscribeOrderStatus(order.id, storeId); // 실시간 상태 감시 시작
-}
+}*/
 
   // 주문 내역 모달 열기 이벤트
 document.getElementById('btn-show-history').onclick = () => {
@@ -458,7 +458,7 @@ document.getElementById('history-close').onclick = () => {
 };
 
 // 하단 플로팅 바 UI 생성
-function renderRecentOrderBar(order) {
+/*function renderRecentOrderBar(order) {
     let bar = document.getElementById('recent-order-bar');
     if (!bar) {
         bar = document.createElement('div');
@@ -479,10 +479,10 @@ function renderRecentOrderBar(order) {
             </div>
         </div>
     `;
-}
+}*/
 
 // 실시간 상태 변경 감시 (관리자가 취소하거나 완료하면 즉시 반영)
-async function subscribeOrderStatus(orderNo, storeId) {
+/*async function subscribeOrderStatus(orderNo, storeId) {
     const { supabase } = await getSupabase(); // 기존 getSupabase 함수 활용
 
     // Supabase Broadcast 활용 (admin.js에서 STATUS_CHANGED 이벤트 발송 시 수신)
@@ -518,10 +518,10 @@ async function subscribeOrderStatus(orderNo, storeId) {
             localStorage.setItem(`last_order_${storeId}`, JSON.stringify(cached));
         }
     }).subscribe();
-}
+}*/
 
 // 초기 실행 등록
-checkRecentOrder();
+//checkRecentOrder();
 </script>
 </body>
 </html>
