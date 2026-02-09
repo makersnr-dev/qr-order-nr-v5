@@ -498,6 +498,28 @@ async function renderStoreTable() {
     showToast('매장 주문을 불러오는 중 오류가 발생했습니다.', 'error');
   }
 
+  // 🚀 bindFilters에서 저장한 값 응용
+  const f = filters.store;
+  rows = rows.filter(o => {
+    // 1. 상태 필터 (전체 선택이 아닐 때)
+    if (f.status && o.status !== f.status) return false;
+
+    // 2. 검색어 필터 (테이블 번호나 메뉴 요약에 포함되는지)
+    if (f.search) {
+      const s = f.search.toLowerCase();
+      const match = String(o.table_no).includes(s) || (o.displaySummary && o.displaySummary.toLowerCase().includes(s));
+      if (!match) return false;
+    }
+
+    // 3. 날짜 필터 (생성 시각 기준)
+    if (f.from || f.to) {
+      const orderDate = new Date(o.ts).toISOString().split('T')[0];
+      if (f.from && orderDate < f.from) return false;
+      if (f.to && orderDate > f.to) return false;
+    }
+    return true;
+  });
+
   window.lastStoreOrders = rows;
   rows = rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   tbody.innerHTML = '';
@@ -582,6 +604,25 @@ export async function renderDeliv() {
     rows = [];
     showToast('예약 주문을 불러오는 중 오류가 발생했습니다.', 'error');
   }
+
+  // 🚀 bindFilters에서 저장한 값 응용
+  const f = filters.deliv;
+  rows = rows.filter(o => {
+    if (f.status && o.status !== f.status) return false;
+    if (f.search) {
+      const s = f.search.toLowerCase();
+      const match = o.customer_name?.toLowerCase().includes(s) || 
+                    o.address?.toLowerCase().includes(s) || 
+                    o.displaySummary?.toLowerCase().includes(s);
+      if (!match) return false;
+    }
+    if (f.from || f.to) {
+      const orderDate = new Date(o.ts).toISOString().split('T')[0];
+      if (f.from && orderDate < f.from) return false;
+      if (f.to && orderDate > f.to) return false;
+    }
+    return true;
+  });
 
   window.lastDelivOrders = rows;
   rows = rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
