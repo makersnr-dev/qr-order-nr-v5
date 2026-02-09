@@ -144,6 +144,7 @@
       <input id="qr-table" class="input" placeholder="테이블 번호 (예: 1, 2, A1)" style="max-width:140px">
       <input id="qr-label" class="input" placeholder="라벨 (선택)" style="max-width:260px">
       <button id="qr-generate" class="btn primary">QR 생성 & 저장</button>
+      <button id="qr-download-all" class="btn">전체 다운로드 (ZIP)</button>
       <button id="qr-clear" class="btn">전체 삭제</button>
     </div>
 
@@ -161,6 +162,7 @@
     <div class="hstack" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <input id="qr-deliv-label" class="input" placeholder="라벨 (예: 예약 주문)" style="max-width:260px">
       <button id="qr-deliv-generate" class="btn primary">QR 생성 & 저장</button>
+      <button id="qr-deliv-download-all" class="btn">전체 다운로드 (ZIP)</button>
       <button id="qr-deliv-clear" class="btn">전체 삭제</button>
     </div>
 
@@ -360,6 +362,7 @@
   
 <!-- QR Code 라이브러리 -->
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <!-- Excel(xlsx) 라이브러리 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
