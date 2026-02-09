@@ -42,6 +42,10 @@ export default async function handler(req, res) {
     const params = url.searchParams;
     const storeId = params.get('storeId') || safeBody.storeId;
 
+    if (pathname === '/api/orders/lookup' || pathname.endsWith('/lookup')) {
+        return await handleLookup(req, res, safeBody, url.searchParams);
+    }
+
     async function hashPassword(password) {
         const encoder = new TextEncoder();
         const data = encoder.encode(password);
@@ -480,5 +484,46 @@ export default async function handler(req, res) {
     } catch (e) {
         console.error(e);
         return json({ ok: false, error: e.message }, 500);
+    }
+}
+    // 🚀 [추가] 조회 전용 함수를 바깥으로 빼서 정의 (코드 중간 섞임 방지)
+// 🚀 [추가] 조회 전용 함수를 handler 바깥으로 완전히 뺍니다.
+async function handleLookup(req, res, safeBody, params) {
+    // 내부에서 json 응답을 보내기 위해 헬퍼 함수를 다시 정의하거나 res를 직접 씁니다.
+    const sendJson = (body, status = 200) => {
+        res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.send(JSON.stringify(body));
+    };
+
+    const { name, phone, pw } = safeBody;
+    const storeId = params.get('storeId') || safeBody.storeId;
+    
+    if (!name || !phone || !pw || !storeId) {
+        return sendJson({ ok: false, message: '조회 정보를 모두 입력하세요.' }, 400);
+    }
+
+    try {
+        const r = await query(`
+            SELECT order_no, status, total_amount as amount, items, created_at
+            FROM orderss 
+            WHERE store_id = $1 
+              AND customer_name = $2 
+              AND customer_phone LIKE $3
+              AND lookup_pw = $4
+            ORDER BY created_at DESC
+        `, [storeId, name, `%${phone}`, pw]);
+
+        const orders = r.rows.map(row => ({
+            id: row.order_no,
+            status: row.status,
+            amount: row.amount,
+            items: typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []),
+            ts: new Date(row.created_at).getTime()
+        }));
+
+        return sendJson({ ok: true, orders });
+    } catch (err) {
+        console.error("조회 에러:", err);
+        return sendJson({ ok: false, message: '서버 오류가 발생했습니다.' }, 500);
     }
 }
