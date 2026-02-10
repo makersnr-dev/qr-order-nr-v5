@@ -318,7 +318,7 @@ export function showToast(msg, variant = 'info') {
             ts: Date.now(),          // 주문 시각
             status: '주문접수',      // 초기 상태
             table: table,
-            cartItems: cart.items,
+            cart: cart.items,
             amount: amount
         };
         let orderHistory = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
@@ -441,10 +441,12 @@ document.getElementById('btn-show-history').onclick = () => {
     } else {
         listEl.innerHTML = history.slice().reverse().map(o => {
             // 🚀 옵션 텍스트 예쁘게 정리 ("샷추가, 시럽추가" 형태)
-            const itemDetails = (o.cartItems || []).map(i => {
+            const menuData = o.cart || o.cartItems || [];
+            const itemDetails = menuData.map(i => {
                 let text = `• <b>${i.name}</b> x${i.qty}`;
-                if (i.optionText && i.optionText.length > 0) {
-                    const opts = i.optionText.map(t => t.split(':')[1]).join(', ');
+                const rawOpts = i.optionText || i.options || [];
+                if (rawOpts.length > 0) {
+                    const opts = rawOpts.map(t => typeof t === 'string' ? t.split(':')[1] : (t.label || t.value)).join(', ');
                     text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${opts}</div>`;
                 }
                 return `<div style="margin-bottom:6px;">${text}</div>`;
@@ -456,10 +458,10 @@ document.getElementById('btn-show-history').onclick = () => {
                         <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
                         <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status}</b>
                     </div>
-                    <div style="font-size:13px; line-height:1.4;">${itemDetails}</div>
+                    <div style="font-size:13px; line-height:1.4;">${itemDetails || '메뉴 정보 없음'}</div>
                     <div style="text-align:right; margin-top:10px; border-top:1px solid #263241; padding-top:8px;">
                         <span class="small" style="color:#9ca3af;">합계 </span>
-                        <b style="color:#2ea043; font-size:15px;">${o.amount.toLocaleString()}원</b>
+                        <b style="color:#2ea043; font-size:15px;">${Number(o.amount).toLocaleString()}원</b>
                     </div>
                 </div>
             `;
