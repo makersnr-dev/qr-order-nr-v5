@@ -10,22 +10,22 @@ const DEFAULT_POLICY_TEXT = `
 3. 보유 기간: 목적 달성 후 지체 없이 파기 (단, 법령에 따른 보관은 예외)
 `.trim();
 
-function currentStoreId() {
+/*function currentStoreId() {
     if (!window.qrnrStoreId) {
         showToast('매장 정보가 없습니다.', 'error');
         throw new Error('STORE_ID_NOT_INITIALIZED');
     }
     return window.qrnrStoreId;
-}
-
-/**
- * 1. DB에서 개인정보 처리방침 불러오기
+}*/
+/*
+* 1. DB에서 개인정보 처리방침 불러오기
+ * @param {string} storeId - [추가] 파라미터로 명시적으로 받음
  */
-export async function renderPolicy() {
+export async function renderPolicy(storeId) {
     const textarea = document.getElementById('privacy-text');
     if (!textarea) return;
 
-    const sid = currentStoreId();
+    const sid = storeId;
 
     try {
         // 우리가 아까 만든 store-settings API를 같이 사용합니다.
@@ -43,7 +43,7 @@ export async function renderPolicy() {
 /**
  * 2. 저장 버튼 이벤트 연결
  */
-export function bindPolicy() {
+export function bindPolicy(storeId) {
     const saveBtn = document.getElementById('privacy-save');
     const resetBtn = document.getElementById('privacy-reset');
     const textarea = document.getElementById('privacy-text');
@@ -52,12 +52,15 @@ export function bindPolicy() {
 
     // [저장] 버튼 클릭
     saveBtn.onclick = async () => {
-        const sid = currentStoreId();
+        const sid = storeId;
         const text = textarea.value.trim();
 
         if (!text) {
             return showToast("내용을 입력해주세요.", "info");
         }
+        // [중복 클릭 방지] 로딩 상태 시작
+        saveBtn.disabled = true;
+        saveBtn.classList.add('btn-loading');
 
         try {
             const res = await fetch(`/api/store-settings?storeId=${sid}`, {
@@ -86,6 +89,10 @@ export function bindPolicy() {
             }
         } catch (e) {
             showToast("네트워크 오류", "error");
+        }finally {
+            // [중복 클릭 방지] 로딩 상태 해제
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('btn-loading');
         }
     };
 
