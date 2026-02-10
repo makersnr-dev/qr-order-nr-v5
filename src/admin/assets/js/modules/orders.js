@@ -1,16 +1,4 @@
 // /src/admin/assets/js/modules/orders.js
-/**
- * =====================================================
- * [DB 기반 주문 관리]
- * - 모든 주문 데이터는 /api/orders (DB) 기준
- * - localStorage는 완전히 제거
- * =====================================================
- * 주문 상태 변경 함수
- * @param {string} id - 주문 ID
- * @param {string} status - 변경할 상태 값
- * @param {string} type - 'store' 또는 'reserve'
- * @param {string} storeId - [수정] 전역 변수가 아닌 파라미터로 직접 전달받음
- */ // <--- 여기 별표 하나와 슬래시 하나(*/)로 정확히 닫아야 합니다!
 
 import { showToast } from '../admin.js';
 import { fmt } from './store.js';
