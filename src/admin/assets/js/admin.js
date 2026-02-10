@@ -6,6 +6,7 @@
 import { renderPolicy, bindPolicy } from './modules/policy.js';
 import { requireAuth, clearToken } from './modules/auth.js';
 import { initTabs } from './modules/ui.js';
+import { supabaseMgr } from '/src/shared/supabase-manager.js';
 
 import {
   renderStore,
@@ -25,7 +26,7 @@ import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
 
-let supabaseClient = null; // 전역 변수 이름을 살짝 바꿈
+//let supabaseClient = null; // 전역 변수 이름을 살짝 바꿈
 
 //------------------------------------------------------------
 // STORE ID NORMALIZER (핵심 버그 해결)
@@ -202,18 +203,17 @@ let lastAlarmTime = 0;
 let lastProcessedEventId = null;
 async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
-    if (!storeId || typeof storeId !== 'string') {
-        console.error("❌ 실시간 채널 연결 실패: 유효하지 않은 StoreId", storeId);
-        return;
-    }
+    if (!storeId) return;
 
-    // 2. 기존 채널 정리
-    await window.supabaseClient.removeAllChannels();
+    // [수정] 매니저로부터 채널 가져오기 (자동 클라이언트 생성 및 구독 포함)
+    const realtimeChannel = await supabaseMgr.getChannel(storeId);
+    if (!realtimeChannel) return;
 
-    const channelName = `qrnr_realtime_${storeId}`;
-    console.log(`📡 [관리자] 실시간 구독 시작: ${channelName}`); // 이 로그가 찍히는지 확인하세요.
+    console.log(`📡 [관리자] 실시간 구독 시작 (매니저): ${storeId}`);
 
-    const realtimeChannel = window.supabaseClient.channel(channelName);
+    // [수정] 기존 리스너가 중복 등록되지 않도록 정리 (중요!)
+    realtimeChannel.off('broadcast', { event: 'NEW_ORDER' });
+    realtimeChannel.off('broadcast', { event: 'NEW_CALL' });
 
     realtimeChannel
       // --- [1] 새 주문 수신 (딩동 소리) ---
@@ -284,35 +284,13 @@ async function initRealtimeAlarm(storeId) {
           lastAlarmTime = now;
       }
   
-      // 2. 토스트 알림 (undefined 방지)
-      showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
-      showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
-  
-      // 3. 호출 로그 목록 새로고침
-      if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(currentSid);
-  })
-    .subscribe((status, err) => {
-    if (status === 'SUBSCRIBED') {
-        console.log("✅ 실시간 연결 성공");
-        showToast("연결됨: 실시간 주문 수신 중", "success");
-        updateStatusUI('CONNECTED'); // 🟢 초록불 켜기
-    }
+     showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
+        showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
+        if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(currentSid);
+      });
 
-    if (status === 'CLOSED') {
-        console.warn("⚠️ 연결이 닫혔습니다.");
-        updateStatusUI('DISCONNECTED'); // 🔴 빨간불 켜기
-        setTimeout(() => initRealtimeAlarm(storeId), 5000);
-    }
-
-    if (status === 'CHANNEL_ERROR') {
-        console.error("❌ 연결 에러 발생:", err);
-        showToast("실시간 연결 문제 발생", "error");
-        updateStatusUI('DISCONNECTED'); // 🔴 빨간불 켜기
-        
-        // 에러 시에도 재연결 시도를 하는 것이 안전합니다.
-        setTimeout(() => initRealtimeAlarm(storeId), 5000);
-    }
-});
+    // 상단 상태바 초록불 켜기
+    updateStatusUI('CONNECTED');
 }
 
 function updateStatusUI(status) {
