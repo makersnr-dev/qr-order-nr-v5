@@ -54,12 +54,12 @@ async function safeRenderAll(type = 'all', storeId) {
   __isRendering = true;
   try {
     if (type === 'store') {
-      await renderStoreTable(storeId);
+      await renderStore(storeId);
     } else if (type === 'reserve') {
       await renderDeliv(storeId);
     } else {
       // type이 'all'이거나 없을 경우 둘 다 실행
-      await renderStoreTable(storeId);
+      await renderStore(storeId);
       await renderDeliv(storeId);
     }
   } finally {
@@ -240,7 +240,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
       }
     })
   });
-  await renderStoreTable(storeId);
+  await renderStore(storeId);
 }
 
 // ===============================
@@ -365,7 +365,7 @@ export function bindFilters() {
       f.to     = $('#' + prefix + '-to').value;
       f.status = $('#' + prefix + '-status').value;
       f.search = $('#' + prefix + '-search').value;
-      key === 'store' ? renderStoreTable(sid) : renderDeliv(sid);
+      key === 'store' ? renderStore(sid) : renderDeliv(sid);
     };
     $('#' + prefix + '-reset').onclick = () => {
      const sid = currentStoreId(); // 🚀 ID 확보
@@ -373,7 +373,7 @@ export function bindFilters() {
       ['from', 'to', 'status', 'search'].forEach(
         x => $('#' + prefix + '-' + x).value = ''
       );
-      key === 'store' ? renderStoreTable(sid) : renderDeliv(sid);
+      key === 'store' ? renderStore(sid) : renderDeliv(sid);
     };
   }
   bind('store', 'store');
@@ -487,11 +487,7 @@ export function exportOrders(type) {
 // ===============================
 // 매장 주문 렌더링 (DB 조회)
 // ===============================
-export async function renderStore() {
-  return renderStoreTable(storeId);
-}
-
-async function renderStoreTable(storeId) {
+export async function renderStore(storeId) {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
@@ -1001,7 +997,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
   } finally {
     const sid = currentStoreId();
     unlockOrder(id);
-    await safeRenderAll(type,storeId);
+    await safeRenderAll(type,sid);
   }
 });
 
