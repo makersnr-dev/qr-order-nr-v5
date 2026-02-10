@@ -431,81 +431,70 @@ initRealtimeSync();
 }*/
 
 
-// 주문 내역 모달 열기 및 렌더링 로직 (최종 완결판)
-// 주문 내역 모달 열기 및 렌더링 로직 (옵션 표시 완벽 수정판)
 document.getElementById('btn-show-history').onclick = () => {
     const storeId = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
-    const historyRaw = localStorage.getItem(`orders_${storeId}`);
-    const history = JSON.parse(historyRaw || "[]");
+    const history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
     const listEl = document.getElementById('history-list');
     
     if (history.length === 0) {
         listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">주문 내역이 없습니다.</div>';
     } else {
         listEl.innerHTML = history.slice().reverse().map(o => {
-            const rawData = o.cart || o.cartItems || o.items || [];
-            let itemDetails = "";
-
-            // 1. 데이터가 진짜 배열인지, 단순 텍스트인지 판별
+            const rawData = o.cart || o.items || [];
             let menuArray = [];
+
+            // [1] 데이터 쪼개기 (문자열인 경우 콤마로 분리하여 배열화)
             if (Array.isArray(rawData)) {
                 menuArray = rawData;
             } else if (typeof rawData === 'string') {
-                if (rawData.trim().startsWith('[')) {
-                    try { menuArray = JSON.parse(rawData); } catch (e) { menuArray = [{ name: rawData, qty: 1 }]; }
-                } else {
-                    menuArray = [{ name: rawData, qty: 1 }];
+                // "아메리카노, 치-즈케이크" -> ["아메리카노", "치-즈케이크"]
+                menuArray = rawData.split(',').map(name => ({ name: name.trim(), qty: 1 }));
+            }
+
+            // [2] 메뉴별 HTML 생성 (줄바꿈 보장)
+            const itemDetails = menuArray.map(i => {
+                const name = i.name || (typeof i === 'string' ? i : '알 수 없는 메뉴');
+                const qty = i.qty || 1;
+                
+                // 옵션 데이터 찾기
+                let opts = i.optionText || i.selectedOptions || i.options || [];
+                let optHtml = "";
+
+                if (opts && opts.length > 0) {
+                    // 옵션이 문자열이면 쪼개기, 배열이면 그대로 사용
+                    const optArr = Array.isArray(opts) ? opts : String(opts).split(',');
+                    const cleanOpts = optArr.map(t => {
+                        const str = typeof t === 'string' ? t : (t.label || t.value || "");
+                        return str.includes(':') ? str.split(':')[1] : str;
+                    }).filter(Boolean).join(', ');
+
+                    if (cleanOpts) {
+                        // 🔹 옵션 들여쓰기 스타일 적용
+                        optHtml = `<div style="font-size:11px; color:#9ca3af; margin-left:14px; margin-top:2px; line-height:1.2;">└ 옵션: ${cleanOpts}</div>`;
+                    }
                 }
-            }
 
-            // 2. 메뉴 하나하나를 돌면서 옵션 텍스트 생성
-            if (menuArray.length > 0) {
-                itemDetails = menuArray.map(i => {
-                    const name = i.name || (typeof i === 'string' ? i : '알 수 없는 메뉴');
-                    const qty = i.qty || 1;
-                    let text = `• <b>${name}</b> x${qty}`;
-                    
-                    /* --- [옵션 추출 로직 강화] --- */
-                    // i.optionText(문자열배열) 또는 i.selectedOptions(객체배열) 모두 확인
-                    let optList = i.optionText || i.selectedOptions || i.options || [];
-                    
-                    // 만약 옵션이 문자열이라면 (예: "샷추가, 시럽추가") 배열로 변환 시도
-                    if (typeof optList === 'string' && optList.startsWith('[')) {
-                        try { optList = JSON.parse(optList); } catch(e) { optList = [optList]; }
-                    } else if (typeof optList === 'string') {
-                        optList = optList ? [optList] : [];
-                    }
-
-                    if (Array.isArray(optList) && optList.length > 0) {
-                        const optsText = optList.map(t => {
-                            // 1. "그룹:값" 형태의 문자열인 경우 값만 추출
-                            if (typeof t === 'string') return t.includes(':') ? t.split(':')[1] : t;
-                            // 2. {label: '값'} 또는 {name: '값'} 형태의 객체인 경우
-                            return t.label || t.value || t.name || "";
-                        }).filter(Boolean).join(', ');
-                        
-                        if (optsText) {
-                            text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px; margin-top:2px;">└ 옵션: ${optsText}</div>`;
-                        }
-                    }
-                    /* --------------------------- */
-                    
-                    return `<div style="margin-bottom:8px;">${text}</div>`;
-                }).join('');
-            } else {
-                itemDetails = '<div style="color:#9ca3af; font-size:12px;">주문 정보가 없습니다.</div>';
-            }
+                // 🔹 메뉴별로 <div>를 사용하여 무조건 줄바꿈
+                return `
+                    <div style="margin-bottom:10px; border-left: 2px solid #2ea04333; padding-left: 8px;">
+                        <div style="font-weight:600; color:#e6edf3;">• ${name} <span style="font-size:11px; color:#9ca3af;">x${qty}</span></div>
+                        ${optHtml}
+                    </div>
+                `;
+            }).join('');
 
             return `
-                <div style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #263241; margin-bottom:12px;">
-                    <div class="hstack" style="justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #263241; padding-bottom:8px;">
+                <div style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div class="hstack" style="justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #263241; padding-bottom:8px;">
                         <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
-                        <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status || '주문접수'}</b>
+                        <b style="color:${(o.status === '주문취소' || o.status === '결제취소') ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status || '주문접수'}</b>
                     </div>
-                    <div style="font-size:13px; line-height:1.4;">${itemDetails}</div>
-                    <div style="text-align:right; margin-top:10px; border-top:1px solid #263241; padding-top:8px;">
-                        <span class="small" style="color:#9ca3af;">합계 </span>
-                        <b style="color:#2ea043; font-size:15px;">${Number(o.amount || 0).toLocaleString()}원</b>
+                    <div class="vstack" style="gap:4px;">
+                        ${itemDetails}
+                    </div>
+                    <div style="text-align:right; margin-top:12px; border-top:1px solid #263241; padding-top:10px;">
+                        <span style="font-size:12px; color:#9ca3af;">총 결제액</span>
+                        <div style="color:#2ea043; font-size:18px; font-weight:bold;">${Number(o.amount || 0).toLocaleString()}원</div>
                     </div>
                 </div>
             `;
