@@ -430,48 +430,59 @@ initRealtimeSync();
     subscribeOrderStatus(order.id, storeId); // 실시간 상태 감시 시작
 }*/
 
-  // 주문 내역 모달 열기 이벤트
+
+// [수정 핵심] 주문 내역 모달 열기 및 렌더링 로직
 document.getElementById('btn-show-history').onclick = () => {
-    const storeId = window.qrnrStoreId;
-    // [수정] 해당 매장의 주문 내역을 가져옵니다.
-    const history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
+    // 1. 현재 매장 ID를 정확히 가져옵니다 (URL 또는 전역변수)
+    const storeId = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
+    
+    // 2. 해당 매장의 주문 내역을 로컬 스토리지에서 읽어옵니다.
+    const historyRaw = localStorage.getItem(`orders_${storeId}`);
+    const history = JSON.parse(historyRaw || "[]");
     const listEl = document.getElementById('history-list');
     
     if (history.length === 0) {
         listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">주문 내역이 없습니다.</div>';
     } else {
-        // 내역을 역순(최신순)으로 정렬하여 표시
+        // 3. 최신 주문이 위로 오도록 역순(reverse) 정렬하여 렌더링
         listEl.innerHTML = history.slice().reverse().map(o => {
             
-            /* --- [핵심 수정 구간] --- */
-            // 1. 저장된 데이터에서 메뉴 리스트를 찾습니다. (필드명 혼용 대비: cart 또는 items)
-            const menuData = o.cart || o.cartItems || o.items || []; 
-            
-            // 2. menuData가 비어있지 않은지 확인하고 HTML을 생성합니다.
+            /* --- [수정 포인트: 데이터 타입 방어 로직] --- */
+            // o.cart가 문자열로 들어있을 경우를 대비해 JSON.parse를 시도하고, 
+            // 배열이 아니면 빈 배열([])을 기본값으로 할당하여 .map 에러를 방지합니다.
+            let menuData = [];
+            try {
+                const rawData = o.cart || o.cartItems || o.items || [];
+                menuData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+                if (!Array.isArray(menuData)) menuData = []; // 최종적으로 배열인지 확인
+            } catch (e) {
+                console.error("메뉴 데이터 파싱 오류:", e);
+                menuData = [];
+            }
+            /* -------------------------------------- */
+
             let itemDetails = "";
-            
             if (menuData.length > 0) {
                 itemDetails = menuData.map(i => {
                     let text = `• <b>${i.name}</b> x${i.qty}`;
                     
-                    // 옵션 데이터 추출 (배열 형태 우선, 없으면 빈 배열)
+                    // 옵션 데이터 추출 및 문자열 정리
                     const rawOpts = i.optionText || i.options || [];
                     if (Array.isArray(rawOpts) && rawOpts.length > 0) {
-                        // 옵션 텍스트 정리 (그룹명:선택값 형태 대응)
                         const optsText = rawOpts.map(t => {
+                            // "그룹:값" 형태의 문자열 또는 {label: '값'} 형태의 객체 모두 대응
                             if (typeof t === 'string') return t.includes(':') ? t.split(':')[1] : t;
                             return t.label || t.value || "";
-                        }).join(', ');
+                        }).filter(Boolean).join(', '); // 빈 값 제거 후 쉼표로 연결
                         
-                        text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${optsText}</div>`;
+                        if (optsText) text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${optsText}</div>`;
                     }
                     return `<div style="margin-bottom:6px;">${text}</div>`;
                 }).join('');
             } else {
-                // [수정] 만약 메뉴 데이터가 비어있다면 "메뉴 정보 없음" 대신 표시할 내용
-                itemDetails = '<div style="color:#ef4444; font-size:12px;">주문 데이터 형식이 올바르지 않습니다.</div>';
+                // menuData가 배열이지만 내용이 없을 때
+                itemDetails = '<div style="color:#9ca3af; font-size:12px;">주문 상세 정보가 없습니다.</div>';
             }
-            /* ------------------------ */
 
             return `
                 <div style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #263241; margin-bottom:12px;">
@@ -482,7 +493,7 @@ document.getElementById('btn-show-history').onclick = () => {
                     <div style="font-size:13px; line-height:1.4;">${itemDetails}</div>
                     <div style="text-align:right; margin-top:10px; border-top:1px solid #263241; padding-top:8px;">
                         <span class="small" style="color:#9ca3af;">합계 </span>
-                        <b style="color:#2ea043; font-size:15px;">${Number(o.amount).toLocaleString()}원</b>
+                        <b style="color:#2ea043; font-size:15px;">${Number(o.amount || 0).toLocaleString()}원</b>
                     </div>
                 </div>
             `;
