@@ -1,50 +1,68 @@
 /**
  * Supabase 연결 및 채널 관리를 전담하는 싱글톤 클래스
+ * /src/shared/supabase-manager.js
  */
 class SupabaseManager {
     constructor() {
         if (SupabaseManager.instance) return SupabaseManager.instance;
         this.client = null;
-        this.channels = new Map(); // 채널 중복 방지용 저장소
+        this.channels = new Map(); 
         SupabaseManager.instance = this;
     }
 
-    // 초기화 및 클라이언트 반환
     async getClient() {
         if (this.client) return this.client;
 
-        const res = await fetch('/api/config');
-        const { supabaseUrl, supabaseKey } = await res.json();
-        
-        // window.supabase는 HTML에서 로드된 라이브러리 객체
-        this.client = window.supabase.createClient(supabaseUrl, supabaseKey);
-        return this.client;
+        try {
+            const res = await fetch('/api/config');
+            const { supabaseUrl, supabaseKey } = await res.json();
+            
+            if (!window.supabase) {
+                throw new Error("Supabase 라이브러리가 로드되지 않았습니다.");
+            }
+
+            this.client = window.supabase.createClient(supabaseUrl, supabaseKey);
+            return this.client;
+        } catch (e) {
+            console.error("❌ Supabase 초기화 실패:", e);
+            return null;
+        }
     }
 
-    /**
-     * 특정 매장의 실시간 채널을 가져오거나 새로 생성 (중복 방지 핵심)
-     */
     async getChannel(storeId) {
+        if (!storeId) return null;
+        
         const client = await this.getClient();
+        if (!client) return null;
+
         const channelName = `qrnr_realtime_${storeId}`;
 
-        // 이미 관리 중인 채널이 있다면 반환
+        // 1. 이미 캐싱된 채널이 있고 상태가 정상이면 반환
         if (this.channels.has(channelName)) {
-            return this.channels.get(channelName);
+            const existingChannel = this.channels.get(channelName);
+            // 채널이 닫혔거나 에러 상태가 아니면 재사용
+            if (existingChannel.state === 'joined') return existingChannel;
+            
+            // 상태가 좋지 않으면 기존 채널 제거 후 새로 생성하도록 진행
+            client.removeChannel(existingChannel);
         }
 
-        // 기존에 수동으로 생성된 동일 이름의 채널이 있는지 클라이언트 내부 확인
-        let channel = client.getChannels().find(c => c.name === channelName);
-        
-        if (!channel) {
-            channel = client.channel(channelName);
+        // 2. 새 채널 생성 및 구독
+        const channel = client.channel(channelName, {
+            config: {
+                broadcast: { self: false }, // 내가 보낸 신호는 내가 받지 않음 (최적화)
+            }
+        });
+
+        return new Promise((resolve) => {
             channel.subscribe((status) => {
-                console.log(`📡 [Supabase] ${channelName} status:`, status);
+                console.log(`📡 [Supabase] ${channelName} 상태:`, status);
+                if (status === 'SUBSCRIBED') {
+                    this.channels.set(channelName, channel);
+                    resolve(channel);
+                }
             });
-        }
-
-        this.channels.set(channelName, channel);
-        return channel;
+        });
     }
 }
 
