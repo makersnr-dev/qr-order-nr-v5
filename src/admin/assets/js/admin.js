@@ -249,7 +249,6 @@ async function initRealtimeAlarm(storeId) {
     const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
     const cName = data.customerName || '비회원';
     showToast(`📦 새 ${orderTitle} 주문 도착! (${cName})`, "success");
-  });
 
     // 4. 데스크탑 팝업 알림
     showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${cName}님의 주문이 들어왔습니다.`);
