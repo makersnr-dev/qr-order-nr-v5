@@ -13,12 +13,15 @@
 
 <body>
 <div class="container">
-  <div class="hstack">
+  <div class="hstack" style="align-items: center; gap: 10px;">
     <h1>관리자 콘솔</h1>
-    <span class="badge right">매장</span>
-    <span class="badge">예약</span>
+    <div id="connection-status" class="hstack" style="gap: 6px; padding: 4px 10px; background: #0b1620; border-radius: 20px; border: 1px solid #263241;">
+        <span id="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ccc;"></span>
+        <span id="status-text" style="font-size: 11px; color: #9fb0c0;">연결 확인 중...</span>
+    </div>
+  
     <button id="logoutBtn" class="btn">로그아웃</button>
-  </div>
+</div>
 
   <!-- ================= TAB BAR ================= -->
   <div class="tabbar">
