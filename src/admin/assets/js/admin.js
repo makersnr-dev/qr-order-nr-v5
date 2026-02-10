@@ -202,8 +202,8 @@ let lastAlarmTime = 0;
 let lastProcessedEventId = null;
 async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
-    if (!window.supabaseClient || !storeId) {
-        console.error("❌ 실시간 연결 실패: 클라이언트나 StoreId가 없음");
+    if (!storeId || typeof storeId !== 'string') {
+        console.error("❌ 실시간 채널 연결 실패: 유효하지 않은 StoreId", storeId);
         return;
     }
 
@@ -211,6 +211,8 @@ async function initRealtimeAlarm(storeId) {
     await window.supabaseClient.removeAllChannels();
 
     const channelName = `qrnr_realtime_${storeId}`;
+    console.log(`📡 [관리자] 실시간 구독 시작: ${channelName}`); // 이 로그가 찍히는지 확인하세요.
+
     const realtimeChannel = window.supabaseClient.channel(channelName);
 
     realtimeChannel
