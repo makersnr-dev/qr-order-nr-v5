@@ -317,9 +317,9 @@ export default async function handler(req, res) {
                         WHERE store_id = $1 
                           AND customer_name = $2 
                           AND lookup_pw = $4
-                          AND (customer_phone LIKE $3 OR REPLACE(customer_phone, '-', '') LIKE $3)
+                          AND REPLACE(customer_phone, '-', '') = $3
                         ORDER BY created_at DESC
-                    `, [storeId, name, `%${cleanPhone}`, pw]);
+                    `, [storeId, name, cleanPhone, pw]);
             
                     const orders = r.rows.map(row => ({
                         id: row.order_no,
