@@ -433,32 +433,53 @@ initRealtimeSync();
   // 주문 내역 모달 열기 이벤트
 document.getElementById('btn-show-history').onclick = () => {
     const storeId = window.qrnrStoreId;
+    // [수정] 해당 매장의 주문 내역을 가져옵니다.
     const history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
     const listEl = document.getElementById('history-list');
     
     if (history.length === 0) {
         listEl.innerHTML = '<div style="text-align:center; padding:20px; color:#9ca3af;">주문 내역이 없습니다.</div>';
     } else {
+        // 내역을 역순(최신순)으로 정렬하여 표시
         listEl.innerHTML = history.slice().reverse().map(o => {
-            // 🚀 옵션 텍스트 예쁘게 정리 ("샷추가, 시럽추가" 형태)
-            const menuData = o.cart || o.cartItems || [];
-            const itemDetails = menuData.map(i => {
-                let text = `• <b>${i.name}</b> x${i.qty}`;
-                const rawOpts = i.optionText || i.options || [];
-                if (rawOpts.length > 0) {
-                    const opts = rawOpts.map(t => typeof t === 'string' ? t.split(':')[1] : (t.label || t.value)).join(', ');
-                    text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${opts}</div>`;
-                }
-                return `<div style="margin-bottom:6px;">${text}</div>`;
-            }).join('');
+            
+            /* --- [핵심 수정 구간] --- */
+            // 1. 저장된 데이터에서 메뉴 리스트를 찾습니다. (필드명 혼용 대비: cart 또는 items)
+            const menuData = o.cart || o.cartItems || o.items || []; 
+            
+            // 2. menuData가 비어있지 않은지 확인하고 HTML을 생성합니다.
+            let itemDetails = "";
+            
+            if (menuData.length > 0) {
+                itemDetails = menuData.map(i => {
+                    let text = `• <b>${i.name}</b> x${i.qty}`;
+                    
+                    // 옵션 데이터 추출 (배열 형태 우선, 없으면 빈 배열)
+                    const rawOpts = i.optionText || i.options || [];
+                    if (Array.isArray(rawOpts) && rawOpts.length > 0) {
+                        // 옵션 텍스트 정리 (그룹명:선택값 형태 대응)
+                        const optsText = rawOpts.map(t => {
+                            if (typeof t === 'string') return t.includes(':') ? t.split(':')[1] : t;
+                            return t.label || t.value || "";
+                        }).join(', ');
+                        
+                        text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${optsText}</div>`;
+                    }
+                    return `<div style="margin-bottom:6px;">${text}</div>`;
+                }).join('');
+            } else {
+                // [수정] 만약 메뉴 데이터가 비어있다면 "메뉴 정보 없음" 대신 표시할 내용
+                itemDetails = '<div style="color:#ef4444; font-size:12px;">주문 데이터 형식이 올바르지 않습니다.</div>';
+            }
+            /* ------------------------ */
 
             return `
                 <div style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #263241; margin-bottom:12px;">
                     <div class="hstack" style="justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #263241; padding-bottom:8px;">
                         <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
-                        <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status}</b>
+                        <b style="color:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; font-size:12px;">${o.status || '주문접수'}</b>
                     </div>
-                    <div style="font-size:13px; line-height:1.4;">${itemDetails || '메뉴 정보 없음'}</div>
+                    <div style="font-size:13px; line-height:1.4;">${itemDetails}</div>
                     <div style="text-align:right; margin-top:10px; border-top:1px solid #263241; padding-top:8px;">
                         <span class="small" style="color:#9ca3af;">합계 </span>
                         <b style="color:#2ea043; font-size:15px;">${Number(o.amount).toLocaleString()}원</b>
