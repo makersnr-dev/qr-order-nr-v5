@@ -1,21 +1,21 @@
 // /src/admin/assets/js/modules/notify.js
 import { showToast } from '../admin.js';
 
-function currentStoreId() {
+/*function currentStoreId() {
     if (!window.qrnrStoreId) {
         showToast('매장 정보가 없습니다.', 'error');
         throw new Error('STORE_ID_NOT_INITIALIZED');
     }
     return window.qrnrStoreId;
-}
+}*/
 
 // ─────────────────────────────
 // 설정 로드/저장 (DB 연동)
 // ─────────────────────────────
 
 // 화면에 설정값들을 뿌려주는 함수
-export async function renderNotify() {
-    const sid = currentStoreId();
+export async function renderNotify(storeId) {
+    const sid = storeId;
     try {
         const res = await fetch(`/api/store-settings?storeId=${sid}`);
         const data = await res.json();
@@ -31,11 +31,11 @@ export async function renderNotify() {
 }
 
 // 호출 항목(물, 수저 등)을 그려주는 함수
-export async function renderCallOptions() {
+export async function renderCallOptions(storeId) {
     const box = document.getElementById('call-options-box');
     if (!box) return;
 
-    const sid = currentStoreId();
+    const sid = storeId;
     try {
         const res = await fetch(`/api/store-settings?storeId=${sid}`);
         const data = await res.json();
@@ -57,12 +57,16 @@ export async function renderCallOptions() {
 // ─────────────────────────────
 // 바인딩 (저장 버튼 클릭 시)
 // ─────────────────────────────
-export function bindNotify() {
+export function bindNotify(storeId) {
     const saveBtn = document.getElementById('n-save');
     if (!saveBtn) return;
+    
 
     saveBtn.onclick = async () => {
-        const sid = currentStoreId();
+        // [중복 클릭 방지] 로딩 상태 시작
+        saveBtn.disabled = true;
+        saveBtn.classList.add('btn-loading');
+        const sid = storeId;
         const notifyConfig = {
             useBeep: document.getElementById('n-beep')?.checked,
             beepVolume: Number(document.getElementById('n-vol')?.value),
@@ -70,6 +74,7 @@ export function bindNotify() {
             webhookUrl: document.getElementById('n-webhook')?.value.trim(),
         };
 
+        try {
         const res = await fetch(`/api/store-settings?storeId=${sid}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -92,16 +97,23 @@ export function bindNotify() {
                 });
             }
         }
+        }catch (e) {
+            showToast("네트워크 오류 발생", "error");
+        } finally {
+            // [중복 클릭 방지] 로딩 상태 해제
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('btn-loading');
+        }
     };
 }
 
-export function bindCallOptions() {
+export function bindCallOptions(storeId) {
     const box = document.getElementById('call-options-box');
     if (!box) return;
 
     // 추가/삭제 이벤트 (이 부분은 UI만 먼저 변경하고 나중에 한꺼번에 저장하는 게 편합니다)
     box.onclick = async (e) => {
-        const sid = currentStoreId();
+        const sid = storeId;
         
         // 현재 입력된 모든 값들을 긁어모음
         const getCurrentList = () => Array.from(document.querySelectorAll('.call-opt-input')).map(input => input.value.trim());
@@ -122,7 +134,7 @@ export function bindCallOptions() {
     // 포커스 나갈 때 자동으로 저장
     box.onchange = async (e) => {
         if (e.target.classList.contains('call-opt-input')) {
-            const sid = currentStoreId();
+            const sid = storeId;
             const list = Array.from(document.querySelectorAll('.call-opt-input')).map(input => input.value.trim());
             await saveCallOptions(sid, list);
         }
@@ -138,7 +150,7 @@ async function saveCallOptions(sid, list) {
 
     if (res.ok) {
         showToast("호출 항목 반영됨", "success");
-        renderCallOptions();
+        renderCallOptions(sid);
 
         // 🚀 [추가] 실시간 신호 발송
         if (window.supabaseClient) {
