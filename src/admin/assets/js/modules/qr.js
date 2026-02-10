@@ -4,14 +4,14 @@ import { showToast } from '../admin.js';
 const $ = (s, r = document) => r.querySelector(s);
 
 // ===== 매장 식별 =====
-function currentStoreId() {
+/*function currentStoreId() {
     const storeId = window.qrnrStoreId;
     if (!storeId) {
         showToast('매장 정보가 초기화되지 않았습니다.', 'error');
         throw new Error('STORE_ID_NOT_INITIALIZED');
     }
     return storeId;
-}
+}*/
 
 // ===== [DB 연동] 데이터 통신 함수들 =====
 async function loadQrListFromServer(storeId) {
@@ -70,8 +70,8 @@ function makeQRDataUrl(text) {
 }
 
 // ===== 초기화 및 렌더링 =====
-export async function initQR() {
-    const storeId = currentStoreId();
+export async function initQR(storeId) {
+    if (!storeId) return; // 방어 코드
 
     const tableInput = $('#qr-table');
     const labelInput = $('#qr-label');
@@ -89,6 +89,12 @@ export async function initQR() {
 
     // 🚀 전체 다운로드 함수 (ZIP 압축)
     async function downloadAllAsZip(kind) {
+        const btn = kind === 'store' ? $('#qr-download-all') : $('#qr-deliv-download-all');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('btn-loading'); // 로딩 시작
+        }
+        try{
         const all = await loadQrListFromServer(storeId);
         const list = all.filter(q => q.kind === kind);
         
@@ -118,6 +124,12 @@ export async function initQR() {
         link.click();
         
         showToast(`${list.length}개의 QR 코드가 압축 파일로 다운로드됩니다.`, "success");
+    }finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('btn-loading'); // 로딩 종료
+            }
+        }
     }
 
     // 버튼 이벤트 바인딩
@@ -223,6 +235,7 @@ export async function initQR() {
 
             const url = `${location.origin}/order/store?store=${encodeURIComponent(storeId)}&table=${encodeURIComponent(table)}`;
             genBtn.disabled = true;
+            genBtn.classList.add('btn-loading'); // 로딩 상태 부여
             
             try {
                 const dataUrl = await makeQRDataUrl(url);
@@ -244,6 +257,7 @@ export async function initQR() {
             showToast('QR 생성 중 오류가 발생했습니다.', 'error');
         } finally {
             genBtn.disabled = false; // 성공/실패 여부와 상관없이 마지막에 활성화
+                genBtn.classList.remove('btn-loading');
         }
         };
     }
@@ -253,6 +267,7 @@ export async function initQR() {
             const label = (delivLabelInput.value || '').trim();
             const url = `${location.origin}/src/order/delivery-entry.html?store=${encodeURIComponent(storeId)}`;
             delivGenBtn.disabled = true;
+            delivGenBtn.classList.add('btn-loading');
             try {
                 const dataUrl = await makeQRDataUrl(url);
                 const qrItem = { id: `QR-DELIV-${Date.now()}`, kind: 'deliv', label, url, dataUrl };
@@ -272,6 +287,7 @@ export async function initQR() {
                 showToast('QR 생성 실패', 'error');
             }finally {
             delivGenBtn.disabled = false; // 성공/실패 여부와 상관없이 마지막에 활성화
+                delivGenBtn.classList.remove('btn-loading');
         }
         };
     }
@@ -280,6 +296,8 @@ export async function initQR() {
     if (clearBtn) {
         clearBtn.onclick = async () => {
             if (!confirm('매장 테이블용 QR을 모두 삭제할까요?')) return;
+            clearBtn.disabled = true;
+            clearBtn.classList.add('btn-loading');
             
             // 🚀 Kind를 'store'로 확실히 지정해서 호출
             const res = await fetch(`/api/qrcodes?storeId=${storeId}&kind=store`, { 
@@ -297,16 +315,22 @@ export async function initQR() {
             } else {
                 showToast('삭제 실패: 서버 오류가 발생했습니다.', 'error');
             }
+            clearBtn.disabled = false;
+            clearBtn.classList.remove('btn-loading');
         };
     }
     if (delivClearBtn) {
         delivClearBtn.onclick = async () => {
             if (!confirm('예약용 QR을 모두 삭제할까요?')) return;
+            delivClearBtn.disabled = true;
+            delivClearBtn.classList.add('btn-loading');
             const res = await fetch(`/api/qrcodes?storeId=${storeId}&kind=deliv`, { method: 'DELETE' });
             if (res.ok) {
                 showToast('예약 QR이 모두 삭제되었습니다.', 'success');
                 refreshAllLists();
             }
+            delivClearBtn.disabled = false;
+            delivClearBtn.classList.remove('btn-loading');
         };
     }
 
