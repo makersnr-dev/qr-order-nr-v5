@@ -125,7 +125,7 @@ function makeSafeRefresher(realFn) {
   };
 }
 
-const safeRenderStore = makeSafeRefresher(renderStoreTable);
+const safeRenderStore = makeSafeRefresher(renderStore);
 const safeRenderDeliv = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
