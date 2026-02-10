@@ -8,7 +8,7 @@ export async function getAuthFromReq(req) {
   try {
     const payload = await verifyJWT(
       token,
-      process.env.JWT_SECRET || 'dev-secret'
+      process.env.JWT_SECRET
     );
     return payload || null;
   } catch {
