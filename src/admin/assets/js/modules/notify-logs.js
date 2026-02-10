@@ -13,6 +13,7 @@ function fmtDateTime(ts) {
 export async function renderNotifyLogs(storeId) {
   const tbody = document.getElementById('tbody-notify-logs');
   if (!tbody) return;
+  
 
   const sid = storeId;
   if (!sid) return;
@@ -54,7 +55,10 @@ export async function renderNotifyLogs(storeId) {
 // 2. 이벤트 연결 (상태 변경 및 새로고침)
 export function bindNotifyLogs(storeId) {
   const tbody = document.getElementById('tbody-notify-logs');
-  if (!tbody) return;
+  
+  // [수정] 이벤트 리스너 중복 방지 플래그를 여기서 체크합니다.
+  if (!tbody || tbody.dataset.bound === "true") return;
+  tbody.dataset.bound = "true";
 
   // 상태 드롭다운 변경 시 DB 업데이트
   tbody.addEventListener('change', async (e) => {
@@ -88,11 +92,15 @@ export function bindNotifyLogs(storeId) {
     }
   });
 
-  // 새로고침 버튼
-  document.getElementById('notify-log-refresh')?.addEventListener('click', (e) => {
-    const btn = e.target;
-    btn.disabled = true; // 새로고침 연타 방지
-    renderNotifyLogs(storeId);
-    setTimeout(() => { btn.disabled = false; }, 2000); // 2초 쿨타임
-  });
+  // 새로고침 버튼 (이 버튼은 tbody 외부에 있으므로 별도 체크)
+  const refreshBtn = document.getElementById('notify-log-refresh');
+  if (refreshBtn && refreshBtn.dataset.bound !== "true") {
+    refreshBtn.dataset.bound = "true";
+    refreshBtn.addEventListener('click', (e) => {
+      const btn = e.target;
+      btn.disabled = true; // 새로고침 연타 방지
+      renderNotifyLogs(storeId); // 버튼 눌렀을 때 그리는 함수(1번) 호출
+      setTimeout(() => { btn.disabled = false; }, 2000); // 2초 쿨타임
+    });
+  }
 }
