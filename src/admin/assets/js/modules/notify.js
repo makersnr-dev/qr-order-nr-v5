@@ -1,14 +1,6 @@
 // /src/admin/assets/js/modules/notify.js
 import { showToast } from '../admin.js';
-
-/*function currentStoreId() {
-    if (!window.qrnrStoreId) {
-        showToast('매장 정보가 없습니다.', 'error');
-        throw new Error('STORE_ID_NOT_INITIALIZED');
-    }
-    return window.qrnrStoreId;
-}*/
-
+import { supabaseMgr } from '/src/shared/supabase-manager.js';
 // ─────────────────────────────
 // 설정 로드/저장 (DB 연동)
 // ─────────────────────────────
@@ -82,25 +74,22 @@ export function bindNotify(storeId) {
         });
 
         if (res.ok) {
-            showToast("✅ 알림 설정이 저장되었습니다.", "success");
-            // 🚀 [추가] 일반 설정 변경 시에도 손님 화면에 신호를 보냅니다.
-            if (window.supabaseClient) {
-                const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
-                channel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        await channel.send({
-                            type: 'broadcast',
-                            event: 'RELOAD_SIGNAL',
-                            payload: { type: 'call_options_update', at: Date.now() } // 호출 목록 갱신 유도
-                        });
-                    }
-                });
+                showToast("✅ 알림 설정이 저장되었습니다.", "success");
+                
+                // [수정] 매니저를 사용하여 안전하고 간결하게 신호 발송
+                const channel = await supabaseMgr.getChannel(sid);
+                if (channel) {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'RELOAD_SIGNAL',
+                        payload: { type: 'call_options_update', at: Date.now() }
+                    });
+                    console.log("📡 [설정] 손님 화면 업데이트 신호 전송 완료");
+                }
             }
-        }
-        }catch (e) {
+        } catch (e) {
             showToast("네트워크 오류 발생", "error");
         } finally {
-            // [중복 클릭 방지] 로딩 상태 해제
             saveBtn.disabled = false;
             saveBtn.classList.remove('btn-loading');
         }
@@ -152,19 +141,15 @@ async function saveCallOptions(sid, list) {
         showToast("호출 항목 반영됨", "success");
         renderCallOptions(sid);
 
-        // 🚀 [추가] 실시간 신호 발송
-        if (window.supabaseClient) {
-            const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
-            channel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    await channel.send({
-                        type: 'broadcast',
-                        event: 'RELOAD_SIGNAL',
-                        payload: { type: 'call_options_update', at: Date.now() }
-                    });
-                    console.log("📡 [호출항목] 손님 화면 업데이트 신호 전송 완료");
-                }
+        // [수정] 매니저를 사용하여 실시간 신호 발송 로직 단축
+        const channel = await supabaseMgr.getChannel(sid);
+        if (channel) {
+            await channel.send({
+                type: 'broadcast',
+                event: 'RELOAD_SIGNAL',
+                payload: { type: 'call_options_update', at: Date.now() }
             });
+            console.log("📡 [호출항목] 손님 화면 업데이트 신호 전송 완료");
         }
     }
 }
