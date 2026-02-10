@@ -46,7 +46,18 @@ export function decodeToken(t) {
 }
 
 // ✅ 토큰 → adminInfo / storeId로 채워 넣는 함수
-function hydrateAdminInfoAndStore(t, realmHint) {
+function hydrateAdminInfoAndStore(decoded, realmHint) {
+  if (!decoded) return;
+  const id = decoded.uid || decoded.sub;
+  const info = {
+    id,
+    name: decoded.name || id,
+    realm: decoded.realm || realmHint || 'admin',
+  };
+  localStorage.setItem('qrnr.adminInfo', JSON.stringify(info));
+  // 매장 ID는 이제 requireAuth에서 서버 응답값으로 직접 저장하므로 여기서 할 필요 없음
+}
+/*function hydrateAdminInfoAndStore(t, realmHint) {
   try {
     const decoded = decodeToken(t);
     if (!decoded) return;
@@ -106,7 +117,7 @@ function hydrateAdminInfoAndStore(t, realmHint) {
   } catch (e) {
     console.error('[auth] hydrateAdminInfoAndStore error', e);
   }
-}
+}*/
 
 // 로그인이 꼭 필요한 페이지에서 호출:
 //   await requireAuth('admin');
@@ -141,10 +152,15 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    // 3. 성공했다면 storeId를 브라우저에 저장해둡니다.
     if (p.storeId) {
-      localStorage.setItem('qrnr.storeId', p.storeId);
-    }
+  localStorage.setItem('qrnr.storeId', p.storeId);
+}
+// 서버가 준 정보를 바탕으로 관리자 이름 등 UI용 데이터 갱신
+localStorage.setItem('qrnr.adminInfo', JSON.stringify({
+  id: p.uid,
+  name: p.name,
+  realm: p.realm
+}));
 
     return p; // 로그인 성공!
   } catch (e) {
