@@ -224,11 +224,12 @@ async function initRealtimeAlarm(storeId) {
         const eventId = data.orderNo || data.id;
 
     // 1. 목록 갱신 실행
+        const currentSid = window.qrnrStoreId;
     if (data.orderType === 'store') {
-        if (typeof safeRenderStore === 'function') safeRenderStore();
+        if (typeof safeRenderStore === 'function') safeRenderStore(currentSid);
     } else {
         // 예약 주문('reserve')일 때 이 함수가 실행되어야 함
-        if (typeof safeRenderDeliv === 'function') safeRenderDeliv();
+        if (typeof safeRenderDeliv === 'function') safeRenderDeliv(currentSid);
     }
     
     // [중복 방지]
@@ -257,7 +258,8 @@ async function initRealtimeAlarm(storeId) {
     // [탭 깜빡임]
     const originalTitle = document.title;
     document.title = "🚨 [새 주문 발생] 🚨";
-    setTimeout(() => { document.title = originalTitle; }, 3000);    })
+    setTimeout(() => { document.title = originalTitle; }, 3000);  })
+      
      // --- [2] 직원 호출 수신 (call.mp3 소리) ---
     .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
       // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
@@ -367,6 +369,7 @@ async function main() {
   localStorage.setItem("qrnr.storeId", sid);
   sessionStorage.setItem('qrnr.adminId.real', adminId); // 이름 통일
 
+    
   
   
   // [중요] 3. 로그인 성공 및 storeId 확정 후 알람 구독 시작
