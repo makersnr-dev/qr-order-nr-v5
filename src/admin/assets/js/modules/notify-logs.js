@@ -10,11 +10,11 @@ function fmtDateTime(ts) {
 }
 
 // 1. DB에서 호출 로그 불러오기
-export async function renderNotifyLogs() {
+export async function renderNotifyLogs(storeId) {
   const tbody = document.getElementById('tbody-notify-logs');
   if (!tbody) return;
 
-  const sid = window.qrnrStoreId;
+  const sid = storeId;
   if (!sid) return;
 
   try {
@@ -52,7 +52,7 @@ export async function renderNotifyLogs() {
 }
 
 // 2. 이벤트 연결 (상태 변경 및 새로고침)
-export function bindNotifyLogs() {
+export function bindNotifyLogs(storeId) {
   const tbody = document.getElementById('tbody-notify-logs');
   if (!tbody) return;
 
@@ -63,6 +63,7 @@ export function bindNotifyLogs() {
 
     const id = sel.dataset.id;
     const nextStatus = sel.value;
+    sel.disabled = true;
 
     try {
       const res = await fetch('/api/call', {
@@ -73,15 +74,25 @@ export function bindNotifyLogs() {
 
       if (res.ok) {
         showToast(`✅ ${nextStatus} 처리되었습니다.`, "success");
-        renderNotifyLogs(); // 화면 갱신
+        renderNotifyLogs(storeId); // 화면 갱신
+      } else {
+        throw new Error('Server error');
       }
     } catch (err) {
       showToast("상태 변경 실패", "error");
+      // 🚀 실패 시 원래 상태로 복구하기 위해 리스트 재렌더링
+      await renderNotifyLogs(storeId);
+    } finally {
+      // 🚀 어떤 상황에서도 잠금 해제
+      if (sel) sel.disabled = false; 
     }
   });
 
   // 새로고침 버튼
-  document.getElementById('notify-log-refresh')?.addEventListener('click', () => {
-    renderNotifyLogs();
+  document.getElementById('notify-log-refresh')?.addEventListener('click', (e) => {
+    const btn = e.target;
+    btn.disabled = true; // 새로고침 연타 방지
+    renderNotifyLogs(storeId);
+    setTimeout(() => { btn.disabled = false; }, 2000); // 2초 쿨타임
   });
 }
