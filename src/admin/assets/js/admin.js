@@ -125,7 +125,7 @@ function makeSafeRefresher(realFn) {
   };
 }
 
-const safeRenderStore = makeSafeRefresher(renderStore);
+const safeRenderStore = makeSafeRefresher(renderStoreTable);
 const safeRenderDeliv = makeSafeRefresher(renderDeliv);
 const safeRenderNotifyLogs = makeSafeRefresher(renderNotifyLogs);
 
@@ -394,9 +394,9 @@ async function main() {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.tab;
       switch(tab) {
-        case "store": safeRenderStore(); break;
-        case "delivery": safeRenderDeliv(); break;
-        case "notify-log": safeRenderNotifyLogs(); break;
+        case "store": safeRenderStore(sid); break;
+        case "delivery": safeRenderDeliv(sid); break;
+        case "notify-log": safeRenderNotifyLogs(sid); break;
       }
     });
   });
@@ -419,8 +419,8 @@ async function main() {
   // F. 기타 초기화
   //------------------------------------------------------------------
   bindFilters();
-  safeRenderStore();
-  safeRenderDeliv();
+  safeRenderStore(sid);
+  safeRenderDeliv(sid);
   attachGlobalHandlers();
 
   // -------------------------------------------------
@@ -429,14 +429,14 @@ async function main() {
 const storeRefreshBtn = document.getElementById("store-refresh");
 if (storeRefreshBtn) {
   storeRefreshBtn.addEventListener("click", () => {
-    safeRenderStore();
+    safeRenderStore(sid);
   });
 }
 
 const delivRefreshBtn = document.getElementById("deliv-refresh");
 if (delivRefreshBtn) {
   delivRefreshBtn.addEventListener("click", () => {
-    safeRenderDeliv();
+    safeRenderDeliv(sid);
   });
 }
 
@@ -449,22 +449,21 @@ if (delivRefreshBtn) {
   if (delivExportBtn) delivExportBtn.onclick = () =>
     exportOrders("ordersDelivery");
 
-  renderMenu();
-  bindMenu();
-  renderCode();
-  bindCode();
-  renderMyBank();
-  bindMyBank();
-  renderNotify();
-  bindNotify();
-  renderCallOptions();   
-  bindCallOptions();     
-  initQR();
-  safeRenderNotifyLogs();
-  bindNotifyLogs();
-
-  renderPolicy();
-  bindPolicy();
+ renderMenu(sid);
+  bindMenu(sid);
+  renderCode(sid);
+  bindCode(sid);
+  renderMyBank(sid);
+  bindMyBank(sid);
+  renderNotify(sid);
+  bindNotify(sid);
+  renderCallOptions(sid);   
+  bindCallOptions(sid);     
+  initQR(sid);
+  safeRenderNotifyLogs(sid);
+  bindNotifyLogs(sid);
+  renderPolicy(sid);
+  bindPolicy(sid);
 
  
 //------------------------------------------------------------------
@@ -492,7 +491,7 @@ if (delivRefreshBtn) {
     if (msg.type === 'CALL') {
       showToast(`🔔 테이블 ${msg.table ?? '-'} 호출${msg.note ? ' - ' + msg.note : ''} ${timeText}`, 'info');
       notifyEvent(msg);
-      safeRenderNotifyLogs();
+      safeRenderNotifyLogs(sid);
     } /*else if (msg.type === 'NEW_ORDER') {
       showToast(`📦 새 주문 도착 (${msg.table || '예약'}) ${timeText}`, 'success');
       notifyEvent(msg);
