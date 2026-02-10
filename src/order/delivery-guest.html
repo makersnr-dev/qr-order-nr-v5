@@ -431,28 +431,6 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[m]));
 }
-  
-  /* --- 전역 변수 선언 --- */
-//let globalSupabase = null;
-//let globalChannel = null;
-
-/* --- 공통 연결 함수 (추가) --- */
-/*async function getSupabase() {
-    // 이미 만들어진 연결이 있다면 재사용 (중복 인스턴스 방지)
-    if (globalSupabase) return { supabase: globalSupabase, channel: globalChannel };
-
-    const configRes = await fetch('/api/config');
-    const { supabaseUrl, supabaseKey } = await configRes.json();
-    
-    // 딱 한 번만 클라이언트 생성
-    globalSupabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-    globalChannel = globalSupabase.channel(`qrnr_realtime_${window.qrnrStoreId}`);
-    
-    // 즉시 구독 시작
-    globalChannel.subscribe();
-    
-    return { supabase: globalSupabase, channel: globalChannel };
-}*/
 
   /**
  * 표준 토스트 알림 함수
