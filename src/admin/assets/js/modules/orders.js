@@ -71,12 +71,27 @@ async function safeRenderAll(type = 'all', storeId) {
   }
 }
 
+// orders.js 내부의 currentStoreId
 function currentStoreId() {
-  if (!window.qrnrStoreId) {
-    showToast('매장 정보 오류! 관리자 페이지를 새로고침 해주세요.', 'error');
-    throw new Error('STORE_ID_NOT_INITIALIZED');
+  // 1순위: 주소창 (?store=...) -> 새로고침 시 가장 정확함
+  const urlSid = new URLSearchParams(location.search).get('store');
+  
+  // 2순위: admin.js가 넣어준 전역 변수
+  const globalSid = window.qrnrStoreId;
+  
+  // 3순위: 로컬스토리지 백업본
+  const localSid = localStorage.getItem('qrnr.storeId');
+
+  const finalSid = urlSid || globalSid || localSid;
+
+  if (!finalSid || finalSid === "[object Object]") {
+     // 정말 없을 때만 에러
+     throw new Error('STORE_ID_NOT_INITIALIZED');
   }
-  return window.qrnrStoreId;
+  
+  // 찾았다면 전역 변수에 다시 한번 복사 (보정)
+  window.qrnrStoreId = finalSid;
+  return finalSid;
 }
 
 // ===============================
@@ -526,7 +541,14 @@ export async function renderStore(storeId) {
 
     // 3. 날짜 필터 (생성 시각 기준)
     if (f.from || f.to) {
-      const orderDate = new Date(o.ts).toISOString().split('T')[0];
+      // 서버에서 온 시간(o.ts 또는 o.created_at)을 Date 객체로 변환
+      const dateVal = o.ts || o.created_at;
+      if (!dateVal) return true; // 시간 정보 없으면 일단 노출
+
+      const d = new Date(dateVal);
+      // ISO 포맷(YYYY-MM-DD)으로 변환하여 문자열 비교
+      const orderDate = d.toISOString().split('T')[0]; 
+      
       if (f.from && orderDate < f.from) return false;
       if (f.to && orderDate > f.to) return false;
     }
