@@ -380,8 +380,8 @@ async function initRealtimeSync() {
 
             console.log(`📡 [실시간] 채널 연결 완료: qrnr_realtime_${sid}`);
 
-            // 중복 리스너 방지
-            channel.off('broadcast', { event: 'RELOAD_SIGNAL' });
+            
+            
 
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
