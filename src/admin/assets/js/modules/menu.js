@@ -1,14 +1,6 @@
 // /src/admin/assets/js/modules/menu.js
 import { showToast } from '../admin.js';
-
-// --- 유틸리티: 현재 매장 ID ---
-/*function currentStoreId() {
-    if (!window.qrnrStoreId) {
-        showToast('매장 정보가 초기화되지 않았습니다.', 'error');
-        throw new Error('STORE_ID_NOT_INITIALIZED');
-    }
-    return window.qrnrStoreId;
-}*/
+import { supabaseMgr } from '/src/shared/supabase-manager.js';
 
 // 1. [DB] 메뉴 목록 가져오기
 async function loadMenuFromServer(storeId) {
@@ -23,9 +15,7 @@ async function loadMenuFromServer(storeId) {
     }
 }
 
-// 2. [DB] 메뉴 저장하기 (단건 또는 배열)
-// /src/admin/assets/js/modules/menu.js 내 saveMenuToServer 함수 수정
-
+// 2. [DB] 메뉴 저장하기
 async function saveMenuToServer(storeId, menuData) {
     try {
         const sid = storeId;
@@ -35,34 +25,16 @@ async function saveMenuToServer(storeId, menuData) {
             body: JSON.stringify(menuData)
         });
 
-        if (res.ok && window.supabaseClient) {
-            const channelName = `qrnr_realtime_${sid}`;
-            
-            // 🚀 핵심: 기존에 열려있는 채널이 있는지 확인
-            let channel = window.supabaseClient.getChannels().find(c => c.name === channelName);
-            
-            if (!channel) {
-                channel = window.supabaseClient.channel(channelName);
-            }
-
-            // 구독 상태 확인 후 전송
-            const sendSignal = async () => {
-                const resp = await channel.send({
+        if (res.ok) {
+            // ✅ supabaseMgr를 사용하여 안전하게 채널 획득 및 신호 전송
+            const channel = await supabaseMgr.getChannel(sid);
+            if (channel) {
+                await channel.send({
                     type: 'broadcast',
                     event: 'RELOAD_SIGNAL',
                     payload: { type: 'menu_update', at: Date.now() }
                 });
-                console.log("📨 [관리자] 신호 전송 결과:", resp); // 여기서 'ok'가 찍혀야 함
-            };
-
-            if (channel.state === 'joined') {
-                await sendSignal();
-            } else {
-                channel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        await sendSignal();
-                    }
-                });
+                console.log("📨 [관리자] 메뉴 업데이트 신호 전송 완료");
             }
         }
         return res.ok;
@@ -359,6 +331,7 @@ function renderOptionGroups(groups, mountEl) {
 // 4. 테이블 렌더링 및 이벤트 바인딩
 // ------------------------------------------------------------
 window.currentMenuTab = window.currentMenuTab || 'A';
+let currentAllMenus = [];
 export async function renderMenu(storeId) {
     const menu = await loadMenuFromServer(storeId);
 
@@ -478,21 +451,21 @@ let currentAllMenus = [];
 const initMenuEvents = (storeId) => {
     const body = document.getElementById('m-body');
     if (!body || body.dataset.eventBound === 'true') return;
-        body.onclick = async (e) => {
-            const btn = e.target.closest('button');
-            if (!btn || !btn.dataset.act) return;
     
-            const act = btn.dataset.act;
-            const tr = btn.closest('tr');
-            const mId = tr.dataset.id;
-    
-            const m = currentAllMenus.find(item => item.id === mId); 
-            if (!m) return;
+    body.onclick = async (e) => {
+        const btn = e.target.closest('button');
+        if (!btn || !btn.dataset.act) return;
 
-            btn.disabled = true;
-            btn.classList.add('btn-loading');
-    
-            if (act === 'save') {
+        const act = btn.dataset.act;
+        const tr = btn.closest('tr');
+        const mId = tr.dataset.id;
+        const m = currentAllMenus.find(item => item.id === mId); 
+        if (!m) return;
+
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+
+        if (act === 'save') {
             const updated = {
                 ...m,
                 name: tr.querySelector('[data-k="name"]').value,
@@ -501,18 +474,18 @@ const initMenuEvents = (storeId) => {
                 active: tr.querySelector('[data-k="active"]').checked,
                 soldOut: tr.querySelector('[data-k="soldOut"]').checked
             };
-            if (await saveMenuToServer(storeId,updated)) {
+            if (await saveMenuToServer(storeId, updated)) {
                 showToast(`✅ [${updated.name}] 저장 완료!`, 'success');
-                await renderMenu(); // 최신 데이터 리로드
+                await renderMenu(storeId);
             }
         } 
         else if (act === 'detail') {
             openMenuDetailModal(m, async () => {
-                if (await saveMenuToServer(storeId,m)) {
+                if (await saveMenuToServer(storeId, m)) {
                     showToast('상세 설정 저장 완료', 'success');
                     renderMenu(storeId);
                 }
-            },storeId);
+            });
         } 
         else if (act === 'del') {
             if (confirm(`[${m.name}] 삭제할까요?`)) {
@@ -521,35 +494,23 @@ const initMenuEvents = (storeId) => {
                 if (res.ok) {
                     showToast('삭제되었습니다.', 'success');
                     
-                    // 🚀 [추가] 삭제 성공 후 실시간 신호 발송
-                    if (window.supabaseClient) {
-                        const channelName = `qrnr_realtime_${sid}`;
-                        let channel = window.supabaseClient.getChannels().find(c => c.name === channelName);
-                        if (!channel) channel = window.supabaseClient.channel(channelName);
-        
-                        const sendSignal = async () => {
+                    // ✅ [수정] 삭제 신호 전송도 매니저로 통일
+                    try {
+                        const channel = await supabaseMgr.getChannel(sid);
+                        if (channel) {
                             await channel.send({
                                 type: 'broadcast',
                                 event: 'RELOAD_SIGNAL',
                                 payload: { type: 'menu_update', at: Date.now() }
                             });
-                        };
-        
-                        if (channel.state === 'joined') {
-                            await sendSignal();
-                        } else {
-                            channel.subscribe(async (status) => {
-                                if (status === 'SUBSCRIBED') await sendSignal();
-                            });
                         }
-                    }
+                    } catch (err) { console.error(err); }
                     
                     renderMenu(storeId);
                 }
             }
         }
         
-        // [로딩 상태 해제]
         if (btn) {
             btn.disabled = false;
             btn.classList.remove('btn-loading');
