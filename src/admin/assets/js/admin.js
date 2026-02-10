@@ -205,15 +205,15 @@ async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
     if (!storeId) return;
 
+  if (supabaseMgr.client) {
+        await supabaseMgr.client.removeAllChannels();
+    }
+
     // [수정] 매니저로부터 채널 가져오기 (자동 클라이언트 생성 및 구독 포함)
     const realtimeChannel = await supabaseMgr.getChannel(storeId);
     if (!realtimeChannel) return;
 
     console.log(`📡 [관리자] 실시간 구독 시작 (매니저): ${storeId}`);
-
-    // [수정] 기존 리스너가 중복 등록되지 않도록 정리 (중요!)
-    realtimeChannel.off('broadcast', { event: 'NEW_ORDER' });
-    realtimeChannel.off('broadcast', { event: 'NEW_CALL' });
 
     realtimeChannel
       // --- [1] 새 주문 수신 (딩동 소리) ---
