@@ -265,6 +265,7 @@ async function initRealtimeAlarm(storeId) {
       // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
       const data = payload.payload;
       console.log("🔔 실시간 호출 수신 데이터:", data);
+      const currentSid = window.qrnrStoreId;
       
       const eventId = data.id || data.orderId || ('call-' + Date.now());
         // [중복 방지] 다른 탭에서 이미 처리된 이벤트인지 확인
@@ -288,7 +289,7 @@ async function initRealtimeAlarm(storeId) {
       showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
   
       // 3. 호출 로그 목록 새로고침
-      if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs();
+      if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(currentSid);
   })
     .subscribe((status, err) => {
     if (status === 'SUBSCRIBED') {
