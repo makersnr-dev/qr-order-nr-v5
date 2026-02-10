@@ -447,7 +447,7 @@ function renderCategoryTabs(categories, allMenu,storeId) {
         };
     });
 }
-let currentAllMenus = [];
+
 const initMenuEvents = (storeId) => {
     const body = document.getElementById('m-body');
     if (!body || body.dataset.eventBound === 'true') return;
