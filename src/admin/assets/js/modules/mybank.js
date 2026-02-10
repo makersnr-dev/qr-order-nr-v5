@@ -1,5 +1,6 @@
 // /src/admin/assets/js/modules/mybank.js
 import { showToast } from '../admin.js';
+import { supabaseMgr } from '/src/shared/supabase-manager.js';
 
 /*function currentStoreId() {
     if (!window.qrnrStoreId) {
@@ -67,26 +68,24 @@ export function bindMyBank(storeId) {
             if (res.ok) {
                 showToast("✅ 계좌 정보가 안전하게 저장되었습니다.", "success");
                 await renderMyBank(sid);
-                if (window.supabaseClient) {
-                    const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
-                    channel.subscribe(async (status) => {
-                        if (status === 'SUBSCRIBED') {
-                            await channel.send({
-                                type: 'broadcast',
-                                event: 'RELOAD_SIGNAL',
-                                payload: { type: 'bank_update', at: Date.now() }
-                            });
-                        }
-                    });
-                }
+                
+                // [수정] 매니저를 통해 안전하게 실시간 신호 전송
+                    const channel = await supabaseMgr.getChannel(sid);
+                    if (channel) {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'RELOAD_SIGNAL',
+                            payload: { type: 'bank_update', at: Date.now() }
+                        });
+                        console.log("📡 [계좌] 손님 화면 업데이트 신호 전송 완료");
+                    }
 
-            } else {
+                } else {
                     showToast("저장 실패", "error");
                 }
             } catch (err) {
                 showToast("네트워크 오류 발생", "error");
             } finally {
-                // 🚀 [추가] 어떤 경우에도 잠금 해제
                 saveBtn.disabled = false;
                 saveBtn.classList.remove('btn-loading');
             }
