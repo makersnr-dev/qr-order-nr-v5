@@ -999,6 +999,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
     console.error(err);
     showToast('취소 처리에 실패했습니다.', 'error');
   } finally {
+    const sid = currentStoreId();
     unlockOrder(id);
     await safeRenderAll(type,storeId);
   }
