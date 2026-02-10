@@ -432,6 +432,7 @@ initRealtimeSync();
 
 
 // 주문 내역 모달 열기 및 렌더링 로직 (최종 완결판)
+// 주문 내역 모달 열기 및 렌더링 로직 (옵션 표시 완벽 수정판)
 document.getElementById('btn-show-history').onclick = () => {
     const storeId = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
     const historyRaw = localStorage.getItem(`orders_${storeId}`);
@@ -445,53 +446,54 @@ document.getElementById('btn-show-history').onclick = () => {
             const rawData = o.cart || o.cartItems || o.items || [];
             let itemDetails = "";
 
-            // [핵심 로직] 데이터가 배열인지, 아니면 그냥 일반 문자열인지 판별
+            // 1. 데이터가 진짜 배열인지, 단순 텍스트인지 판별
             let menuArray = [];
-
             if (Array.isArray(rawData)) {
-                // 1. 이미 배열인 경우 (정상적인 데이터)
                 menuArray = rawData;
             } else if (typeof rawData === 'string') {
-                if (rawData.trim().startsWith('[') || rawData.trim().startsWith('{')) {
-                    // 2. 문자열인데 JSON 형태인 경우 (파싱 시도)
-                    try {
-                        menuArray = JSON.parse(rawData);
-                    } catch (e) {
-                        // 파싱 실패 시 글자 그대로 보여주기 위해 아래 else로 넘김
-                        menuArray = [{ name: rawData, qty: 1 }]; 
-                    }
+                if (rawData.trim().startsWith('[')) {
+                    try { menuArray = JSON.parse(rawData); } catch (e) { menuArray = [{ name: rawData, qty: 1 }]; }
                 } else {
-                    // 3. "아메리카노" 처럼 그냥 일반 한글 글자인 경우 (에러 원인 해결 구간)
-                    // 글자 그대로를 이름으로 가지는 임시 객체를 만듭니다.
                     menuArray = [{ name: rawData, qty: 1 }];
                 }
             }
 
-            // 배열이 하나로 뭉쳐져 있지 않고 단일 객체일 경우 대응
-            if (!Array.isArray(menuArray)) menuArray = [menuArray];
-
-            // HTML 생성
-            if (menuArray.length > 0 && menuArray[0].name) {
+            // 2. 메뉴 하나하나를 돌면서 옵션 텍스트 생성
+            if (menuArray.length > 0) {
                 itemDetails = menuArray.map(i => {
-                    // i가 객체가 아니라 그냥 문자열일 경우를 한 번 더 방어
                     const name = i.name || (typeof i === 'string' ? i : '알 수 없는 메뉴');
                     const qty = i.qty || 1;
-                    
                     let text = `• <b>${name}</b> x${qty}`;
                     
-                    const rawOpts = i.optionText || i.options || [];
-                    if (Array.isArray(rawOpts) && rawOpts.length > 0) {
-                        const optsText = rawOpts.map(t => {
+                    /* --- [옵션 추출 로직 강화] --- */
+                    // i.optionText(문자열배열) 또는 i.selectedOptions(객체배열) 모두 확인
+                    let optList = i.optionText || i.selectedOptions || i.options || [];
+                    
+                    // 만약 옵션이 문자열이라면 (예: "샷추가, 시럽추가") 배열로 변환 시도
+                    if (typeof optList === 'string' && optList.startsWith('[')) {
+                        try { optList = JSON.parse(optList); } catch(e) { optList = [optList]; }
+                    } else if (typeof optList === 'string') {
+                        optList = optList ? [optList] : [];
+                    }
+
+                    if (Array.isArray(optList) && optList.length > 0) {
+                        const optsText = optList.map(t => {
+                            // 1. "그룹:값" 형태의 문자열인 경우 값만 추출
                             if (typeof t === 'string') return t.includes(':') ? t.split(':')[1] : t;
-                            return t.label || t.value || "";
+                            // 2. {label: '값'} 또는 {name: '값'} 형태의 객체인 경우
+                            return t.label || t.value || t.name || "";
                         }).filter(Boolean).join(', ');
                         
-                        if (optsText) text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px;">└ 옵션: ${optsText}</div>`;
+                        if (optsText) {
+                            text += ` <div style="font-size:11px; color:#9ca3af; margin-left:12px; margin-top:2px;">└ 옵션: ${optsText}</div>`;
+                        }
                     }
-                    return `<div style="margin-bottom:6px;">${text}</div>`;
+                    /* --------------------------- */
+                    
+                    return `<div style="margin-bottom:8px;">${text}</div>`;
                 }).join('');
             } else {
-                itemDetails = '<div style="color:#9ca3af; font-size:12px;">주문 상세 정보가 없습니다.</div>';
+                itemDetails = '<div style="color:#9ca3af; font-size:12px;">주문 정보가 없습니다.</div>';
             }
 
             return `
@@ -502,6 +504,7 @@ document.getElementById('btn-show-history').onclick = () => {
                     </div>
                     <div style="font-size:13px; line-height:1.4;">${itemDetails}</div>
                     <div style="text-align:right; margin-top:10px; border-top:1px solid #263241; padding-top:8px;">
+                        <span class="small" style="color:#9ca3af;">합계 </span>
                         <b style="color:#2ea043; font-size:15px;">${Number(o.amount || 0).toLocaleString()}원</b>
                     </div>
                 </div>
