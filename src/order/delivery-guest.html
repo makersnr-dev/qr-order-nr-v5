@@ -432,6 +432,14 @@
     }[m]));
 }
 
+  // 1. [여기에 추가] 오늘 이후 날짜만 선택 가능하게 설정
+  const dateInput = document.getElementById('date');
+if (dateInput) {
+    // 한국 시간(KST) 기준으로 현재 날짜 문자열(YYYY-MM-DD) 생성
+    const kstToday = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0];
+    dateInput.min = kstToday;
+}
+
   /**
  * 표준 토스트 알림 함수
  * @param {string} msg - 표시할 메시지
@@ -495,31 +503,25 @@ export function showToast(msg, variant = 'info') {
   if (!date) {fail("예약 날짜를 선택해주세요.");return;}
   if (!ap || !hh || !mm) {fail("예약 시간을 선택해주세요.");return;}
 
-  /*const payload = {
-  orderId: 'R' + Date.now(),
-  storeId,
-  orderType: 'reserve',
-  //status: INITIAL_STATUS.reserve,
-  amount: cart.total(),
-  items: cart.items.map(i => ({
-  id: i.id,
-  name: i.name,
-  qty: i.qty,
-  unitPrice: i.price,
-  options: Array.isArray(i.options) ? i.options : []
-})),
-  customer: {
-    name: cust,
-    phone,
-    addr: fullAddr,
-    memo
-  },
-  reserve: {
-    date,
-    time: `${ap} ${hh}:${mm}`
-  },
-  createdAt: Date.now()
-};*/
+// 🚀 [추가] 과거 시간 예약 방지 로직
+  // ---------------------------------------------------------
+  // 사용자가 선택한 시간을 24시간제로 변환
+  let hour24 = parseInt(hh);
+  if (ap === "PM" && hour24 < 12) hour24 += 12;
+  if (ap === "AM" && hour24 === 12) hour24 = 0;
+
+  // 선택한 날짜와 시간을 Date 객체로 생성
+  const selectedDateTime = new Date(`${date}T${String(hour24).padStart(2, '0')}:${mm}:00`);
+  
+  // 현재 시간 가져오기 (한국 시간 기준)
+  const now = new Date();
+
+  // 비교 실행: 선택한 시간이 지금보다 이전인가?
+  if (selectedDateTime <= now) {
+    fail("현재 시간보다 이후의 시간으로 예약해주세요.");
+    return;
+  }
+    
     const payload = {
   storeId,
   type: 'reserve',
@@ -837,6 +839,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 페이지가 처음 열릴 때 계좌 정보를 가져옴
     loadBankInfo();
 });
+  
 // 🔄 [delivery-guest.html 전용] 실시간 동기화 최종본
 async function initRealtimeSync() {
     try {
