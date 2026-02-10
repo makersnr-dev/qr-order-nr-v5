@@ -1,5 +1,6 @@
 // /src/admin/assets/js/modules/policy.js
 import { showToast } from '../admin.js';
+import { supabaseMgr } from '/src/shared/supabase-manager.js';
 
 // 기본 예시 문구 (DB에 데이터가 없을 때 보여줄 용도)
 const DEFAULT_POLICY_TEXT = `
@@ -71,31 +72,27 @@ export function bindPolicy(storeId) {
 
             if (res.ok) {
                 showToast("✅ 개인정보 처리방침이 DB에 저장되었습니다.", "success");
-                // 🚀 [추가] 방침 변경 신호 발송
-                if (window.supabaseClient) {
-                    const channel = window.supabaseClient.channel(`qrnr_realtime_${sid}`);
-                    channel.subscribe(async (status) => {
-                        if (status === 'SUBSCRIBED') {
-                            await channel.send({
-                                type: 'broadcast',
-                                event: 'RELOAD_SIGNAL',
-                                payload: { type: 'policy_update', at: Date.now() }
-                            });
-                        }
+                // [수정] 매니저를 통해 안전하고 간결하게 실시간 신호 전송
+                const channel = await supabaseMgr.getChannel(sid);
+                if (channel) {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'RELOAD_SIGNAL',
+                        payload: { type: 'policy_update', at: Date.now() }
                     });
+                    console.log("📡 [방침] 손님 화면 업데이트 신호 전송 완료");
                 }
             } else {
                 showToast("저장 실패", "error");
             }
         } catch (e) {
             showToast("네트워크 오류", "error");
-        }finally {
-            // [중복 클릭 방지] 로딩 상태 해제
+        } finally {
             saveBtn.disabled = false;
             saveBtn.classList.remove('btn-loading');
         }
     };
-
+    
     // [기본 예시 불러오기] 버튼 클릭
     if (resetBtn) {
         resetBtn.onclick = () => {
