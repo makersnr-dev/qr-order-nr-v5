@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         let token = isSuperPath ? cookies['super_token'] : (cookies['admin_token'] || cookies['super_token']);
         if (!token) return null;
         try {
-            return await verifyJWT(token, process.env.JWT_SECRET || 'dev-secret');
+            return await verifyJWT(token, process.env.JWT_SECRET);
         } catch (e) { return null; }
     };
 
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
             const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
             const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
             if (found) {
-                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET || 'dev-secret', 86400); // 🚀 만료시간 추가
+                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET , 86400); // 🚀 만료시간 추가
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
                 return json({ ok: true, token });
             }
@@ -398,7 +398,7 @@ export default async function handler(req, res) {
             if (envFound) {
                 const map = await queryOne('SELECT store_id FROM admin_stores WHERE admin_key = $1', [uid]);
                 const sid = map?.store_id || 'store1';
-                const token = await signJWT({ realm: 'admin', uid, storeId: sid }, process.env.JWT_SECRET || 'dev-secret', 86400);
+                const token = await signJWT({ realm: 'admin', uid, storeId: sid }, process.env.JWT_SECRET , 86400);
                 res.setHeader('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
                 return json({ ok: true, token, storeId: sid });
             }
@@ -431,7 +431,7 @@ export default async function handler(req, res) {
                 // 4. 토큰 발급 및 쿠키 설정 (기존 signJWT 로직)
                 const token = await signJWT(
                     { realm: 'admin', uid, storeId: sid, role: firstRow.role }, 
-                    process.env.JWT_SECRET || 'dev-secret', 
+                    process.env.JWT_SECRET , 
                     86400
                 );
 
