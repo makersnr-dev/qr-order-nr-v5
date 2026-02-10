@@ -28,7 +28,7 @@ export default async function handler(req) {
     return json({ ok: false, error: "UNAUTHORIZED" }, 401);
   }
 
-  const secret = process.env.JWT_SECRET || "dev-secret";
+  const secret = process.env.JWT_SECRET;
   let payload;
   try {
     payload = await verifyJWT(token, secret);
