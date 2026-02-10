@@ -10,7 +10,7 @@
  * @param {string} status - 변경할 상태 값
  * @param {string} type - 'store' 또는 'reserve'
  * @param {string} storeId - [수정] 전역 변수가 아닌 파라미터로 직접 전달받음
- **/
+ **//
 
 import { showToast } from '../admin.js';
 import { fmt } from './store.js';
