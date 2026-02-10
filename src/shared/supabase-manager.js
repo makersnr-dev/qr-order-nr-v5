@@ -1,6 +1,5 @@
 /**
- * Supabase 연결 및 채널 관리를 전담하는 싱글톤 클래스
- * /src/shared/supabase-manager.js
+ * /src/shared/supabase-manager.js 수정본
  */
 class SupabaseManager {
     constructor() {
@@ -31,21 +30,41 @@ class SupabaseManager {
 
         const channelName = `qrnr_realtime_${storeId}`;
 
-        // [핵심 보강] 기존에 열려있던 모든 채널을 물리적으로 닫아서 중복 리스너 방지
-        await client.removeAllChannels();
-        this.channels.clear();
+        // ✅ [개선 1] 이미 활성화된 채널이 있다면 그대로 반환 (중복 방지)
+        if (this.channels.has(channelName)) {
+            const existingChannel = this.channels.get(channelName);
+            if (existingChannel.state === 'joined') {
+                return existingChannel;
+            }
+            // 상태가 이상하면 제거 후 다시 생성하도록 진행
+            client.removeChannel(existingChannel);
+        }
 
-        // 새 채널 생성
+        // ✅ [개선 2] 무조건적인 removeAllChannels() 제거
+        // 대신 필요한 채널만 관리합니다.
+
         const channel = client.channel(channelName, {
             config: { broadcast: { self: false } }
         });
 
         return new Promise((resolve) => {
+            // ✅ [개선 3] 5초 타임아웃 안전장치 (무한 대기 방지)
+            const timer = setTimeout(() => {
+                console.warn(`⏳ [Supabase] ${channelName} 연결 타임아웃`);
+                resolve(null); 
+            }, 5000);
+
             channel.subscribe((status) => {
                 console.log(`📡 [Supabase] ${channelName} 상태:`, status);
+                
                 if (status === 'SUBSCRIBED') {
+                    clearTimeout(timer);
                     this.channels.set(channelName, channel);
                     resolve(channel);
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    clearTimeout(timer);
+                    client.removeChannel(channel);
+                    resolve(null);
                 }
             });
         });
