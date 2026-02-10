@@ -321,13 +321,7 @@ async function main() {
   try {
     const res = await fetch('/api/config');
     const { supabaseUrl, supabaseKey } = await res.json();
-    
-    // index.html에서 로드된 'supabase' 객체를 사용하여 초기화
-    // window.supabase는 라이브러리 자체이고, supabaseClient는 우리 매장 연결 통로입니다.
-    if (window.supabase && window.supabase.createClient) {
-        window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        console.log("✅ Supabase 클라이언트 전역 등록 완료");
-    }
+  
   } catch (e) {
     console.error("Supabase 설정 로드 실패:", e);
   }
