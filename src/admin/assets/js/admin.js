@@ -205,10 +205,6 @@ async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
     if (!storeId) return;
 
-  if (supabaseMgr.client) {
-        await supabaseMgr.client.removeAllChannels();
-    }
-
     // [수정] 매니저로부터 채널 가져오기 (자동 클라이언트 생성 및 구독 포함)
     const realtimeChannel = await supabaseMgr.getChannel(storeId);
     if (!realtimeChannel) return;
