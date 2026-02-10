@@ -5,6 +5,14 @@
  * - 모든 주문 데이터는 /api/orders (DB) 기준
  * - localStorage는 완전히 제거
  * =====================================================
+
+ /**
+ * 주문 상태 변경 함수
+ * @param {string} id - 주문 ID
+ * @param {string} status - 변경할 상태 값
+ * @param {string} type - 'store' 또는 'reserve'
+ * @param {string} storeId - [수정] 전역 변수가 아닌 파라미터로 직접 전달받음
+ */
  */
 import { showToast } from '../admin.js';
 import { fmt } from './store.js';
@@ -108,7 +116,7 @@ const UI_TEXT = {
 // ===============================
 // 주문 상태 변경
 // ===============================
-async function changeOrderStatus({ id, status, type }) {
+async function changeOrderStatus({ id, status, type, storeId }) {
   if (!id || typeof id !== 'string') {
     console.warn('[BLOCKED] invalid order id:', id);
     showToast('유효하지 않은 주문입니다.', 'error');
@@ -116,6 +124,17 @@ async function changeOrderStatus({ id, status, type }) {
   }
   
   if (!id || !status) return;
+  // [중복 클릭 방지] 이미 해당 ID의 주문이 처리 중인지 확인
+  if (isPending(id)) {
+    showToast('이미 처리 중인 주문입니다.', 'info');
+    return;
+  }
+  // [UI 로딩 상태 적용] 해당 주문 행의 select 박스나 버튼을 찾아 비활성화 및 스피너 효과 부여
+  const targetEl = document.querySelector(`select[data-id="${id}"], button[data-id="${id}"]`);
+  if (targetEl) {
+    targetEl.disabled = true;
+    targetEl.classList.add('btn-loading'); // CSS 스피너 클래스 추가
+  }
 
   const allowedStatuses =
     type === 'store'
@@ -135,7 +154,7 @@ async function changeOrderStatus({ id, status, type }) {
     return;
   }
 
-  const storeId = currentStoreId();
+  //const storeId = currentStoreId();
 
   const historyItem = {
     at: new Date().toISOString(),
@@ -149,14 +168,9 @@ async function changeOrderStatus({ id, status, type }) {
   const payload = {
     orderId: id,
     status,
-    type: type
+    type: type,
+    storeId: storeId
   };
-
-  if (isPending(id)) {
-    showToast('이미 처리 중인 주문입니다.', 'info');
-    return;
-  }
-  
   lockOrder(id);
 
   try {
@@ -173,10 +187,10 @@ async function changeOrderStatus({ id, status, type }) {
 
     const data = await res.json();
     if (!data.ok) {
-      await safeRenderAll(type);
+      await safeRenderAll(type, storeId); 
       throw new Error(data.error || 'STATUS_CHANGE_FAILED');
     }
-
+    showToast(`상태가 [${status}]로 변경되었습니다.`, 'success');
     // 관리자 간 이벤트 전파
     try {
       const channel = new BroadcastChannel('qrnr-admin');
@@ -195,9 +209,13 @@ async function changeOrderStatus({ id, status, type }) {
     throw err;
   } finally {
     unlockOrder(id);
+    if (targetEl) {
+      targetEl.disabled = false;
+      targetEl.classList.remove('btn-loading');
+    }
   }
 
-  await safeRenderAll(type);
+  await safeRenderAll(type, storeId);
 }
 
 // ===============================
