@@ -45,7 +45,7 @@ let __isRendering = false;
 let __renderQueued = false;
 
 // 인자값으로 type을 받도록 수정 (기본값은 'all'로 설정)
-async function safeRenderAll(type = 'all') {
+async function safeRenderAll(type = 'all', storeId) {
   if (__isRendering) {
     __renderQueued = type; // 어떤 타입을 렌더링하려 했는지 저장
     return;
@@ -54,13 +54,13 @@ async function safeRenderAll(type = 'all') {
   __isRendering = true;
   try {
     if (type === 'store') {
-      await renderStore();
+      await renderStoreTable(storeId);
     } else if (type === 'reserve') {
-      await renderDeliv();
+      await renderDeliv(storeId);
     } else {
       // type이 'all'이거나 없을 경우 둘 다 실행
-      await renderStore();
-      await renderDeliv();
+      await renderStoreTable(storeId);
+      await renderDeliv(storeId);
     }
   } finally {
     __isRendering = false;
@@ -68,7 +68,7 @@ async function safeRenderAll(type = 'all') {
     if (__renderQueued) {
       const nextType = __renderQueued;
       __renderQueued = false;
-      await safeRenderAll(nextType);
+      await safeRenderAll(nextType,storeId);
     }
   }
 }
@@ -240,8 +240,7 @@ async function applyPaymentUpdate({ id, payment, history }) {
       }
     })
   });
-
-  await safeRenderAll('store');
+  await renderStoreTable(storeId);
 }
 
 // ===============================
@@ -361,18 +360,20 @@ export function bindFilters() {
   function bind(prefix, key) {
     const f = filters[key];
     $('#' + prefix + '-filter').onclick = () => {
+     const sid = currentStoreId(); // 🚀 ID 확보
       f.from   = $('#' + prefix + '-from').value;
       f.to     = $('#' + prefix + '-to').value;
       f.status = $('#' + prefix + '-status').value;
       f.search = $('#' + prefix + '-search').value;
-      key === 'store' ? renderStore() : renderDeliv();
+      key === 'store' ? renderStoreTable(sid) : renderDeliv(sid);
     };
     $('#' + prefix + '-reset').onclick = () => {
+     const sid = currentStoreId(); // 🚀 ID 확보
       f.from = f.to = f.status = f.search = '';
       ['from', 'to', 'status', 'search'].forEach(
         x => $('#' + prefix + '-' + x).value = ''
       );
-      key === 'store' ? renderStore() : renderDeliv();
+      key === 'store' ? renderStoreTable(sid) : renderDeliv(sid);
     };
   }
   bind('store', 'store');
@@ -487,14 +488,14 @@ export function exportOrders(type) {
 // 매장 주문 렌더링 (DB 조회)
 // ===============================
 export async function renderStore() {
-  return renderStoreTable();
+  return renderStoreTable(storeId);
 }
 
-async function renderStoreTable() {
+async function renderStoreTable(storeId) {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
-  const storeId = currentStoreId();
+  //const storeId = currentStoreId();
   let rows = [];
 
   try {
@@ -601,11 +602,11 @@ async function renderStoreTable() {
 // ===============================
 // 예약 주문 렌더링 (DB 조회)
 // ===============================
-export async function renderDeliv() {
+export async function renderDeliv(storeId) {
   const tbody = $('#tbody-deliv');
   if (!tbody) return;
 
-  const storeId = currentStoreId();
+  //const storeId = currentStoreId();
   let rows = [];
 
   try {
@@ -731,12 +732,13 @@ export function attachGlobalHandlers() {
     }
 
     try {
-      await changeOrderStatus({ id, status: nextStatus, type });
-      showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`, 'success');
+      const sid = currentStoreId(); 
+     await changeOrderStatus({ id, status: nextStatus, type, storeId: sid });
+     showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`, 'success');
     } catch (err) {
       if (err.message === 'ORDER_NOT_FOUND') {
         showToast('이미 삭제되었거나 처리된 주문입니다.', 'warning');
-        await safeRenderAll(type);
+        await safeRenderAll(type,storeId);
         return;
       }
       showToast('상태 변경에 실패했습니다. 네트워크를 확인하세요.', 'error');
@@ -910,7 +912,7 @@ export function attachGlobalHandlers() {
       showToast('결제 완료 처리 실패', 'error');
     } finally {
       unlockOrder(id);
-      await safeRenderAll('store');
+      await safeRenderAll('store',storeId);
     }
   });
 
@@ -949,9 +951,10 @@ export function attachGlobalHandlers() {
     const msg = e.data || {};
     if (msg.type !== ADMIN_EVENTS.ORDER_STATUS_CHANGED) return;
     if (msg.senderId === ADMIN_ID) return;
-    if (msg.storeId !== window.qrnrStoreId) return;
+    const sid = currentStoreId(); // 🚀 전역에 저장된 sid 사용
+    if (msg.storeId !== sid) return;
     console.log('[ADMIN EVENT] order changed → reload');
-    await safeRenderAll(msg.orderType || 'all');
+    await safeRenderAll(msg.orderType || 'all',sid);
   };
 })();
 
@@ -997,7 +1000,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
     showToast('취소 처리에 실패했습니다.', 'error');
   } finally {
     unlockOrder(id);
-    await safeRenderAll(type);
+    await safeRenderAll(type,storeId);
   }
 });
 
