@@ -211,24 +211,25 @@ async function initRealtimeAlarm(storeId) {
 
     console.log(`📡 [관리자] 실시간 구독 시작 (매니저): ${storeId}`);
 
-    realtimeChannel
-      // --- [1] 새 주문 수신 (딩동 소리) ---
-      .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
-        const data = payload.payload;
-        console.log("🔔 새 주문 발생!", data);
-        
-        const eventId = data.orderNo || data.id;
-
-    // 1. 목록 갱신 실행
-        const currentSid = window.qrnrStoreId;
-    if (data.orderType === 'store') {
-        if (typeof safeRenderStore === 'function') safeRenderStore(currentSid);
-    } else {
-        // 예약 주문('reserve')일 때 이 함수가 실행되어야 함
-        if (typeof safeRenderDeliv === 'function') safeRenderDeliv(currentSid);
-    }
+   realtimeChannel
+  // --- [1] 새 주문 수신 (딩동 소리) ---
+  .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
+    const data = payload.payload;
+    console.log("🔔 새 주문 발생!", data);
     
-    // [중복 방지]
+    const currentSid = window.qrnrStoreId;
+    const eventId = data.orderNo || data.id;
+
+    // ✅ [수정 1] 목록 갱신을 중복 방지(return) 로직보다 위로 올림
+    // 이유: 알림은 한 번만 울려야 하지만, 목록은 어떤 탭에서든 갱신되어야 함
+    // ✅ [수정 2] safeRender... 대신 원본 render... 함수를 직접 호출 (5초 쿨타임 무시)
+    if (data.orderType === 'store' || data.type === 'store') {
+        if (typeof renderStore === 'function') renderStore(currentSid); 
+    } else {
+        if (typeof renderDeliv === 'function') renderDeliv(currentSid);
+    }
+
+    // [중복 방지] 알림(소리/토스트)은 여기서부터 차단됨
     if (lastProcessedEventId === eventId) return;
     lastProcessedEventId = eventId;
     adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
@@ -243,10 +244,12 @@ async function initRealtimeAlarm(storeId) {
         lastAlarmTime = now;
     }
 
-    // 3. 토스트 알림 표시 (데이터 필드명 보정: customerName)
-    const orderTitle = data.orderType === 'store' ? '매장' : '예약';
+    // 3. 토스트 알림 표시
+    // ✅ [수정 3] data.type 도 함께 체크하도록 보정
+    const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
     const cName = data.customerName || '비회원';
     showToast(`📦 새 ${orderTitle} 주문 도착! (${cName})`, "success");
+  });
 
     // 4. 데스크탑 팝업 알림
     showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${cName}님의 주문이 들어왔습니다.`);
