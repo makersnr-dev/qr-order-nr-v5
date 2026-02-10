@@ -887,6 +887,10 @@ document.getElementById('btn-do-lookup').onclick = async () => {
     const storeId = window.qrnrStoreId;
 
     if (!name || !phone || !pw) return showToast("모든 정보를 입력하세요.", "info");
+  // 🚀 [추가] 연락처 길이 검사 (전체 번호 입력 유도)
+    if (phone.length < 10) {
+        return showToast("연락처를 전체 번호로 올바르게 입력해주세요.", "error");
+    }
 
     const btn = document.getElementById('btn-do-lookup');
     btn.disabled = true;
