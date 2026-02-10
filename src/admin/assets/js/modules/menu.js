@@ -2,18 +2,18 @@
 import { showToast } from '../admin.js';
 
 // --- 유틸리티: 현재 매장 ID ---
-function currentStoreId() {
+/*function currentStoreId() {
     if (!window.qrnrStoreId) {
         showToast('매장 정보가 초기화되지 않았습니다.', 'error');
         throw new Error('STORE_ID_NOT_INITIALIZED');
     }
     return window.qrnrStoreId;
-}
+}*/
 
 // 1. [DB] 메뉴 목록 가져오기
-async function loadMenuFromServer() {
+async function loadMenuFromServer(storeId) {
     try {
-        const res = await fetch(`/api/menus?storeId=${currentStoreId()}`);
+        const res = await fetch(`/api/menus?storeId=${storeId}`);
         const data = await res.json();
         return data.menus || [];
     } catch (e) {
@@ -26,9 +26,9 @@ async function loadMenuFromServer() {
 // 2. [DB] 메뉴 저장하기 (단건 또는 배열)
 // /src/admin/assets/js/modules/menu.js 내 saveMenuToServer 함수 수정
 
-async function saveMenuToServer(menuData) {
+async function saveMenuToServer(storeId, menuData) {
     try {
-        const sid = currentStoreId();
+        const sid = storeId;
         const res = await fetch(`/api/menus?storeId=${sid}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -158,8 +158,8 @@ function mergeMenu(oldMenu, newMenu) {
   return Object.values(map);
 }
 
-export async function exportMenuToExcel() {
-    const menus = await loadMenuFromServer();
+export async function exportMenuToExcel(storeId) {
+    const menus = await loadMenuFromServer(storeId);
     if (!menus.length) return showToast('다운로드할 메뉴가 없습니다.', 'error');
 
     const data = menus.map(m => {
@@ -359,8 +359,8 @@ function renderOptionGroups(groups, mountEl) {
 // 4. 테이블 렌더링 및 이벤트 바인딩
 // ------------------------------------------------------------
 window.currentMenuTab = window.currentMenuTab || 'A';
-export async function renderMenu() {
-    const menu = await loadMenuFromServer();
+export async function renderMenu(storeId) {
+    const menu = await loadMenuFromServer(storeId);
 
     // 데이터가 없을 때의 예외 처리
     if (!menu || menu.length === 0) {
@@ -376,7 +376,7 @@ export async function renderMenu() {
     const categories = [...new Set(menu.map(m => m.id.charAt(0).toUpperCase()))].sort();
     
     // 2. 탭 생성 영역 (상단에 탭 버튼 추가)
-    renderCategoryTabs(categories, menu);
+    renderCategoryTabs(categories, menu,storeId);
 
    // 3. 현재 선택된 탭이 데이터에 존재하는지 확인 (삭제 시 대비)
     if (!categories.includes(window.currentMenuTab)) {
@@ -384,7 +384,7 @@ export async function renderMenu() {
     }
 
     // 4. 현재 선택된 탭의 메뉴만 렌더링
-    filterAndRenderTable(menu, window.currentMenuTab);
+    filterAndRenderTable(menu, window.currentMenuTab,storeId);
     
     /*
     const body = document.getElementById('m-body');
@@ -447,7 +447,7 @@ export async function renderMenu() {
 }
 
 // 카테고리 탭 버튼 생성 함수
-function renderCategoryTabs(categories, allMenu) {
+function renderCategoryTabs(categories, allMenu,storeId) {
     let tabContainer = document.getElementById('menu-cat-tabs');
     if (!tabContainer) {
         tabContainer = document.createElement('div');
@@ -470,12 +470,12 @@ function renderCategoryTabs(categories, allMenu) {
     tabContainer.querySelectorAll('.tab').forEach(btn => {
         btn.onclick = () => {
             window.currentMenuTab = btn.dataset.cat;
-            renderMenu(); // 다시 그리기
+            renderMenu(storeId); // 다시 그리기
         };
     });
 }
 let currentAllMenus = [];
-const initMenuEvents = () => {
+const initMenuEvents = (storeId) => {
     const body = document.getElementById('m-body');
     if (!body || body.dataset.eventBound === 'true') return;
         body.onclick = async (e) => {
@@ -490,6 +490,7 @@ const initMenuEvents = () => {
             if (!m) return;
 
             btn.disabled = true;
+            btn.classList.add('btn-loading');
     
             if (act === 'save') {
             const updated = {
@@ -500,22 +501,22 @@ const initMenuEvents = () => {
                 active: tr.querySelector('[data-k="active"]').checked,
                 soldOut: tr.querySelector('[data-k="soldOut"]').checked
             };
-            if (await saveMenuToServer(updated)) {
+            if (await saveMenuToServer(storeId,updated)) {
                 showToast(`✅ [${updated.name}] 저장 완료!`, 'success');
                 await renderMenu(); // 최신 데이터 리로드
             }
         } 
         else if (act === 'detail') {
             openMenuDetailModal(m, async () => {
-                if (await saveMenuToServer(m)) {
+                if (await saveMenuToServer(storeId,m)) {
                     showToast('상세 설정 저장 완료', 'success');
-                    renderMenu();
+                    renderMenu(storeId);
                 }
-            });
+            },storeId);
         } 
         else if (act === 'del') {
             if (confirm(`[${m.name}] 삭제할까요?`)) {
-                const sid = currentStoreId();
+                const sid = storeId;
                 const res = await fetch(`/api/menus?storeId=${sid}&menuId=${m.id}`, { method: 'DELETE' });
                 if (res.ok) {
                     showToast('삭제되었습니다.', 'success');
@@ -543,18 +544,22 @@ const initMenuEvents = () => {
                         }
                     }
                     
-                    renderMenu();
+                    renderMenu(storeId);
                 }
             }
         }
         
-        if (btn) btn.disabled = false; // 잠금 해제
+        // [로딩 상태 해제]
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+        }
     };
     body.dataset.eventBound = 'true';
 };
 // 실제 테이블 내용 그리기 및 이벤트 바인딩 합치기
 // 실제 테이블 내용 그리기
-function filterAndRenderTable(menu, tab) {
+function filterAndRenderTable(menu, tab,storeId) {
     const body = document.getElementById('m-body');
     if (!body) return;
     
@@ -562,7 +567,7 @@ function filterAndRenderTable(menu, tab) {
     currentAllMenus = menu; 
     
     // 🚩 이벤트 핸들러 초기화 (딱 한 번만 실행됨)
-    initMenuEvents();
+    initMenuEvents(storeId);
 
     body.innerHTML = '';
     const filtered = menu.filter(m => m.id.charAt(0).toUpperCase() === tab);
@@ -597,8 +602,8 @@ function filterAndRenderTable(menu, tab) {
         body.appendChild(tr);
     });
 }
-export function bindMenu() {
-    initMenuEvents();
+export function bindMenu(storeId) {
+    initMenuEvents(storeId);
     const addBtn = document.getElementById('m-add');
     if (addBtn) {
         addBtn.onclick = async () => {
@@ -613,17 +618,19 @@ export function bindMenu() {
             const category = catInput.value.trim();
             
             if (!id || !name) return showToast('ID와 이름을 입력하세요.', 'info');
+            addBtn.disabled = true; // 중복 클릭 방지
             window.currentMenuTab = id.charAt(0).toUpperCase();
             
-            const success = await saveMenuToServer({ 
+            const success = await saveMenuToServer(storeId,{ 
                 id, name, price, active: false, soldOut: false, options: [] 
             });
 
             if (success) {
                 showToast('새 메뉴가 등록되었습니다.', 'success');
-                renderMenu();
+                renderMenu(storeId);
                 [idInput, nameInput, priceInput,catInput].forEach(el => el.value = '');
             }
+            addBtn.disabled = false;
         };
     }
     
@@ -638,7 +645,7 @@ export function bindMenu() {
     // [추가] 엑셀 다운로드 버튼 연결
     const downloadBtn = document.getElementById('menu-excel-download');
     if (downloadBtn) {
-        downloadBtn.onclick = exportMenuToExcel;
+        downloadBtn.onclick = () => exportMenuToExcel(storeId);
     }
 }
 
