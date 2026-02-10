@@ -317,14 +317,6 @@ function updateStatusUI(status) {
 async function main() {
   // 🔊 최초 클릭 시 사운드 활성화
   document.body.addEventListener('click', () => { enableNotifySound(); }, { once: true });
-
-  try {
-    const res = await fetch('/api/config');
-    const { supabaseUrl, supabaseKey } = await res.json();
-  
-  } catch (e) {
-    console.error("Supabase 설정 로드 실패:", e);
-  }
   
   // A. 인증 검사 (서버에서 storeId를 이미 받아옵니다)
   const session = await requireAuth("admin");
@@ -342,9 +334,10 @@ async function main() {
   
   
   // [중요] 3. 로그인 성공 및 storeId 확정 후 알람 구독 시작
-  if (window.supabaseClient) {
-    initRealtimeAlarm(sid);
-  }
+  const client = await supabaseMgr.getClient(); // ✅ 매니저를 통해 안전하게 클라이언트를 가져옴
+if (client) {
+  initRealtimeAlarm(sid); // 이제 안심하고 실행
+}
 
   // B. URL 보정
   try {
