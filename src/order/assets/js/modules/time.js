@@ -151,3 +151,24 @@ export function updateAvailableHours(bh, dateString, selectEl) {
         selectEl.appendChild(opt);
     }
 }
+
+/**
+ * 🚀 10. [추가] 관리자가 수동으로 차단한 시간인지 체크
+ */
+export function isManuallyBlocked(bh, selectedDate, selectedTime = null) {
+    if (!bh || !bh.disabled_slots || bh.disabled_slots.length === 0) return { ok: true };
+
+    for (const slot of bh.disabled_slots) {
+        if (slot.date === selectedDate) {
+            // 1. 해당 날짜 전체 차단인 경우
+            if (slot.time === 'ALL') {
+                return { ok: false, msg: "해당 날짜는 예약이 마감되었습니다." };
+            }
+            // 2. 특정 시간 차단인 경우 (사용자가 시간을 선택했을 때만 체크)
+            if (selectedTime && slot.time === selectedTime) {
+                return { ok: false, msg: "해당 시간은 이미 예약이 차단되었습니다." };
+            }
+        }
+    }
+    return { ok: true };
+}
