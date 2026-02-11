@@ -379,10 +379,33 @@ async function initRealtimeSync() {
             if (!channel) return;
 
             console.log(`📡 [실시간] 채널 연결 완료: qrnr_realtime_${sid}`);
-
+            channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
+            const { orderId, status } = payload.payload;
+            const storageKey = `orders_${sid}`;
             
+            // 1. 저장된 내역 불러오기
+            let history = JSON.parse(localStorage.getItem(storageKey) || "[]");
             
+            // 2. 해당 주문번호가 있으면 상태 업데이트
+            let updated = false;
+            history = history.map(o => {
+                if (o.id === orderId) {
+                    o.status = status;
+                    updated = true;
+                }
+                return o;
+            });
 
+            if (updated) {
+                // 3. 수정된 내역 다시 저장
+                localStorage.setItem(storageKey, JSON.stringify(history));
+                // 4. 주문 내역 모달이 열려있다면 UI 갱신 (다시 그리기)
+                if (document.getElementById('history-modal').style.display === 'flex') {
+                    document.getElementById('btn-show-history').click(); 
+                }
+                showToast(`🔔 주문이 [${status}] 상태로 변경되었습니다.`, "success");
+            }
+        });
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
                 showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
