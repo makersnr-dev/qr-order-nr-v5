@@ -1,6 +1,8 @@
 // /src/admin/assets/js/modules/notify.js
 import { showToast } from '../admin.js';
 import { supabaseMgr } from '/src/shared/supabase-manager.js';
+
+let disabledSlots = [];
 // ─────────────────────────────
 // 설정 로드/저장 (DB 연동)
 // ─────────────────────────────
@@ -10,24 +12,60 @@ export async function renderNotify(storeId) {
     const sid = storeId;
     try {
         const res = await fetch(`/api/store-settings?storeId=${sid}`);
-        const settings = data.settings || {};
         const data = await res.json();
+        const settings = data.settings || {};
         const n = data.settings?.notify_config || { useBeep: true, beepVolume: 0.7, desktop: true };
-        const bh = settings.business_hours || { enabled: false, start: "09:00", end: "22:00", days: [1,2,3,4,5] };
+        // ✅ 중복 선언 제거 및 기본값 설정
+        const bh = settings.business_hours || { enabled: false, start: "09:00", end: "22:00", days: [1,2,3,4,5], disabled_slots: [] };
+        disabledSlots = bh.disabled_slots || [];
+    
+        refreshDisabledUI();
+        
+        // 차단 추가 버튼 이벤트 (중복 방지를 위해 기존 이벤트 제거 후 등록 권장)
+        const addBlockBtn = document.getElementById('btn-add-block');
+        if (addBlockBtn) {
+            addBlockBtn.onclick = () => {
+                const date = document.getElementById('block-date').value;
+                const time = document.getElementById('block-time').value; // HH:mm
+                if(!date) return alert("날짜를 선택하세요.");
+                
+                disabledSlots.push({ date, time: time || 'ALL' });
+                refreshDisabledUI();
+            };
+        }
 
         if (document.getElementById('n-beep')) document.getElementById('n-beep').checked = !!n.useBeep;
         if (document.getElementById('n-vol')) document.getElementById('n-vol').value = n.beepVolume;
         if (document.getElementById('n-desktop')) document.getElementById('n-desktop').checked = !!n.desktop;
         if (document.getElementById('n-webhook')) document.getElementById('n-webhook').value = n.webhookUrl || '';
 
-        document.getElementById('bh-enabled').checked = !!bh.enabled;
-        document.getElementById('bh-start').value = bh.start;
-        document.getElementById('bh-end').value = bh.end;
-        document.querySelectorAll('#bh-days input').forEach(el => {el.checked = bh.days.includes(parseInt(el.value));});
+        // 영업시간 UI 반영
+        if (document.getElementById('bh-enabled')) document.getElementById('bh-enabled').checked = !!bh.enabled;
+        if (document.getElementById('bh-start')) document.getElementById('bh-start').value = bh.start || "09:00";
+        if (document.getElementById('bh-end')) document.getElementById('bh-end').value = bh.end || "22:00";
+        
+        document.querySelectorAll('#bh-days input').forEach(el => {
+            el.checked = (bh.days || []).includes(parseInt(el.value));
+        });
     } catch (e) {
-        console.error(e);
+        console.error("[renderNotify] Error:", e);
     }
 }
+
+function refreshDisabledUI() {
+    const container = document.getElementById('disabled-list');
+    container.innerHTML = disabledSlots.map((slot, idx) => `
+        <div class="hstack" style="background:var(--bg-lighter); padding:5px 10px; border-radius:5px; justify-content:space-between;">
+            <span>${slot.date} [${slot.time === 'ALL' ? '종일' : slot.time}]</span>
+            <button class="btn-text-danger" onclick="removeBlock(${idx})">삭제</button>
+        </div>
+    `).join('');
+}
+
+window.removeBlock = (idx) => {
+    disabledSlots.splice(idx, 1);
+    refreshDisabledUI();
+};
 
 // 호출 항목(물, 수저 등)을 그려주는 함수
 export async function renderCallOptions(storeId) {
@@ -67,11 +105,14 @@ export function bindNotify(storeId) {
         const sid = storeId;
 
         const bhDays = Array.from(document.querySelectorAll('#bh-days input:checked')).map(el => parseInt(el.value));
+        
+        // ✅ businessHours 객체에 disabledSlots를 포함시켜야 DB에 저장됨
         const businessHours = {
             enabled: document.getElementById('bh-enabled').checked,
             start: document.getElementById('bh-start').value,
             end: document.getElementById('bh-end').value,
-            days: bhDays
+            days: bhDays,
+            disabled_slots: disabledSlots // 🚀 추가된 부분
         };
         
         const notifyConfig = {
