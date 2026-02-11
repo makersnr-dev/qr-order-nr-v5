@@ -124,11 +124,12 @@ export default async function handler(req, res) {
                     return json({ ok: true, settings: cached.data, cached: true });
                 }
 
-                const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options FROM store_settings WHERE store_id = $1', [storeId]);
+                const r = await queryOne('SELECT owner_bank, privacy_policy, notify_config, call_options, business_hours FROM store_settings WHERE store_id = $1', [storeId]);
                 const settings = r || {};
                 if (typeof settings.owner_bank === 'string') try { settings.owner_bank = JSON.parse(settings.owner_bank); } catch (e) { }
                 if (typeof settings.notify_config === 'string') try { settings.notify_config = JSON.parse(settings.notify_config); } catch (e) { }
                 if (typeof settings.call_options === 'string') try { settings.call_options = JSON.parse(settings.call_options); } catch (e) { }
+                if (typeof settings.business_hours === 'string') try { settings.business_hours = JSON.parse(settings.business_hours); } catch (e) { }
                 
                 // 🚀 2. 캐시 저장 (5분 = 300,000ms)
                 settingsCache.set(storeId, { data: settings, expire: now + 300000 });
@@ -137,11 +138,20 @@ export default async function handler(req, res) {
             }
             if (method === 'PUT') {
                 settingsCache.delete(storeId);
-                const { ownerBank, privacyPolicy, notifyConfig, callOptions } = safeBody;
+                const { ownerBank, privacyPolicy, notifyConfig, callOptions, businessHours } = safeBody;
                 const b = ownerBank ? JSON.stringify(ownerBank) : null;
                 const n = notifyConfig ? JSON.stringify(notifyConfig) : null;
                 const c = callOptions ? JSON.stringify(callOptions) : null;
-                await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (store_id) DO UPDATE SET owner_bank=COALESCE($2, store_settings.owner_bank), privacy_policy=COALESCE($3, store_settings.privacy_policy), notify_config=COALESCE($4, store_settings.notify_config), call_options=COALESCE($5, store_settings.call_options)`, [storeId, b, privacyPolicy, n, c]);
+                const bh = businessHours ? JSON.stringify(businessHours) : null; // 추가
+                await query(`INSERT INTO store_settings (store_id, owner_bank, privacy_policy, notify_config, call_options,business_hours) 
+                            VALUES ($1, $2, $3, $4, $5,$6) 
+                            ON CONFLICT (store_id) DO UPDATE SET 
+                            owner_bank=COALESCE($2, store_settings.owner_bank), 
+                            privacy_policy=COALESCE($3, store_settings.privacy_policy), 
+                            notify_config=COALESCE($4, store_settings.notify_config), 
+                            call_options=COALESCE($5, store_settings.call_options),
+                            business_hours=COALESCE($6, store_settings.business_hours)`,
+                            [storeId, b, privacyPolicy, n, c,bh]);
                 return json({ ok: true });
             }
         }
