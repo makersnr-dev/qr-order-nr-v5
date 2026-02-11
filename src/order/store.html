@@ -395,7 +395,7 @@ export function showToast(msg, variant = 'info') {
 // 🔄 [실시간 동기화 최종본]
 async function initRealtimeSync() {
         try {
-            const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
+            const sid = storeId;
             if (!sid) return;
 
           cleanOldOrders(sid);
