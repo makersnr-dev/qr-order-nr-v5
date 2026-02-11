@@ -282,6 +282,26 @@
       <button id="n-save" class="btn primary">저장</button>
     </div>
 
+    <h4>영업 시간 설정</h4>
+<div class="vstack" style="gap:10px; background:#0b1620; padding:15px; border-radius:12px; border:1px solid var(--border);">
+    <div class="hstack">
+        <label><input type="checkbox" id="bh-enabled"> 영업시간 제한 사용</label>
+    </div>
+    <div class="hstack" style="gap:10px;">
+        <input type="time" id="bh-start" class="input" style="width:130px;"> ~ 
+        <input type="time" id="bh-end" class="input" style="width:130px;">
+    </div>
+    <div class="hstack" id="bh-days" style="gap:5px; flex-wrap:wrap;">
+        <label class="small"><input type="checkbox" value="1"> 월</label>
+        <label class="small"><input type="checkbox" value="2"> 화</label>
+        <label class="small"><input type="checkbox" value="3"> 수</label>
+        <label class="small"><input type="checkbox" value="4"> 목</label>
+        <label class="small"><input type="checkbox" value="5"> 금</label>
+        <label class="small"><input type="checkbox" value="6"> 토</label>
+        <label class="small"><input type="checkbox" value="0"> 일</label>
+    </div>
+</div>
+
     <h4>직원 호출 항목 관리</h4>
       <div id="call-options-box"></div>
 
