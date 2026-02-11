@@ -290,9 +290,20 @@ export default async function handler(req, res) {
                     history.push(metaAppend.history);
                     newMeta.history = history;
                 }
-                if (status) await query(`UPDATE ${tableName} SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
-                else await query(`UPDATE ${tableName} SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
-                try { await supabase.channel(`qrnr_sync_${storeId}`).send({ type: 'broadcast', event: 'STATUS_CHANGED', payload: { orderId, status, type } }); } catch (err) {}
+                if (status) await query(`UPDATE ${tableName} 
+                SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
+                else await query(`UPDATE ${tableName} 
+                SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
+                try { 
+                    await supabase.channel(`qrnr_realtime_${storeId}`).send({ 
+                        type: 'broadcast', 
+                        event: 'STATUS_CHANGED', 
+                        payload: { orderId, status, type } 
+                    }); 
+                    console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (${storeId})`);
+                } catch (err) {
+                    console.error("❌ 실시간 신호 전송 실패:", err);
+                }
                 return json({ ok: true });
             }
             // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
