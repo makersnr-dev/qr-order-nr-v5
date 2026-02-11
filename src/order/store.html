@@ -416,26 +416,37 @@ async function initRealtimeSync() {
           
             channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
               const { orderId, status } = payload.payload;
-    
-              // 1. 내 폰의 localStorage를 먼저 최신화 (새로고침 대비)
+              
+              // 1. 로컬 스토리지 데이터 갱신
               let history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
+              let isUpdated = false;
               history = history.map(o => {
-                  if (String(o.id) === String(orderId)) { o.status = status; }
+                  if (String(o.id) === String(orderId)) { 
+                      o.status = status; 
+                      isUpdated = true;
+                  }
                   return o;
               });
-              localStorage.setItem(`orders_${storeId}`, JSON.stringify(history));
-          
-              // 2. [핵심] 현재 모달이 열려있다면 화면상의 글자를 직접 찾아서 변경
-              const targetCard = document.querySelector(`[data-oid="${orderId}"]`);
-              if (targetCard) {
-                  const label = targetCard.querySelector('.status-label');
-                  if (label) {
-                      label.textContent = status;
-                      label.style.color = (status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043';
+              
+              if (isUpdated) {
+                  localStorage.setItem(`orders_${storeId}`, JSON.stringify(history));
+                  
+                  // 2. 현재 화면에 열려있는 주문 내역 카드 UI 즉시 반영
+                  const targetCard = document.querySelector(`[data-oid="${orderId}"]`);
+                  if (targetCard) {
+                      const label = targetCard.querySelector('.status-label');
+                      if (label) {
+                          label.textContent = status;
+                          label.style.color = (status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043';
+                          
+                          // 시각적 피드백 (깜빡임 효과)
+                          targetCard.style.borderColor = '#2ea043';
+                          setTimeout(() => { targetCard.style.borderColor = '#263241'; }, 1000);
+                      }
                   }
+                  showToast(`🔔 주문 상태가 [${status}]로 변경되었습니다.`, "success");
               }
-              showToast(`🔔 주문 상태가 [${status}]로 변경되었습니다.`, "success");
-        });
+          });
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
                 showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
@@ -529,24 +540,25 @@ document.getElementById('btn-show-history').onclick = () => {
             const status = o.status || '주문접수';
             const isCanceled = (status === '주문취소' || status === '결제취소');
 
-           return `
-                <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <div class="hstack" style="justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #263241; padding-bottom:8px;">
-                        <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
-                        
-                        <b class="status-label" style="color:${isCanceled ? '#ef4444' : '#2ea043'}; font-size:12px;">
-                            ${esc(status)}
-                        </b>
-                    </div>
-                    <div class="vstack" style="gap:4px;">
-                        ${itemDetails}
-                    </div>
-                    <div style="text-align:right; margin-top:12px; border-top:1px solid #263241; padding-top:10px;">
-                        <span style="font-size:12px; color:#9ca3af;">총 결제액</span>
-                        <div style="color:#2ea043; font-size:18px; font-weight:bold;">${Number(o.amount || 0).toLocaleString()}원</div>
-                    </div>
-                </div>
-            `;
+          // store.html 내의 history-list 관련 return 부분
+return `
+    <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div class="hstack" style="justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #263241; padding-bottom:8px;">
+            <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
+            
+            <b class="status-label" style="color:${(status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043'}; font-size:12px;">
+                ${esc(status)}
+            </b>
+        </div>
+        <div class="vstack" style="gap:4px;">
+            ${itemDetails}
+        </div>
+        <div style="text-align:right; margin-top:12px; border-top:1px solid #263241; padding-top:10px;">
+            <span style="font-size:12px; color:#9ca3af;">총 결제액</span>
+            <div style="color:#2ea043; font-size:18px; font-weight:bold;">${Number(o.amount || 0).toLocaleString()}원</div>
+        </div>
+    </div>
+`;
         }).join('');
     }
     document.getElementById('history-modal').style.display = 'flex';
