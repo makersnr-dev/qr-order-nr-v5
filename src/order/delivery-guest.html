@@ -656,11 +656,11 @@
     const name = document.getElementById('look-name').value.trim();
     const cleanPhone = document.getElementById('look-phone').value.trim();
     const pw = document.getElementById('look-pw').value.trim();
-    const phone = phoneInput.replace(/\D/g, "");
+    const phone = cleanPhone.replace(/\D/g, "");
     if (!name || !phone || !pw) return showToast("모든 정보를 입력하세요.", "info");
 
     
-    if (phone.length < 10 || phone.length > 12) {
+    if (phone.length < 10 || phone.length > 11) {
         return showToast("연락처를 전체 번호로 올바르게 입력해주세요.", "error");
     }
 
