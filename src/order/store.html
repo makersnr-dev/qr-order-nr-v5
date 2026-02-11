@@ -415,33 +415,26 @@ async function initRealtimeSync() {
           });
           
             channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
-            const { orderId, status } = payload.payload;
-            const storageKey = `orders_${sid}`;
-            
-            // 1. 저장된 내역 불러오기
-            let history = JSON.parse(localStorage.getItem(storageKey) || "[]");
-            
-            // 2. 해당 주문번호가 있으면 상태 업데이트
-            let updated = false;
-            history = history.map(o => {
-                if (String(o.id) === String(orderId)) {
-                    o.status = status;
-                    updated = true;
-                }
-                return o;
-            });
-
-            if (updated) {
-                // 3. 수정된 내역 다시 저장
-                localStorage.setItem(storageKey, JSON.stringify(history));
-                // 4. 주문 내역 모달이 열려있다면 UI 갱신 (다시 그리기)
-                const historyModal = document.getElementById('history-modal');
-                if (historyModal && historyModal.style.display === 'flex') {
-                    // 단순히 클릭 신호를 보내는 것보다 Event 객체를 생성해 쏘는 것이 더 정확합니다.
-                    document.getElementById('btn-show-history').dispatchEvent(new Event('click'));
-                }
-                showToast(`🔔 주문이 [${status}] 상태로 변경되었습니다.`, "success");
-            }
+              const { orderId, status } = payload.payload;
+    
+              // 1. 내 폰의 localStorage를 먼저 최신화 (새로고침 대비)
+              let history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
+              history = history.map(o => {
+                  if (String(o.id) === String(orderId)) { o.status = status; }
+                  return o;
+              });
+              localStorage.setItem(`orders_${storeId}`, JSON.stringify(history));
+          
+              // 2. [핵심] 현재 모달이 열려있다면 화면상의 글자를 직접 찾아서 변경
+              const targetCard = document.querySelector(`[data-oid="${orderId}"]`);
+              if (targetCard) {
+                  const label = targetCard.querySelector('.status-label');
+                  if (label) {
+                      label.textContent = status;
+                      label.style.color = (status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043';
+                  }
+              }
+              showToast(`🔔 주문 상태가 [${status}]로 변경되었습니다.`, "success");
         });
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
@@ -536,11 +529,14 @@ document.getElementById('btn-show-history').onclick = () => {
             const status = o.status || '주문접수';
             const isCanceled = (status === '주문취소' || status === '결제취소');
 
-            return `
-                <div style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+           return `
+                <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                     <div class="hstack" style="justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #263241; padding-bottom:8px;">
                         <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
-                        <b style="color:${isCanceled ? '#ef4444' : '#2ea043'}; font-size:12px;">${esc(status)}</b>
+                        
+                        <b class="status-label" style="color:${isCanceled ? '#ef4444' : '#2ea043'}; font-size:12px;">
+                            ${esc(status)}
+                        </b>
                     </div>
                     <div class="vstack" style="gap:4px;">
                         ${itemDetails}
