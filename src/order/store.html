@@ -272,6 +272,11 @@ export function showToast(msg, variant = 'info') {
 
   // 5. 주문하기 (사장님 원본 유지 + 모달 연동)
  document.getElementById('pay-btn').onclick = async (e) => {
+   const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
+    const sData = await sRes.json();
+    const check = checkBusinessHours(sData.settings?.business_hours);
+    if (!check.ok) return showToast(check.msg, 'info');
+   
     e.preventDefault();
     
     const table = document.getElementById('tableNo').value.trim();
