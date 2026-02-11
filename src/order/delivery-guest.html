@@ -192,7 +192,7 @@
         <h3 style="margin-bottom:15px;">예약 내역 조회</h3>
         <div class="vstack" style="gap:10px;">
             <input id="look-name" class="input" placeholder="주문자 이름">
-            <input id="look-phone" class="input" placeholder="연락처 (숫자만)" inputmode="numeric">
+            <input id="look-phone" class="input" placeholder="연락처" inputmode="numeric">
             <input id="look-pw" type="password" class="input" placeholder="비밀번호 4자리" maxlength="4" inputmode="numeric">
             <button id="btn-do-lookup" class="btn primary" style="height:46px; margin-top:10px;">조회하기</button>
         </div>
@@ -654,12 +654,19 @@
 
   document.getElementById('btn-do-lookup').onclick = async () => {
     const name = document.getElementById('look-name').value.trim();
-    const phone = document.getElementById('look-phone').value.trim();
+    const cleanPhone = document.getElementById('look-phone').value.trim();
     const pw = document.getElementById('look-pw').value.trim();
+    const phone = phoneInput.replace(/\D/g, "");
     if (!name || !phone || !pw) return showToast("모든 정보를 입력하세요.", "info");
 
+    
+    if (phone.length < 10 || phone.length > 12) {
+        return showToast("연락처를 전체 번호로 올바르게 입력해주세요.", "error");
+    }
+
     const btn = document.getElementById('btn-do-lookup');
-    btn.disabled = true; btn.textContent = "조회 중...";
+    btn.disabled = true; 
+    btn.textContent = "조회 중...";
 
     try {
       const res = await fetch('/api/orders/lookup', {
@@ -723,10 +730,15 @@
         document.getElementById('lookup-modal').style.display = 'none';
         document.getElementById('result-modal').style.display = 'flex';
       } else {
-        showToast("일치하는 주문 내역이 없습니다.", "error");
+        showToast("일치하는 예약 내역이 없습니다.", "error");
       }
-    } finally {
-      btn.disabled = false; btn.textContent = "조회하기";
+    }
+    catch (e) {
+        showToast("조회 중 오류가 발생했습니다.", "error");
+    }
+    finally {
+      btn.disabled = false; 
+      btn.textContent = "조회하기";
     }
   };
 
