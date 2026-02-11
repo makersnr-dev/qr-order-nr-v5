@@ -128,6 +128,8 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[m]));
   }
+
+  
  
   /**
  * 표준 토스트 알림 함수
@@ -153,6 +155,21 @@ export function showToast(msg, variant = 'info') {
     setTimeout(() => t.remove(), 200);
   }, 3000);
 }
+
+  function cleanOldOrders(sid) {
+      const storageKey = `orders_${sid}`;
+      const history = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      if (history.length === 0) return;
+
+      const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+      const now = Date.now();
+      const filteredHistory = history.filter(order => (now - order.ts) < TWELVE_HOURS_MS);
+
+      if (filteredHistory.length !== history.length) {
+          localStorage.setItem(storageKey, JSON.stringify(filteredHistory));
+      }
+  }
+  
   // 1. 직원 호출 쿨타임 로직 (사장님 원본 유지)
   const CALL_COOLDOWN_SEC = 10;
   const CALL_COOLDOWN_KEY = 'qrnr.call.cooldown';
@@ -181,6 +198,12 @@ export function showToast(msg, variant = 'info') {
   document.body.dataset.storeId = storeId;
   setInterval(updateCallButtonState, 1000);
   updateCallButtonState();
+
+  ['tableNo', 'paycode'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', e => {
+          e.target.value = e.target.value.replace(/\D/g, '');
+      });
+  });
 
   // 테이블 번호 자동입력
   const tableParam = new URLSearchParams(location.search).get('table') || '';
@@ -375,10 +398,22 @@ async function initRealtimeSync() {
             const sid = window.qrnrStoreId || new URLSearchParams(location.search).get('store');
             if (!sid) return;
 
+          cleanOldOrders(sid);
+
             const channel = await supabaseMgr.getChannel(sid);
             if (!channel) return;
 
             console.log(`📡 [실시간] 채널 연결 완료: qrnr_realtime_${sid}`);
+
+          channel.on('broadcast', { event: 'CLEAR_HISTORY' }, () => {
+              localStorage.removeItem(`orders_${sid}`);
+              localStorage.removeItem(`last_order_${sid}`);
+              showToast("매장 데이터가 초기화되어 주문 내역이 삭제되었습니다.", "info");
+              if (document.getElementById('history-modal').style.display === 'flex') {
+                  document.getElementById('history-modal').style.display = 'none';
+              }
+          });
+          
             channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
             const { orderId, status } = payload.payload;
             const storageKey = `orders_${sid}`;
