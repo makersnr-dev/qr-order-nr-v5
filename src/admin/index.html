@@ -302,6 +302,18 @@
     </div>
 </div>
 
+    <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+    <h4>수동 예약 차단 설정</h4>
+    <div id="disabled-list" class="vstack" style="gap:5px; margin-bottom:10px;">
+        </div>
+    <div class="hstack" style="gap:5px;">
+        <input type="date" id="block-date" class="input" style="flex:1;">
+        <input type="time" id="block-time" class="input" style="flex:1;" placeholder="시간(선택)">
+        <button type="button" id="btn-add-block" class="btn-secondary" style="white-space:nowrap;">차단 추가</button>
+    </div>
+    <p class="small text-muted">* 시간을 입력하지 않으면 해당 날짜 전체가 차단됩니다.</p>
+</div>
+
     <h4>직원 호출 항목 관리</h4>
       <div id="call-options-box"></div>
 
