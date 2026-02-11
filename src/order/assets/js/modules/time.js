@@ -1,3 +1,4 @@
+//src/order/assets/js/modules/time.js
 /**
  * 1. 현재 한국 시간(KST) 문자열 생성
  */
@@ -97,4 +98,23 @@ export function isStoreOpen(openTime = "10:00", closeTime = "22:00") {
     const start = oH * 60 + oM;
     const end = cH * 60 + cM;
     return currentTime >= start && currentTime <= end;
+}
+
+
+export function checkBusinessHours(bh, targetDate = new Date()) {
+    if (!bh || !bh.enabled) return { ok: true };
+
+    const day = targetDate.getDay();
+    if (!bh.days.includes(day)) return { ok: false, msg: "오늘은 정기 휴무일입니다." };
+
+    const currentTime = targetDate.getHours() * 60 + targetDate.getMinutes();
+    const [sH, sM] = bh.start.split(':').map(Number);
+    const [eH, eM] = bh.end.split(':').map(Number);
+    const start = sH * 60 + sM;
+    const end = eH * 60 + eM;
+
+    if (currentTime < start || currentTime > end) {
+        return { ok: false, msg: `영업 시간이 아닙니다. (영업시간: ${bh.start} ~ ${bh.end})` };
+    }
+    return { ok: true };
 }
