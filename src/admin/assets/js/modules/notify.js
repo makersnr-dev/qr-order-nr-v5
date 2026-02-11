@@ -10,13 +10,20 @@ export async function renderNotify(storeId) {
     const sid = storeId;
     try {
         const res = await fetch(`/api/store-settings?storeId=${sid}`);
+        const settings = data.settings || {};
         const data = await res.json();
         const n = data.settings?.notify_config || { useBeep: true, beepVolume: 0.7, desktop: true };
+        const bh = settings.business_hours || { enabled: false, start: "09:00", end: "22:00", days: [1,2,3,4,5] };
 
         if (document.getElementById('n-beep')) document.getElementById('n-beep').checked = !!n.useBeep;
         if (document.getElementById('n-vol')) document.getElementById('n-vol').value = n.beepVolume;
         if (document.getElementById('n-desktop')) document.getElementById('n-desktop').checked = !!n.desktop;
         if (document.getElementById('n-webhook')) document.getElementById('n-webhook').value = n.webhookUrl || '';
+
+        document.getElementById('bh-enabled').checked = !!bh.enabled;
+        document.getElementById('bh-start').value = bh.start;
+        document.getElementById('bh-end').value = bh.end;
+        document.querySelectorAll('#bh-days input').forEach(el => {el.checked = bh.days.includes(parseInt(el.value));});
     } catch (e) {
         console.error(e);
     }
@@ -52,13 +59,21 @@ export async function renderCallOptions(storeId) {
 export function bindNotify(storeId) {
     const saveBtn = document.getElementById('n-save');
     if (!saveBtn) return;
-    
 
     saveBtn.onclick = async () => {
         // [중복 클릭 방지] 로딩 상태 시작
         saveBtn.disabled = true;
         saveBtn.classList.add('btn-loading');
         const sid = storeId;
+
+        const bhDays = Array.from(document.querySelectorAll('#bh-days input:checked')).map(el => parseInt(el.value));
+        const businessHours = {
+            enabled: document.getElementById('bh-enabled').checked,
+            start: document.getElementById('bh-start').value,
+            end: document.getElementById('bh-end').value,
+            days: bhDays
+        };
+        
         const notifyConfig = {
             useBeep: document.getElementById('n-beep')?.checked,
             beepVolume: Number(document.getElementById('n-vol')?.value),
@@ -70,7 +85,7 @@ export function bindNotify(storeId) {
         const res = await fetch(`/api/store-settings?storeId=${sid}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notifyConfig })
+            body: JSON.stringify({ notifyConfig, businessHours })
         });
 
         if (res.ok) {
