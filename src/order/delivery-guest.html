@@ -423,6 +423,7 @@
   
   const adminChannel = new BroadcastChannel("qrnr-admin");
   const storeId = window.qrnrStoreId;
+  let currentLookupOrderNo = null;
   
   // 🛠 수정: cart 변수를 전역에 선언하여 모든 함수에서 공유
   let cart = null;
@@ -573,6 +574,22 @@
     try {
       supabaseMgr.getChannel(storeId).then(channel => {
         if (!channel) return;
+        // 🚀 [추가 시작] 관리자가 예약 상태를 바꿨을 때 화면의 글자를 즉시 고침
+        channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
+            const { orderId, status } = payload.payload;
+            
+            // 현재 내가 조회 중인 예약 번호와 관리자가 바꾼 번호가 일치할 때만 실행
+            if (currentLookupOrderNo === orderId) {
+                // 조회 결과 창에서 상태를 나타내는 태그(색상 배경이 있는 b 태그)를 찾아 글자 변경
+                const badge = document.querySelector('#lookup-result-list b[style*="background"]');
+                if (badge) {
+                    badge.textContent = status;
+                    // 상태에 따라 배경색 변경 (주문취소는 빨간색, 나머지는 초록색)
+                    badge.style.background = (status === '주문취소') ? '#ef4444' : '#2ea043';
+                    showToast(`🔔 예약 상태가 [${status}]로 변경되었습니다.`, "info");
+                }
+            }
+        });
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
           const updateType = payload.payload.type;
           if (updateType === 'menu_update' || !updateType) await renderMenu("menu-grid", cart);
@@ -645,7 +662,11 @@
 
   // 🔍 [원본 HTML 유지] 내 예약 조회 로직
   document.getElementById('btn-open-lookup').onclick = () => document.getElementById('lookup-modal').style.display = 'flex';
-  document.getElementById('lookup-close').onclick = () => document.getElementById('lookup-modal').style.display = 'none';
+  // lookup-close 클릭 시
+  document.getElementById('lookup-close').onclick = () => {
+      document.getElementById('lookup-modal').style.display = 'none';
+      currentLookupOrderNo = null; // 감시 해제
+  };
   document.getElementById('result-close').onclick = () => document.getElementById('result-modal').style.display = 'none';
 
   document.getElementById('look-phone').addEventListener('input', (e) => {
@@ -677,6 +698,7 @@
       const data = await res.json();
 
       if (data.ok && data.orders.length > 0) {
+        currentLookupOrderNo = data.orders[0].id;
         document.getElementById('lookup-result-list').innerHTML = data.orders.map(o => {
           const itemsHtml = o.items.map(i => {
             let optStr = "";
