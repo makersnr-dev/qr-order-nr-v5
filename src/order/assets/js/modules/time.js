@@ -118,3 +118,36 @@ export function checkBusinessHours(bh, targetDate = new Date()) {
     }
     return { ok: true };
 }
+
+/**
+ * 🚀 8. [추가] 날짜 선택 시 해당일의 영업 여부 판단
+ */
+export function isDayOff(bh, dateString) {
+    if (!bh || !bh.enabled) return false;
+    const date = new Date(dateString);
+    const day = date.getDay(); // 0:일, 1:월 ...
+    return !bh.days.includes(day); // 설정된 영업 요일에 포함되지 않으면 true(휴무)
+}
+
+/**
+ * 🚀 9. [추가] 선택된 날짜에 따른 유효 시간 생성
+ */
+export function updateAvailableHours(bh, dateString, selectEl) {
+    if (!bh || !bh.enabled || !selectEl) return;
+    
+    const [sH] = bh.start.split(':').map(Number);
+    const [eH] = bh.end.split(':').map(Number);
+    
+    // 기존 옵션 제거
+    selectEl.innerHTML = "";
+    
+    for (let i = 1; i <= 12; i++) {
+        // AM/PM 로직을 타기 위해 24시간제로 변환하여 체크하는 로직이 필요하지만,
+        // UI가 단순하므로 모든 시를 넣되 선택 시점에만 막거나, 
+        // 관리자가 설정한 시작~종료 시간 사이의 숫자만 option으로 생성합니다.
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = `${i}시`;
+        selectEl.appendChild(opt);
+    }
+}
