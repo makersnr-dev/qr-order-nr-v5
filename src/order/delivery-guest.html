@@ -715,39 +715,45 @@
           const memo = meta.memo || '없음';
 
           // ⚠️ 여기 백틱 내부의 HTML은 사용자님의 원본을 한 글자도 바꾸지 않았습니다.
+          // delivery-guest.html 내 조회 결과 생성 부분 수정
           return `
-                    <div style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #2ea043; line-height:1.6; font-size:13px;">
-                        <div class="hstack" style="justify-content:space-between; border-bottom:1px solid #263241; padding-bottom:8px; margin-bottom:10px;">
-                            <b style="color:#2ea043; font-size:14px;">예약번호: ${esc(o.id.split('-').pop())}</b>
-                            <b style="background:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; padding:2px 8px; border-radius:4px; font-size:11px;">${esc(o.status)}</b>
-                        </div>
-                        
-                        <div style="margin-bottom:8px;">
-                            <div style="color:#9ca3af; font-size:11px;">📍 배송지 / 주문자</div>
-                            <div>${esc(o.address) || '-'}</div>
-                            <div>${esc(o.customer_name)} (${formatPhoneNumber(esc(o.customer_phone))})</div>
-                        </div>
-
-                        <div style="margin-bottom:8px;">
-                            <div style="color:#9ca3af; font-size:11px;">⏰ 예약 일시</div>
-                            <div style="color:#f97316; font-weight:bold;">${esc(resDate)} ${esc(resTime)}</div>
-                        </div>
-
-                        <div style="margin-bottom:8px;">
-                            <div style="color:#9ca3af; font-size:11px;">💬 요청사항</div>
-                            <div style="font-style:italic;">"${esc(memo)}"</div>
-                        </div>
-
-                        <div style="margin-bottom:8px; background:#0d1117; padding:8px; border-radius:8px;">
-                            <div style="color:#9ca3af; font-size:11px; margin-bottom:4px;">📦 주문 메뉴</div>
-                            ${itemsHtml}
-                        </div>
-
-                        <div style="text-align:right; font-weight:bold; font-size:15px; color:#2ea043; margin-top:10px;">
-                            최종 결제 금액: ${Number(o.amount).toLocaleString()}원
-                        </div>
-                    </div>
-                `;
+              /* 🚩 [수정] data-oid="${o.id}" 추가 : 서버 신호를 받았을 때 이 카드를 찾기 위한 주소 역할을 합니다 */
+              <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #2ea043; line-height:1.6; font-size:13px; margin-bottom:10px;">
+                  <div class="hstack" style="justify-content:space-between; border-bottom:1px solid #263241; padding-bottom:8px; margin-bottom:10px;">
+                      <b style="color:#2ea043; font-size:14px;">예약번호: ${esc(o.id.split('-').pop())}</b>
+                      
+                      /* 🚩 [수정] class="status-badge" 추가 : 자바스크립트가 이 글자(상태)만 콕 집어서 바꾸기 위함입니다 */
+                      <b class="status-badge" style="background:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; padding:2px 8px; border-radius:4px; font-size:11px;">
+                          ${esc(o.status)}
+                      </b>
+                  </div>
+                  
+                  <div style="margin-bottom:8px;">
+                      <div style="color:#9ca3af; font-size:11px;">📍 배송지 / 주문자</div>
+                      <div>${esc(o.address) || '-'}</div>
+                      <div>${esc(o.customer_name)} (${formatPhoneNumber(esc(o.customer_phone))})</div>
+                  </div>
+          
+                  <div style="margin-bottom:8px;">
+                      <div style="color:#9ca3af; font-size:11px;">⏰ 예약 일시</div>
+                      <div style="color:#f97316; font-weight:bold;">${esc(resDate)} ${esc(resTime)}</div>
+                  </div>
+          
+                  <div style="margin-bottom:8px;">
+                      <div style="color:#9ca3af; font-size:11px;">💬 요청사항</div>
+                      <div style="font-style:italic;">"${esc(memo)}"</div>
+                  </div>
+          
+                  <div style="margin-bottom:8px; background:#0d1117; padding:8px; border-radius:8px;">
+                      <div style="color:#9ca3af; font-size:11px; margin-bottom:4px;">📦 주문 메뉴</div>
+                      ${itemsHtml}
+                  </div>
+          
+                  <div style="text-align:right; font-weight:bold; font-size:15px; color:#2ea043; margin-top:10px;">
+                      최종 결제 금액: ${Number(o.amount).toLocaleString()}원
+                  </div>
+              </div>
+          `;
         }).join('');
         document.getElementById('lookup-modal').style.display = 'none';
         document.getElementById('result-modal').style.display = 'flex';
