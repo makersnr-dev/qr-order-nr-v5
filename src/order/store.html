@@ -424,7 +424,7 @@ async function initRealtimeSync() {
             // 2. 해당 주문번호가 있으면 상태 업데이트
             let updated = false;
             history = history.map(o => {
-                if (o.id === orderId) {
+                if (String(o.id) === String(orderId)) {
                     o.status = status;
                     updated = true;
                 }
@@ -435,8 +435,10 @@ async function initRealtimeSync() {
                 // 3. 수정된 내역 다시 저장
                 localStorage.setItem(storageKey, JSON.stringify(history));
                 // 4. 주문 내역 모달이 열려있다면 UI 갱신 (다시 그리기)
-                if (document.getElementById('history-modal').style.display === 'flex') {
-                    document.getElementById('btn-show-history').click(); 
+                const historyModal = document.getElementById('history-modal');
+                if (historyModal && historyModal.style.display === 'flex') {
+                    // 단순히 클릭 신호를 보내는 것보다 Event 객체를 생성해 쏘는 것이 더 정확합니다.
+                    document.getElementById('btn-show-history').dispatchEvent(new Event('click'));
                 }
                 showToast(`🔔 주문이 [${status}] 상태로 변경되었습니다.`, "success");
             }
