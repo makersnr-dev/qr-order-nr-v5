@@ -296,7 +296,7 @@ export default async function handler(req, res) {
                 return json({ ok: true });
             }
             // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
-            if (pathname.includes('/api/orders/lookup')) {
+            /*if (pathname.includes('/api/orders/lookup')) {
                 if (method !== 'POST') return json({ ok: false, message: '지원하지 않는 방식입니다.' }, 405);
             
                 // 사용자가 입력한 이름, 번호 뒤자리(또는 전체), 비번, 매장ID 추출
@@ -335,7 +335,7 @@ export default async function handler(req, res) {
                     console.error("조회 에러:", err);
                     return json({ ok: false, message: '서버 오류가 발생했습니다.' }, 500);
                 }
-            }
+            }*/
         }
 
         // --- 6. 호출/결제코드/QR (누락 없음) ---
@@ -486,7 +486,7 @@ export default async function handler(req, res) {
         return json({ ok: false, error: e.message }, 500);
     }
 }
-    // 🚀 [추가] 조회 전용 함수를 바깥으로 빼서 정의 (코드 중간 섞임 방지)
+
 // 🚀 [추가] 조회 전용 함수를 handler 바깥으로 완전히 뺍니다.
 async function handleLookup(req, res, safeBody, params) {
     const sendJson = (body, status = 200) => {
@@ -496,6 +496,9 @@ async function handleLookup(req, res, safeBody, params) {
 
     const { name, phone, pw } = safeBody;
     const storeId = params.get('storeId') || safeBody.storeId;
+    if (!name || !phone || !pw || !storeId) {
+        return sendJson({ ok: false, message: '조회 정보를 모두 입력해주세요.' }, 400);
+    }
     
     try {
         const r = await query(`
@@ -504,9 +507,9 @@ async function handleLookup(req, res, safeBody, params) {
                 customer_name, customer_phone, address, meta, created_at
             FROM orderss 
             WHERE store_id = $1 AND customer_name = $2 AND lookup_pw = $4
-              AND (customer_phone LIKE $3 OR REPLACE(customer_phone, '-', '') LIKE $3)
+              AND REPLACE(customer_phone, '-', '') = $3
             ORDER BY created_at DESC
-        `, [storeId, name, `%${phone.replace(/\D/g, '')}`, pw]);
+        `, [storeId, name, phone, pw]);
 
         const orders = r.rows.map(row => ({
             id: row.order_no,
