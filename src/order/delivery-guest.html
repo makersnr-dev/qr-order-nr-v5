@@ -161,6 +161,8 @@
    
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=8f77cc9534f6b22c04d6754c0ba2dd25&libraries=services&autoload=false"></script>
 </head>
 
 <body data-store-id="">
@@ -589,38 +591,45 @@
     }
   };
 
-  window.openAddr = () => new window.daum.Postcode({ 
-    oncomplete(data) { 
-      const fullAddr = data.roadAddress || data.address;
-      document.getElementById("addr").value = fullAddr; 
-      document.getElementById("addr-detail").focus(); 
+  window.openAddr = () => {
+    // 🚀 autoload=false 대응: 카카오 지도가 완전히 로드된 후 실행
+    kakao.maps.load(() => {
+        new window.daum.Postcode({ 
+            oncomplete(data) { 
+                const fullAddr = data.roadAddress || data.address;
+                document.getElementById("addr").value = fullAddr; 
+                document.getElementById("addr-detail").focus(); 
 
-      const geocoder = new kakao.maps.services.Geocoder();
-      geocoder.addressSearch(fullAddr, (result, status) => {
-        if (status === kakao.maps.services.Status.OK) {
-          const lat = parseFloat(result[0].y);
-          const lng = parseFloat(result[0].x);
-          const dist = getDistanceKm(storeConfig.base_lat, storeConfig.base_lng, lat, lng);
-          const fee = calculateDeliveryFee(storeConfig, dist);
+                const geocoder = new kakao.maps.services.Geocoder();
+                geocoder.addressSearch(fullAddr, (result, status) => {
+                    if (status === kakao.maps.services.Status.OK) {
+                        const lat = parseFloat(result[0].y);
+                        const lng = parseFloat(result[0].x);
+                        
+                        const dist = getDistanceKm(storeConfig.base_lat, storeConfig.base_lng, lat, lng);
+                        const fee = calculateDeliveryFee(storeConfig, dist);
 
-          if (fee === -1) {
-            alert(`배달 가능 거리(${storeConfig.max_distance}km)를 초과했습니다.`);
-            document.getElementById("addr").value = "";
-            return;
-          }
-          currentDeliveryFee = fee;
-          document.getElementById('delivery-msg').textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
-          
-          // 합계 금액 갱신
-          if (window.qrnrCart) {
-              window.qrnrCart.render();
-              const totalWithFee = window.qrnrCart.total() + currentDeliveryFee;
-              document.getElementById("total").textContent = totalWithFee.toLocaleString();
-          }
-        }
-      });
-    } 
-  }).open();
+                        if (fee === -1) {
+                            alert(`배달 가능 거리(${storeConfig.max_distance}km)를 초과했습니다.`);
+                            document.getElementById("addr").value = "";
+                            return;
+                        }
+                        
+                        currentDeliveryFee = fee;
+                        document.getElementById('delivery-msg').textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
+                        
+                        // 합계 금액 갱신 (화면 표시용)
+                        if (window.qrnrCart) {
+                            window.qrnrCart.render();
+                            const totalWithFee = window.qrnrCart.total() + currentDeliveryFee;
+                            document.getElementById("total").textContent = totalWithFee.toLocaleString();
+                        }
+                    }
+                });
+            } 
+        }).open();
+    });
+};
 
   // 🚀 초기화 통합 함수 (실행 순서 보장)
   async function initApp() {
