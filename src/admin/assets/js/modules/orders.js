@@ -817,6 +817,11 @@ export function attachGlobalHandlers() {
       const data = await res.json();
       const order = (data.orders || []).find(o => String(o.order_id) === String(id));
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
+      // 🚀 [추가] 배달비 및 메뉴 합계 계산 로직
+      const meta = order.meta || {};
+      const deliveryFee = Number(meta.delivery_fee || 0);
+      const totalAmount = Number(order.total_amount || 0);
+      const menuTotal = totalAmount - deliveryFee;
 
       // 상단 정보 블록 생성
       const infoBlock = [
@@ -826,7 +831,11 @@ export function attachGlobalHandlers() {
         `주소: ${order.address || '-'}`,
         `예약일시: ${(order.meta?.reserve?.date || '-') + ' ' + (order.meta?.reserve?.time || '')}`,
         `요청사항: ${order.meta?.memo || '-'}`,
-        `합계금액: ${fmt(order.total_amount || 0)}원`
+        `--------------------------`,
+        `🍱 메뉴 합계: ${fmt(menuTotal)}원`,
+        deliveryFee > 0 ? `🛵 배달비: ${fmt(deliveryFee)}원` : `🛍️ 픽업 (배달비 없음)`,
+        `💰 최종 결제액: ${fmt(totalAmount)}원`,
+        `--------------------------`
       ].join('\n');
 
       // 상태 변경 이력 생성
