@@ -25,6 +25,7 @@ import { renderNotify, bindNotify, notifyEvent,enableNotifySound,renderCallOptio
 import { renderNotifyLogs, bindNotifyLogs } from './modules/notify-logs.js';
 
 import { get } from './modules/store.js';
+import { renderDeliveryConfig, bindDeliveryAdmin } from './modules/delivery-admin.js';
 
 //let supabaseClient = null; // 전역 변수 이름을 살짝 바꿈
 
@@ -428,6 +429,8 @@ if (delivRefreshBtn) {
   bindNotify(sid);
   renderCallOptions(sid);   
   bindCallOptions(sid);     
+  renderDeliveryConfig(sid);
+  bindDeliveryAdmin(sid);
   initQR(sid);
   safeRenderNotifyLogs(sid);
   bindNotifyLogs(sid);
