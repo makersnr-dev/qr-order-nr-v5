@@ -584,7 +584,13 @@
       addrSection.style.display = 'flex';
     }
     // 전역 cart 변수가 선언된 후 호출되어야 함
-    if (window.qrnrCart) window.qrnrCart.render();
+    if (window.qrnrCart) {
+        window.qrnrCart.render(); // 여기서 글자가 상품 합계로 바뀜
+        
+        // 🚀 [추가] 배달비를 더해서 글자를 다시 써줌
+        const finalTotal = window.qrnrCart.total() + currentDeliveryFee;
+        document.getElementById("total").textContent = finalTotal.toLocaleString();
+    }
   };
 
   const openAddr = () => new window.daum.Postcode({ 
@@ -612,7 +618,13 @@
               currentDeliveryFee = fee;
               const msgEl = document.getElementById('delivery-msg');
               if (msgEl) msgEl.textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
-              if (window.qrnrCart) window.qrnrCart.render();
+              if (window.qrnrCart) {
+                window.qrnrCart.render();
+                
+                // 🚀 [추가] 배달비를 더해서 글자를 다시 써줌
+                const finalTotal = window.qrnrCart.total() + currentDeliveryFee;
+                document.getElementById("total").textContent = finalTotal.toLocaleString();
+            };
             }
           });
       }
