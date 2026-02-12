@@ -492,7 +492,12 @@
     const agree = document.getElementById("agree-privacy").checked;
 
     if (!agree) {fail("개인정보 수집·이용에 동의해주세요.");return;}
-    if (!addr1 || !cust) {fail("주소와 주문자명을 입력해주세요.");return;}
+    if (currentOrderType === 'delivery' && !addr1) {
+        return fail("배송지 주소를 입력해주세요.");
+    }
+    if (!cust) {
+        return fail("주문자명을 입력해주세요.");
+    }
     if (phone.length < 9) {fail("전화번호를 확인해주세요.");return;}
     if (pw.length !== 4) {fail("조회 비밀번호 4자리를 입력해주세요.");return;}
     if (!cart.items.length) {fail("장바구니가 비어 있습니다.");return;}
@@ -701,7 +706,7 @@
             const { orderId, status } = payload.payload;
             
             // 현재 내가 조회 중인 예약 번호와 관리자가 바꾼 번호가 일치할 때만 실행
-            if (currentLookupOrderNo === orderId) {
+            if (String(currentLookupOrderNo) === String(orderId)) {
                 // 조회 결과 창에서 상태를 나타내는 태그(색상 배경이 있는 b 태그)를 찾아 글자 변경
                 const badge = document.querySelector('#lookup-result-list b[style*="background"]');
                 if (badge) {
