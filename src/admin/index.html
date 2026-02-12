@@ -267,8 +267,8 @@
  <div class="card" data-panel="notify" style="display:none">
     <div class="hstack" style="justify-content:space-between; align-items:center; margin-bottom:30px; padding-bottom:15px; border-bottom:1px solid #263241;">
         <h3 style="margin:0;">알림 설정</h3>
-        <button id="n-save" class="btn primary" style="padding:10px 40px; font-weight:bold; font-size:15px; box-shadow: 0 4px 12px rgba(46, 160, 67, 0.3);">
-            설정 저장
+        <button id="n-save" class="btn primary"style="padding:8px 25px; font-weight:bold; font-size:14px;">
+        설정 저장
         </button>
     </div>
 
@@ -310,16 +310,18 @@
     <div style="margin-top:40px; border-top:1px solid var(--border); padding-top:25px;">
         <h4>수동 예약 차단 설정</h4>
         <div id="disabled-list" class="vstack" style="gap:10px; margin-bottom:20px;"></div>
+    
+    <div class="hstack" style="gap:10px; flex-wrap:wrap; align-items: stretch;">
+        <input type="date" id="block-date" class="input" style="width:160px; height:40px;">
         
-        <div class="hstack" style="gap:10px; flex-wrap:wrap;">
-            <input type="date" id="block-date" class="input" style="width:160px;">
-            <div class="hstack" style="gap:8px; background:#0b1620; padding:5px 15px; border-radius:10px; border:1px solid var(--border);">
-                <input type="time" id="block-time-start" class="input" style="width:110px; border:none;" placeholder="시작">
-                <span style="color:var(--muted)">~</span>
-                <input type="time" id="block-time-end" class="input" style="width:110px; border:none;" placeholder="종료">
-            </div>
-            <button type="button" id="btn-add-block" class="btn primary" style="padding:0 25px; height:44px;">차단 추가</button>
+        <div class="hstack" style="gap:8px; background:#0b1620; padding:0 15px; border-radius:10px; border:1px solid var(--border); height:40px;">
+            <input type="time" id="block-time-start" class="input" style="width:130px; border:none; height:100%;" placeholder="시작">
+            <span style="color:var(--muted)">~</span>
+            <input type="time" id="block-time-end" class="input" style="width:130px; border:none; height:100%;" placeholder="종료">
         </div>
+        
+        <button type="button" id="btn-add-block" class="btn primary" style="padding:0 30px; height:40px; line-height:40px;">차단 추가</button>
+    </div>
         <p class="small" style="color:var(--muted); margin-top:10px;">* 시간을 입력하지 않으면 해당 날짜 전체가 차단됩니다.</p>
     </div>
 
