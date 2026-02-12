@@ -1,21 +1,22 @@
-<div id="type-selector" class="hstack" style="gap:10px; margin-bottom:20px;">
-    <button type="button" id="btn-type-delivery" class="btn-type active" onclick="setOrderType('delivery')">🛵 배달로 받기</button>
-    <button type="button" id="btn-type-pickup" class="btn-type" onclick="setOrderType('pickup')">🛍️ 매장 픽업</button>
-</div>
+// delivery-util.js (함수만 존재해야 함)
+export function getDistanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371; // 지구 반지름
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
 
-<div id="address-section">
-    <div class="vstack" style="gap:8px;">
-        <label class="small">배달 주소</label>
-        <div class="hstack" style="gap:8px;">
-            <input id="cust-addr" class="input" placeholder="주소 검색을 눌러주세요" readonly style="flex:1;">
-            <button type="button" id="btn-search-addr" class="btn small" style="width:80px;">검색</button>
-        </div>
-        <input id="cust-addr-detail" class="input" placeholder="상세 주소를 입력하세요">
-    </div>
-    <div id="delivery-msg" class="small" style="margin-top:8px; color:#58a6ff;"></div>
-</div>
+export function calculateDeliveryFee(config, distance) {
+    if (!config || !config.enabled) return 0;
+    if (distance > config.max_distance) return -1; // 배달 불가
 
-<style>
-    .btn-type { flex:1; height:45px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-weight:bold; }
-    .btn-type.active { border-color:#2ea043; color:#2ea043; background:rgba(46, 160, 67, 0.1); }
-</style>
+    let fee = config.base_fee || 0;
+    if (distance > 1) {
+        fee += Math.floor(distance - 1) * (config.extra_fee_per_km || 0);
+    }
+    return fee;
+}
