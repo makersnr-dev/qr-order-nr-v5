@@ -279,13 +279,29 @@ export default async function handler(req, res) {
                 ipMap.set(ip, Date.now());
                 if (ipMap.size > 1000) ipMap.clear();
 
-                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId } = safeBody;
+                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta } = safeBody;
                 const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
                 if (type === 'store') {
                     await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]);
                 } else {
                     const newNumericId = parseInt(String(Date.now()).slice(-9)); 
-                    await query(`INSERT INTO orderss (order_id, store_id, type, status, customer_name, customer_phone, address, items, total_amount, lookup_pw, order_no, meta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [newNumericId, storeId, 'reserve', '입금 미확인', customer.name, customer.phone, customer.fullAddr, JSON.stringify(cart), amount, lookupPw, newOrderNo, JSON.stringify({ reserve, agreePrivacy, memberId, memo: customer.memo })]);
+                    await query(`INSERT INTO orderss (order_id, store_id, type, status, customer_name, customer_phone, address, items, total_amount, lookup_pw, order_no, meta) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, 
+                        [
+                            newNumericId, 
+                            storeId, 
+                            'reserve', 
+                            '입금 미확인', 
+                            customer.name, 
+                            customer.phone, 
+                            customer.fullAddr, 
+                            JSON.stringify(cart), 
+                            amount, 
+                            lookupPw, 
+                            newOrderNo, 
+                            JSON.stringify(clientMeta) // 👈 여기서 덮어씌우지 말고 통째로 저장하세요!
+                        ]
+                    );
                 }
                 try {
                     await supabase.channel(`qrnr_realtime_${storeId}`).send({ type: 'broadcast', event: 'NEW_ORDER', payload: { orderNo: newOrderNo, orderType: type, table: table || '예약', amount, customerName: customer?.name || '비회원', at: new Date().toISOString() } });
