@@ -105,7 +105,7 @@ export function checkBusinessHours(bh, targetDate = new Date()) {
     if (!bh || !bh.enabled) return { ok: true };
 
     const day = targetDate.getDay();
-    if (!bh.days.includes(day)) return { ok: false, msg: "오늘은 정기 휴무일입니다." };
+    if (!bh.days.includes(day)) return { ok: false, msg: "오늘은 휴무일입니다." };
 
     const currentTime = targetDate.getHours() * 60 + targetDate.getMinutes();
     const [sH, sM] = bh.start.split(':').map(Number);
