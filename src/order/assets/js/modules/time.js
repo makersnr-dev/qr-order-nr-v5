@@ -153,38 +153,37 @@ export function updateAvailableHours(bh, dateString, selectEl) {
 }
 
 /**
- * 🚀 10. [수정] 관리자가 수동으로 차단한 시간 범위인지 체크
- * 관리자가 입력한 시간부터 1시간(60분) 동안을 자동으로 막습니다.
+ * 🚀 10. [최종 수정] 관리자가 직접 지정한 범위(A~B) 내에 있는지 체크
  */
 export function isManuallyBlocked(bh, selectedDate, selectedTime = null) {
     if (!bh || !bh.disabled_slots || bh.disabled_slots.length === 0) return { ok: true };
 
-    // 1시간(60분) 범위를 상수로 설정
-    const BLOCK_DURATION_MINUTES = 60;
-
     for (const slot of bh.disabled_slots) {
         if (slot.date === selectedDate) {
-            // 1. 해당 날짜 전체 차단인 경우
+            // 1. 해당 날짜 전체 차단
             if (slot.time === 'ALL') {
                 return { ok: false, msg: "해당 날짜는 예약이 마감되었습니다." };
             }
 
-            // 2. 특정 시간 범위 차단 체크 (사용자가 시간을 선택했을 때)
-            if (selectedTime) {
-                // 관리자 차단 시간 (분 단위 변환)
-                const [bH, bM] = slot.time.split(':').map(Number);
-                const blockStart = bH * 60 + bM;
-                const blockEnd = blockStart + BLOCK_DURATION_MINUTES;
+            // 2. 관리자가 직접 지정한 범위 체크 (예: "14:30~16:00")
+            if (selectedTime && slot.time.includes('~')) {
+                const [rangeStart, rangeEnd] = slot.time.split('~');
+                
+                // 분 단위 변환 비교 함수
+                const toMin = (t) => {
+                    const [h, m] = t.split(':').map(Number);
+                    return h * 60 + m;
+                };
 
-                // 손님 선택 시간 (분 단위 변환)
-                const [sH, sM] = selectedTime.split(':').map(Number);
-                const selectedMinutes = sH * 60 + sM;
+                const startMin = toMin(rangeStart);
+                const endMin = toMin(rangeEnd);
+                const selectMin = toMin(selectedTime);
 
-                // 손님이 선택한 시간이 관리자 설정 시간 ~ 1시간 이내에 포함되는지 확인
-                if (selectedMinutes >= blockStart && selectedMinutes < blockEnd) {
+                // 선택한 시간이 시작 시간과 종료 시간 사이에 있는지 확인
+                if (selectMin >= startMin && selectMin <= endMin) {
                     return { 
                         ok: false, 
-                        msg: `죄송합니다. ${slot.time}부터 1시간 동안은 예약이 불가합니다.` 
+                        msg: `죄송합니다. 해당 일시는 ${rangeStart}부터 ${rangeEnd}까지 예약이 제한되었습니다.` 
                     };
                 }
             }
