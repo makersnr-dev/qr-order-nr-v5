@@ -71,7 +71,7 @@ function refreshDisabledUI() {
         <div class="hstack" style="background: #1c2632; padding: 12px 20px; border-radius: 12px; justify-content: space-between; border: 1px solid #263241; max-width: 580px;">
             <div class="hstack" style="gap: 15px;">
                 <span style="color: #58a6ff; font-weight: bold;">🗓 ${slot.date}</span>
-                <span class="badge" style="background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; padding: 3px 12px;">
+                <span class="badge" style="background: rgba(46, 160, 67, 0.15); color: #3fb950; border: 1px solid #2ea043; padding: 3px 12px;">
                     ${slot.time === 'ALL' ? '금일 휴무' : '⏰ ' + slot.time}
                 </span>
             </div>
@@ -103,8 +103,9 @@ export async function renderCallOptions(storeId) {
             </div>
         `).join('');
 
+        // 항목 추가 버튼: 실선 테두리와 설정 저장 버튼과 같은 색상 사용
         box.innerHTML += `
-            <button id="call-opt-add" style="margin-top:10px; padding: 8px 20px; border-radius:20px; border:1px dashed #58a6ff; background:transparent; color:#58a6ff; cursor:pointer; font-size:13px;">
+            <button id="call-opt-add" class="btn-add-custom" style="margin-top:10px; width:150px; height:36px;">
                 + 항목 추가하기
             </button>`;
     } catch (e) {
