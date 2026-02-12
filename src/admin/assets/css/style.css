@@ -207,11 +207,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* 삭제 버튼 커스텀 디자인 */
+/* [공통] 삭제 버튼: 테두리 실선, 메인 색상 테마 */
 .btn-del-custom {
     background: transparent;
-    border: 1px solid #f85149;
-    color: #f85149;
+    border: 1px solid #2ea043; /* 설정저장 색상과 동일하게 변경 */
+    color: #2ea043;
     padding: 6px 20px;
     border-radius: 6px;
     cursor: pointer;
@@ -222,6 +222,25 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 }
 
 .btn-del-custom:hover {
-    background: #f85149;
+    background: rgba(46, 160, 67, 0.1);
+}
+
+/* [공통] 항목 추가 / 차단 추가 버튼: 실선 테두리 */
+.btn-add-custom {
+    background: transparent;
+    border: 1px solid #2ea043; /* 실선 테두리 */
+    color: #2ea043;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
+
+.btn-add-custom:hover {
+    background: #2ea043;
     color: white;
 }
