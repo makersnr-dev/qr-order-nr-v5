@@ -26,10 +26,17 @@ export async function renderNotify(storeId) {
         if (addBlockBtn) {
             addBlockBtn.onclick = () => {
                 const date = document.getElementById('block-date').value;
-                const time = document.getElementById('block-time').value; // HH:mm
+                const startTime = document.getElementById('block-time-start').value;
+                const endTime = document.getElementById('block-time-end').value;
                 if(!date) return alert("날짜를 선택하세요.");
+
+                // 시간을 둘 다 입력했으면 범위로 저장, 아니면 종일(ALL)로 저장
+                const newSlot = {
+                    date,
+                    time: (startTime && endTime) ? `${startTime}~${endTime}` : 'ALL'
+                };
                 
-                disabledSlots.push({ date, time: time || 'ALL' });
+                disabledSlots.push(newSlot);
                 refreshDisabledUI();
             };
         }
