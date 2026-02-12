@@ -573,61 +573,52 @@
     document.getElementById(`btn-type-${type}`).classList.add('active');
 
     const addrSection = document.getElementById('address-section');
-    if (!addrSection) return; // 에러 방지용
-
     if (type === 'pickup') {
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
-      const msgEl = document.getElementById('delivery-msg');
-      if (msgEl) msgEl.textContent = "";
+      if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
     } else {
       addrSection.style.display = 'flex';
     }
-    // 전역 cart 변수가 선언된 후 호출되어야 함
+    
+    // 합계 금액 갱신 (배달비 포함)
     if (window.qrnrCart) {
-        window.qrnrCart.render(); // 여기서 글자가 상품 합계로 바뀜
-        
-        // 🚀 [추가] 배달비를 더해서 글자를 다시 써줌
-        const finalTotal = window.qrnrCart.total() + currentDeliveryFee;
-        document.getElementById("total").textContent = finalTotal.toLocaleString();
+        window.qrnrCart.render();
+        const totalWithFee = window.qrnrCart.total() + currentDeliveryFee;
+        document.getElementById("total").textContent = totalWithFee.toLocaleString();
     }
   };
 
-  const openAddr = () => new window.daum.Postcode({ 
+  window.openAddr = () => new window.daum.Postcode({ 
     oncomplete(data) { 
       const fullAddr = data.roadAddress || data.address;
       document.getElementById("addr").value = fullAddr; 
       document.getElementById("addr-detail").focus(); 
 
-      // 🗺️ 카카오 Geocoder로 좌표 변환 및 거리 계산
-      if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.services) {
-          const geocoder = new kakao.maps.services.Geocoder();
-          geocoder.addressSearch(fullAddr, (result, status) => {
-            if (status === kakao.maps.services.Status.OK) {
-              const lat = parseFloat(result[0].y);
-              const lng = parseFloat(result[0].x);
-              // storeConfig가 로드된 후 실행됨
-              const dist = getDistanceKm(storeConfig.base_lat, storeConfig.base_lng, lat, lng);
-              const fee = calculateDeliveryFee(storeConfig, dist);
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.addressSearch(fullAddr, (result, status) => {
+        if (status === kakao.maps.services.Status.OK) {
+          const lat = parseFloat(result[0].y);
+          const lng = parseFloat(result[0].x);
+          const dist = getDistanceKm(storeConfig.base_lat, storeConfig.base_lng, lat, lng);
+          const fee = calculateDeliveryFee(storeConfig, dist);
 
-              if (fee === -1) {
-                alert(`배달 가능 거리(${storeConfig.max_distance}km)를 초과했습니다.`);
-                document.getElementById("addr").value = "";
-                return;
-              }
-              currentDeliveryFee = fee;
-              const msgEl = document.getElementById('delivery-msg');
-              if (msgEl) msgEl.textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
-              if (window.qrnrCart) {
-                window.qrnrCart.render();
-                
-                // 🚀 [추가] 배달비를 더해서 글자를 다시 써줌
-                const finalTotal = window.qrnrCart.total() + currentDeliveryFee;
-                document.getElementById("total").textContent = finalTotal.toLocaleString();
-            };
-            }
-          });
-      }
+          if (fee === -1) {
+            alert(`배달 가능 거리(${storeConfig.max_distance}km)를 초과했습니다.`);
+            document.getElementById("addr").value = "";
+            return;
+          }
+          currentDeliveryFee = fee;
+          document.getElementById('delivery-msg').textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
+          
+          // 합계 금액 갱신
+          if (window.qrnrCart) {
+              window.qrnrCart.render();
+              const totalWithFee = window.qrnrCart.total() + currentDeliveryFee;
+              document.getElementById("total").textContent = totalWithFee.toLocaleString();
+          }
+        }
+      });
     } 
   }).open();
 
