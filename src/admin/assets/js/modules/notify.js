@@ -68,14 +68,14 @@ function refreshDisabledUI() {
         return;
     }
     container.innerHTML = disabledSlots.map((slot, idx) => `
-        <div class="hstack" style="background: #1c2632; padding: 12px 20px; border-radius: 12px; justify-content: space-between; border: 1px solid #263241; max-width: 550px;">
+        <div class="hstack" style="background: #1c2632; padding: 12px 20px; border-radius: 12px; justify-content: space-between; border: 1px solid #263241; max-width: 580px;">
             <div class="hstack" style="gap: 15px;">
                 <span style="color: #58a6ff; font-weight: bold;">🗓 ${slot.date}</span>
-                <span class="badge" style="background: #238636; color: white; border: none; padding: 3px 10px;">
-                    ${slot.time === 'ALL' ? '종일 차단' : '⏰ ' + slot.time}
+                <span class="badge" style="background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; padding: 3px 12px;">
+                    ${slot.time === 'ALL' ? '금일 휴무' : '⏰ ' + slot.time}
                 </span>
             </div>
-            <button class="btn small danger" onclick="removeBlock(${idx})" style="padding: 5px 20px; font-size:12px;">삭제</button>
+            <button class="btn-del-custom" onclick="removeBlock(${idx})">삭제</button>
         </div>
     `).join('');
 }
@@ -92,18 +92,21 @@ export async function renderCallOptions(storeId) {
 
     const sid = storeId;
     try {
-        const res = await fetch(`/api/store-settings?storeId=${sid}`);
+        const res = await fetch(`/api/store-settings?storeId=${storeId}`);
         const data = await res.json();
         const list = data.settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의'];
 
         box.innerHTML = list.map((opt, i) => `
             <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
-                <input class="input call-opt-input" value="${opt}" data-idx="${i}" style="width: 300px;" />
-                <button class="btn danger small" data-del="${i}" style="padding: 8px 25px; min-width:80px;">삭제</button>
+                <input class="input call-opt-input" value="${opt}" data-idx="${i}" style="width: 300px; height:40px;" />
+                <button class="btn-del-custom" data-del="${i}">삭제</button>
             </div>
         `).join('');
 
-        box.innerHTML += `<button id="call-opt-add" class="btn small" style="margin-top:10px; padding: 5px 20px;">+ 항목 추가</button>`;
+        box.innerHTML += `
+            <button id="call-opt-add" style="margin-top:10px; padding: 8px 20px; border-radius:20px; border:1px dashed #58a6ff; background:transparent; color:#58a6ff; cursor:pointer; font-size:13px;">
+                + 항목 추가하기
+            </button>`;
     } catch (e) {
         console.error(e);
     }
