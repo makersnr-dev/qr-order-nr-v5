@@ -215,15 +215,14 @@
 
     <div class="vstack" style="gap:14px">
 
-      <div id="type-selector" class="hstack" style="gap:10px; margin-bottom:20px;">
-        <button type="button" id="btn-type-delivery" class="btn-type active" onclick="setOrderType('delivery')">🛵 배달로 받기</button>
-        <button type="button" id="btn-type-pickup" class="btn-type" onclick="setOrderType('pickup')">🛍️ 매장 픽업</button>
-    </div>
-    
-    <style>
-        .btn-type { flex:1; height:45px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-weight:bold; }
-        .btn-type.active { border-color:#2ea043; color:#2ea043; background:rgba(46, 160, 67, 0.1); }
-    </style>
+      <div id="type-selector" class="hstack" style="gap:10px; margin-bottom:10px;">
+          <button type="button" id="btn-type-delivery" class="btn-type active" onclick="setOrderType('delivery')">🛵 배달</button>
+          <button type="button" id="btn-type-pickup" class="btn-type" onclick="setOrderType('pickup')">🛍️ 픽업</button>
+      </div>
+      <style>
+          .btn-type { flex:1; height:40px; border-radius:10px; border:1px solid #263241; background:#1c2632; color:#9ca3af; cursor:pointer; font-size:13px; transition: 0.2s; }
+          .btn-type.active { border-color:#2ea043; color:#fff; background:rgba(46, 160, 67, 0.2); box-shadow: 0 0 10px rgba(46, 160, 67, 0.2); }
+      </style>
       <div class="field-row" id="address-section"> <div class="field-label addr-label clickable-label">배송지</div>
         <div class="addr-wrap" style="flex:1">
           <input id="addr" class="input" readonly placeholder="주소 검색을 클릭하세요"/>
