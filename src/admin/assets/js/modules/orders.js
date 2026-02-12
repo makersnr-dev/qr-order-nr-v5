@@ -173,7 +173,7 @@ async function changeOrderStatus({ id, status, type, storeId }) {
     storeId: storeId
   };
   lockOrder(id);
-
+  
   try {
     const res = await fetch('/api/orders', {
       method: 'PUT',
@@ -734,15 +734,14 @@ export function attachGlobalHandlers() {
       sel.value = sel.options[0].value;
       return;
     }
-
+    const sid = currentStoreId(); 
     try {
-      const sid = currentStoreId(); 
      await changeOrderStatus({ id, status: nextStatus, type, storeId: sid });
      showToast(`상태가 "${nextStatus}"(으)로 변경되었습니다.`, 'success');
     } catch (err) {
       if (err.message === 'ORDER_NOT_FOUND') {
         showToast('이미 삭제되었거나 처리된 주문입니다.', 'warning');
-        await safeRenderAll(type,storeId);
+        await safeRenderAll(type,sid);
         return;
       }
       showToast('상태 변경에 실패했습니다. 네트워크를 확인하세요.', 'error');
