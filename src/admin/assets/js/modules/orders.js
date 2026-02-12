@@ -924,8 +924,9 @@ export function attachGlobalHandlers() {
     } catch (err) {
       showToast('결제 완료 처리 실패', 'error');
     } finally {
+      const sid = currentStoreId();
       unlockOrder(id);
-      await safeRenderAll('store',storeId);
+      await safeRenderAll('store',sid);
     }
   });
 
