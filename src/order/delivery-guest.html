@@ -748,9 +748,9 @@
     navigator.clipboard.writeText(bankNumber).then(() => showToast("계좌번호가 복사되었습니다.", "info"));
   };
 
-  const openAddr = () => new window.daum.Postcode({ oncomplete(data) { document.getElementById("addr").value = data.roadAddress || data.address; document.getElementById("addr-detail").focus(); } }).open();
-  document.querySelector(".addr-label").onclick = openAddr;
-  document.getElementById("addr").onclick = openAddr;
+  
+  document.querySelector(".addr-label").onclick = window.openAddr;
+  document.getElementById("addr").onclick = window.openAddr;
 
   document.getElementById("phone").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, ""));
   document.getElementById("lookupPw").addEventListener("input", e => e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4));
