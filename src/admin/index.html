@@ -263,61 +263,71 @@
     </table>
   </div>
 
-  <!-- ================= 알림 설정 ================= -->
-  <div class="card" data-panel="notify" style="display:none">
-    <h3>알림 설정</h3>
-
-    <div class="hstack" style="gap:12px;flex-wrap:wrap">
-      <label class="hstack" style="gap:6px">
-        <input id="n-beep" type="checkbox"> 새 주문 소리
-      </label>
-      <label class="hstack" style="gap:6px">
-        볼륨
-        <input id="n-vol" type="range" min="0" max="1" step="0.05" style="width:160px">
-      </label>
-      <label class="hstack" style="gap:6px">
-        <input id="n-desktop" type="checkbox"> 데스크탑 알림
-      </label>
-      <input id="n-webhook" class="input" placeholder="Webhook URL (선택)" style="min-width:300px">
-      <button id="n-save" class="btn primary">저장</button>
+ <div class="card" data-panel="notify" style="display:none">
+    <div class="hstack" style="justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h3 style="margin:0;">알림 설정</h3>
     </div>
 
-    <h4>영업 시간 설정</h4>
-<div class="vstack" style="gap:10px; background:#0b1620; padding:15px; border-radius:12px; border:1px solid var(--border);">
-    <div class="hstack">
-        <label><input type="checkbox" id="bh-enabled"> 영업시간 제한 사용</label>
+    <div class="hstack" style="gap:12px; flex-wrap:wrap; background:#0b1620; padding:15px; border-radius:12px; border:1px solid var(--border);">
+        <label class="hstack" style="gap:6px">
+            <input id="n-beep" type="checkbox"> 새 주문 소리
+        </label>
+        <label class="hstack" style="gap:6px">
+            볼륨
+            <input id="n-vol" type="range" min="0" max="1" step="0.05" style="width:120px">
+        </label>
+        <label class="hstack" style="gap:6px">
+            <input id="n-desktop" type="checkbox"> 데스크탑 알림
+        </label>
+        <input id="n-webhook" class="input" placeholder="Webhook URL (선택)" style="width:250px">
     </div>
-    <div class="hstack" style="gap:10px;">
-        <input type="time" id="bh-start" class="input" style="width:130px;"> ~ 
-        <input type="time" id="bh-end" class="input" style="width:130px;">
-    </div>
-    <div class="hstack" id="bh-days" style="gap:5px; flex-wrap:wrap;">
-        <label class="small"><input type="checkbox" value="1"> 월</label>
-        <label class="small"><input type="checkbox" value="2"> 화</label>
-        <label class="small"><input type="checkbox" value="3"> 수</label>
-        <label class="small"><input type="checkbox" value="4"> 목</label>
-        <label class="small"><input type="checkbox" value="5"> 금</label>
-        <label class="small"><input type="checkbox" value="6"> 토</label>
-        <label class="small"><input type="checkbox" value="0"> 일</label>
-    </div>
-</div>
 
-    <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
-    <h4>수동 예약 차단 설정</h4>
-    <div id="disabled-list" class="vstack" style="gap:5px; margin-bottom:10px;">
+    <h4 style="margin-top:30px;">영업 시간 설정</h4>
+    <div class="vstack" style="gap:12px; background:#0b1620; padding:15px; border-radius:12px; border:1px solid var(--border);">
+        <div class="hstack">
+            <label style="font-size:14px;"><input type="checkbox" id="bh-enabled"> 영업시간 제한 사용</label>
         </div>
-    <div class="hstack" style="gap:5px;">
-        <input type="date" id="block-date" class="input" style="flex:1;">
-        <input type="time" id="block-time" class="input" style="flex:1;" placeholder="시간(선택)">
-        <button type="button" id="btn-add-block" class="btn-secondary" style="white-space:nowrap;">차단 추가</button>
+        <div class="hstack" style="gap:8px;">
+            <input type="time" id="bh-start" class="input" style="width:110px;">
+            <span style="color:var(--muted)">~</span>
+            <input type="time" id="bh-end" class="input" style="width:110px;">
+        </div>
+        <div class="hstack" id="bh-days" style="gap:8px; flex-wrap:wrap;">
+            <label class="small"><input type="checkbox" value="1"> 월</label>
+            <label class="small"><input type="checkbox" value="2"> 화</label>
+            <label class="small"><input type="checkbox" value="3"> 수</label>
+            <label class="small"><input type="checkbox" value="4"> 목</label>
+            <label class="small"><input type="checkbox" value="5"> 금</label>
+            <label class="small" style="color:#74c0fc;"><input type="checkbox" value="6"> 토</label>
+            <label class="small" style="color:#ff5c5c;"><input type="checkbox" value="0"> 일</label>
+        </div>
     </div>
-    <p class="small text-muted">* 시간을 입력하지 않으면 해당 날짜 전체가 차단됩니다.</p>
+
+    <h4 style="margin-top:40px;">직원 호출 항목 관리</h4>
+    <div id="call-options-box" style="max-width:400px;"></div>
+
+    <div style="margin-top:40px; border-top:1px solid var(--border); padding-top:20px;">
+        <h4>수동 예약 차단 설정</h4>
+        <div id="disabled-list" class="vstack" style="gap:8px; margin-bottom:15px;"></div>
+        
+        <div class="hstack" style="gap:8px; flex-wrap:wrap;">
+            <input type="date" id="block-date" class="input" style="width:140px;">
+            <div class="hstack" style="gap:5px; background:#0b1620; padding:2px 8px; border-radius:10px; border:1px solid var(--border);">
+                <input type="time" id="block-time-start" class="input" style="width:90px; border:none;" placeholder="시작">
+                <span style="color:var(--muted)">~</span>
+                <input type="time" id="block-time-end" class="input" style="width:90px; border:none;" placeholder="종료">
+            </div>
+            <button type="button" id="btn-add-block" class="btn primary" style="padding:0 15px; height:40px;">차단 추가</button>
+        </div>
+        <p class="small" style="color:var(--muted); margin-top:8px;">* 시간을 입력하지 않으면 해당 날짜 전체가 차단됩니다.</p>
+    </div>
+
+    <div class="hstack" style="justify-content:flex-end; margin-top:50px; padding-top:25px; border-top:1px solid #263241;">
+        <button id="n-save" class="btn primary" style="padding:12px 40px; font-weight:bold; font-size:15px; box-shadow: 0 4px 12px rgba(46, 160, 67, 0.3);">
+            설정 전체 저장
+        </button>
+    </div>
 </div>
-
-    <h4>직원 호출 항목 관리</h4>
-      <div id="call-options-box"></div>
-
-  </div>
 
   <!-- ================= 개인정보 처리방침 ================= -->
   <div class="card" data-panel="privacy" style="display:none">
