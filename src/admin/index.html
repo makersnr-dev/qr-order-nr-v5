@@ -307,9 +307,8 @@
         </div>
     </div>
 
-    <div style="margin-top:40px; border-top:1px solid var(--border); padding-top:25px;">
-        <h4>수동 예약 차단 설정</h4>
-        <div id="disabled-list" class="vstack" style="gap:10px; margin-bottom:20px;"></div>
+   <div style="margin-top:40px; border-top:1px solid var(--border); padding-top:25px;">
+    <h4>수동 예약 차단 설정</h4>
     
     <div class="hstack" style="gap:10px; flex-wrap:wrap; align-items: stretch;">
         <input type="date" id="block-date" class="input" style="width:160px; height:40px;">
@@ -320,10 +319,13 @@
             <input type="time" id="block-time-end" class="input" style="width:130px; border:none; height:100%;" placeholder="종료">
         </div>
         
-        <button type="button" id="btn-add-block" class="btn primary" style="padding:0 30px; height:40px; line-height:40px;">차단 추가</button>
+        <button type="button" id="btn-add-block" class="btn-add-custom" style="height:40px; width:120px;">차단 추가</button>
     </div>
-        <p class="small" style="color:var(--muted); margin-top:10px;">* 시간을 입력하지 않으면 해당 날짜 전체가 차단됩니다.</p>
-    </div>
+    
+    <p class="small" style="color:var(--muted); margin-top:10px;">* 시간을 입력하지 않으면 해당 날짜 전체가 휴무일로 처리됩니다.</p>
+    
+    <div id="disabled-list" class="vstack" style="gap:10px; margin-top:15px;"></div>
+</div>
 
     <div style="margin-top:40px; border-top:1px solid var(--border); padding-top:25px; margin-bottom:20px;">
         <h4>직원 호출 항목 관리</h4>
