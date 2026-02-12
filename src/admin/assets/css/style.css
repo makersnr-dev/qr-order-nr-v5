@@ -206,3 +206,22 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     from { transform: translate(-50%, -50%) rotate(0deg); }
     to { transform: translate(-50%, -50%) rotate(360deg); }
 }
+
+/* 삭제 버튼 커스텀 디자인 */
+.btn-del-custom {
+    background: transparent;
+    border: 1px solid #f85149;
+    color: #f85149;
+    padding: 6px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    min-width: 80px;
+    height: 34px;
+}
+
+.btn-del-custom:hover {
+    background: #f85149;
+    color: white;
+}
