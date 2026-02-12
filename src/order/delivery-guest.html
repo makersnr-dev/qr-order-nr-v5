@@ -508,7 +508,7 @@
     if (ap === "AM" && hour24 === 12) hour24 = 0;
     const timeStr = `${String(hour24).padStart(2, '0')}:${mm}`;
     const targetDT = new Date(`${date}T${timeStr}:00`);
-
+    
     const rangeCheck = checkBusinessHours(currentStoreBH, targetDT);
     if (!rangeCheck.ok) return fail(rangeCheck.msg);
 
@@ -641,8 +641,9 @@
     // 1. 매장 설정(영업시간) 먼저 가져오기
     const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
     const sData = await sRes.json();
-    const bh = sData.settings?.business_hours;
-    storeConfig = sData.settings?.delivery_config; // 🚀 배달 설정 저장
+    currentStoreBH = sData.settings?.business_hours;
+    const bh = currentStoreBH;
+    storeConfig = sData.settings?.delivery_config;
 
     // 🚀 [추가] 관리자 설정에 따라 배달/픽업 버튼 숨김 처리
     if (storeConfig) {
@@ -722,8 +723,7 @@
         showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
       });
     });
-  }
- catch (e) { console.error(e); }
+  } catch (e) { console.error(e); }
   }
 
   // --- 이벤트 리스너 (원본 유지) ---
