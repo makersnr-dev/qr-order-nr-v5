@@ -153,10 +153,14 @@ export function updateAvailableHours(bh, dateString, selectEl) {
 }
 
 /**
- * 🚀 10. [추가] 관리자가 수동으로 차단한 시간인지 체크
+ * 🚀 10. [수정] 관리자가 수동으로 차단한 시간 범위인지 체크
+ * 관리자가 입력한 시간부터 1시간(60분) 동안을 자동으로 막습니다.
  */
 export function isManuallyBlocked(bh, selectedDate, selectedTime = null) {
     if (!bh || !bh.disabled_slots || bh.disabled_slots.length === 0) return { ok: true };
+
+    // 1시간(60분) 범위를 상수로 설정
+    const BLOCK_DURATION_MINUTES = 60;
 
     for (const slot of bh.disabled_slots) {
         if (slot.date === selectedDate) {
@@ -164,9 +168,25 @@ export function isManuallyBlocked(bh, selectedDate, selectedTime = null) {
             if (slot.time === 'ALL') {
                 return { ok: false, msg: "해당 날짜는 예약이 마감되었습니다." };
             }
-            // 2. 특정 시간 차단인 경우 (사용자가 시간을 선택했을 때만 체크)
-            if (selectedTime && slot.time === selectedTime) {
-                return { ok: false, msg: "해당 시간은 이미 예약이 차단되었습니다." };
+
+            // 2. 특정 시간 범위 차단 체크 (사용자가 시간을 선택했을 때)
+            if (selectedTime) {
+                // 관리자 차단 시간 (분 단위 변환)
+                const [bH, bM] = slot.time.split(':').map(Number);
+                const blockStart = bH * 60 + bM;
+                const blockEnd = blockStart + BLOCK_DURATION_MINUTES;
+
+                // 손님 선택 시간 (분 단위 변환)
+                const [sH, sM] = selectedTime.split(':').map(Number);
+                const selectedMinutes = sH * 60 + sM;
+
+                // 손님이 선택한 시간이 관리자 설정 시간 ~ 1시간 이내에 포함되는지 확인
+                if (selectedMinutes >= blockStart && selectedMinutes < blockEnd) {
+                    return { 
+                        ok: false, 
+                        msg: `죄송합니다. ${slot.time}부터 1시간 동안은 예약이 불가합니다.` 
+                    };
+                }
             }
         }
     }
