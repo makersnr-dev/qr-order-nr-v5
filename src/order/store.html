@@ -120,6 +120,7 @@
   import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
   import { supabaseMgr } from '/src/shared/supabase-manager.js';
+  import { checkBusinessHours } from '/src/order/assets/js/modules/time.js';
 
   /* [추가] 보안을 위한 탈출 함수 */
   function esc(str) {
