@@ -24,6 +24,7 @@ export async function renderDeliveryConfig(storeId) {
 export function bindDeliveryAdmin(storeId) {
     // 1. 주소 검색 및 좌표 추출 (카카오 맵 라이브러리 필요)
     document.getElementById('btn-search-base-addr').onclick = () => {
+        kakao.maps.load(() => {
         new daum.Postcode({
             oncomplete: function(data) {
                 const addr = data.address;
@@ -42,6 +43,7 @@ export function bindDeliveryAdmin(storeId) {
                 });
             }
         }).open();
+        });
     };
 
     // 2. 저장 로직 (백엔드 필드명과 일치시켜야 함)
