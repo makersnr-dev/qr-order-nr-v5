@@ -213,13 +213,19 @@
 
     <div class="vstack" style="gap:14px">
 
-      <!-- 배송지 -->
-      <div class="field-row">
-        <div class="field-label addr-label clickable-label">배송지</div>
+      <div id="type-selector" class="hstack" style="gap:10px; margin-bottom:10px;">
+          <button type="button" id="btn-type-delivery" class="btn-type active" onclick="setOrderType('delivery')">🛵 배달</button>
+          <button type="button" id="btn-type-pickup" class="btn-type" onclick="setOrderType('pickup')">🛍️ 픽업</button>
+      </div>
+      <style>
+          .btn-type { flex:1; height:40px; border-radius:10px; border:1px solid #263241; background:#1c2632; color:#9ca3af; cursor:pointer; font-size:13px; transition: 0.2s; }
+          .btn-type.active { border-color:#2ea043; color:#fff; background:rgba(46, 160, 67, 0.2); box-shadow: 0 0 10px rgba(46, 160, 67, 0.2); }
+      </style>
+      <div class="field-row" id="address-section"> <div class="field-label addr-label clickable-label">배송지</div>
         <div class="addr-wrap" style="flex:1">
-          <input id="addr" class="input"/>
+          <input id="addr" class="input" readonly placeholder="주소 검색을 클릭하세요"/>
           <input id="addr-detail" class="input" placeholder="상세주소" style="margin-top:6px"/>
-        </div>
+          <div id="delivery-msg" class="small" style="margin-top:6px; color:#3fb950; font-weight:bold;"></div> </div>
       </div>
 
       <!-- 주문자명 -->
@@ -420,6 +426,11 @@
   import { fillTimeSelectors, getTimeValue, isDayOff, checkBusinessHours, isManuallyBlocked } from '/src/order/assets/js/modules/time.js';
   import { INITIAL_STATUS } from '/src/shared/constants/status.js';
   import { supabaseMgr } from '/src/shared/supabase-manager.js';
+  import { getDistanceKm, calculateDeliveryFee } from './assets/js/modules/delivery-util.js';
+
+  let storeConfig = null;
+  let currentOrderType = 'delivery'; // 기본값 배달
+  let currentDeliveryFee = 0;
   
   const adminChannel = new BroadcastChannel("qrnr-admin");
   const storeId = window.qrnrStoreId;
@@ -501,12 +512,21 @@
     const payload = {
       storeId,
       type: 'reserve',
-      amount: cart.total(),
+      amount: cart.total()+ currentDeliveryFee,
       cart: cart.items.map(i => ({
         id: i.id, name: i.name, qty: i.qty, price: i.price, optionText: i.optionText || []
       })),
-      customer: { name: cust, phone, fullAddr, memo },
-      reserve: { date, time: `${ap} ${hh}:${mm}` },
+      customer: { 
+        name: cust, 
+        phone, 
+        fullAddr: currentOrderType === 'pickup' ? '[매장픽업]' : fullAddr, // 🚀 픽업 표시
+        memo 
+      },
+      meta: { 
+        delivery_fee: currentDeliveryFee, 
+        order_type: currentOrderType,
+        reserve: { date, time: `${ap} ${hh}:${mm}` }
+      },
       lookupPw: document.getElementById("lookupPw").value.trim(),
       agreePrivacy: true
     };
@@ -546,12 +566,73 @@
     } catch (e) { console.error(e); }
   }
 
+  // --- 🚀 [여기서부터 복사] 배달/픽업 전환 및 거리 계산 로직 ---
+  window.setOrderType = function(type) {
+    currentOrderType = type;
+    document.querySelectorAll('.btn-type').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`btn-type-${type}`).classList.add('active');
+
+    const addrSection = document.getElementById('address-section');
+    if (!addrSection) return; // 에러 방지용
+
+    if (type === 'pickup') {
+      addrSection.style.display = 'none';
+      currentDeliveryFee = 0;
+      const msgEl = document.getElementById('delivery-msg');
+      if (msgEl) msgEl.textContent = "";
+    } else {
+      addrSection.style.display = 'flex';
+    }
+    // 전역 cart 변수가 선언된 후 호출되어야 함
+    if (window.qrnrCart) window.qrnrCart.render();
+  };
+
+  const openAddr = () => new window.daum.Postcode({ 
+    oncomplete(data) { 
+      const fullAddr = data.roadAddress || data.address;
+      document.getElementById("addr").value = fullAddr; 
+      document.getElementById("addr-detail").focus(); 
+
+      // 🗺️ 카카오 Geocoder로 좌표 변환 및 거리 계산
+      if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.services) {
+          const geocoder = new kakao.maps.services.Geocoder();
+          geocoder.addressSearch(fullAddr, (result, status) => {
+            if (status === kakao.maps.services.Status.OK) {
+              const lat = parseFloat(result[0].y);
+              const lng = parseFloat(result[0].x);
+              // storeConfig가 로드된 후 실행됨
+              const dist = getDistanceKm(storeConfig.base_lat, storeConfig.base_lng, lat, lng);
+              const fee = calculateDeliveryFee(storeConfig, dist);
+
+              if (fee === -1) {
+                alert(`배달 가능 거리(${storeConfig.max_distance}km)를 초과했습니다.`);
+                document.getElementById("addr").value = "";
+                return;
+              }
+              currentDeliveryFee = fee;
+              const msgEl = document.getElementById('delivery-msg');
+              if (msgEl) msgEl.textContent = `🛵 배달거리: ${dist.toFixed(1)}km (배달비 +${fee.toLocaleString()}원)`;
+              if (window.qrnrCart) window.qrnrCart.render();
+            }
+          });
+      }
+    } 
+  }).open();
+
   // 🚀 초기화 통합 함수 (실행 순서 보장)
   async function initApp() {
     // 1. 매장 설정(영업시간) 먼저 가져오기
     const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
     const sData = await sRes.json();
     const bh = sData.settings?.business_hours;
+    storeConfig = sData.settings?.delivery_config; // 🚀 배달 설정 저장
+
+    // 🚀 [추가] 관리자 설정에 따라 배달/픽업 버튼 숨김 처리
+    if (storeConfig) {
+        document.getElementById('btn-type-delivery').style.display = storeConfig.enabled ? 'block' : 'none';
+        document.getElementById('btn-type-pickup').style.display = storeConfig.pickup_enabled ? 'block' : 'none';
+        if (!storeConfig.enabled && storeConfig.pickup_enabled) setOrderType('pickup');
+    }
     
     fillTimeSelectors("time");
 
