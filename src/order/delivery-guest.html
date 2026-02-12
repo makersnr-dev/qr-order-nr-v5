@@ -364,7 +364,7 @@
     <h3 style="margin-bottom:8px;">예약이 완료되었습니다</h3>
     <p class="small" style="line-height:1.6;">
       계좌로 <b>1시간 이내</b>에<br>
-      <b id="reserve-amount"></b>원을 입금해주세요.
+      <b id="reserve-amount"></b>원(배달비 포함)을 입금해주세요.
     </p>
     <div class="small" style="margin:10px 0;color:#9ca3af;">
       <span id="reserve-bank"></span>
@@ -548,7 +548,8 @@
       const j = await r.json();
       if (!j.ok) return fail(j.msg || "예약 저장 실패");
 
-      document.getElementById("reserve-amount").textContent = cart.total().toLocaleString();
+      const finalAmount = cart.total() + currentDeliveryFee;
+      document.getElementById("reserve-amount").textContent = finalAmount.toLocaleString();
       document.getElementById("reserve-done-modal").style.display = "flex";
     } catch (error) {
       fail("서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
