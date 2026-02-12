@@ -304,7 +304,14 @@ export default async function handler(req, res) {
                     );
                 }
                 try {
-                    await supabase.channel(`qrnr_realtime_${storeId}`).send({ type: 'broadcast', event: 'NEW_ORDER', payload: { orderNo: newOrderNo, orderType: type, table: table || '예약', amount, customerName: customer?.name || '비회원', at: new Date().toISOString() } });
+                    await supabase.channel(`qrnr_realtime_${storeId}`).send({
+                        type: 'broadcast', event: 'NEW_ORDER', 
+                        payload: { 
+                            orderNo: newOrderNo,
+                            orderId: newOrderNo,
+                            orderType: type, 
+                            table: table || '예약', 
+                            amount, customerName: customer?.name || '비회원', at: new Date().toISOString() } });
                 } catch (err) {}
                 return json({ ok: true, orderId: newOrderNo });
             }
@@ -324,13 +331,20 @@ export default async function handler(req, res) {
                 SET status = $1, meta = $2 WHERE ${idColumn} = $3`, [status, JSON.stringify(newMeta), orderId]);
                 else await query(`UPDATE ${tableName} 
                 SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
-                try { 
+                try {
+                    let broadcastId = orderId; 
+                    if (type !== 'store') {
+                        // 예약주문이면 숫자로 된 ID 대신 손님이 아는 '주문번호(order_no)'를 가져옵니다.
+                        const row = await queryOne(`SELECT order_no FROM orderss WHERE order_id = $1 OR order_no = $1`, [orderId]);
+                        if (row) broadcastId = row.order_no; 
+                    }
+                    
                     await supabase.channel(`qrnr_realtime_${storeId}`).send({ 
                         type: 'broadcast', 
                         event: 'STATUS_CHANGED', 
-                        payload: { orderId, status, type } 
+                        payload: { orderId: broadcastId, status, type } 
                     }); 
-                    console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (${storeId})`);
+                    console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (ID: ${broadcastId})`);
                 } catch (err) {
                     console.error("❌ 실시간 신호 전송 실패:", err);
                 }
