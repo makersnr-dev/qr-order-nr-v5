@@ -601,15 +601,28 @@ ${o.meta?.payment?.cancelled
 </div>
 
 <div class="order-action-line">
-  ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled 
-    ? '' 
-    : (!o.meta?.payment?.paid 
-        
-        ? `<button class="btn-sm-badge btn-pos-confirm" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 결제 확인</button>` 
-      
-        : `<button class="btn-sm-badge btn-cancel-sm" data-action="cancel-payment" data-id="${o.order_no}">결제 취소</button>`
-      )
-  }
+  ${(() => {
+    // 1️⃣ [주문 취소] 상태인 경우 (음식 조리 안 함)
+    if (status === ORDER_STATUS.CANCELLED) {
+      return `<span class="btn-sm-badge" style="background:#5c2b2b; color:#ff7b72;">주문취소됨</span>`;
+    }
+
+    // 2️⃣ [결제 취소]가 이미 완료된 경우 (환불 완료)
+    if (o.meta?.payment?.cancelled) {
+      return `<span class="btn-sm-badge badge-cancelled-final">결제취소완료</span>`;
+    }
+
+    // 3️⃣ [미결제] 상태 (POS 확인 버튼)
+    if (!o.meta?.payment?.paid) {
+      return `<button class="btn-sm-badge btn-pos-confirm" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 확인</button>`;
+    }
+
+    // 4️⃣ [결제 완료] 상태 (이때만 결제취소 버튼이 활성화됨)
+    return `
+      <span class="btn-sm-badge badge-paid-sm">결제완료</span>
+      <button class="btn-sm-badge btn-cancel-sm" data-action="cancel-payment" data-id="${o.order_no}">결제취소</button>
+    `;
+  })()}
 </div>
         </div>
       </td>
