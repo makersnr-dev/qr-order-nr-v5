@@ -49,8 +49,38 @@ body {
 .badge-wait { background: #ffda6a; }
 .badge-cook { background: #74c0fc; }
 .badge-done { background: #63e6be; }
-.badge-paid { margin-left: 6px; padding: 2px 6px; border-radius: 6px; font-size: 11px; background: #2ea043; color: #fff; }
-.badge-cancel { background: #ff5c5c; color: #fff; }
+
+/* 🚀 [수정] 결제 라인: 상태창 아래 위치 & 줄바꿈 설정 */
+.order-action-line {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;       /* 칸 부족하면 버튼이 통째로 아래로 */
+  margin-top: 6px;
+  align-items: center;
+}
+
+/* 🚀 [수정] 뱃지형 버튼 공통: 내부 글자 줄바꿈 방지 */
+.btn-sm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap !important; /* 글자 줄바꿈 절대 방지 */
+  border: none !important;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+/* 🚀 [추가] 버튼별 색상 (완료=초록, 취소=빨강 꽉 찬 배경) */
+.badge-paid-sm { background: var(--primary) !important; color: #fff !important; cursor: default !important; }
+.btn-cancel-sm { background: #ef4444 !important; color: #fff !important; }
+.btn-cancel-sm:hover { background: #dc2626 !important; }
+.btn-pos-confirm { background: #1d3547 !important; color: #58a6ff !important; }
+.badge-cancelled-final { background: #30363d !important; color: #8b949e !important; }
 
 /* [3] 필드 및 입력 폼 상세 */
 .field-row { display: flex; align-items: center; gap: 8px; }
@@ -73,7 +103,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .toast-error { border-left: 5px solid #ef4444; }
 .toast-info { border-left: 5px solid #74c0fc; }
 
-/* [5] 모달창 공통 (취소 사유 포함) */
+/* [5] 모달창 공통 */
 .modal {
   display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 9999;
@@ -86,290 +116,33 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
 .modal textarea { width: 100%; height: 100px; background: #0b1620; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 12px; resize: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
- .order-action-line {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-top: 6px; /* 상태창(Select)과의 간격 */
-    align-items: center;
-}
-
-.order-action-line .btn {
-    flex: 1;            /* 공간 공평 분배 */
-    min-width: 110px;   /* 🚀 찌그러짐 방지 최소 너비 */
-    height: 34px;
-    padding: 0 10px;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap; /* 🚀 글자 줄바꿈 절대 방지 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-}
-
-
-/* 결제완료 뱃지 (기존 badge-paid 활용 또는 보정) */
-.badge-paid-sm {
-    display: inline-flex;
-    align-items: center;
-    height: 22px;
-    padding: 0 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    background: #2ea043;
-    color: #fff;
-    font-weight: 600;
-}
-/* [공통] 뱃지 스타일 버튼 (POS확인, 결제완료, 결제취소 공통) */
-.order-action-line .btn-sm-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 24px;        /* 🚀 뱃지 높이로 고정 */
-    padding: 0 10px;
-    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
-    font-weight: 600;
-    border-radius: 6px;
-    white-space: nowrap; /* 🚀 글자 줄바꿈 방지 */
-    cursor: pointer;
-    transition: 0.2s;
-    border: 1px solid transparent;
-}
-/* 1. POS 결제 확인 (파란색 테두리 또는 배경) */
-.btn-pos-confirm {
-    background: #0b1620;
-    border-color: #74c0fc !important;
-    color: #74c0fc;
-}
-.btn-pos-confirm:hover { background: rgba(116, 192, 252, 0.1); }
-
-/* 2. 결제완료 (초록색 뱃지 - 클릭 안됨) */
-.badge-paid-sm {
-    background: #2ea043;
-    color: #fff;
-    cursor: default !important;
-}
-
-/* 결제완료 뱃지와 디자인을 맞춘 결제취소 버튼 */
-.btn-cancel-sm {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 22px;        /* 🚀 뱃지 높이에 맞춤 */
-    padding: 0 8px;      /* 🚀 뱃지 패딩에 맞춤 */
-    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
-    font-weight: 600;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid #ff5c5c !important; /* 🚀 빨간색 테두리 */
-    color: #ff5c5c;
-    cursor: pointer;
-    white-space: nowrap; /* 글자 줄바꿈 방지 */
-    transition: 0.2s;
-}
-
-.btn-cancel-sm:hover { background: rgba(255, 92, 92, 0.1); }
-
 /* [5-1] 매장주문 데스크탑 배치 (PC 화면용) */
 @media (min-width: 769px) {
-  .order-status-box {
-    display: flex;
-    flex-direction: row; /* 가로 정렬 */
-    align-items: center;
-    gap: 12px;           /* 요소 간 간격 */
-  }
-
-  .order-status-line {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;      /* dot과 select가 찌그러지지 않게 */
-  }
-
-  /* select 창 너비 적절히 고정 */
-  .order-status-line select {
-    width: 130px;
-  }
-
- .order-action-line { margin-top: 0; }
+  .order-status-box { display: flex; flex-direction: row; align-items: center; gap: 12px; }
+  .order-status-line { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .order-status-line select { width: 130px; }
+  .order-action-line { margin-top: 0; }
 }
 
-
-/* [6] 📱 모바일 통합 최적화 (768px 이하) */
+/* [6] 📱 모바일 통합 최적화 */
 @media (max-width: 768px) {
   .desktop-only { display: none !important; }
-  
-  /* 테이블을 카드 형태로 전환 */
   .table thead { display: none; }
   .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
-  
-  .table tbody tr {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 14px; padding: 16px; margin-bottom: 16px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  }
-  
-  .table tbody td {
-    display: flex; align-items: flex-start; gap: 10px;
-    border: none; padding: 6px 0; font-size: 14px;
-  }
-  
-  /* td 앞에 라벨 표시 */
-  .table tbody td::before {
-    content: attr(data-label);
-    width: 95px;            /* 80px -> 95px로 확장 (글자가 안 잘리게) */
-    font-size: 12px;
-    color: var(--muted);
-    flex-shrink: 0;
-    padding-top: 2px;
-    white-space: nowrap;    /* 🚀 글자가 절대 아래로 떨어지지 않게 고정 */
-    text-align: left;
-  }
-
-  /* 터치 영역 최적화 */
-  .btn, .input { min-height: 46px; }
-  .tab { padding: 12px 16px; }
-  
-  /* 주문내역 텍스트 강조 */
-  .order-detail-link {
-    font-size: 15px; font-weight: 600; color: #58a6ff !important;
-    text-decoration: underline; line-height: 1.4; display: block; width: 100%;
-  }
-
-  /* 상태 박스 가로 가득 채우기 */
-  .order-status-box, .order-action-line button { width: 100%; }
-  /* 모바일에서는 상태창 아래에 붙어야 하므로 여백 8px */
-    .order-action-line { margin-top: 8px; }
-    
-    /* (선택사항) 모바일에서 버튼을 더 큼직하게 하고 싶다면 아래 추가 */
-    .order-action-line .btn { height: 42px; }
+  .table tbody tr { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .table tbody td { display: flex; align-items: flex-start; gap: 10px; border: none; padding: 6px 0; font-size: 14px; }
+  .table tbody td::before { content: attr(data-label); width: 95px; font-size: 12px; color: var(--muted); flex-shrink: 0; white-space: nowrap; text-align: left; }
+  .order-action-line { margin-top: 8px; width: 100%; }
 }
 
-/* [7] 🖥 PC 전용 */
-@media (min-width: 769px) {
-  .mobile-only { display: none !important; }
-  .td-addr { max-width: 220px; word-break: keep-all; }
-  .td-req { max-width: 260px; white-space: pre-line; }
-}
-
-/* 예약주문 목록 합계금액 중앙 정렬 */
-  td[data-label="합계금액"], 
-  td[data-label="합계 / 상태"] {
-    text-align: center !important;
-    vertical-align: middle;
-  }
-
-  /* 합계금액 내부의 정렬을 보조하기 위해 flex가 걸려있다면 해제 또는 중앙화 */
-  td[data-label="합계 / 상태"] > div {
-    align-items: center;
-    justify-content: center;
-  }
-
-
-/* style.css 추가 */
-.btn-loading {
-    position: relative;
-    color: transparent !important;
-    pointer-events: none;
-}
+/* [7] 기타 유틸리티 */
+.btn-loading { position: relative; color: transparent !important; pointer-events: none; }
 .btn-loading::after {
-    content: "";
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    top: 50%;
-    left: 50%;
-    margin-top: -8px;   /* 높이의 절반 */
-    margin-left: -8px;  /* 너비의 절반 */
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 0.8s linear infinite;
+  content: ""; position: absolute; width: 16px; height: 16px; top: 50%; left: 50%;
+  margin-top: -8px; margin-left: -8px; border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to { transform: translate(-50%, -50%) rotate(360deg); }
-}
+@keyframes spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 
-/* [공통] 삭제 버튼: 테두리 실선, 메인 색상 테마 */
-.btn-del-custom {
-    background: transparent;
-    border: 1px solid #2ea043; /* 설정저장 색상과 동일하게 변경 */
-    color: #2ea043;
-    padding: 6px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.2s;
-    min-width: 80px;
-    height: 34px;
-}
-
-.btn-del-custom:hover {
-    background: rgba(46, 160, 67, 0.1);
-}
-
-/* [공통] 항목 추가 / 차단 추가 버튼: 실선 테두리 */
-.btn-add-custom {
-    background: transparent;
-    border: 1px solid #2ea043; /* 실선 테두리 */
-    color: #2ea043;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-}
-
-.btn-add-custom:hover {
-    background: #2ea043;
-    color: white;
-}
-
-/* [공통] 뱃지형 버튼 베이스 (결제완료와 똑같은 스타일) */
-.order-action-line .btn-sm-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 22px !important;    /* 🚀 초소형 높이 */
-    padding: 0 8px !important;
-    font-size: 10px !important;  /* 🚀 작은 글씨 */
-    font-weight: 600;
-    border-radius: 6px;          /* 🚀 기존 뱃지들과 동일한 곡률 */
-    white-space: nowrap;
-    border: none !important;
-    cursor: pointer;
-}
-
-/* 1. POS 확인 (기존 스타일 유지) */
-.btn-pos-confirm {
-    background: #1d3547 !important;
-    color: #58a6ff !important;
-}
-
-/* 2. 결제완료 (초록색 꽉 찬 배경) */
-.badge-paid-sm {
-    background: var(--primary) !important; /* 사장님 매장 메인 초록색 */
-    color: #fff !important;
-    cursor: default !important;
-}
-
-/* 3. 결제취소 (결제완료와 똑같은데 빨간색만 꽉 찬 배경) */
-.btn-cancel-sm {
-    background: #ef4444 !important; /* 🚀 쨍한 빨간색 꽉 찬 배경 */
-    color: #fff !important;         /* 🚀 글자는 흰색 */
-}
-
-.btn-cancel-sm:hover {
-    background: #dc2626 !important; /* 마우스 올리면 약간 어두운 빨간색 */
-}
-
-/* 취소완료 상태 (어두운 회색) */
-.badge-cancelled-final {
-    background: #30363d !important;
-    color: #8b949e !important;
-}
+.btn-del-custom { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 6px 20px; border-radius: 6px; cursor: pointer; font-size: 13px; height: 34px; }
+.btn-add-custom { background: transparent; border: 1px solid var(--primary); color: var(--primary); border-radius: 20px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; }
