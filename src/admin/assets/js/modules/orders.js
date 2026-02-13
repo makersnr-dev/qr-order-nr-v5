@@ -573,25 +573,36 @@ export async function renderStore(storeId) {
       <td data-label="상태">
         <div class="order-status-box">
           <div class="order-status-line">
-            <span class="badge-dot ${
-              o.meta?.payment?.cancelled ? 'badge-cancel' : status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'
-            }"></span>
             ${(() => {
+
+              if (status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled) {
+                return ''; 
+              }
+
+              
+              return `<span class="badge-dot ${
+                status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'
+              }"></span>`;
+            })()}
+
+            ${(() => {
+ 
+              if (status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled) return '';
+
               const current = status;
               let nextList = STATUS_FLOW.store[current] || [];
               if (o.meta?.payment?.paid) {
                 nextList = nextList.filter(s => s !== ORDER_STATUS.CANCELLED);
               }
-              if (o.meta?.payment?.cancelled) return '';
-              const disabled = current === ORDER_STATUS.CANCELLED ? 'disabled' : '';
+              
               return `
-                <select class="input" data-type="store" data-id="${o.order_no}" ${disabled}>
+                <select class="input" data-type="store" data-id="${o.order_no}">
                   <option selected>${current}</option>
                   ${nextList.map(s => `<option value="${s}">${s}</option>`).join('')}
                 </select>
               `;
             })()}
-           </div> <div class="order-action-line">
+          </div><div class="order-action-line">
             ${(() => {
               // 1. 주문 자체가 취소된 경우 (회색 뱃지)
               if (status === ORDER_STATUS.CANCELLED) {
