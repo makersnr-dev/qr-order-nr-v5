@@ -90,7 +90,15 @@ body {
     background: rgba(239, 68, 68, 0.1) !important;
     border-color: #ff7b72 !important;
 }
-.btn-pos-confirm { background: #1d3547 !important; color: #58a6ff !important; }
+.btn-pos-confirm {
+    background: transparent !important;   /* 배경 투명 */
+    border: 1px solid var(--primary) !important; /* 테두리 초록색 */
+    color: #ffffff !important;            /* 🚀 글씨 하얀색 */
+    cursor: pointer;
+}
+.btn-pos-confirm:hover {
+    background: rgba(46, 160, 67, 0.1) !important; /* 마우스 올리면 살짝 초록빛 */
+}
 .badge-cancelled-final {
     background: #30363d !important; /* 어두운 회색 배경 */
     color: #8b949e !important;      /* 흐릿한 글자색 */
