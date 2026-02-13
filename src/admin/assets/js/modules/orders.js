@@ -591,11 +591,26 @@ export async function renderStore(storeId) {
                 </select>
               `;
             })()}
-            ${o.meta?.payment?.cancelled ? `<span class="badge-cancel" style="margin-left:6px">결제취소</span>` : o.meta?.payment?.paid ? `<span class="badge-paid" style="margin-left:6px">결제완료</span>` : ''}
-          </div>
-          <div class="order-action-line">
-            ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled ? '' : (!o.meta?.payment?.paid ? `<button class="btn primary" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 결제 확인</button>` : `<button class="btn danger" data-action="cancel-payment" data-id="${o.order_no}">결제 취소</button>`)}
-          </div>
+           
+${o.meta?.payment?.cancelled 
+    ? `<span class="btn-sm-badge badge-cancelled-final" style="margin-left:6px">결제취소</span>` 
+    : o.meta?.payment?.paid 
+        ? `<span class="btn-sm-badge badge-paid-sm" style="margin-left:6px">결제완료</span>` 
+        : ''
+}
+</div>
+
+<div class="order-action-line">
+  ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled 
+    ? '' 
+    : (!o.meta?.payment?.paid 
+        
+        ? `<button class="btn-sm-badge btn-pos-confirm" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 결제 확인</button>` 
+      
+        : `<button class="btn-sm-badge btn-cancel-sm" data-action="cancel-payment" data-id="${o.order_no}">결제 취소</button>`
+      )
+  }
+</div>
         </div>
       </td>
     `;
