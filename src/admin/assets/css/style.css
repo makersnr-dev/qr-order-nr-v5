@@ -107,27 +107,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     justify-content: center;
     border-radius: 8px;
 }
-/* 결제완료 뱃지와 디자인을 맞춘 결제취소 버튼 */
-.btn-cancel-sm {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 22px;        /* 🚀 뱃지 높이에 맞춤 */
-    padding: 0 8px;      /* 🚀 뱃지 패딩에 맞춤 */
-    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
-    font-weight: 600;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid #ff5c5c; /* 🚀 빨간색 테두리 */
-    color: #ff5c5c;
-    cursor: pointer;
-    white-space: nowrap; /* 글자 줄바꿈 방지 */
-    transition: 0.2s;
-}
 
-.btn-cancel-sm:hover {
-    background: rgba(255, 92, 92, 0.1);
-}
 
 /* 결제완료 뱃지 (기존 badge-paid 활용 또는 보정) */
 .badge-paid-sm {
@@ -141,6 +121,55 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     color: #fff;
     font-weight: 600;
 }
+/* [공통] 뱃지 스타일 버튼 (POS확인, 결제완료, 결제취소 공통) */
+.order-action-line .btn-sm-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;        /* 🚀 뱃지 높이로 고정 */
+    padding: 0 10px;
+    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
+    font-weight: 600;
+    border-radius: 6px;
+    white-space: nowrap; /* 🚀 글자 줄바꿈 방지 */
+    cursor: pointer;
+    transition: 0.2s;
+    border: 1px solid transparent;
+}
+/* 1. POS 결제 확인 (파란색 테두리 또는 배경) */
+.btn-pos-confirm {
+    background: #0b1620;
+    border-color: #74c0fc !important;
+    color: #74c0fc;
+}
+.btn-pos-confirm:hover { background: rgba(116, 192, 252, 0.1); }
+
+/* 2. 결제완료 (초록색 뱃지 - 클릭 안됨) */
+.badge-paid-sm {
+    background: #2ea043;
+    color: #fff;
+    cursor: default !important;
+}
+
+/* 결제완료 뱃지와 디자인을 맞춘 결제취소 버튼 */
+.btn-cancel-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;        /* 🚀 뱃지 높이에 맞춤 */
+    padding: 0 8px;      /* 🚀 뱃지 패딩에 맞춤 */
+    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
+    font-weight: 600;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid #ff5c5c !important; /* 🚀 빨간색 테두리 */
+    color: #ff5c5c;
+    cursor: pointer;
+    white-space: nowrap; /* 글자 줄바꿈 방지 */
+    transition: 0.2s;
+}
+
+.btn-cancel-sm:hover { background: rgba(255, 92, 92, 0.1); }
 
 /* [5-1] 매장주문 데스크탑 배치 (PC 화면용) */
 @media (min-width: 769px) {
