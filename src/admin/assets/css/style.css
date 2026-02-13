@@ -329,3 +329,47 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     background: #2ea043;
     color: white;
 }
+
+/* [공통] 뱃지형 버튼 베이스 (결제완료와 똑같은 스타일) */
+.order-action-line .btn-sm-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px !important;    /* 🚀 초소형 높이 */
+    padding: 0 8px !important;
+    font-size: 10px !important;  /* 🚀 작은 글씨 */
+    font-weight: 600;
+    border-radius: 6px;          /* 🚀 기존 뱃지들과 동일한 곡률 */
+    white-space: nowrap;
+    border: none !important;
+    cursor: pointer;
+}
+
+/* 1. POS 확인 (기존 스타일 유지) */
+.btn-pos-confirm {
+    background: #1d3547 !important;
+    color: #58a6ff !important;
+}
+
+/* 2. 결제완료 (초록색 꽉 찬 배경) */
+.badge-paid-sm {
+    background: var(--primary) !important; /* 사장님 매장 메인 초록색 */
+    color: #fff !important;
+    cursor: default !important;
+}
+
+/* 3. 결제취소 (결제완료와 똑같은데 빨간색만 꽉 찬 배경) */
+.btn-cancel-sm {
+    background: #ef4444 !important; /* 🚀 쨍한 빨간색 꽉 찬 배경 */
+    color: #fff !important;         /* 🚀 글자는 흰색 */
+}
+
+.btn-cancel-sm:hover {
+    background: #dc2626 !important; /* 마우스 올리면 약간 어두운 빨간색 */
+}
+
+/* 취소완료 상태 (어두운 회색) */
+.badge-cancelled-final {
+    background: #30363d !important;
+    color: #8b949e !important;
+}
