@@ -592,14 +592,11 @@ export async function renderStore(storeId) {
               `;
             })()}
             </div>
-          // ✅ renderStore 함수 내부 수정
           <div class="order-action-line">
             ${status === ORDER_STATUS.CANCELLED || o.meta?.payment?.cancelled 
-              ? '' // 취소된 주문은 버튼 없음
+              ? ''
               : (!o.meta?.payment?.paid 
-                  // 1. 미결제 상태일 때 나타나는 버튼
                   ? `<button class="btn primary" data-action="confirm-pos-paid" data-id="${o.order_no}">POS 결제 확인</button>` 
-                  // 2. 결제 완료 상태일 때 나타나는 버튼 (결제취소와 모양 통일)
                   : `
                     <button class="btn" style="background:#2ea043; color:#fff; cursor:default;" disabled>결제 완료</button>
                     <button class="btn danger" data-action="cancel-payment" data-id="${o.order_no}">결제 취소</button>
