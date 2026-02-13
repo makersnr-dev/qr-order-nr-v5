@@ -89,8 +89,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
  .order-action-line {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap; /* 🚀 칸 부족 시 자동 줄바꿈 */
-    width: 100%;
+    flex-wrap: wrap;
+    margin-top: 6px; /* 상태창(Select)과의 간격 */
+    align-items: center;
 }
 
 .order-action-line .btn {
@@ -105,6 +106,40 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); curso
     align-items: center;
     justify-content: center;
     border-radius: 8px;
+}
+/* 결제완료 뱃지와 디자인을 맞춘 결제취소 버튼 */
+.btn-cancel-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;        /* 🚀 뱃지 높이에 맞춤 */
+    padding: 0 8px;      /* 🚀 뱃지 패딩에 맞춤 */
+    font-size: 11px;     /* 🚀 뱃지 글자 크기 */
+    font-weight: 600;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid #ff5c5c; /* 🚀 빨간색 테두리 */
+    color: #ff5c5c;
+    cursor: pointer;
+    white-space: nowrap; /* 글자 줄바꿈 방지 */
+    transition: 0.2s;
+}
+
+.btn-cancel-sm:hover {
+    background: rgba(255, 92, 92, 0.1);
+}
+
+/* 결제완료 뱃지 (기존 badge-paid 활용 또는 보정) */
+.badge-paid-sm {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    background: #2ea043;
+    color: #fff;
+    font-weight: 600;
 }
 
 /* [5-1] 매장주문 데스크탑 배치 (PC 화면용) */
