@@ -77,17 +77,18 @@ body {
 
 /* 🚀 [추가] 버튼별 색상 (완료=초록, 취소=빨강 꽉 찬 배경) */
 .badge-paid-sm { background: var(--primary) !important; color: #fff !important; cursor: default !important; }
-/* 🚀 결제취소: 속은 배경색(패널색상과 동일), 테두리만 빨간색 */
+/* 🚀 결제취소: 배경은 화면색(투명), 테두리는 빨간색, 글씨는 하얀색 */
 .btn-cancel-sm {
-    background: transparent !important;   /* 속은 투명하게 */
-    border: 1px solid #ef4444 !important; /* 테두리만 빨간색 */
-    color: #ef4444 !important;            /* 글자도 빨간색 */
+    background: transparent !important;   /* 배경은 사장님 화면색 그대로 */
+    border: 1px solid #ef4444 !important; /* 테두리는 빨간색 */
+    color: #ffffff !important;            /* 🚀 글씨는 하얀색 */
+    cursor: pointer;
 }
 
-/* 마우스를 올렸을 때(Hover) 살짝 빨간 기운이 돌게 보정 */
+/* 마우스 올렸을 때 살짝 빨간 느낌만 추가 */
 .btn-cancel-sm:hover {
-    background: rgba(239, 68, 68, 0.1) !important; /* 아주 연한 빨간 배경 */
-    color: #ff7b72 !important;                    /* 글자색 살짝 밝게 */
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: #ff7b72 !important;
 }
 .btn-pos-confirm { background: #1d3547 !important; color: #58a6ff !important; }
 .badge-cancelled-final {
