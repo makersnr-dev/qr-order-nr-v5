@@ -604,7 +604,7 @@ ${o.meta?.payment?.cancelled
   ${(() => {
     // 1️⃣ [주문 취소] 상태인 경우 (음식 조리 안 함)
     if (status === ORDER_STATUS.CANCELLED) {
-      return `<span class="btn-sm-badge" style="background:#5c2b2b; color:#ff7b72;">주문취소됨</span>`;
+      return `<span class="btn-sm-badge" style="background:#5c2b2b; color:#ff7b72;">주문취소완료</span>`;
     }
 
     // 2️⃣ [결제 취소]가 이미 완료된 경우 (환불 완료)
