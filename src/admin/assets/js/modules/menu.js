@@ -150,7 +150,7 @@ export async function exportMenuToExcel(storeId) {
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "메뉴관리");
-    XLSX.writeFile(workbook, `메뉴관리_${currentStoreId()}.xlsx`);
+    XLSX.writeFile(workbook, `메뉴관리_${storeId}.xlsx`);
     showToast('엑셀 다운로드 완료!', 'success');
 }
 async function handleMenuExcelUpload(event) {
