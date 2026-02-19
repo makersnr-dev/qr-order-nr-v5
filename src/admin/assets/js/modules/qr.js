@@ -124,6 +124,9 @@ export async function initQR(storeId) {
         link.click();
         
         showToast(`${list.length}개의 QR 코드가 압축 파일로 다운로드됩니다.`, "success");
+    }catch (e) {
+        console.error(e);
+        showToast("다운로드 중 오류가 발생했습니다.", "error");
     }finally {
             if (btn) {
                 btn.disabled = false;
