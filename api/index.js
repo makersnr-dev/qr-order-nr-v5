@@ -279,6 +279,26 @@ export default async function handler(req, res) {
                 if (ipMap.size > 1000) ipMap.clear();
 
                 const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta } = safeBody;
+
+                // 🛡️ [추가] 금액 위변조 검증 로직 (최소 수정)
+                try {
+                    const menuRes = await query('SELECT menu_id as id, price FROM menus WHERE store_id = $1', [storeId]);
+                    const priceMap = Object.fromEntries(menuRes.rows.map(m => [m.id, m.price]));
+                    
+                    let validTotal = cart.reduce((sum, item) => {
+                        const unitPrice = priceMap[item.id] || 0;
+                        const optPrice = (item.selectedOptions || []).reduce((s, o) => s + Number(o.price || 0), 0);
+                        return sum + (unitPrice + optPrice) * item.qty;
+                    }, 0);
+
+                    if (type !== 'store') validTotal += Number(clientMeta?.delivery_fee || 0);
+
+                    if (Math.abs(validTotal - amount) > 1) {
+                        return json({ ok: false, message: '금액 검증 실패: 결제 금액이 일치하지 않습니다.' }, 400);
+                    }
+                } catch (e) { return json({ ok: false, message: '검증 중 오류 발생' }, 500); }
+                // 🛡️ 검증 끝
+
                 const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
                 if (type === 'store') {
                     await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]);
@@ -298,7 +318,7 @@ export default async function handler(req, res) {
                             amount, 
                             lookupPw, 
                             newOrderNo, 
-                            JSON.stringify(clientMeta) // 👈 여기서 덮어씌우지 말고 통째로 저장하세요!
+                            JSON.stringify(clientMeta)
                         ]
                     );
                 }
