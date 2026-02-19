@@ -550,6 +550,7 @@ async function handleLookup(req, res, safeBody, params) {
     };
 
     const { name, phone, pw } = safeBody;
+    const cleanPhone = phone.replace(/\D/g, '');
     const storeId = params.get('storeId') || safeBody.storeId;
     if (!name || !phone || !pw || !storeId) {
         return sendJson({ ok: false, message: '조회 정보를 모두 입력해주세요.' }, 400);
@@ -564,7 +565,7 @@ async function handleLookup(req, res, safeBody, params) {
             WHERE store_id = $1 AND customer_name = $2 AND lookup_pw = $4
               AND REPLACE(customer_phone, '-', '') = $3
             ORDER BY created_at DESC
-        `, [storeId, name, phone, pw]);
+        `, [storeId, name, cleanPhone, pw]);
 
         const orders = r.rows.map(row => ({
             id: row.order_no,
