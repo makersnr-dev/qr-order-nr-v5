@@ -152,7 +152,7 @@ export async function requireAuth(realm) {
       return null;
     }
 
-    if (p.storeId) {
+    if (p.storeId && typeof p.storeId === 'string' && p.storeId !== "[object Object]") {
   localStorage.setItem('qrnr.storeId', p.storeId);
 }
 // 서버가 준 정보를 바탕으로 관리자 이름 등 UI용 데이터 갱신
