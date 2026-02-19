@@ -201,7 +201,7 @@ function showDesktopNotification(title, body) {
   }
 }
 let lastAlarmTime = 0;
-let lastProcessedEventId = null;
+let lastProcessedEventId= sessionStorage.getItem('qrnr.lastEventId');
 async function initRealtimeAlarm(storeId) {
     // 1. 전역 클라이언트 확인 (window. 필수)
     if (!storeId) return;
@@ -233,6 +233,7 @@ async function initRealtimeAlarm(storeId) {
     // [중복 방지] 알림(소리/토스트)은 여기서부터 차단됨
     if (lastProcessedEventId === eventId) return;
     lastProcessedEventId = eventId;
+    sessionStorage.setItem('qrnr.lastEventId', eventId);
     adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
     
     // 2. 소리 재생
