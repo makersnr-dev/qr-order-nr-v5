@@ -1,25 +1,39 @@
 // /src/shared/store.js
 
+// src/shared/store.js
+
 export function ensureStoreInitialized() {
   const url = new URL(location.href);
   const sidFromUrl = url.searchParams.get('store');
 
-  // 1. URL에 storeId가 있다면 최우선으로 사용하고 세션에 박제 (탭 고립)
-  if (sidFromUrl && sidFromUrl !== "[object Object]") {
+  // 🛡️ [문서 핵심 해결] 무결성 검증 함수: null, undefined, [object Object] 방어
+  const isValid = (id) => id && typeof id === 'string' && id !== "[object Object]" && id !== "null" && id !== "undefined";
+
+  // 1. URL 파라미터가 유효하다면 최우선으로 사용 (세션 및 로컬 업데이트)
+  if (isValid(sidFromUrl)) {
     sessionStorage.setItem('qrnr_active_storeId', sidFromUrl);
-    localStorage.setItem('qrnr.lastStoreId', sidFromUrl); // 마지막 방문 기억용
+    localStorage.setItem('qrnr.lastStoreId', sidFromUrl);
     return sidFromUrl;
   }
 
-  // 2. URL에 없다면 현재 탭의 세션 저장소 확인
+  // 2. URL에 없다면 현재 탭의 세션 저장소(sessionStorage) 확인
   const sidFromSession = sessionStorage.getItem('qrnr_active_storeId');
-  if (sidFromSession && sidFromSession !== "[object Object]") {
+  if (isValid(sidFromSession)) {
     return sidFromSession;
   }
 
-  // 3. 둘 다 없다면 마지막 방문 기록이나 기본값
-  const lastId = localStorage.getItem('qrnr.lastStoreId') || 'store1';
-  return lastId;
+  // 3. 마지막 방문 기록(localStorage) 확인
+  const lastId = localStorage.getItem('qrnr.lastStoreId');
+  if (isValid(lastId)) {
+    // 탭을 새로 열었을 때를 대비해 세션에 다시 복사
+    sessionStorage.setItem('qrnr_active_storeId', lastId);
+    return lastId;
+  }
+
+  // 4. 모든 데이터가 오염되었거나 없다면 기본값 반환
+  const defaultId = 'store1';
+  sessionStorage.setItem('qrnr_active_storeId', defaultId);
+  return defaultId;
 }
 
 /**
