@@ -26,6 +26,16 @@ function watchMidnight(storeId) {
       showToast("🌙 자정이 되어 오늘의 결제코드로 갱신되었습니다.", "info");
     }
   }, 10000); // 10초마다 체크 (서버 호출 없이 브라우저 시계만 확인하므로 비용 없음)
+  // 화면이 다시 보일 때(탭 복귀 등) 즉시 체크하는 로직
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    const checkDate = new Date().toLocaleDateString();
+    if (checkDate !== lastDate) {
+      lastDate = checkDate;
+      renderCode(storeId);
+    }
+  }
+});
 }
 
 export async function renderCode(storeId) {
