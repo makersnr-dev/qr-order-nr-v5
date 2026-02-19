@@ -154,6 +154,7 @@ export async function exportMenuToExcel(storeId) {
     showToast('엑셀 다운로드 완료!', 'success');
 }
 async function handleMenuExcelUpload(event) {
+    const storeId = new URLSearchParams(location.search).get('store'); // 🚀 ID 확보
     const file = event.target.files[0];
     if (!file) return;
 
@@ -168,9 +169,10 @@ async function handleMenuExcelUpload(event) {
             if (!newMenus.length) return showToast('유효한 데이터가 없습니다.', 'error');
 
             if (confirm(`${newMenus.length}개의 메뉴를 서버에 반영할까요?`)) {
-                if (await saveMenuToServer(newMenus)) {
+                // 🚀 saveMenuToServer를 부를 때 storeId를 꼭 넣어줍니다.
+                if (await saveMenuToServer(storeId, newMenus)) {
                     showToast('엑셀 반영 성공!', 'success');
-                    renderMenu();
+                    renderMenu(storeId); // 🚀 여기도 주입
                 }
             }
         } catch (err) {
@@ -254,7 +256,8 @@ function openMenuDetailModal(target, onSave) {
         statusEl.textContent = "⏳ 업로드 중...";
         try {
             const ext = file.name.split('.').pop();
-            const filePath = `${currentStoreId()}/${Date.now()}.${ext}`;
+            const sid = new URLSearchParams(location.search).get('store'); // 🚀 이 줄을 추가
+            const filePath = `${sid}/${Date.now()}.${ext}`; // 🚀 currentStoreId 대신 sid 사용
             const { data, error } = await window.supabaseClient.storage
                 .from('menu-images').upload(filePath, file);
             if (error) throw error;
