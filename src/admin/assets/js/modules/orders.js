@@ -788,9 +788,9 @@ export function attachGlobalHandlers() {
     if (!id) return;
     const storeId = currentStoreId();
     try {
-      const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/orders?type=store&storeId=${encodeURIComponent(storeId)}&orderNo=${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => String(o.order_no) === String(id));
+      const order = data.order; // 서버가 준 단일 주문 정보를 바로 사용
       if (!order) { showToast('해당 주문 정보를 찾을 수 없습니다.', 'error'); return; }
       
       const cancelReason = order.meta?.cancel?.reason ? `❌ 취소 사유: ${order.meta.cancel.reason}` : '';
@@ -844,9 +844,9 @@ export function attachGlobalHandlers() {
     if (!id) return;
     const storeId = currentStoreId();
     try {
-      const res = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
+      const res = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}&orderNo=${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await res.json();
-      const order = (data.orders || []).find(o => String(o.order_id) === String(id));
+      const order = data.order; // 서버가 준 단일 주문 정보를 바로 사용
       if (!order) { showToast('예약 주문을 찾을 수 없습니다.', 'error'); return; }
       // 🚀 [추가] 배달비 및 메뉴 합계 계산 로직
       const meta = order.meta || {};
