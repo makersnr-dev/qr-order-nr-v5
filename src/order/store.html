@@ -514,7 +514,6 @@ document.getElementById('btn-show-history').onclick = () => {
             }
 
             const itemDetails = menuArray.map(i => {
-                // [보안] 메뉴명에 esc 적용
                 const name = i.name || (typeof i === 'string' ? i : '알 수 없는 메뉴');
                 const qty = i.qty || 1;
                 
