@@ -208,71 +208,70 @@ export default async function handler(req, res) {
             const auth = await getAuth();
             if (!auth && method !== 'POST') return json({ ok: false }, 401);
             if (method === 'GET') {
-                const type = params.get('type');
-                const r = (type === 'store') 
-                    ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC', [storeId])
-                    : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
-                const orders = r.rows.map(row => {
-                    const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
-                    
-                    // 1. 상품 데이터 소스 통일 (매장은 meta.cart, 예약은 items 컬럼)
-                    const items = (type === 'store') 
-                        ? (meta.cart || []) 
-                        : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+            const type = params.get('type');
+            const orderNo = params.get('orderNo'); // 상세 조회를 위한 파라미터 추가
 
-                    // 2. 관리자용 요약 문구 생성 (옵션 포함 + 외 n건)
-                    let displaySummary = '상품 없음';
-                    if (items.length > 0) {
-                        const first = items[0];
-                        
-                        // 1. 옵션 데이터 추출 (예약/매장 통합 대응)
-                        let rawOpts = first.optionText || first.options || [];
-                        if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
-                        
-                        // 2. 옵션 텍스트 생성 (최대 1개 노출 + '외 n')
-                        let optText = '';
-                        if (rawOpts.length > 0) {
-                            // 첫 번째 옵션 이름만 추출 (예: "샷추가")
-                            const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
-                            
-                            // 옵션이 2개 이상이면 '외 n' 표시 (옵션임을 명시)
-                            if (rawOpts.length > 1) {
-                                optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
-                            } else {
-                                optText = ` [${firstOpt}]`;
-                            }
-                        }
-                    
-                        // 3. 전체 요약 구성
-                        displaySummary = `${first.name} x ${first.qty}${optText}`;
-                        
-                        // 4. 다른 메뉴가 더 있다면 '외 n건' (메뉴임을 명시)
-                        if (items.length > 1) {
-                            displaySummary += ` 외 ${items.length - 1}건`;
-                        }
-                    }
-
-                    // 3. 기존 필드 유지 + displaySummary 추가
-                    if (type === 'store') {
-                        return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
-                    } else {
-                        return { 
-                            ...row, 
-                            orderId: row.order_no, 
-                            amount: row.total_amount, 
-                            //items, 
-                            cart: items, 
-                            displaySummary, // 요약 필드 추가
-                            customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
-                            reserve: meta.reserve || {}, 
-                            requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
-                            ts: new Date(row.created_at).getTime(), 
-                            meta 
-                        };
-                    }
-                });
-                return json({ ok: true, orders });
+            // 1. DB 쿼리 실행 (단일 조회와 목록 조회를 분기)
+            let r;
+            if (orderNo) {
+                // [상세 조회용] 주문번호가 있을 때
+                const tableName = (type === 'store') ? 'orders' : 'orderss';
+                r = await query(`SELECT * FROM ${tableName} WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
+            } else {
+                // [목록 조회용] 최신 500개 제한
+                r = (type === 'store') 
+                    ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId])
+                    : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId]);
             }
+
+            // 2. 데이터 가공 (기존 로직 100% 보존)
+            const orders = r.rows.map(row => {
+                const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                
+                const items = (type === 'store') 
+                    ? (meta.cart || []) 
+                    : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+
+                let displaySummary = '상품 없음';
+                if (items.length > 0) {
+                    const first = items[0];
+                    let rawOpts = first.optionText || first.options || [];
+                    if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
+                    
+                    let optText = '';
+                    if (rawOpts.length > 0) {
+                        const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
+                        if (rawOpts.length > 1) optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
+                        else optText = ` [${firstOpt}]`;
+                    }
+                    displaySummary = `${first.name} x ${first.qty}${optText}`;
+                    if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
+                }
+
+                if (type === 'store') {
+                    return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
+                } else {
+                    return { 
+                        ...row, 
+                        orderId: row.order_no, 
+                        amount: row.total_amount, 
+                        cart: items, 
+                        displaySummary, 
+                        customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
+                        reserve: meta.reserve || {}, 
+                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
+                        ts: new Date(row.created_at).getTime(), 
+                        meta 
+                    };
+                }
+            });
+
+            // 3. 응답 반환
+            if (orderNo) {
+                return json({ ok: true, order: orders[0] || null }); 
+            }
+            return json({ ok: true, orders });
+        }
             if (method === 'POST') {
                 const ip = headers['x-forwarded-for'] || req.socket?.remoteAddress || '0.0.0.0';
                 if (Date.now() - (ipMap.get(ip) || 0) < 10000) return json({ ok: false, message: '주문이 너무 잦습니다.' }, 429);
