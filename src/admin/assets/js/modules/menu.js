@@ -257,7 +257,8 @@ function openMenuDetailModal(target, onSave) {
         try {
             const ext = file.name.split('.').pop();
             const sid = new URLSearchParams(location.search).get('store'); // 🚀 이 줄을 추가
-            const filePath = `${sid}/${Date.now()}.${ext}`; // 🚀 currentStoreId 대신 sid 사용
+            const randomId = Math.random().toString(36).substring(2, 8);
+            const filePath = `${sid}/${Date.now()}-${randomId}.${ext}`;
             const { data, error } = await window.supabaseClient.storage
                 .from('menu-images').upload(filePath, file);
             if (error) throw error;
