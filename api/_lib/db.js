@@ -11,10 +11,7 @@ export const pool = new Pool({
   max: 20,                // 최대 동시 연결 수 (사장님 DB 플랜에 맞춰 조절)
   idleTimeoutMillis: 1000, // 일을 안 하는 연결은 1초 만에 즉시 해제 (자리를 빨리 비워줌)
   connectionTimeoutMillis: 2000, // 연결에 2초 이상 걸리면 실패 처리 (무한 대기 방지)
-  ssl: {
-    rejectUnauthorized: false,
-    sslmode: 'verify-full',
-  },
+  ssl: true
 });
 
 // ✅ 연결 테스트 추가
