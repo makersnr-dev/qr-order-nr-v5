@@ -735,7 +735,7 @@
         // 🚀 [수정] 이제 바구니(storeSettingsCache) 데이터를 기반으로 갱신
         if (updateType === 'menu_update' || !updateType) {
             clearMenuCache();
-            await renderMenu("menu-grid", cart);
+            await renderMenu("menu-grid", cart, true);
         }
         if (updateType === 'bank_update' || !updateType) await loadBankInfo();
       });
