@@ -110,7 +110,8 @@ export function makeCart(boxId, totalId) {
  */
 window.currentOrderTab = window.currentOrderTab || 'A';
 
-export async function renderMenu(gridId, cartObj) {
+export async function renderMenu(gridId, cartObj, forceRefresh = false) {
+    if (forceRefresh) clearMenuCache();
     const grid = document.getElementById(gridId);
     if (!grid) return;
 
