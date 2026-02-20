@@ -203,94 +203,74 @@ function showDesktopNotification(title, body) {
 }
 let lastAlarmTime = 0;
 let lastProcessedEventId= sessionStorage.getItem('qrnr.lastEventId');
+// admin.js 내의 기존 initRealtimeAlarm 함수를 이 코드로 덮어쓰세요.
 async function initRealtimeAlarm(storeId) {
-    // 1. 전역 클라이언트 확인 (window. 필수)
     if (!storeId) return;
 
-    // [수정] 매니저로부터 채널 가져오기 (자동 클라이언트 생성 및 구독 포함)
     const realtimeChannel = await supabaseMgr.getChannel(storeId);
     if (!realtimeChannel) return;
 
     console.log(`📡 [관리자] 실시간 구독 시작 (매니저): ${storeId}`);
 
-   realtimeChannel
-  // --- [1] 새 주문 수신 (딩동 소리) ---
-  .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
-    const data = payload.payload;
-    console.log("🔔 새 주문 발생!", data);
-    
-    const currentSid = window.qrnrStoreId;
-    const eventId = data.orderNo || data.id;
+    realtimeChannel
+    .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
+        const data = payload.payload;
+        const eventId = data.orderNo || data.id;
 
-    // ✅ [수정 1] 목록 갱신을 중복 방지(return) 로직보다 위로 올림
-    // 이유: 알림은 한 번만 울려야 하지만, 목록은 어떤 탭에서든 갱신되어야 함
-    // ✅ [수정 2] safeRender... 대신 원본 render... 함수를 직접 호출 (5초 쿨타임 무시)
-    if (data.orderType === 'store' || data.type === 'store') {
-        if (typeof renderStore === 'function') renderStore(currentSid); 
-    } else {
-        if (typeof renderDeliv === 'function') renderDeliv(currentSid);
-    }
+        // ✅ [수정] 데이터 갱신은 모든 탭에서 무조건 수행 (항상 최신 목록 유지)
+        if (data.orderType === 'store' || data.type === 'store') {
+            if (typeof renderStore === 'function') renderStore(storeId); 
+        } else {
+            if (typeof renderDeliv === 'function') renderDeliv(storeId);
+        }
 
-    // [중복 방지] 알림(소리/토스트)은 여기서부터 차단됨
-    if (lastProcessedEventId === eventId) return;
-    lastProcessedEventId = eventId;
-    sessionStorage.setItem('qrnr.lastEventId', eventId);
-    adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
-    
-    // 2. 소리 재생
-    const now = Date.now();
-    if (now - lastAlarmTime > 2000) {
-        const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
-        audio.play().catch(() => {
-            console.log("🔊 화면을 클릭해야 소리가 재생됩니다.");
-        });
-        lastAlarmTime = now;
-    }
-
-    // 3. 토스트 알림 표시
-    // ✅ [수정 3] data.type 도 함께 체크하도록 보정
-    const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
-    const cName = data.customerName || '비회원';
-    showToast(`📦 새 ${orderTitle} 주문 도착! (${cName})`, "success");
-
-    // 4. 데스크탑 팝업 알림
-    showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${cName}님의 주문이 들어왔습니다.`);
-
-    // [탭 깜빡임]
-    const originalTitle = document.title;
-    document.title = "🚨 [새 주문 발생] 🚨";
-    setTimeout(() => { document.title = originalTitle; }, 3000);  })
-      
-     // --- [2] 직원 호출 수신 (call.mp3 소리) ---
-    .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
-      // Supabase broadcast는 payload.payload 안에 실제 데이터가 들어있습니다.
-      const data = payload.payload;
-      console.log("🔔 실시간 호출 수신 데이터:", data);
-      const currentSid = window.qrnrStoreId;
-      
-      const eventId = data.id || data.orderId || ('call-' + Date.now());
-        // [중복 방지] 다른 탭에서 이미 처리된 이벤트인지 확인
+        // 🛡️ [중복 방지] 이미 다른 탭에서 소리가 났다면 여기서 중단 (소리/토스트 차단)
         if (lastProcessedEventId === eventId) return;
+        
+        // 내 탭이 처리했다고 기록하고 다른 탭들에 알림
         lastProcessedEventId = eventId;
+        sessionStorage.setItem('qrnr.lastEventId', eventId);
         adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
-      // 테이블 번호 추출 (data.table 또는 data.table_no 둘 다 대응)
-      const tableNo = data.table_no || data.table || '??';
-      const note = data.note || data.message || '직원 호출';
 
-      // 🔊 중복 소리 방지 필터 (2초)
-      const now = Date.now();
-      if (now - lastAlarmTime > 2000) {
-          const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
-          callAudio.play().catch(() => {});
-          lastAlarmTime = now;
-      }
-  
-     showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
+        // 🔊 소리 재생 (이 로직은 탭들 중 가장 먼저 신호를 받은 하나만 실행하게 됨)
+        const now = Date.now();
+        if (now - lastAlarmTime > 2000) {
+            const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
+            audio.play().catch(() => console.log("🔊 소리 재생 차단됨"));
+            lastAlarmTime = now;
+        }
+
+        // 알림 표시
+        const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
+        showToast(`📦 새 ${orderTitle} 주문 도착! (${data.customerName || '비회원'})`, "success");
+        showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${data.customerName || '비회원'}님의 주문이 도착했습니다.`);
+    })
+    .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
+        const data = payload.payload;
+        const eventId = data.id || data.orderId || ('call-' + Date.now());
+
+        // 🛡️ [중복 방지] 호출 알림도 중복 소리 차단
+        if (lastProcessedEventId === eventId) return;
+        
+        lastProcessedEventId = eventId;
+        sessionStorage.setItem('qrnr.lastEventId', eventId);
+        adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
+
+        const tableNo = data.table_no || data.table || '??';
+        const note = data.note || data.message || '직원 호출';
+
+        const now = Date.now();
+        if (now - lastAlarmTime > 2000) {
+            const callAudio = new Audio('/src/admin/assets/sound/call.mp3'); 
+            callAudio.play().catch(() => {});
+            lastAlarmTime = now;
+        }
+
+        showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
         showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
-        if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(currentSid);
-      });
+        if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(storeId);
+    });
 
-    // 상단 상태바 초록불 켜기
     updateStatusUI('CONNECTED');
 }
 
@@ -449,22 +429,25 @@ if (delivRefreshBtn) {
 //------------------------------------------------------------------
   // G. 실시간 이벤트 처리 (알림 중복 방지 수정)
   //------------------------------------------------------------------
-  adminChannel.onmessage = null;
   adminChannel.onmessage = (event) => {
     const msg = event.data;
     if (!msg || !msg.type) return;
+
+    // 🛡️ 다른 탭에서 "내가 방금 이 주문(또는 호출) 처리했어!"라고 신호를 보낸 경우
     if (msg.type === 'EVENT_PROCESSED') {
-        lastProcessedEventId = msg.eventId; // 다른 탭이 처리했음을 기록
+        // 내 탭에서도 해당 이벤트를 처리된 것으로 간주하여 소리가 나지 않게 함
+        lastProcessedEventId = msg.eventId;
+        sessionStorage.setItem('qrnr.lastEventId', msg.eventId);
+        return;
     }
 
-    // 🔕 내가 보낸 이벤트는 무시 (adminId.real 로 이름 일치시킴)
+    // 🔕 내가 보낸 이벤트는 무시
     const myAdminId = sessionStorage.getItem('qrnr.adminId.real');
     if (msg.senderId && myAdminId && msg.senderId === myAdminId) return;
 
     // 🔒 매장 필터링
-    const currentId = window.qrnrStoreId;
     const msgId = msg.storeId || msg.store || msg.sid;
-    if (msgId && currentId && msgId !== currentId) return;
+    if (msgId && sid && msgId !== sid) return;
 
     const timeText = msg.at ? new Date(msg.at).toLocaleTimeString() : '';
 
