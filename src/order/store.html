@@ -481,7 +481,7 @@ async function initRealtimeSync() {
 
             if (updateType === 'menu_update' || !updateType) {
                 clearMenuCache();
-                await renderMenu('menu-grid', qrnrCart, true);
+                await renderMenu('menu-grid', cart, true);
             }
             if (updateType === 'call_options_update' || !updateType) {
                 const list = settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
