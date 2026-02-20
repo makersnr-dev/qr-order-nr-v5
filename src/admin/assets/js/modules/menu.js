@@ -253,21 +253,41 @@ function openMenuDetailModal(target, onSave) {
     fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        statusEl.textContent = "⏳ 업로드 중...";
+        statusEl.textContent = "⏳ 서버 승인 중...";
         try {
-            const ext = file.name.split('.').pop();
-            const sid = new URLSearchParams(location.search).get('store'); // 🚀 이 줄을 추가
-            const randomId = Math.random().toString(36).substring(2, 8);
-            const filePath = `${sid}/${Date.now()}-${randomId}.${ext}`;
-            const { data, error } = await window.supabaseClient.storage
-                .from('menu-images').upload(filePath, file);
-            if (error) throw error;
+            // 1. 서버에 업로드 허가(Signed URL) 요청
+            statusEl.textContent = "⏳ 서버 승인 중...";
+            const res = await fetch('/api/get-upload-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: file.name, fileType: file.type })
+            });
+            
+            const { ok, uploadUrl, publicPath, error: serverError } = await res.json();
+            if (!ok) throw new Error(serverError || "서버 승인 거부");
+
+            // 2. 받은 허가증(Signed URL) 주소로 파일 직접 전송 (PUT 방식)
+            statusEl.textContent = "⏳ 업로드 중...";
+            const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("파일 전송 실패");
+
+            // 3. 업로드 완료 후 공개 주소(Public URL) 생성
+            // window.supabaseClient는 이미 있으시니까 그대로 활용해서 주소만 가져옵니다.
             const { data: { publicUrl } } = window.supabaseClient.storage
-                .from('menu-images').getPublicUrl(filePath);
+                .from('menu-images').getPublicUrl(publicPath);
+
+            // 4. 화면 결과 반영
             imgPreview.src = publicUrl;
             imgEl.value = publicUrl;
-            statusEl.textContent = "✅ 업로드 완료!";
+            statusEl.textContent = "✅ 보안 업로드 완료!";
+
         } catch (err) {
+            console.error("업로드 에러:", err);
             statusEl.textContent = "❌ 실패: " + err.message;
         }
     };
