@@ -422,7 +422,7 @@
 <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 
 <script type="module">
-  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+  import { renderMenu, makeCart, clearMenuCache } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue, isDayOff, checkBusinessHours, isManuallyBlocked } from '/src/order/assets/js/modules/time.js';
   import { INITIAL_STATUS } from '/src/shared/constants/status.js';
@@ -723,7 +723,10 @@
         currentStoreBH = sData.settings?.business_hours;
         storeConfig = sData.settings?.delivery_config;
 
-        if (updateType === 'menu_update' || !updateType) await renderMenu("menu-grid", cart);
+        if (updateType === 'menu_update' || !updateType) {
+          clearMenuCache();
+          await renderMenu("menu-grid", cart);
+        }
         if (updateType === 'bank_update' || !updateType) await loadBankInfo();
         showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
       });
