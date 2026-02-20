@@ -130,7 +130,7 @@
     }[m]));
   }
 
-  
+  let storeSettingsCache = null;
  
   /**
  * 표준 토스트 알림 함수
@@ -411,6 +411,12 @@ async function initRealtimeSync() {
         try {
             const sid = storeId;
             if (!sid) return;
+          if (!storeSettingsCache) {
+            const sRes = await fetch(`/api/store-settings?storeId=${sid}`);
+            const sData = await sRes.json();
+            storeSettingsCache = sData.settings;
+            console.log("🧺 초기 설정 바구니 채움 완료");
+        }
 
           cleanOldOrders(sid);
 
@@ -463,19 +469,25 @@ async function initRealtimeSync() {
           });
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
+                if (updateType) {
+                const sRes = await fetch(`/api/store-settings?storeId=${sid}`);
+                const sData = await sRes.json();
+                storeSettingsCache = sData.settings; // 🧺 바구니 갱신
                 showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
+            }
 
-                if (updateType === 'menu_update' || !updateType) {
-                    clearMenuCache();
-                    await renderMenu('menu-grid', cart);
-                }
-                if (updateType === 'call_options_update' || !updateType) {
-                    const res = await fetch(`/api/store-settings?storeId=${sid}`);
-                    const data = await res.json();
-                    const list = data.settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
-                    document.getElementById('call-reason').innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
-                }
-                if (typeof loadStoreInfo === 'function') await loadStoreInfo();
+            // 🚀 [수정] 이제 바구니(storeSettingsCache)에서 꺼내 씁니다.
+            const settings = storeSettingsCache;
+
+            if (updateType === 'menu_update' || !updateType) {
+                clearMenuCache();
+                await renderMenu('menu-grid', cart);
+            }
+            if (updateType === 'call_options_update' || !updateType) {
+                const list = settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
+                document.getElementById('call-reason').innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+            }
+            if (typeof loadStoreInfo === 'function') await loadStoreInfo();
             });
         } catch (e) { console.error("실시간 동기화 에러:", e); }
     }
