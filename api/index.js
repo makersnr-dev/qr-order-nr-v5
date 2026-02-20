@@ -203,6 +203,25 @@ export default async function handler(req, res) {
             }
         }
 
+        // 메뉴 이미지 추가
+        if (pathname === '/api/get-upload-url' && method === 'POST') {
+            const auth = await getAuth();
+            if (!auth) return json({ ok: false }, 401); // 관리자 아니면 즉시 거절
+        
+            const { fileName, fileType } = safeBody;
+            const filePath = `${auth.storeId}/${Date.now()}-${fileName}`;
+        
+            // 🚀 Supabase 스토리지에 60초짜리 일회용 업로드 주소 요청
+            const { data, error } = await supabase.storage
+                .from('menu-images')
+                .createSignedUploadUrl(filePath);
+        
+            if (error) return json({ ok: false, error: error.message }, 500);
+        
+            // 프론트엔드에 "이 주소(token)로 파일 보내"라고 허가증 전달
+            return json({ ok: true, uploadUrl: data.signedUrl, publicPath: filePath });
+        }
+
         // --- 5. 주문 관리 (과거 코드의 복잡한 맵핑 로직 + 보안) ---
         if (pathname === '/api/orders') {
             const auth = await getAuth();
