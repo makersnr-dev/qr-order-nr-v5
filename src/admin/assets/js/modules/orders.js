@@ -733,7 +733,7 @@ let isGlobalHandlerAttached = false;
 export function attachGlobalHandlers() {
   // 🚩 [추가] 1. 물리적 중복 방지 (DOM 플래그 체크)
   // 변수(isGlobalHandlerAttached)는 메모리 초기화 시 위험할 수 있어 DOM에 직접 기록합니다.
-  if (document.body.dataset.ordersEventBound === 'true') return;
+  if (document.body.dataset.ordersHandlersBound === 'true') return;
   
   // 1. 상태 변경 (SELECT) 핸들러
   document.body.addEventListener('change', async (e) => {
@@ -982,7 +982,7 @@ export function attachGlobalHandlers() {
     modal.dataset.orderType = e.target.dataset.type || 'store';
     modal.style.display = 'flex';
   });
-  document.body.dataset.ordersEventBound = 'true';
+  document.body.dataset.ordersHandlersBound = 'true';
   isGlobalHandlerAttached = true;
 }
 
