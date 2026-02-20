@@ -7,6 +7,7 @@ import { renderPolicy, bindPolicy } from './modules/policy.js';
 import { requireAuth, clearToken } from './modules/auth.js';
 import { initTabs } from './modules/ui.js';
 import { supabaseMgr } from '/src/shared/supabase-manager.js';
+import { ensureStoreInitialized, setGlobalStoreId } from '/src/shared/store.js';
 
 import {
   renderStore,
@@ -32,7 +33,7 @@ import { renderDeliveryConfig, bindDeliveryAdmin } from './modules/delivery-admi
 //------------------------------------------------------------
 // STORE ID NORMALIZER (핵심 버그 해결)
 //------------------------------------------------------------
-function normalizeStoreId(value) {
+/*function normalizeStoreId(value) {
   if (!value) return null;
 
   // 1) 문자열이면 "[object Object]" 같은 잘못된 케이스를 제거
@@ -60,13 +61,13 @@ function normalizeStoreId(value) {
   }
 
   return null;
-}
+}*/
 
 
 //------------------------------------------------------------
 // resolveStoreId(adminId) — DB 환경 최적화 버전
 //------------------------------------------------------------
-function resolveStoreId(adminId) {
+/*function resolveStoreId(adminId) {
   // 1) URL 파라미터가 최우선
   try {
     const u = new URL(location.href);
@@ -94,7 +95,7 @@ function resolveStoreId(adminId) {
   }, 2000);
     
   return null;
-}
+}*/
 
 //------------------------------------------------------------
 // 0. 데스크탑 알림 권한
@@ -322,15 +323,21 @@ async function main() {
   // 🔊 최초 클릭 시 사운드 활성화
   document.body.addEventListener('click', () => { enableNotifySound(); }, { once: true });
   
-  // A. 인증 검사 (서버에서 storeId를 이미 받아옵니다)
-  const session = await requireAuth("admin");
-  if (!session) return;
+  // 1. 인증 정보 확인
+    const session = await requireAuth("admin");
+    if (!session) return;
 
-  const adminId = session.uid || session.sub || 'admin';
-  
-  // 🔑 중요: 서버(api/me)가 준 storeId가 있다면 그걸 최우선으로 믿습니다.
-  const sid = session.storeId || resolveStoreId(adminId);
-  window.qrnrStoreId = sid;
+    // 2. 관리자 ID와 매장 ID 확정
+    const adminId = session.uid || 'admin';
+    
+    // 🔑 서버 세션이 준 storeId가 있다면 그걸 쓰고, 
+    // 없다면 shared/store.js의 검증 로직(ensure...)을 실행
+    const sid = session.storeId || ensureStoreInitialized();
+    
+    // 3. 확정된 sid로 모든 저장소와 URL을 '강제 정화' 및 동기화
+    setGlobalStoreId(sid); 
+    window.qrnrStoreId = sid;
+
   localStorage.setItem("qrnr.storeId", sid);
   sessionStorage.setItem('qrnr.adminId.real', adminId); // 이름 통일
 
