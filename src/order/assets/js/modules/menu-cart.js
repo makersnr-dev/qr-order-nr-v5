@@ -151,7 +151,7 @@ export async function renderMenu(gridId, cartObj) {
 
         card.innerHTML = `
             <div style="width:100%; aspect-ratio:1/1; background:#1c2632; border-radius:10px; overflow:hidden; margin-bottom:8px; position:relative;">
-                <img src="${item.img || ''}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
+                <img src="${item.img || ''}" loading="lazy" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
                 ${isSoldOut ? '<div style="position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff;">품절</div>' : ''}
             </div>
             <div style="font-weight:600; font-size:14px; text-align:center;">${item.name}</div>
