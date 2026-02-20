@@ -170,14 +170,13 @@
 <!-- storeId 초기화 -->
 <script type="module">
   import { ensureStoreInitialized } from '/src/shared/store.js';
-  const storeId = ensureStoreInitialized();
-  window.qrnrStoreId = storeId;
 
-  const url = new URL(location.href);
-  if (!url.searchParams.get("store")) {
-    url.searchParams.set("store", storeId);
-    history.replaceState(null, "", url.toString());
-  }
+  // 🚀 수문장 함수 실행 (오염된 데이터 자동 정화 및 올바른 ID 반환)
+  const storeId = ensureStoreInitialized(); 
+  
+  // 전역 변수 설정 (이후 다른 스크립트에서 사용)
+  window.qrnrStoreId = storeId;
+  document.body.dataset.storeId = storeId;
 </script>
 
 <div class="container">
