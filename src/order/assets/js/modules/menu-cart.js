@@ -2,17 +2,22 @@ import { currentStoreId } from './cust-store.js';
 
 // 숫자를 3,000원 형식으로 바꿔주는 도구
 const fmt = (n) => Number(n || 0).toLocaleString();
-
+let cachedAllMenus = null;
+export function clearMenuCache() {
+    cachedAllMenus = null;
+}
 /**
  * 1. [DB 연동] 서버에서 메뉴 목록 가져오기
  */
 export async function loadMenu() {
+    if (cachedAllMenus) return cachedAllMenus;
     const sid = currentStoreId();
     try {
         const res = await fetch(`/api/menus?storeId=${sid}`);
         const data = await res.json();
         // 활성화된 메뉴만 필터링
-        return (data.menus || []).filter(m => m.active !== false);
+        cachedAllMenus = (data.menus || []).filter(m => m.active !== false);
+        return cachedAllMenus;
     } catch (e) {
         console.error('[menu-cart] 로딩 실패:', e);
         return [];
@@ -117,13 +122,29 @@ export async function renderMenu(gridId, cartObj) {
 
     // 3. 현재 탭 유효성 검사 및 필터링
     if (!categories.includes(window.currentOrderTab)) window.currentOrderTab = categories[0];
-    const filtered = allMenus.filter(m => m.id.charAt(0).toUpperCase() === window.currentOrderTab);
 
+    // 1️⃣ [추가] 이미 카드가 그려져 있다면, 새로 만들지 말고 '숨기기/보여주기'만 하고 끝낸다!
+    const existingCards = grid.querySelectorAll('.menu-card');
+    if (existingCards.length > 0) {
+        existingCards.forEach(card => {
+            // 카드의 데이터셋에 저장된 카테고리와 현재 탭을 비교
+            card.style.display = (card.dataset.cat === window.currentOrderTab) ? 'flex' : 'none';
+        });
+        return; // 🚀 여기서 함수 종료 (아래의 '새로 그리는 로직'을 타지 않음)
+    }
+    
+    // 2️⃣ [수정] 처음 실행될 때는 'filtered'가 아니라 'allMenus' 전체를 다 그린다!
     grid.innerHTML = '';
-    filtered.forEach(item => {
+    allMenus.forEach(item => { // 🚀 filtered.forEach에서 변경
         const card = document.createElement('div');
+        const cat = item.id.charAt(0).toUpperCase(); // 카테고리 추출
+        
         card.className = 'menu-card vstack';
-        // 품절 처리 로직 추가 (soldOut 체크)
+        card.dataset.cat = cat; // 🚀 [추가] 나중에 찾기 쉽게 데이터셋에 카테고리 기록
+
+        // 3️⃣ [추가] 지금 그리는 카드가 현재 탭이 아니면 일단 숨겨둔다!
+        card.style.display = (cat === window.currentOrderTab) ? 'flex' : 'none';
+
         const isSoldOut = !!item.soldOut;
         card.style.opacity = isSoldOut ? '0.5' : '1';
         card.style.pointerEvents = isSoldOut ? 'none' : 'auto';
