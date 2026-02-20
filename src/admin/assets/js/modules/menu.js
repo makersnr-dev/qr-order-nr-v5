@@ -276,9 +276,8 @@ function openMenuDetailModal(target, onSave) {
 
             if (!uploadRes.ok) throw new Error("파일 전송 실패");
 
-            // 3. 업로드 완료 후 공개 주소(Public URL) 생성
-            // window.supabaseClient는 이미 있으시니까 그대로 활용해서 주소만 가져옵니다.
-            const { data: { publicUrl } } = window.supabaseClient.storage
+            const client = await supabaseMgr.getClient(); // 관리자에게 Supabase 객체를 받아옴
+            const { data: { publicUrl } } = client.storage
                 .from('menu-images').getPublicUrl(publicPath);
 
             // 4. 화면 결과 반영
