@@ -41,6 +41,7 @@
   <script type="module">
     import { get } from '/src/admin/assets/js/modules/store.js';
     import { saveToken } from '/src/admin/assets/js/modules/auth.js';
+    import { isValidStoreId, ensureStoreInitialized, setGlobalStoreId } from '/src/shared/store.js';
 
     // 화면 차단막 강제 제거
     document.body.style.pointerEvents = "auto";
@@ -86,58 +87,34 @@
       // ─────────────────────────────
       // 3) 매장 매핑 확인 (원본 로직 100% 복구)
       // ─────────────────────────────
-
-      // 3-1) API 응답에 stores 목록이 있으면 우선 사용 (DB 계정 다중 매장)
+      let finalStoreId = null;
+      // 3-1) 다중 매장일 경우
       if (data.admin && data.admin.stores && data.admin.stores.length > 0) {
         const stores = data.admin.stores;
         if (stores.length === 1) {
-          location.href = `/admin?store=${encodeURIComponent(stores[0].storeId)}`;
+          finalStoreId = stores[0].storeId;
+        } else {
+          showStoreModal(stores); // 모달 내 selectStore 함수에서도 정화가 필요함
           return;
         }
-        showStoreModal(stores); // 모달 호출
-        return;
-      }
-
-      // 3-2) 기존 단일 storeId fallback (하위 호환)
-      let storeId = null;
-      if (data.admin && data.admin.storeId) {
-        storeId = data.admin.storeId;
+      } 
+      // 3-2) 단일 매장 fallback
+      else if (data.admin && data.admin.storeId) {
+        finalStoreId = data.admin.storeId;
       } else {
         const localMap = get(['admin', 'storeAdmins']) || {};
-        storeId = localMap[uid];
+        finalStoreId = localMap[uid];
       }
 
-      // 3-3) 둘 다 없으면 추가 조회 (레거시)
-      if (!storeId) {
-        try {
-          const mappingRes = await fetch('/api/admin/get-mapping', {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              'authorization': `Bearer ${data.token}`
-            },
-            body: JSON.stringify({ adminId: uid })
-          });
-
-          if (mappingRes.ok) {
-            const mappingData = await mappingRes.json();
-            if (mappingData.ok && mappingData.storeId) {
-              storeId = mappingData.storeId;
-            }
-          }
-        } catch (e) {
-          console.error('매핑 조회 오류:', e);
-        }
+      // 4) 최종 이동 전 무결성 검사
+      if (!isValidStoreId(finalStoreId)) {
+          // 서버 응답마저 오염되었다면 최후의 수단으로 ensure 실행
+          finalStoreId = ensureStoreInitialized(); 
       }
 
-      // 4) 최종 이동
-      if (!storeId) {
-        alert('⚠️ 이 계정은 매장에 매핑되어 있지 않습니다.\n관리자에게 문의하세요.');
-        location.href = '/admin?store=null';
-        return;
-      }
-
-      location.href = `/admin?store=${encodeURIComponent(storeId)}`;
+      // 🚀 확정된 ID를 강제 동기화 (URL과 스토리지 세탁)
+      setGlobalStoreId(finalStoreId);
+      location.href = `/admin?store=${encodeURIComponent(finalStoreId)}`;
     };
 
     // ─────────────────────────────
@@ -168,6 +145,8 @@
     }
 
     window.selectStore = (storeId) => {
+      // 🚀 여기서도 수문장을 거쳐서 저장소와 URL을 동기화합니다.
+      setGlobalStoreId(storeId);
       location.href = `/admin?store=${encodeURIComponent(storeId)}`;
     };
 
