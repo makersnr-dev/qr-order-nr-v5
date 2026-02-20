@@ -1,9 +1,9 @@
 import { query, queryOne } from './_lib/db.js';
 import { verifyJWT, signJWT } from '../src/shared/jwt.js';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit } from './_lib/rate-limit.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-const ipMap = new Map(); // 🛡️ 주문 폭탄 방지용
 const menuCache = new Map();
 const settingsCache = new Map();
 
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         // --- 3. 매장 설정 (COALESCE 보존 로직 유지) ---
         if (pathname === '/api/store-settings') {
             if (method === 'GET') {
-                // 🚀 1. 캐시 확인 (5분 유지)
+                // 1. 캐시 확인 (5분 유지)
                 const now = Date.now();
                 const cached = settingsCache.get(storeId);
                 if (cached && now < cached.expire) {
@@ -273,17 +273,20 @@ export default async function handler(req, res) {
             return json({ ok: true, orders });
         }
             if (method === 'POST') {
-                const ip = headers['x-forwarded-for'] || req.socket?.remoteAddress || '0.0.0.0';
-                if (Date.now() - (ipMap.get(ip) || 0) < 10000) return json({ ok: false, message: '주문이 너무 잦습니다.' }, 429);
-                ipMap.set(ip, Date.now());
-                if (ipMap.size > 1000) ipMap.clear();
+                const limiter = rateLimit(req, 'order_post');
+                if (!limiter.ok) return json({ ok: false, message: '주문 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' }, 429);
 
                 const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta } = safeBody;
 
                 // 🛡️ [추가] 금액 위변조 검증 로직 (최소 수정)
                 try {
-                    const menuRes = await query('SELECT menu_id as id, price FROM menus WHERE store_id = $1', [storeId]);
-                    const priceMap = Object.fromEntries(menuRes.rows.map(m => [m.id, m.price]));
+                    let menus = menuCache.get(storeId)?.data; 
+                    if (!menus) {
+                        const menuRes = await query('SELECT menu_id as id, price FROM menus WHERE store_id = $1', [storeId]);
+                        menus = menuRes.rows;
+                        menuCache.set(storeId, { data: menus, expire: Date.now() + 60000 });
+                    }
+                    const priceMap = Object.fromEntries(menus.map(m => [m.id, m.price]));
                     
                     let validTotal = cart.reduce((sum, item) => {
                         const unitPrice = priceMap[item.id] || 0;
@@ -322,16 +325,20 @@ export default async function handler(req, res) {
                         ]
                     );
                 }
+                // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
                 try {
-                    await supabase.channel(`qrnr_realtime_${storeId}`).send({
+                    supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
                             orderNo: newOrderNo,
                             orderId: newOrderNo,
                             orderType: type, 
                             table: table || '예약', 
-                            amount, customerName: customer?.name || '비회원', at: new Date().toISOString() } });
+                            amount, customerName: customer?.name || '비회원', at: new Date().toISOString() 
+                        } 
+                    }).catch(e => console.error("비동기 알림 실패:", e)); // 비동기 에러 처리만 추가
                 } catch (err) {}
+                
                 return json({ ok: true, orderId: newOrderNo });
             }
             if (method === 'PUT') {
@@ -568,6 +575,11 @@ async function handleLookup(req, res, safeBody, params) {
         return res.send(JSON.stringify(body));
     };
 
+    const limiter = rateLimit(req, 'order_lookup');
+    if (!limiter.ok) {
+        return sendJson({ ok: false, message: '조회 요청이 너무 잦습니다. 잠시 후 시도해주세요.' }, 429);
+    }
+
     const { name, phone, pw } = safeBody;
     const cleanPhone = phone.replace(/\D/g, '');
     const storeId = params.get('storeId') || safeBody.storeId;
@@ -582,8 +594,9 @@ async function handleLookup(req, res, safeBody, params) {
                 customer_name, customer_phone, address, meta, created_at
             FROM orderss 
             WHERE store_id = $1 AND customer_name = $2 AND lookup_pw = $4
-              AND REPLACE(customer_phone, '-', '') = $3
-            ORDER BY created_at DESC
+              -- 🚀 [수정] REPLACE 앞에 직접 비교를 추가하여 DB 인덱스 사용을 유도함
+              AND (customer_phone = $3 OR REPLACE(customer_phone, '-', '') = $3)
+            ORDER BY created_at DESC LIMIT 20 -- 속도 보완을 위해 갯수 제한 추가
         `, [storeId, name, cleanPhone, pw]);
 
         const orders = r.rows.map(row => ({
