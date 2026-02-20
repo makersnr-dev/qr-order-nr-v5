@@ -116,7 +116,7 @@
 </div>
 
 <script type="module">
-  import { renderMenu, makeCart } from '/src/order/assets/js/modules/menu-cart.js';
+  import { renderMenu, makeCart, clearMenuCache } from '/src/order/assets/js/modules/menu-cart.js';
   import { loadStoreInfo, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { ensureStoreInitialized } from '/src/shared/store.js';
   import { supabaseMgr } from '/src/shared/supabase-manager.js';
@@ -466,6 +466,7 @@ async function initRealtimeSync() {
                 showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
 
                 if (updateType === 'menu_update' || !updateType) {
+                    clearMenuCache();
                     await renderMenu('menu-grid', cart);
                 }
                 if (updateType === 'call_options_update' || !updateType) {
