@@ -419,8 +419,6 @@
 </div>
 
 
-<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
-
 <script type="module">
   import { renderMenu, makeCart, clearMenuCache } from '/src/order/assets/js/modules/menu-cart.js';
   import { get } from '/src/order/assets/js/modules/cust-store.js';
@@ -440,6 +438,7 @@
   
   // 🛠 수정: cart 변수를 전역에 선언하여 모든 함수에서 공유
   let cart = null;
+  let storeSettingsCache = null;
 
   function esc(str) {
     if (!str) return "";
@@ -643,12 +642,15 @@
 
   // 🚀 초기화 통합 함수 (실행 순서 보장)
   async function initApp() {
-    // 1. 매장 설정(영업시간) 먼저 가져오기
-    const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
-    const sData = await sRes.json();
-    currentStoreBH = sData.settings?.business_hours;
-    const bh = currentStoreBH;
-    storeConfig = sData.settings?.delivery_config;
+    if (!storeSettingsCache) {
+        const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
+        const sData = await sRes.json();
+        storeSettingsCache = sData.settings;
+        console.log("🧺 예약 페이지 초기 설정 바구니 채움 완료");
+    }
+    
+    currentStoreBH = storeSettingsCache?.business_hours;
+    storeConfig = storeSettingsCache?.delivery_config;
 
     // 🚀 [추가] 관리자 설정에 따라 배달/픽업 버튼 숨김 처리
     if (storeConfig) {
@@ -718,17 +720,24 @@
         });
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
         const updateType = payload.payload.type;
-        const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
-        const sData = await sRes.json();
-        currentStoreBH = sData.settings?.business_hours;
-        storeConfig = sData.settings?.delivery_config;
+          
+        if (updateType) {
+            const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
+            const sData = await sRes.json();
+            storeSettingsCache = sData.settings; // 🧺 바구니 갱신
+            
+            // 전역 변수들도 바구니 최신 데이터로 업데이트
+            currentStoreBH = storeSettingsCache.business_hours;
+            storeConfig = storeSettingsCache.delivery_config;
+            showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
+        }
 
+        // 🚀 [수정] 이제 바구니(storeSettingsCache) 데이터를 기반으로 갱신
         if (updateType === 'menu_update' || !updateType) {
-          clearMenuCache();
-          await renderMenu("menu-grid", cart);
+            clearMenuCache();
+            await renderMenu("menu-grid", cart);
         }
         if (updateType === 'bank_update' || !updateType) await loadBankInfo();
-        showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
       });
     });
   } catch (e) { console.error(e); }
