@@ -2,9 +2,11 @@ import { currentStoreId } from './cust-store.js';
 
 // 숫자를 3,000원 형식으로 바꿔주는 도구
 const fmt = (n) => Number(n || 0).toLocaleString();
+let cachedStoreId = null;
 let cachedAllMenus = null;
 export function clearMenuCache() {
     cachedAllMenus = null;
+    cachedStoreId = null;
 }
 /**
  * 1. [DB 연동] 서버에서 메뉴 목록 가져오기
@@ -12,6 +14,10 @@ export function clearMenuCache() {
 export async function loadMenu() {
     if (cachedAllMenus) return cachedAllMenus;
     const sid = currentStoreId();
+    if (cachedStoreId !== sid) {
+        cachedAllMenus = null;
+        cachedStoreId = sid;
+    }
     try {
         const res = await fetch(`/api/menus?storeId=${sid}`);
         const data = await res.json();
