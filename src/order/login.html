@@ -27,17 +27,14 @@
   </div>
 </div>
 
-<!-- storeId 안정화 -->
-<script type="module">
-  import { ensureStoreInitialized } from "/src/shared/store.js";
-  window.qrnrStoreId = ensureStoreInitialized();
-</script>
-
 <!-- 고객 로그인 -->
 <script type="module">
-import { saveToken } from '/src/order/assets/js/modules/cust-auth.js';
+  import { saveToken } from '/src/order/assets/js/modules/cust-auth.js';
+  import { ensureStoreInitialized, isValidStoreId } from "/src/shared/store.js";
+  const currentSid = ensureStoreInitialized();
+  window.qrnrStoreId = currentSid;
 
-document.getElementById('login').onclick = async () => {
+  document.getElementById('login').onclick = async () => {
   const uid = document.getElementById('uid').value.trim();
   const pwd = document.getElementById('pwd').value.trim();
 
@@ -57,17 +54,17 @@ document.getElementById('login').onclick = async () => {
     data = await r.json();
   } catch (_) {}
 
-  if (!r.ok || !data || !data.token) {
-    alert(data?.error || '로그인 실패');
-    return;
-  }
+  if (r.ok && data && data.token) {
+      saveToken(data.token);
 
-  // JWT 저장
-  saveToken(data.token);
+      // 🚀 최종 이동 전 다시 한 번 ID 검증 (수문장 재확인)
+      let finalSid = window.qrnrStoreId;
+      if (!isValidStoreId(finalSid)) {
+          finalSid = ensureStoreInitialized(); // 오염되었다면 재추출 및 정화
+      }
 
-  // storeId 유지한 채로 이동
-  const storeId = window.qrnrStoreId || 'store1';
-  location.href = `/src/order/delivery.html?store=${encodeURIComponent(storeId)}`;
+      location.href = `/src/order/delivery.html?store=${encodeURIComponent(finalSid)}`;
+    }
 };
 </script>
 
