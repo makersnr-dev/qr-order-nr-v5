@@ -194,9 +194,14 @@ export function showToast(msg, variant = 'info') {
   }
 
   // 2. 초기화
-  const storeId = ensureStoreInitialized();
+  // 🚀 1. 수문장 함수로 매장 ID 확정 및 URL 정화
+  const storeId = ensureStoreInitialized(); 
+  
+  // 🚀 2. 전역 변수 및 데이터셋 동기화
   window.qrnrStoreId = storeId;
   document.body.dataset.storeId = storeId;
+
+  // 🚀 3. 호출 버튼 상태 업데이트 시작
   setInterval(updateCallButtonState, 1000);
   updateCallButtonState();
 
@@ -208,7 +213,10 @@ export function showToast(msg, variant = 'info') {
 
   // 테이블 번호 자동입력
   const tableParam = new URLSearchParams(location.search).get('table') || '';
-  if (tableParam) document.getElementById('tableNo').value = tableParam;
+  // 숫자가 아니거나 오염된 값인지 간단히 체크
+  if (tableParam && tableParam !== "[object Object]") {
+      document.getElementById('tableNo').value = tableParam;
+  }
 
   // 3. 장바구니 & 메뉴 렌더링 (사장님 JS 함수 호출)
   const cart = makeCart('cart-box', 'total'); 
