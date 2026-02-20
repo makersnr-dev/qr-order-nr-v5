@@ -464,17 +464,16 @@
 
 <!-- ================= storeId 안정화 핵심 코드 ================= -->
 <script type="module">
-  import { ensureStoreInitialized } from '/src/shared/store.js';
+  import { ensureStoreInitialized, setGlobalStoreId } from '/src/shared/store.js';
 
+  // 🚀 1. 수문장 함수 실행 (잘못된 URL 파라미터 즉시 정화)
   const storeId = ensureStoreInitialized();
+ // 🚀 2. 확정된 ID로 모든 저장소 및 주소창 강제 동기화
+  setGlobalStoreId(storeId);
+
+  // 🚀 3. 전역 변수 설정 (admin.js 등 다른 모듈에서 참조)
   window.qrnrStoreId = storeId;
   document.body.dataset.storeId = storeId;
-
-  const url = new URL(location.href);
-  if (!url.searchParams.get('store')) {
-    url.searchParams.set('store', storeId);
-    history.replaceState(null, '', url.toString());
-  }
 </script>
 
 <!-- 관리자 메인 스크립트 -->
