@@ -71,10 +71,12 @@
 </div>
 
 <script type="module">
+    import { ensureStoreInitialized } from '/src/shared/store.js';
     import { currentStoreId, loadStoreInfo } from '/src/order/assets/js/modules/cust-store.js';
 
     async function init() {
-        const storeId = currentStoreId();
+        const storeId = ensureStoreInitialized();
+        window.qrnrStoreId = storeId;
         const storeNameEl = document.getElementById('store-name');
         const storeStatusEl = document.getElementById('store-status');
         const guestBtn = document.getElementById('btn-guest');
