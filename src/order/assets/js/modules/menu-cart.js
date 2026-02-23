@@ -105,6 +105,7 @@ export function makeCart(boxId, totalId) {
             window.qrnrCart = this;
         }
     };
+    cart.render();
     window.qrnrCart = cart;
     return cart;
 }
