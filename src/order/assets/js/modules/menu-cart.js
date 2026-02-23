@@ -11,15 +11,19 @@ export function clearMenuCache() {
 /**
  * 1. [DB 연동] 서버에서 메뉴 목록 가져오기
  */
-export async function loadMenu() {
-    if (cachedAllMenus) return cachedAllMenus;
+export async function loadMenu(force = false) {
     const sid = currentStoreId();
-    if (cachedStoreId !== sid) {
+    // 1. 매장이 바뀌었거나, 강제 새로고침(force) 요청이 오면 캐시 파괴
+    if (cachedStoreId !== sid || force) {
         cachedAllMenus = null;
         cachedStoreId = sid;
     }
+
+    // 2. force가 false일 때만 기존 캐시를 사용
+    if (!force && cachedAllMenus) return cachedAllMenus;
+    
     try {
-        const res = await fetch(`/api/menus?storeId=${sid}`);
+        const res = await fetch(`/api/menus?storeId=${sid}&_t=${Date.now()}`);
         const data = await res.json();
         // 활성화된 메뉴만 필터링
         cachedAllMenus = (data.menus || []).filter(m => m.active !== false);
@@ -111,15 +115,18 @@ export function makeCart(boxId, totalId) {
 window.currentOrderTab = window.currentOrderTab || 'A';
 
 export async function renderMenu(gridId, cartObj, forceRefresh = false) {
-    if (forceRefresh) clearMenuCache();
+    //if (forceRefresh) clearMenuCache();
+    const allMenus = await loadMenu(forceRefresh);
     const grid = document.getElementById(gridId);
     if (!grid) return;
-
-    const allMenus = await loadMenu();
+    if (forceRefresh) {
+        grid.innerHTML = ''; 
+    }
     if (!allMenus || allMenus.length === 0) {
         grid.innerHTML = '<div class="small" style="grid-column: 1/-1; padding: 40px 0; opacity: 0.5;">메뉴를 불러올 수 없습니다.</div>';
         return;
     }
+    
 
     // 1. 대문자 카테고리 추출 및 정렬
     const categories = [...new Set(allMenus.map(m => m.id.charAt(0).toUpperCase()))].sort();
