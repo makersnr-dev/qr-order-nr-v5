@@ -720,25 +720,42 @@
         });
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
         const updateType = payload.payload.type;
-          
+        const sid = storeId; // 전역 변수 storeId 사용
+    
+        // 1. 매장 설정 바구니 최신화 (한 번의 fetch로 모든 설정 갱신)
         if (updateType) {
-            const sRes = await fetch(`/api/store-settings?storeId=${storeId}`);
-            const sData = await sRes.json();
-            storeSettingsCache = sData.settings; // 🧺 바구니 갱신
-            
-            // 전역 변수들도 바구니 최신 데이터로 업데이트
-            currentStoreBH = storeSettingsCache.business_hours;
-            storeConfig = storeSettingsCache.delivery_config;
-            showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
+            try {
+                const sRes = await fetch(`/api/store-settings?storeId=${sid}`);
+                const sData = await sRes.json();
+                if (sData.ok) {
+                    storeSettingsCache = sData.settings;
+                    currentStoreBH = storeSettingsCache.business_hours;
+                    storeConfig = storeSettingsCache.delivery_config;
+                    
+                    // 메뉴/은행 업데이트가 아닐 때만 "매장 설정" 알림 (중복 방지)
+                    if (updateType !== 'menu_update' && updateType !== 'bank_update') {
+                        showToast("📋 매장 설정이 실시간으로 업데이트되었습니다.", "info");
+                    }
+                }
+            } catch (e) { console.error("설정 동기화 실패"); }
         }
-
-        // 🚀 [수정] 이제 바구니(storeSettingsCache) 데이터를 기반으로 갱신
+    
+        // 2. [메뉴 업데이트] 형님이 만든 규칙 적용 (true 인자 전달)
         if (updateType === 'menu_update' || !updateType) {
-            clearMenuCache();
-            await renderMenu("menu-grid", cart, true);
+            showToast("📢 메뉴 정보가 최신으로 업데이트되었습니다.", "info");
+            // 🚀 renderMenu 안에서 clearMenuCache()를 알아서 부르니까 여기선 한 줄로 끝!
+            await renderMenu("menu-grid", cart, true); 
         }
-        if (updateType === 'bank_update' || !updateType) await loadBankInfo();
-      });
+    
+        // 3. [계좌 정보 업데이트]
+        if (updateType === 'bank_update' || !updateType) {
+            if (updateType === 'bank_update') showToast("🏦 계좌 정보가 업데이트되었습니다.", "info");
+            await loadBankInfo();
+        }
+    
+        // 4. 매장 기본 정보 갱신
+        if (typeof loadStoreInfo === 'function') await loadStoreInfo();
+    });
     });
   } catch (e) { console.error(e); }
   }
