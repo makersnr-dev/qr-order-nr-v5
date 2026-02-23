@@ -39,7 +39,12 @@ export default async function handler(req) {
   }
 
   const token = authHeader.substring(7);
-  const payload = verifyJWT(token, process.env.SUPER_JWT_SECRET || 'super-secret-dev');
+  // 환경 변수가 없을 경우 에러를 던져서 실행을 중단시킵니다.
+if (!process.env.SUPER_JWT_SECRET) {
+  throw new Error("환경 변수 SUPER_JWT_SECRET이 설정되지 않았습니다.");
+}
+
+const payload = verifyJWT(token, process.env.SUPER_JWT_SECRET);
 
   if (!payload || payload.realm !== 'super') {
     return new Response(
