@@ -7,6 +7,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 const menuCache = new Map();
 const settingsCache = new Map();
 
+
+
 export default async function handler(req, res) {
     const json = (body, status = 200) => {
         if (!res.headersSent) {
@@ -308,25 +310,47 @@ export default async function handler(req, res) {
                 try {
                     let menus = menuCache.get(storeId)?.data; 
                     if (!menus) {
-                        const menuRes = await query('SELECT menu_id as id, price FROM menus WHERE store_id = $1', [storeId]);
+                        // 1. [수정] options 컬럼을 추가로 가져옵니다.
+                        const menuRes = await query('SELECT menu_id as id, price, options FROM menus WHERE store_id = $1', [storeId]);
                         menus = menuRes.rows;
                         menuCache.set(storeId, { data: menus, expire: Date.now() + 60000 });
                     }
-                    const priceMap = Object.fromEntries(menus.map(m => [m.id, m.price]));
+                    // 2. [수정] 가격뿐만 아니라 옵션 데이터 전체를 맵에 담습니다.
+                    const menuMap = Object.fromEntries(menus.map(m => [m.id, m]));
                     
                     let validTotal = cart.reduce((sum, item) => {
-                        const unitPrice = priceMap[item.id] || 0;
-                        const optPrice = (item.selectedOptions || []).reduce((s, o) => s + Number(o.price || 0), 0);
+                        const dbMenu = menuMap[item.id];
+                        if (!dbMenu) return sum;
+                
+                        const unitPrice = Number(dbMenu.price || 0);
+                
+                        // 🛡️ [핵심 수정] 클라이언트의 o.price를 믿지 않고, DB options 배열에서 가격을 찾습니다.
+                        const dbOptions = Array.isArray(dbMenu.options) ? dbMenu.options : JSON.parse(dbMenu.options || '[]');
+                        
+                        const optPrice = (item.selectedOptions || []).reduce((s, selected) => {
+                            let realPrice = 0;
+                            // DB 메뉴 데이터 안에 있는 옵션 그룹들을 뒤져서 선택된 이름(label)과 일치하는 가격을 찾음
+                            for (const group of dbOptions) {
+                                const found = group.items?.find(it => it.label === selected.label);
+                                if (found) {
+                                    realPrice = Number(found.price || 0);
+                                    break;
+                                }
+                            }
+                            return s + realPrice;
+                        }, 0);
+                
                         return sum + (unitPrice + optPrice) * item.qty;
                     }, 0);
-
+                
                     if (type !== 'store') validTotal += Number(clientMeta?.delivery_fee || 0);
-
+                
                     if (Math.abs(validTotal - amount) > 1) {
-                        return json({ ok: false, message: '금액 검증 실패: 결제 금액이 일치하지 않습니다.' }, 400);
+                        return json({ ok: false, message: '금액 검증 실패: 비정상적인 결제 요청입니다.' }, 400);
                     }
-                } catch (e) { return json({ ok: false, message: '검증 중 오류 발생' }, 500); }
-                // 🛡️ 검증 끝
+                } catch (e) { 
+                    return json({ ok: false, message: '검증 중 오류 발생' }, 500); 
+                }
 
                 const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
                 if (type === 'store') {
