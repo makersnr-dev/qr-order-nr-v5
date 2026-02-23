@@ -45,7 +45,13 @@ export default async function handler(req, res) {
     const storeId = params.get('storeId') || safeBody.storeId;
     if (!storeId || storeId === "[object Object]" || storeId === "null") {
         // 공통 설정이나 테스트용 경로가 아닌 경우에만 차단
-        const bypassPaths = ['/api/config', '/api/test', '/api/check-time', '/api/super-login'];
+        const bypassPaths = [
+            '/api/config', 
+            '/api/test', 
+            '/api/check-time', 
+            '/api/super-login', 
+            '/api/login-admin' // 여기에 추가
+        ];
         if (!bypassPaths.includes(pathname)) {
             return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
         }
