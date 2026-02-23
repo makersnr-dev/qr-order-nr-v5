@@ -1,0 +1,17 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # 매일 한국 시간 기준 오전 9시(UTC 00:00)에 실행
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 수동으로 실행해볼 수 있는 버튼 생성
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Keep-alive Request
+        run: |
+          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/menus?select=id&limit=1" \
+          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
