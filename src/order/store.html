@@ -470,23 +470,35 @@ async function initRealtimeSync() {
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
                 const updateType = payload.payload.type;
                 if (updateType) {
-                const sRes = await fetch(`/api/store-settings?storeId=${sid}`);
-                const sData = await sRes.json();
-                storeSettingsCache = sData.settings; // 🧺 바구니 갱신
-                showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
-            }
+                  try {
+                    const sRes = await fetch(`/api/store-settings?storeId=${sid}`);
+                    const sData = await sRes.json();
+                    if (sData.ok) {
+                        storeSettingsCache = sData.settings;
+                        // 메뉴나 호출옵션 업데이트가 아닐 때만 일반 알림을 띄움 (알림 중복 방지)
+                        if (updateType !== 'menu_update' && updateType !== 'call_options_update') {
+                            showToast("📋 매장 정보가 실시간으로 업데이트되었습니다.", "info");
+                        }
+                    }
+                } catch (e) { console.error("설정 로드 실패:", e); }
+              }
 
-            // 🚀 [수정] 이제 바구니(storeSettingsCache)에서 꺼내 씁니다.
-            const settings = storeSettingsCache;
-
+            // 2. 메뉴 업데이트 (강제 새로고침 옵션 적용)
             if (updateType === 'menu_update' || !updateType) {
-                clearMenuCache();
-                await renderMenu('menu-grid', cart, true);
+                showToast("📢 메뉴 정보가 업데이트되었습니다.", "info");
+                await renderMenu('menu-grid', cart, true); 
             }
+        
+            // 3. 호출 옵션 업데이트 (엘리먼트 존재 여부 체크로 에러 방지)
             if (updateType === 'call_options_update' || !updateType) {
                 const list = settings?.call_options || ['물/수저 요청', '테이블 정리', '주문 문의', '직원 호출'];
-                document.getElementById('call-reason').innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                const callReasonEl = document.getElementById('call-reason');
+                if (callReasonEl) {
+                    callReasonEl.innerHTML = list.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                }
             }
+        
+            // 4. 매장 기본 정보(이름 등) 갱신
             if (typeof loadStoreInfo === 'function') await loadStoreInfo();
             });
         } catch (e) { console.error("실시간 동기화 에러:", e); }
