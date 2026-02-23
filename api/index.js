@@ -236,70 +236,70 @@ export default async function handler(req, res) {
             const auth = await getAuth();
             if (!auth && method !== 'POST') return json({ ok: false }, 401);
             if (method === 'GET') {
-            const type = params.get('type');
-            const orderNo = params.get('orderNo'); // 상세 조회를 위한 파라미터 추가
-
-            // 1. DB 쿼리 실행 (단일 조회와 목록 조회를 분기)
-            let r;
-            if (orderNo) {
-                // [상세 조회용] 주문번호가 있을 때
-                const tableName = (type === 'store') ? 'orders' : 'orderss';
-                r = await query(`SELECT * FROM ${tableName} WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
-            } else {
-                // [목록 조회용] 최신 500개 제한
-                r = (type === 'store') 
-                    ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId])
-                    : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId]);
-            }
-
-            // 2. 데이터 가공 (기존 로직 100% 보존)
-            const orders = r.rows.map(row => {
-                const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
-                
-                const items = (type === 'store') 
-                    ? (meta.cart || []) 
-                    : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
-
-                let displaySummary = '상품 없음';
-                if (items.length > 0) {
-                    const first = items[0];
-                    let rawOpts = first.optionText || first.options || [];
-                    if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
-                    
-                    let optText = '';
-                    if (rawOpts.length > 0) {
-                        const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
-                        if (rawOpts.length > 1) optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
-                        else optText = ` [${firstOpt}]`;
-                    }
-                    displaySummary = `${first.name} x ${first.qty}${optText}`;
-                    if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
-                }
-
-                if (type === 'store') {
-                    return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
+                const type = params.get('type');
+                const orderNo = params.get('orderNo'); // 상세 조회를 위한 파라미터 추가
+    
+                // 1. DB 쿼리 실행 (단일 조회와 목록 조회를 분기)
+                let r;
+                if (orderNo) {
+                    // [상세 조회용] 주문번호가 있을 때
+                    const tableName = (type === 'store') ? 'orders' : 'orderss';
+                    r = await query(`SELECT * FROM ${tableName} WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
                 } else {
-                    return { 
-                        ...row, 
-                        orderId: row.order_no, 
-                        amount: row.total_amount, 
-                        cart: items, 
-                        displaySummary, 
-                        customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
-                        reserve: meta.reserve || {}, 
-                        requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
-                        ts: new Date(row.created_at).getTime(), 
-                        meta 
-                    };
+                    // [목록 조회용] 최신 500개 제한
+                    r = (type === 'store') 
+                        ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId])
+                        : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId]);
                 }
-            });
-
-            // 3. 응답 반환
-            if (orderNo) {
-                return json({ ok: true, order: orders[0] || null }); 
+    
+                // 2. 데이터 가공 (기존 로직 100% 보존)
+                const orders = r.rows.map(row => {
+                    const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                    
+                    const items = (type === 'store') 
+                        ? (meta.cart || []) 
+                        : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+    
+                    let displaySummary = '상품 없음';
+                    if (items.length > 0) {
+                        const first = items[0];
+                        let rawOpts = first.optionText || first.options || [];
+                        if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
+                        
+                        let optText = '';
+                        if (rawOpts.length > 0) {
+                            const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
+                            if (rawOpts.length > 1) optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
+                            else optText = ` [${firstOpt}]`;
+                        }
+                        displaySummary = `${first.name} x ${first.qty}${optText}`;
+                        if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
+                    }
+    
+                    if (type === 'store') {
+                        return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
+                    } else {
+                        return { 
+                            ...row, 
+                            orderId: row.order_no, 
+                            amount: row.total_amount, 
+                            cart: items, 
+                            displaySummary, 
+                            customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
+                            reserve: meta.reserve || {}, 
+                            requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
+                            ts: new Date(row.created_at).getTime(), 
+                            meta 
+                        };
+                    }
+                });
+    
+                // 3. 응답 반환
+                if (orderNo) {
+                    return json({ ok: true, order: orders[0] || null }); 
+                }
+                return json({ ok: true, orders });
             }
-            return json({ ok: true, orders });
-        }
             if (method === 'POST') {
                 const limiter = rateLimit(req, 'order_post');
                 if (!limiter.ok) return json({ ok: false, message: '주문 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' }, 429);
@@ -343,8 +343,43 @@ export default async function handler(req, res) {
                         return sum + (unitPrice + optPrice) * item.qty;
                     }, 0);
                 
-                    if (type !== 'store') validTotal += Number(clientMeta?.delivery_fee || 0);
-                
+                    if (type !== 'store') {
+                        // 1. DB에서 매장 배달 설정 조회
+                        const settingsRes = await queryOne('SELECT delivery_config FROM store_settings WHERE store_id = $1', [storeId]);
+                        const dConfig = settingsRes?.delivery_config || {};
+                        
+                        const clientFee = Number(clientMeta?.delivery_fee || 0);
+                        const orderType = clientMeta?.order_type; // 'delivery' 또는 'pickup'
+                    
+                        if (orderType === 'delivery') {
+                            // 🚀 [보완] 매장이 배달 기능을 껐는데 배달로 주문이 들어온 경우 차단
+                            if (!dConfig.enabled) {
+                                return json({ ok: false, message: '현재 배달 주문이 불가능한 매장입니다.' }, 400);
+                            }
+                    
+                            // 배달인데 최소 배달비보다 작게 보냈다면 조작으로 간주
+                            const baseFee = Number(dConfig.base_fee || 0);
+                            if (clientFee < baseFee) {
+                                return json({ ok: false, message: '배달 요금 검증 실패' }, 400);
+                            }
+                            validTotal += clientFee; 
+                        } else if (orderType === 'pickup') {
+                            // 🚀 [보완] 매장이 픽업 기능을 껐는데 픽업으로 들어온 경우 차단
+                            if (!dConfig.pickup_enabled) {
+                                return json({ ok: false, message: '현재 픽업 주문이 불가능한 매장입니다.' }, 400);
+                            }
+                    
+                            if (clientFee !== 0) {
+                                return json({ ok: false, message: '픽업은 배달비가 발생하지 않습니다.' }, 400);
+                            }
+                        } else {
+                            // order_type이 아예 없거나 오타가 난 경우 (매우 중요)
+                            return json({ ok: false, message: '주문 유형(배달/픽업)을 선택해주세요.' }, 400);
+                        }
+                    }
+                    // ────────────────────────────────────────────────────────────
+            
+                    // 최종 합계 비교 (클라이언트가 보낸 amount와 서버 계산 validTotal 비교)
                     if (Math.abs(validTotal - amount) > 1) {
                         return json({ ok: false, message: '금액 검증 실패: 비정상적인 결제 요청입니다.' }, 400);
                     }
