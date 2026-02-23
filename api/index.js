@@ -27,17 +27,21 @@ export default async function handler(req, res) {
         return json({ ok: false, message: '요청 데이터가 너무 큽니다. (최대 200KB)' }, 413);
     }
 
-    // 1. Body 파싱 (순서 교정: ReferenceError 방지)
-    let parsedBody = req.body;
-    if (!parsedBody && (method === 'POST' || method === 'PUT')) {
-        try {
-            const buffers = [];
-            for await (const chunk of req) { buffers.push(chunk); }
-            const data = Buffer.concat(buffers).toString();
-            parsedBody = data ? JSON.parse(data) : {};
-        } catch (e) { parsedBody = {}; }
+    // 1. Body 파싱 (Vercel Node.js 런타임 호환성 강화)
+    let safeBody = {};
+    if (method === 'POST' || method === 'PUT') {
+        if (typeof req.body === 'object' && req.body !== null) {
+            safeBody = req.body;
+        } else {
+            try {
+                // 스트림이나 문자열로 들어오는 경우 대비
+                const buffers = [];
+                for await (const chunk of req) { buffers.push(chunk); }
+                const data = Buffer.concat(buffers).toString();
+                safeBody = data ? JSON.parse(data) : {};
+            } catch (e) { safeBody = {}; }
+        }
     }
-    const safeBody = parsedBody || {};
     
     const url = new URL(req.url, `http://${headers.host}`);
     const pathname = url.pathname;
@@ -51,11 +55,16 @@ export default async function handler(req, res) {
             '/api/check-time', 
             '/api/super-login', 
             '/api/login-admin', 
-            '/api/me',     
-            '/api/verify'  
+            '/api/me',          // 관리자 로그인 확인
+            '/api/verify',      // 토큰 검증
+            '/api/login-cust'   // 고객 로그인 (있을 경우 추가)
         ];
+        
+        // 🚀 추가 수정 (조건문): undefined 문자열 방지 로직 보강
         if (!bypassPaths.includes(pathname)) {
-            return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
+            if (!storeId || storeId === "[object Object]" || storeId === "null" || storeId === "undefined") {
+                return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
+            }
         }
     }
 
