@@ -50,7 +50,9 @@ export default async function handler(req, res) {
             '/api/test', 
             '/api/check-time', 
             '/api/super-login', 
-            '/api/login-admin' // 여기에 추가
+            '/api/login-admin', 
+            '/api/me',     
+            '/api/verify'  
         ];
         if (!bypassPaths.includes(pathname)) {
             return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
