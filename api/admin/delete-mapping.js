@@ -16,7 +16,15 @@ export default async function handler(req) {
         const auth = req.headers.get('authorization') || "";
         if (!auth.startsWith("Bearer ")) throw new Error("NO_TOKEN");
         const token = auth.slice(7);
-        const payload = await verifyJWT(token, process.env.SUPER_JWT_SECRET || "super-secret-dev");
+        // 1. 키가 없으면 즉시 에러 응답을 보내거나 실행을 막아야 합니다.
+        const secret = process.env.SUPER_JWT_SECRET;
+        
+        if (!secret) {
+            console.error("❌ CRITICAL ERROR: SUPER_JWT_SECRET is not defined!");
+            return new Response(JSON.stringify({ ok: false, message: "Server configuration error." }), { status: 500 });
+        }
+        
+        const payload = await verifyJWT(token, secret);
 
         if (!payload) throw new Error("INVALID_TOKEN");
         if (payload.realm !== 'super' && !payload.isSuper) throw new Error("NOT_SUPER");
@@ -48,3 +56,4 @@ export default async function handler(req) {
         await pool.end();
     }
 }
+
