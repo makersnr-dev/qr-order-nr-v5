@@ -340,6 +340,14 @@ export default async function handler(req, res) {
 
                 const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta } = safeBody;
 
+                if (type === 'store') {
+                    const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                    const dbCode = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                    if (!dbCode || dbCode.code !== paycode) {
+                        return json({ ok: false, message: '결제 코드가 올바르지 않거나 만료되었습니다.' }, 403);
+                    }
+                }
+
                 // 🛡️ [추가] 금액 위변조 검증 로직 (최소 수정)
                 try {
                     let menus = menuCache.get(storeId)?.data; 
