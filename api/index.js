@@ -376,8 +376,8 @@ export default async function handler(req, res) {
                     
                             // 배달인데 최소 배달비보다 작게 보냈다면 조작으로 간주
                             const baseFee = Number(dConfig.base_fee || 0);
-                            if (clientFee < baseFee) {
-                                return json({ ok: false, message: '배달 요금 검증 실패' }, 400);
+                            if (clientFee < 0 || clientFee < baseFee) {
+                                return json({ ok: false, message: '배달 요금 검증 실패: 비정상적인 금액입니다.' }, 400);
                             }
                             validTotal += clientFee; 
                         } else if (orderType === 'pickup') {
@@ -404,7 +404,7 @@ export default async function handler(req, res) {
                     return json({ ok: false, message: '검증 중 오류 발생' }, 500); 
                 }
 
-                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}`;
+                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
                 if (type === 'store') {
                     await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]);
                 } else {
