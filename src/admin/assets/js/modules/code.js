@@ -7,48 +7,52 @@ let dayWatcherTimer = null;
  * 🌙 자정 감지 및 자동 새로고침 (비용 0원)
  */
 function watchMidnight(storeId) {
-  // 현재 브라우저 기준 날짜 저장 (예: "2026. 2. 4.")
-  let lastDate = new Date().toLocaleDateString();
+  // [중요] 이미 타이머가 돌아가고 있다면 중복 생성을 막아 무한 루프를 방지합니다.
+  if (dayWatcherTimer) return; 
 
-  if (dayWatcherTimer) clearInterval(dayWatcherTimer);
+  let lastDate = new Date().toLocaleDateString();
 
   dayWatcherTimer = setInterval(async () => {
     const nowDate = new Date().toLocaleDateString();
     
-    // 날짜가 바뀌었는지 체크
     if (nowDate !== lastDate) {
       lastDate = nowDate;
       console.log('[CODE] 날짜 변경 감지: 결제코드를 자동 갱신합니다.');
       
-      // ✅ 서버에서 새 날짜의 코드를 받아오도록 renderCode 재실행
+      // ✅ 무한 루프 방지를 위해 renderCode가 아닌 내부 fetch 로직만 실행하거나 
+      // renderCode 호출 시 watchMidnight의 중복 실행 방지 로직이 작동하므로 안전합니다.
       await renderCode(storeId); 
       
       showToast("🌙 자정이 되어 오늘의 결제코드로 갱신되었습니다.", "info");
     }
-  }, 10000); // 10초마다 체크 (서버 호출 없이 브라우저 시계만 확인하므로 비용 없음)
-  // 화면이 다시 보일 때(탭 복귀 등) 즉시 체크하는 로직
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    const checkDate = new Date().toLocaleDateString();
-    if (checkDate !== lastDate) {
-      lastDate = checkDate;
-      renderCode(storeId);
+  }, 30000); // 30초마다 체크 (서버 부하 감소)
+
+  // 화면이 다시 보일 때 즉시 체크
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const checkDate = new Date().toLocaleDateString();
+      if (checkDate !== lastDate) {
+        lastDate = checkDate;
+        renderCode(storeId);
+      }
     }
-  }
-});
+  });
 }
 
 export async function renderCode(storeId) {
-  if (!storeId) return;
+  // storeId 유효성 검사 (오염된 데이터가 서버로 가는 것 방지)
+  if (!storeId || storeId === "null" || storeId === "undefined" || storeId === "[object Object]") return;
 
   try {
-    const r = await fetch(`/api/payment-code?storeId=${storeId}`);
+    // Vercel/브라우저 캐시 방지를 위해 타임스탬프 추가
+    const r = await fetch(`/api/payment-code?storeId=${storeId}&t=${Date.now()}`);
     const data = await r.json();
 
     if (data.ok) {
       document.getElementById('code-date').textContent = data.date;
       document.getElementById('code-input').value = data.code;
 
+      // 타이머 시작 (내부에서 중복 실행을 막아줌)
       watchMidnight(storeId);
     }
   } catch (e) {
@@ -57,7 +61,7 @@ export async function renderCode(storeId) {
 }
 
 export function bindCode(storeId) {
-  // 📋 복사 버튼
+  // 📋 복사 버튼 (기존 로직 동일)
   document.getElementById('code-copy')?.addEventListener('click', () => {
     const v = document.getElementById('code-input')?.value;
     if (v) {
@@ -66,7 +70,7 @@ export function bindCode(storeId) {
       });
     }
   });
-
+  
   // 🔁 새 코드 발급
   const newBtn = document.getElementById('code-new');
   if (newBtn) {
