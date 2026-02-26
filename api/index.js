@@ -61,9 +61,14 @@ export default async function handler(req, res) {
         ];
         
         // 🚀 추가 수정 (조건문): undefined 문자열 방지 로직 보강
+        // 수정 후
         if (!bypassPaths.includes(pathname)) {
-            if (!storeId || storeId === "[object Object]" || storeId === "null" || storeId === "undefined") {
-                return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
+            // 🚀 슈퍼 관리자 전용 경로는 storeId 체크 제외
+            const isSuperPath = pathname === '/api/stores' || pathname.startsWith('/api/admin/');
+            if (!isSuperPath) {
+                if (!storeId || storeId === "[object Object]" || storeId === "null" || storeId === "undefined") {
+                    return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
+                }
             }
         }
     }
@@ -102,7 +107,9 @@ export default async function handler(req, res) {
             const superAdmins = JSON.parse(process.env.SUPER_ADMINS_JSON || '[]');
             const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
             if (found) {
-                const token = await signJWT({ realm: 'super', uid, isSuper: true }, process.env.JWT_SECRET , 86400); // 🚀 만료시간 추가
+                // 🚀 SUPER_JWT_SECRET이 있으면 그걸 쓰고 없으면 기본 SECRET 사용
+                const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET;
+                const token = await signJWT({ realm: 'super', uid, isSuper: true }, secret, 86400);
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
                 return json({ ok: true, token });
             }
@@ -555,8 +562,14 @@ export default async function handler(req, res) {
             }
         }
         if (pathname === '/api/qrcodes') {
+            // api/index.js 수정
             if (method === 'GET') {
-                const r = await query('SELECT id, kind, table_no as "table", label, url, data_url as "dataUrl" FROM qr_codes WHERE store_id = $1 ORDER BY created_at DESC', [storeId]);
+                const r = await query(`
+                    SELECT id, COALESCE(kind, 'store') as kind, table_no as "table", label, url, data_url as "dataUrl" 
+                    FROM qr_codes 
+                    WHERE store_id = $1 
+                    ORDER BY created_at DESC
+                `, [storeId]);
                 return json({ ok: true, list: r.rows || [] });
             }
             if (method === 'PUT') {
@@ -588,10 +601,15 @@ export default async function handler(req, res) {
 
             // B. DB 확인 (JOIN으로 한 번에 가져오기)
             const pwHash = await hashPassword(pwd);
+            // 수정 후
             const queryText = `
                 SELECT a.id, a.name, a.role, a.is_active, m.store_id
                 FROM admins a
-                LEFT JOIN admin_store_mapping m ON a.id = m.admin_id
+                LEFT JOIN (
+                    SELECT admin_id as uid, store_id FROM admin_store_mapping
+                    UNION
+                    SELECT admin_key as uid, store_id FROM admin_stores
+                ) m ON a.id = m.uid
                 WHERE a.id = $1 AND a.pw_hash = $2
             `;
             const dbResult = await query(queryText, [uid, pwHash]);
