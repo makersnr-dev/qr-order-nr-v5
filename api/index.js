@@ -111,7 +111,7 @@ export default async function handler(req, res) {
                 // 🚀 SUPER_JWT_SECRET이 있으면 그걸 쓰고 없으면 기본 SECRET 사용
                 const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET;
                 const token = await signJWT({ realm: 'super', uid, isSuper: true }, secret, 86400);
-                res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`);
+                res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax; Secure`);
                 return json({ ok: true, token });
             }
             return json({ ok: false }, 401);
