@@ -377,7 +377,8 @@ function cleanOldOrders(sid) {
             type: 'store',
             table,
             amount,
-            cart: cartItems
+            cart: cartItems,
+            paycode: inputCode
         };
 
         // 2. 서버에 주문 데이터 전송
