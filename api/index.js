@@ -135,10 +135,15 @@ export default async function handler(req, res) {
         if (pathname === '/api/stores' || pathname === '/api/admin-mappings') {
             const auth = await getAuth();
             if (pathname === '/api/stores' && method === 'GET') {
-                const r = await query('SELECT store_id, code FROM admin_stores ORDER BY created_at DESC');
-                const stores = {};
-                r.rows.forEach(s => { stores[s.store_id] = { name: s.store_id + " 매장", code: s.code }; });
-                return json({ ok: true, stores });
+                // 1. DB에서 스키마에 있는 name 컬럼까지 포함해서 정확히 가져옴
+                const r = await query('SELECT store_id, name, code FROM admin_stores ORDER BY created_at DESC');
+                
+                // 2. 프론트엔드(store-admin.js)가 기다리고 있는 'list'라는 이름으로 결과 전달
+                return json({ 
+                    ok: true, 
+                    list: r.rows, // 🚀 'stores'가 아니라 반드시 'list'여야 함
+                    total: r.rows.length 
+                });
             }
             if (auth?.realm !== 'super') return json({ ok: false }, 403);
             if (method === 'GET') {
