@@ -91,10 +91,16 @@ export default async function handler(req, res) {
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
         const isSuperPath = pathname.startsWith('/api/super-') || pathname.startsWith('/api/admin/');
         let token = isSuperPath ? cookies['super_token'] : (cookies['admin_token'] || cookies['super_token']);
+        
         if (!token) return null;
+        
         try {
-            return await verifyJWT(token, process.env.JWT_SECRET);
-        } catch (e) { return null; }
+            // 🚀 [수정] 슈퍼 관리자 경로라면 SUPER용 열쇠를 먼저 사용하도록 변경
+            const secret = isSuperPath ? (process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET) : process.env.JWT_SECRET;
+            return await verifyJWT(token, secret);
+        } catch (e) { 
+            return null; 
+        }
     };
 
     try {
