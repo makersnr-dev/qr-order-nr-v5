@@ -105,6 +105,20 @@ export default async function handler(req, res) {
         if (pathname === '/api/config') return json({ supabaseUrl: process.env.SUPABASE_URL, supabaseKey: process.env.SUPABASE_ANON_KEY });
         if (pathname === '/api/test') return json({ ok: true, message: "연결 성공!" });
         if (pathname === '/api/check-time') return json({ ok: true, serverTime: new Date(Date.now() + 9 * 60 * 60 * 1000) });
+        // 오늘의 매출 통계 API (최소 수정본)
+        if (pathname === '/api/admin/stats') {
+            const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            // Neon DB의 속도를 이용해 한 번에 계산해서 가져옵니다.
+            const stats = await queryOne(`
+                SELECT 
+                    COUNT(*)::int as count, 
+                    COALESCE(SUM(amount), 0)::int as sales 
+                FROM orders 
+                WHERE store_id = $1 AND created_at >= $2 AND status != '주문취소'
+            `, [storeId, today]);
+            
+            return json({ ok: true, stats });
+        }
 
         // --- 1. 슈퍼 관리자 전용 로직 ---
         if (pathname === '/api/super-login') {
@@ -338,7 +352,7 @@ export default async function handler(req, res) {
                 const limiter = rateLimit(req, 'order_post');
                 if (!limiter.ok) return json({ ok: false, message: '주문 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.' }, 429);
 
-                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta } = safeBody;
+                const { type, table, cart, amount, customer, reserve, agreePrivacy, lookupPw, memberId, meta: clientMeta, paycode } = safeBody;
 
                 if (type === 'store') {
                     const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
