@@ -157,19 +157,41 @@ export function showToast(msg, variant = 'info') {
   }, 3000);
 }
 
-  function cleanOldOrders(sid) {
-      const storageKey = `orders_${sid}`;
-      const history = JSON.parse(localStorage.getItem(storageKey) || "[]");
-      if (history.length === 0) return;
+  // store.html 내 수정 로직
+function cleanOldOrders(sid) {
+    const storageKey = `orders_${sid}`;
+    let history = [];
+    
+    try {
+        history = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    } catch (e) {
+        history = []; // 데이터가 깨져있을 경우 초기화
+    }
 
-      const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
-      const now = Date.now();
-      const filteredHistory = history.filter(order => (now - order.ts) < TWELVE_HOURS_MS);
+    if (history.length === 0) return;
 
-      if (filteredHistory.length !== history.length) {
-          localStorage.setItem(storageKey, JSON.stringify(filteredHistory));
-      }
-  }
+    const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // 1. 시간 필터링 (12시간 이내만 남김)
+    let filteredHistory = history.filter(order => (now - order.ts) < TWELVE_HOURS_MS);
+
+    // 🚀 [추가] 2. 개수 필터링 (최신 50개만 남김 - LocalStorage 용량 방어 핵심)
+    // 50개면 충분히 당일 내역 확인이 가능하며, 5MB 제한을 절대 넘지 않습니다.
+    if (filteredHistory.length > 50) {
+        filteredHistory = filteredHistory.slice(-50);
+    }
+
+    // 변경사항이 있을 때만 저장하여 성능 최적화
+    if (filteredHistory.length !== history.length) {
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(filteredHistory));
+        } catch (e) {
+            // 정말 드문 경우(할당량 초과 에러 등) 발생 시 더 파격적으로 삭제
+            localStorage.setItem(storageKey, JSON.stringify(filteredHistory.slice(-10)));
+        }
+    }
+}
   
   // 1. 직원 호출 쿨타임 로직 (사장님 원본 유지)
   const CALL_COOLDOWN_SEC = 10;
