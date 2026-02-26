@@ -54,6 +54,7 @@ export default async function handler(req, res) {
             '/api/test', 
             '/api/check-time', 
             '/api/super-login', 
+            '/api/super-me',
             '/api/login-admin', 
             '/api/me',          // 관리자 로그인 확인
             '/api/verify',      // 토큰 검증
