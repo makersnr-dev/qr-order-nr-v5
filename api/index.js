@@ -47,9 +47,7 @@ export default async function handler(req, res) {
     const pathname = url.pathname;
     const params = url.searchParams;
     const storeId = params.get('storeId') || safeBody.storeId;
-    if (!storeId || storeId === "[object Object]" || storeId === "null") {
-        // 공통 설정이나 테스트용 경로가 아닌 경우에만 차단
-        const bypassPaths = [
+    const bypassPaths = [
             '/api/config', 
             '/api/test', 
             '/api/check-time', 
@@ -60,18 +58,18 @@ export default async function handler(req, res) {
             '/api/verify',      // 토큰 검증
             '/api/login-cust'   // 고객 로그인 (있을 경우 추가)
         ];
+    if (!storeId || storeId === "[object Object]" || storeId === "null" || storeId === "undefined") {
         
-        // 🚀 추가 수정 (조건문): undefined 문자열 방지 로직 보강
-        // 수정 후
         if (!bypassPaths.includes(pathname)) {
-            // 🚀 슈퍼 관리자 전용 경로는 storeId 체크 제외
+            // 슈퍼 관리자 전용 경로인지 한 번 더 확인
             const isSuperPath = pathname === '/api/stores' || pathname.startsWith('/api/admin/');
+            
             if (!isSuperPath) {
-                if (!storeId || storeId === "[object Object]" || storeId === "null" || storeId === "undefined") {
-                    return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
-                }
+                // 🚀 [결과] 진짜 없는 게 맞으면 여기서 차단 (400)
+                return json({ ok: false, message: '유효한 매장 식별자(storeId)가 필요합니다.' }, 400);
             }
         }
+        // 통과된 경우 (예외 경로인 경우) 아무것도 안 하고 밑으로 내려감
     }
 
     if (pathname === '/api/orders/lookup' || pathname.endsWith('/lookup')) {
