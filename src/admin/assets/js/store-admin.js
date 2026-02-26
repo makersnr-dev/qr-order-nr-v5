@@ -703,7 +703,7 @@ async function superLogout() {
 
 async function fetchSuperMe() {
   try {
-    const r = await fetch('/api/super-me');
+    const r = await fetch('/api/super-me', {credentials: 'include' });
     return r.ok ? r.json() : { ok: false };
   } catch { return { ok: false }; }
 }
