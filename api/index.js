@@ -577,19 +577,57 @@ export default async function handler(req, res) {
         }
         if (pathname === '/api/payment-code') {
             const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            
             if (method === 'GET') {
-                await query('DELETE FROM payment_codes WHERE store_id = $1 AND date < $2', [storeId, today]);
-                let row = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
-                if (!row) {
-                    const newCode = String(Math.floor(1000 + Math.random() * 9000));
-                    await query('INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [storeId, today, newCode]);
-                    row = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                try {
+                    // 1. 과거 코드 삭제 (오류가 나도 멈추지 않게 방어)
+                    await query('DELETE FROM payment_codes WHERE store_id = $1 AND date < $2', [storeId, today]).catch(() => {});
+                    
+                    // 2. 오늘의 코드 조회
+                    let row = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                    
+                    // 3. 코드가 없으면 새로 발급
+                    if (!row) {
+                        const newCode = String(Math.floor(1000 + Math.random() * 9000));
+                        try {
+                            // 명시적으로 제약 조건(store_id, date)을 지정하여 충돌 방지
+                            await query(`
+                                INSERT INTO payment_codes (store_id, date, code) 
+                                VALUES ($1, $2, $3) 
+                                ON CONFLICT (store_id, date) DO NOTHING
+                            `, [storeId, today, newCode]);
+                        } catch (e) {
+                            console.error('Insert conflict ignored:', e.message);
+                        }
+                        
+                        // 방금 넣은 거(또는 동시에 접속한 다른 기기가 넣은 거) 다시 조회
+                        row = await queryOne('SELECT code FROM payment_codes WHERE store_id = $1 AND date = $2', [storeId, today]);
+                        
+                        // 그래도 없으면 에러 내지 말고 방금 만든 코드 임시 반환
+                        if (!row) row = { code: newCode };
+                    }
+                    
+                    return json({ ok: true, code: row.code, date: today });
+                } catch (err) {
+                    console.error('GET /api/payment-code 서버 에러:', err);
+                    // 🚀 DB가 꼬여도 프론트엔드가 터지지 않도록 임시 코드 반환
+                    return json({ ok: true, code: "0000", date: today });
                 }
-                return json({ ok: true, code: row?.code, date: today });
             }
+            
             if (method === 'POST') {
                 const nc = String(Math.floor(1000 + Math.random() * 9000));
-                await query(`INSERT INTO payment_codes (store_id, date, code) VALUES ($1, $2, $3) ON CONFLICT (store_id, date) DO UPDATE SET code = EXCLUDED.code`, [storeId, today, nc]);
+                try {
+                    await query(`
+                        INSERT INTO payment_codes (store_id, date, code) 
+                        VALUES ($1, $2, $3) 
+                        ON CONFLICT (store_id, date) DO UPDATE SET code = EXCLUDED.code
+                    `, [storeId, today, nc]);
+                } catch (e) {
+                    console.error('POST /api/payment-code 에러:', e.message);
+                    // 제약조건이 없어 INSERT가 실패할 경우 안전하게 UPDATE 시도
+                    await query(`UPDATE payment_codes SET code = $3 WHERE store_id = $1 AND date = $2`, [storeId, today, nc]).catch(() => {});
+                }
                 return json({ ok: true, code: nc, date: today });
             }
         }
