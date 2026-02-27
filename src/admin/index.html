@@ -23,6 +23,17 @@
     <button id="logoutBtn" class="btn">로그아웃</button>
 </div>
 
+  <div class="hstack" style="gap:10px; margin: 20px 0;">
+    <div class="card" style="flex:1; margin-bottom:0; padding:15px; text-align:center; border: 1px solid var(--primary);">
+        <div class="small" style="color:var(--muted)">오늘 매출액</div>
+        <div id="stat-sales" style="font-size:22px; font-weight:bold; color:var(--primary);">0원</div>
+    </div>
+    <div class="card" style="flex:1; margin-bottom:0; padding:15px; text-align:center;">
+        <div class="small" style="color:var(--muted)">오늘 주문건수</div>
+        <div id="stat-count" style="font-size:22px; font-weight:bold;">0건</div>
+    </div>
+</div>
+
   <!-- ================= TAB BAR ================= -->
   <div class="tabbar">
     <button class="tab active" data-tab="store">매장</button>
