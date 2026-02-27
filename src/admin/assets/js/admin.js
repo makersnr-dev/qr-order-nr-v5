@@ -244,6 +244,8 @@ async function initRealtimeAlarm(storeId) {
         const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
         showToast(`📦 새 ${orderTitle} 주문 도착! (${data.customerName || '비회원'})`, "success");
         showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${data.customerName || '비회원'}님의 주문이 도착했습니다.`);
+
+      refreshStats(storeId);
     })
     .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
         const data = payload.payload;
@@ -272,6 +274,24 @@ async function initRealtimeAlarm(storeId) {
     });
 
     updateStatusUI('CONNECTED');
+}
+
+// 📊 오늘 매출 및 주문건수 갱신 함수
+async function refreshStats(sid) {
+    const salesEl = document.getElementById('stat-sales');
+    const countEl = document.getElementById('stat-count');
+    if (!salesEl || !countEl) return;
+
+    try {
+        const res = await fetch(`/api/admin/stats?storeId=${sid}`);
+        const data = await res.json();
+        if (data.ok) {
+            salesEl.textContent = Number(data.stats.sales).toLocaleString() + '원';
+            countEl.textContent = data.stats.count + '건';
+        }
+    } catch (e) {
+        console.error("통계 로딩 실패:", e);
+    }
 }
 
 function updateStatusUI(status) {
@@ -343,6 +363,7 @@ if (client) {
   // C. 서버와 매장 데이터 동기화
   //------------------------------------------------------------------
   await syncStoreFromServer();
+  refreshStats(sid);
   initTabs();
 
   //------------------------------------------------------------------
@@ -388,6 +409,7 @@ const storeRefreshBtn = document.getElementById("store-refresh");
 if (storeRefreshBtn) {
   storeRefreshBtn.addEventListener("click", () => {
     safeRenderStore(sid);
+    refreshStats(sid);
   });
 }
 
@@ -395,6 +417,7 @@ const delivRefreshBtn = document.getElementById("deliv-refresh");
 if (delivRefreshBtn) {
   delivRefreshBtn.addEventListener("click", () => {
     safeRenderDeliv(sid);
+    refreshStats(sid);
   });
 }
 
@@ -407,6 +430,7 @@ if (delivRefreshBtn) {
   if (delivExportBtn) delivExportBtn.onclick = () =>
     exportOrders("ordersDelivery");
 
+  
  renderMenu(sid);
   bindMenu(sid);
   renderCode(sid);
