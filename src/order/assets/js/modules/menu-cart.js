@@ -11,26 +11,53 @@ export function clearMenuCache() {
 /**
  * 1. [DB 연동] 서버에서 메뉴 목록 가져오기
  */
+/**
+ * 1. [DB 연동 + 로컬 캐싱 완벽 적용] 서버에서 메뉴 목록 가져오기
+ */
 export async function loadMenu(force = false) {
     const sid = currentStoreId();
-    // 1. 매장이 바뀌었거나, 강제 새로고침(force) 요청이 오면 캐시 파괴
+
+    // 1. 메모리 캐시 확인 (같은 창 안에서 왔다 갔다 할 때 0원)
     if (cachedStoreId !== sid || force) {
         cachedAllMenus = null;
         cachedStoreId = sid;
     }
-
-    // 2. force가 false일 때만 기존 캐시를 사용
     if (!force && cachedAllMenus) return cachedAllMenus;
     
     try {
+        // 🚀 [추가] 2. 서버에 "최신 버전(마지막 수정 시간)"만 가볍게 물어보기
+        const verRes = await fetch(`/api/menu-version?storeId=${sid}`);
+        const { version: serverVersion } = await verRes.json();
+
+        // 폰에 저장된 버전과 데이터 꺼내기
+        const localVersion = localStorage.getItem(`qrnr_menu_ver_${sid}`);
+        const localData = localStorage.getItem(`qrnr_menu_data_${sid}`);
+
+        // 🚀 [핵심] 3. 폰에 데이터가 있고, 버전도 서버랑 똑같으면 다운로드 안 함! (DB 요금 0원)
+        if (!force && localData && localVersion === serverVersion) {
+            console.log("💡 [캐싱] 변경사항 없음. 폰에 저장된 메뉴를 0.1초 만에 불러옵니다.");
+            cachedAllMenus = JSON.parse(localData);
+            return cachedAllMenus;
+        }
+
+        // 🚀 4. 버전이 다르거나 최초 접속일 때만 전체 메뉴를 DB에서 받아옴 (요금 발생)
+        console.log("📥 [다운로드] 메뉴가 변경되었거나 최초 접속입니다. 새 데이터를 받습니다.");
         const res = await fetch(`/api/menus?storeId=${sid}&_t=${Date.now()}`);
         const data = await res.json();
+        
         // 활성화된 메뉴만 필터링
         cachedAllMenus = (data.menus || []).filter(m => m.active !== false);
+
+        // 새 데이터를 폰(localStorage)에 저장하여 다음 접속 때 요금 방어!
+        localStorage.setItem(`qrnr_menu_data_${sid}`, JSON.stringify(cachedAllMenus));
+        localStorage.setItem(`qrnr_menu_ver_${sid}`, serverVersion); // 버전 갱신
+
         return cachedAllMenus;
     } catch (e) {
         console.error('[menu-cart] 로딩 실패:', e);
-        return [];
+        // 에러 나면 혹시 폰에 저장된 옛날 메뉴라도 보여줌
+        const fallback = localStorage.getItem(`qrnr_menu_data_${sid}`);
+        return fallback ? JSON.parse(fallback) : [];
     }
 }
 
