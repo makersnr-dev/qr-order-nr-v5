@@ -119,6 +119,13 @@ export default async function handler(req, res) {
             
             return json({ ok: true, stats });
         }
+        // 🚀 [추가] 메뉴 캐싱용 초경량 버전 확인 API
+        if (pathname === '/api/menu-version') {
+            // DB에서 가장 마지막으로 수정된 메뉴의 시간만 딱 1개 가져옵니다. (속도 빛의 속도, 비용 거의 0)
+            const r = await queryOne('SELECT MAX(updated_at) as ver FROM menus WHERE store_id = $1', [storeId]);
+            // 만약 메뉴가 없으면 0 반환
+            return json({ ok: true, version: r?.ver ? new Date(r.ver).getTime().toString() : '0' });
+        }
 
         // --- 1. 슈퍼 관리자 전용 로직 ---
         if (pathname === '/api/super-login') {
