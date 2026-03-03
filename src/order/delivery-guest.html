@@ -658,6 +658,27 @@
         document.getElementById('btn-type-pickup').style.display = storeConfig.pickup_enabled ? 'block' : 'none';
         if (!storeConfig.enabled && storeConfig.pickup_enabled) setOrderType('pickup');
     }
+
+  const savedInfo = JSON.parse(localStorage.getItem('qrnr_guest_info') || '{}');
+      
+      // 1. 폰에 저장된 정보가 있으면 화면 열리자마자 자동으로 채워줌
+      if (savedInfo.cust) document.getElementById('cust').value = savedInfo.cust;
+      if (savedInfo.phone) document.getElementById('phone').value = savedInfo.phone;
+      if (savedInfo.addr) document.getElementById('addr').value = savedInfo.addr;
+      if (savedInfo.addrDetail) document.getElementById('addr-detail').value = savedInfo.addrDetail;
+
+      // 2. 손님이 글자를 칠 때마다 폰에 실시간으로 몰래 저장해둠 (DB 전송 X, 요금 0원)
+      ['cust', 'phone', 'addr', 'addr-detail'].forEach(id => {
+          document.getElementById(id)?.addEventListener('input', () => {
+              const info = {
+                  cust: document.getElementById('cust').value,
+                  phone: document.getElementById('phone').value,
+                  addr: document.getElementById('addr').value,
+                  addrDetail: document.getElementById('addr-detail').value
+              };
+              localStorage.setItem('qrnr_guest_info', JSON.stringify(info));
+          });
+      });
     
     fillTimeSelectors("time");
 
