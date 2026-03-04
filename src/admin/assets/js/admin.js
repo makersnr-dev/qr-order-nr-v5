@@ -213,18 +213,39 @@ async function initRealtimeAlarm(storeId) {
     console.log(`📡 [관리자] 실시간 구독 시작 (매니저): ${storeId}`);
 
     realtimeChannel
-    .on('broadcast', { event: 'NEW_ORDER' }, (payload) => {
+    .on('broadcast', { event: 'NEW_ORDER' }, async (payload) => { // 🚀 1. async 추가
         const data = payload.payload;
         const eventId = data.orderNo || data.id;
 
-        // ✅ [수정] 데이터 갱신은 모든 탭에서 무조건 수행 (항상 최신 목록 유지)
-        if (data.orderType === 'store' || data.type === 'store') {
-            if (typeof renderStore === 'function') renderStore(storeId); 
-        } else {
-            if (typeof renderDeliv === 'function') renderDeliv(storeId);
+        // ========================================================
+        // 🚀 2. [최소 수정] 기존 무조건 500개 불러오던 것을 '딱 1개만' 불러오기로 교체
+        // ========================================================
+        try {
+            const fetchType = data.orderType || data.type;
+            const singleRes = await fetch(`/api/orders?type=${fetchType}&storeId=${storeId}&orderNo=${eventId}`);
+            const singleData = await singleRes.json();
+            
+            if (singleData.ok && singleData.order) {
+                // 아까 만든 지름길로 1개만 쓱 던져줍니다. (모든 탭에서 무조건 실행되어 화면 갱신)
+                if (fetchType === 'store') {
+                    if (typeof renderStore === 'function') renderStore(storeId, singleData.order); 
+                } else {
+                    if (typeof renderDeliv === 'function') renderDeliv(storeId, singleData.order);
+                }
+            } else {
+                throw new Error("Order not found");
+            }
+        } catch(e) {
+            console.error("단건 조회 실패, 안전하게 전체 새로고침 진행");
+            if (data.orderType === 'store' || data.type === 'store') {
+                if (typeof renderStore === 'function') renderStore(storeId); 
+            } else {
+                if (typeof renderDeliv === 'function') renderDeliv(storeId);
+            }
         }
+        // ========================================================
 
-        // 🛡️ [중복 방지] 이미 다른 탭에서 소리가 났다면 여기서 중단 (소리/토스트 차단)
+        // 🛡️ [중복 방지] 화면은 갱신했으니, 이미 소리가 난 주문이면 여기서 중단 (소리/토스트 차단)
         if (lastProcessedEventId === eventId) return;
         
         // 내 탭이 처리했다고 기록하고 다른 탭들에 알림
@@ -232,7 +253,7 @@ async function initRealtimeAlarm(storeId) {
         sessionStorage.setItem('qrnr.lastEventId', eventId);
         adminChannel.postMessage({ type: 'EVENT_PROCESSED', eventId });
 
-        // 🔊 소리 재생 (이 로직은 탭들 중 가장 먼저 신호를 받은 하나만 실행하게 됨)
+        // 🔊 소리 재생
         const now = Date.now();
         if (now - lastAlarmTime > 2000) {
             const audio = new Audio('/src/admin/assets/sound/dingdong.mp3');
@@ -245,7 +266,7 @@ async function initRealtimeAlarm(storeId) {
         showToast(`📦 새 ${orderTitle} 주문 도착! (${data.customerName || '비회원'})`, "success");
         showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${data.customerName || '비회원'}님의 주문이 도착했습니다.`);
 
-      refreshStats(storeId);
+        refreshStats(storeId);
     })
     .on('broadcast', { event: 'NEW_CALL' }, (payload) => {
         const data = payload.payload;
