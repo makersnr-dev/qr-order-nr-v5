@@ -488,13 +488,19 @@ export function exportOrders(type) {
 // ===============================
 // 매장 주문 렌더링 (DB 조회)
 // ===============================
-export async function renderStore(storeId) {
+export async function renderStore(storeId, newOrder = null) {
   const tbody = $('#tbody-store');
   if (!tbody) return;
 
   //const storeId = currentStoreId();
   let rows = [];
-
+  
+if (newOrder) {
+    rows = window.lastStoreOrders || [];
+    if (!rows.find(o => o.order_no === newOrder.order_no)) rows.push(newOrder);
+  } 
+  // 🚀 [기존] 처음 로딩이거나 전체 새로고침일 때만 DB 전체 조회
+  else {
   try {
     const res = await fetch(
       `/api/orders?type=store&storeId=${encodeURIComponent(storeId)}`,
@@ -513,6 +519,7 @@ export async function renderStore(storeId) {
     rows = [];
     showToast('매장 주문을 불러오는 중 오류가 발생했습니다.', 'error');
   }
+}
 
   // 🚀 bindFilters에서 저장한 값 응용
   const f = filters.store;
@@ -638,13 +645,19 @@ export async function renderStore(storeId) {
 // ===============================
 // 예약 주문 렌더링 (DB 조회)
 // ===============================
-export async function renderDeliv(storeId) {
+export async function renderDeliv(storeId, newOrder = null) {
   const tbody = $('#tbody-deliv');
   if (!tbody) return;
 
   //const storeId = currentStoreId();
   let rows = [];
-
+// 🚀 [추가] 새 주문 1개만 들어왔을 때 DB 안 가고 배열에 끼워넣기
+  if (newOrder) {
+    rows = window.lastDelivOrders || [];
+    if (!rows.find(o => o.order_id === newOrder.order_id)) rows.push(newOrder);
+  } 
+  // 🚀 [기존] 처음 로딩이거나 전체 새로고침일 때만 DB 전체 조회
+  else {
   try {
     const r = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
     if (!r.ok) {
@@ -659,7 +672,7 @@ export async function renderDeliv(storeId) {
     rows = [];
     showToast('예약 주문을 불러오는 중 오류가 발생했습니다.', 'error');
   }
-
+  }
   // 🚀 bindFilters에서 저장한 값 응용
   const f = filters.deliv;
   rows = rows.filter(o => {
