@@ -9,7 +9,7 @@ export default async function handler(req) {
         return new Response(JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED' }), { status: 405 });
     }
 
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgres://dummy:dummy@dummy:5432/dummy" });
 
     try {
         // 1. Auth Check
@@ -56,4 +56,5 @@ export default async function handler(req) {
         await pool.end();
     }
 }
+
 
