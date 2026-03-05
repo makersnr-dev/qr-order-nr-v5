@@ -3,7 +3,12 @@ import { verifyJWT, signJWT } from '../src/shared/jwt.js';
 import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from './_lib/rate-limit.js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+} else {
+    console.warn("⚠️ SUPABASE_URL or SUPABASE_ANON_KEY is missing. Realtime features will be disabled.");
+}
 const menuCache = new Map();
 const settingsCache = new Map();
 
@@ -95,6 +100,7 @@ export default async function handler(req, res) {
         try {
             // 🚀 [수정] 슈퍼 관리자 경로라면 SUPER용 열쇠를 먼저 사용하도록 변경
             const secret = isSuperPath ? (process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET) : process.env.JWT_SECRET;
+            if (!secret) return null;
             return await verifyJWT(token, secret);
         } catch (e) { 
             return null; 
@@ -134,7 +140,8 @@ export default async function handler(req, res) {
             const found = superAdmins.find(a => a.id === uid && a.pw === pwd);
             if (found) {
                 // 🚀 SUPER_JWT_SECRET이 있으면 그걸 쓰고 없으면 기본 SECRET 사용
-                const secret = process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET;
+                const secret = process.env.SUPER_JWT_SECRET;
+                if (!secret) return json({ ok: false, message: '서버 환경 변수 에러' }, 500);
                 const token = await signJWT({ realm: 'super', uid, isSuper: true }, secret, 86400);
                 res.setHeader('Set-Cookie', `super_token=${token}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax; Secure`);
                 return json({ ok: true, token });
@@ -271,6 +278,7 @@ export default async function handler(req, res) {
         if (pathname === '/api/get-upload-url' && method === 'POST') {
             const auth = await getAuth();
             if (!auth) return json({ ok: false }, 401); // 관리자 아니면 즉시 거절
+            if (!supabase) return json({ ok: false, error: 'Server storage configuration is missing' }, 500); // 🚀 방어 로직 추가
         
             const { fileName, fileType } = safeBody;
             const filePath = `${auth.storeId}/${Date.now()}-${fileName}`;
@@ -368,7 +376,7 @@ export default async function handler(req, res) {
                         return json({ ok: false, message: '결제 코드가 올바르지 않거나 만료되었습니다.' }, 403);
                     }
                 }
-
+                let finalAmount = amount;
                 // 🛡️ [추가] 금액 위변조 검증 로직 (최소 수정)
                 try {
                     let menus = menuCache.get(storeId)?.data; 
@@ -386,6 +394,7 @@ export default async function handler(req, res) {
                         if (!dbMenu) return sum;
                 
                         const unitPrice = Number(dbMenu.price || 0);
+                        item.price = unitPrice;
                 
                         // 🛡️ [핵심 수정] 클라이언트의 o.price를 믿지 않고, DB options 배열에서 가격을 찾습니다.
                         const dbOptions = Array.isArray(dbMenu.options) ? dbMenu.options : JSON.parse(dbMenu.options || '[]');
@@ -397,6 +406,7 @@ export default async function handler(req, res) {
                                 const found = group.items?.find(it => it.label === selected.label);
                                 if (found) {
                                     realPrice = Number(found.price || 0);
+                                    selected.price = realPrice;
                                     break;
                                 }
                             }
@@ -446,13 +456,14 @@ export default async function handler(req, res) {
                     if (Math.abs(validTotal - amount) > 1) {
                         return json({ ok: false, message: '금액 검증 실패: 비정상적인 결제 요청입니다.' }, 400);
                     }
+                    finalAmount = validTotal;
                 } catch (e) { 
                     return json({ ok: false, message: '검증 중 오류 발생' }, 500); 
                 }
 
                 const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
                 if (type === 'store') {
-                    await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, amount, JSON.stringify({ cart, ts: Date.now() })]);
+                    await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, finalAmount, JSON.stringify({ cart, ts: Date.now() })]);
                 } else {
                     const newNumericId = parseInt(String(Date.now()).slice(-9)); 
                     await query(`INSERT INTO orderss (order_id, store_id, type, status, customer_name, customer_phone, address, items, total_amount, lookup_pw, order_no, meta) 
@@ -466,7 +477,7 @@ export default async function handler(req, res) {
                             customer.phone, 
                             customer.fullAddr, 
                             JSON.stringify(cart), 
-                            amount, 
+                            finalAmount, 
                             lookupPw, 
                             newOrderNo, 
                             JSON.stringify(clientMeta)
@@ -475,6 +486,7 @@ export default async function handler(req, res) {
                 }
                 // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
                 try {
+                    if (supabase) {
                     supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
@@ -482,9 +494,12 @@ export default async function handler(req, res) {
                             orderId: newOrderNo,
                             orderType: type, 
                             table: table || '예약', 
-                            amount, customerName: customer?.name || '비회원', at: new Date().toISOString() 
+                            amount: finalAmount,
+                            customerName: customer?.name || '비회원', 
+                            at: new Date().toISOString() 
                         } 
                     }).catch(e => console.error("비동기 알림 실패:", e)); // 비동기 에러 처리만 추가
+                    }
                 } catch (err) {}
                 
                 return json({ ok: true, orderId: newOrderNo });
@@ -506,6 +521,7 @@ export default async function handler(req, res) {
                 else await query(`UPDATE ${tableName} 
                 SET meta = $1 WHERE ${idColumn} = $2`, [JSON.stringify(newMeta), orderId]);
                 try {
+                    if (supabase) {
                     let broadcastId = orderId; 
                     if (type !== 'store') {
                         // 예약주문이면 숫자로 된 ID 대신 손님이 아는 '주문번호(order_no)'를 가져옵니다.
@@ -519,6 +535,7 @@ export default async function handler(req, res) {
                         payload: { orderId: broadcastId, status, type } 
                     }); 
                     console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (ID: ${broadcastId})`);
+                    }
                 } catch (err) {
                     console.error("❌ 실시간 신호 전송 실패:", err);
                 }
