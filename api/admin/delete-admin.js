@@ -32,7 +32,10 @@ export default async function handler(req) {
     const token = authHeader.substring(7);
     // 환경 변수가 없을 경우 에러를 던져서 실행을 중단시킵니다.
     if (!process.env.SUPER_JWT_SECRET) {
-      throw new Error("환경 변수 SUPER_JWT_SECRET이 설정되지 않았습니다.");
+      return new Response(
+            JSON.stringify({ ok: false, error: 'SERVER_CONFIG_ERROR', message: '서버 환경 변수(SUPER_JWT_SECRET)가 설정되지 않았습니다.' }), 
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
     }
 
     const payload = verifyJWT(token, process.env.SUPER_JWT_SECRET);
@@ -51,7 +54,7 @@ export default async function handler(req) {
         return new Response(JSON.stringify({ ok: false, error: 'REQUIRED', message: 'adminId가 필요합니다' }), { status: 400 });
     }
 
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL || "postgres://dummy:dummy@dummy:5432/dummy" });
 
     try {
         // 1) 매핑 테이블 확인 (admin_store_mapping)
@@ -90,4 +93,5 @@ export default async function handler(req) {
         await pool.end();
     }
 }
+
 
