@@ -629,7 +629,11 @@ return `
 document.getElementById('history-close').onclick = () => {
     document.getElementById('history-modal').style.display = 'none';
 };
-
+window.addEventListener('beforeunload', () => {
+    if (typeof supabaseMgr !== 'undefined') {
+        supabaseMgr.unsubscribeAll();
+    }
+});
 </script>
 </body>
 </html>
