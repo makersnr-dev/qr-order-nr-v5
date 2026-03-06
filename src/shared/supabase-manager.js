@@ -69,6 +69,28 @@ class SupabaseManager {
             });
         });
     }
+    // 🧹 [추가 1] 특정 매장의 채널만 콕 집어서 끊기 (페이지 이동 시 사용)
+    async unsubscribe(storeId) {
+        if (!this.client || !storeId) return;
+        const channelName = `qrnr_realtime_${storeId}`;
+        const channel = this.channels.get(channelName);
+        
+        if (channel) {
+            await this.client.removeChannel(channel);
+            this.channels.delete(channelName);
+            console.log(`🧹 [Supabase] ${channelName} 채널을 안전하게 종료했습니다.`);
+        }
+    }
+
+    // 🧹 [추가 2] 열려있는 모든 채널 한 번에 끊기 (브라우저 종료/새로고침 시 방어용)
+    async unsubscribeAll() {
+        if (!this.client) return;
+        for (const [name, channel] of this.channels.entries()) {
+            await this.client.removeChannel(channel);
+            console.log(`🧹 [Supabase] ${name} 채널 강제 종료 완료`);
+        }
+        this.channels.clear();
+    }
 }
 
 export const supabaseMgr = new SupabaseManager();
