@@ -119,5 +119,8 @@ const payload = verifyJWT(token, process.env.SUPER_JWT_SECRET);
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
+  }finally {
+    // 🚀 [수정 3 - 보너스] 매핑 작업이 끝난 후 DB 연결을 깔끔하게 닫아 메모리 누수 방지
+    await pool.end();
   }
 }
