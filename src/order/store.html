@@ -371,7 +371,8 @@ function cleanOldOrders(sid) {
         const amount = cart.total();
         const cartItems = cart.items;
         const storeId = window.qrnrStoreId;
-
+        const inputCode = document.getElementById('paycode').value.trim();
+      
         const payload = {
             storeId,
             type: 'store',
