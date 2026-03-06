@@ -2,6 +2,7 @@
 // 슈퍼 관리자 전용: 신규 관리자 등록 API
 
 import { Pool } from '@neondatabase/serverless';
+import { verifyJWT } from '../../src/shared/jwt.js'; 
 
 export const config = { runtime: 'edge' };
 
@@ -13,23 +14,6 @@ async function hashPassword(password) {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return hashHex;
-}
-
-// JWT 검증 함수
-function verifyJWT(token, secret) {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-
-    const payload = JSON.parse(atob(parts[1]));
-    // 간단한 만료 검증
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
-    return payload;
-  } catch (e) {
-    return null;
-  }
 }
 
 export default async function handler(req) {
@@ -59,7 +43,7 @@ export default async function handler(req) {
     );
   }
   
-  const payload = verifyJWT(token, process.env.SUPER_JWT_SECRET);
+  const payload = await verifyJWT(token, process.env.SUPER_JWT_SECRET);
 
   if (!payload || payload.realm !== 'super') {
     return new Response(
