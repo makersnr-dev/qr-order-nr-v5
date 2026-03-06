@@ -197,5 +197,8 @@ export default async function handler(req) {
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
+  }finally {
+    // 🚀 [추가] 회원가입 처리 후에도 DB 연결을 안전하게 닫아줍니다.
+    await pool.end();
   }
 }
