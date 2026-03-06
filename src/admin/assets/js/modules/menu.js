@@ -250,40 +250,81 @@ function openMenuDetailModal(target, onSave) {
     let optionGroups = JSON.parse(JSON.stringify(target.options || []));
 
     // 🚀 사진 업로드 로직
+    // 🚀 사진 업로드 및 자동 압축 로직
     fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        statusEl.textContent = "⏳ 서버 승인 중...";
+        
+        statusEl.textContent = "⏳ 이미지 압축 중...";
+
         try {
-            // 1. 서버에 업로드 허가(Signed URL) 요청
+            // 🛠️ [추가된 마법의 코드] 브라우저(Canvas)를 이용해 이미지 화질과 크기 압축
+            const compressedFile = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 500; // 가로 최대 500px로 고정
+                        let width = img.width;
+                        let height = img.height;
+
+                        // 비율 유지하면서 크기 줄이기
+                        if (width > MAX_WIDTH) {
+                            height = Math.round(height * (MAX_WIDTH / width));
+                            width = MAX_WIDTH;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // WebP 형식으로 압축 (화질 80%) - 용량이 극적으로 줄어듦
+                        canvas.toBlob((blob) => {
+                            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".webp"), {
+                                type: 'image/webp',
+                                lastModified: Date.now(),
+                            });
+                            resolve(newFile);
+                        }, 'image/webp', 0.8);
+                    };
+                };
+            });
+
+            // 1. 서버에 압축된 파일 정보로 업로드 허가(Signed URL) 요청
             statusEl.textContent = "⏳ 서버 승인 중...";
             const res = await fetch('/api/get-upload-url', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, fileType: file.type })
+                // 원본 file 대신 compressedFile 사용
+                body: JSON.stringify({ fileName: compressedFile.name, fileType: compressedFile.type })
             });
             
             const { ok, uploadUrl, publicPath, error: serverError } = await res.json();
             if (!ok) throw new Error(serverError || "서버 승인 거부");
 
-            // 2. 받은 허가증(Signed URL) 주소로 파일 직접 전송 (PUT 방식)
+            // 2. 받은 허가증(Signed URL) 주소로 '압축된 파일' 직접 전송
             statusEl.textContent = "⏳ 업로드 중...";
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type }
+                body: compressedFile, // 🚀 여기도 압축 파일로 변경
+                headers: { 'Content-Type': compressedFile.type }
             });
 
             if (!uploadRes.ok) throw new Error("파일 전송 실패");
 
-            const client = await supabaseMgr.getClient(); // 관리자에게 Supabase 객체를 받아옴
+            // 3. Supabase 객체를 받아와서 공개 URL 생성
+            const client = await supabaseMgr.getClient(); 
             const { data: { publicUrl } } = client.storage
                 .from('menu-images').getPublicUrl(publicPath);
 
             // 4. 화면 결과 반영
             imgPreview.src = publicUrl;
             imgEl.value = publicUrl;
-            statusEl.textContent = "✅ 보안 업로드 완료!";
+            statusEl.textContent = "✅ 초고속 압축 업로드 완료!";
 
         } catch (err) {
             console.error("업로드 에러:", err);
