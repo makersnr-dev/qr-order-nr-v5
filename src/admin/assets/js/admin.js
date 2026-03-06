@@ -292,7 +292,16 @@ async function initRealtimeAlarm(storeId) {
         showToast(`🔔 [호출] ${tableNo}번 테이블: ${note}`, "info");
         showDesktopNotification(`🔔 직원 호출 (${tableNo}번)`, note);
         if (typeof safeRenderNotifyLogs === 'function') safeRenderNotifyLogs(storeId);
-    });
+    })
+  .on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
+        const { orderId, type } = payload.payload;
+        // 누군가 상태를 변경하면 내 화면도 즉시 새로고침하여 반영
+        if (type === 'store') {
+            if (typeof safeRenderStore === 'function') safeRenderStore(storeId);
+        } else {
+            if (typeof safeRenderDeliv === 'function') safeRenderDeliv(storeId);
+        }
+    }); 
 
     updateStatusUI('CONNECTED');
 }
