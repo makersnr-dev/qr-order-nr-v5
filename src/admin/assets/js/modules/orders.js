@@ -654,7 +654,7 @@ export async function renderDeliv(storeId, newOrder = null) {
 // 🚀 [추가] 새 주문 1개만 들어왔을 때 DB 안 가고 배열에 끼워넣기
   if (newOrder) {
     rows = window.lastDelivOrders || [];
-    if (!rows.find(o => o.order_id === newOrder.order_id)) rows.push(newOrder);
+    if (!rows.find(o => o.order_no === newOrder.order_no)) rows.push(newOrder);
   } 
   // 🚀 [기존] 처음 로딩이거나 전체 새로고침일 때만 DB 전체 조회
   else {
@@ -720,14 +720,14 @@ export async function renderDeliv(storeId, newOrder = null) {
       <td data-label="예약일시" class="td-reserve-dt">${reserveDateTime}</td>
       <td data-label="요청사항" class="td-req">${req}</td>
       <td data-label="주문내역">
-        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_id}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
+        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_no}" style="cursor:pointer;text-decoration:underline">${items || '-'}</span>
       </td>
       <td data-label="합계 / 상태">
         <div style="display:flex;flex-direction:column;gap:6px">
           <div style="font-weight:600">${fmt(o.total_amount)}원</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge-dot ${status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'}"></span>
-            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_id}">
+            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_no}">
               <option selected>${status}</option>
               ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
             </select>
