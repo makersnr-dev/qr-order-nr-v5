@@ -603,13 +603,17 @@ export default async function handler(req, res) {
 
                 try {
                     if (supabase) {
-                        // 통합되었으므로 복잡한 ID 변환 없이 바로 orderId를 쏴줍니다.
+                        // 🚀 [추가] 결제 상태가 변경되었다면 따로 뽑아내서 같이 쏴줍니다!
+                        let payStatus = null;
+                        if (meta?.payment?.paid) payStatus = '결제완료';
+                        if (meta?.payment?.cancelled) payStatus = '결제취소';
+
                         await supabase.channel(`qrnr_realtime_${storeId}`).send({ 
                             type: 'broadcast', 
                             event: 'STATUS_CHANGED', 
-                            payload: { orderId: orderId, status, type } 
+                            payload: { orderId: orderId, status: status, type: type, paymentStatus: payStatus } 
                         }); 
-                        console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (ID: ${orderId})`);
+                        console.log(`✅ 실시간 상태 변경 신호 전송: ${status || payStatus} (ID: ${orderId})`);
                     }
                 } catch (err) {
                     console.error("❌ 실시간 신호 전송 실패:", err);
