@@ -564,7 +564,7 @@ export default async function handler(req, res) {
                 // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
                 try {
                     if (supabase) {
-                    supabase.channel(`qrnr_realtime_${storeId}`).send({
+                        await supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
                             orderNo: newOrderNo,
