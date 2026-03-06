@@ -459,14 +459,16 @@ async function initRealtimeSync() {
           });
           
             channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
-              const { orderId, status } = payload.payload;
+              const { orderId, status, paymentStatus } = payload.payload; // 🚀 paymentStatus 추가 수신
               
-              // 1. 로컬 스토리지 데이터 갱신
               let history = JSON.parse(localStorage.getItem(`orders_${storeId}`) || "[]");
               let isUpdated = false;
               history = history.map(o => {
                   if (String(o.id) === String(orderId)) { 
-                      o.status = status; 
+                      // 🚀 status가 비어있지 않을 때만 메인 상태 변경 (undefined 방어!)
+                      if (status) o.status = status; 
+                      // 🚀 결제 상태가 넘어왔다면 별도로 저장
+                      if (paymentStatus) o.paymentStatus = paymentStatus; 
                       isUpdated = true;
                   }
                   return o;
@@ -475,20 +477,33 @@ async function initRealtimeSync() {
               if (isUpdated) {
                   localStorage.setItem(`orders_${storeId}`, JSON.stringify(history));
                   
-                  // 2. 현재 화면에 열려있는 주문 내역 카드 UI 즉시 반영
                   const targetCard = document.querySelector(`[data-oid="${orderId}"]`);
                   if (targetCard) {
-                      const label = targetCard.querySelector('.status-label');
-                      if (label) {
-                          label.textContent = status;
-                          label.style.color = (status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043';
-                          
-                          // 시각적 피드백 (깜빡임 효과)
-                          targetCard.style.borderColor = '#2ea043';
-                          setTimeout(() => { targetCard.style.borderColor = '#263241'; }, 1000);
+                      // 1) 메인 주문상태 업데이트
+                      if (status) {
+                          const label = targetCard.querySelector('.status-label');
+                          if (label) {
+                              label.textContent = status;
+                              label.style.color = (status === '주문취소') ? '#ef4444' : '#2ea043';
+                          }
                       }
+                      // 2) 결제상태 뱃지 업데이트
+                      if (paymentStatus) {
+                          const payLabel = targetCard.querySelector('.pay-status-label');
+                          if (payLabel) {
+                              const pColor = paymentStatus === '결제취소' ? '#ef4444' : '#2ea043';
+                              payLabel.textContent = paymentStatus;
+                              payLabel.style.color = pColor;
+                              payLabel.style.borderColor = pColor;
+                              payLabel.style.display = 'inline-block';
+                          }
+                      }
+                      targetCard.style.borderColor = '#2ea043';
+                      setTimeout(() => { targetCard.style.borderColor = '#263241'; }, 1000);
                   }
-                  showToast(`🔔 주문 상태가 [${status}]로 변경되었습니다.`, "success");
+                  
+                  const msg = status ? `상태가 [${status}]로 변경되었습니다.` : `결제가 [${paymentStatus}] 처리되었습니다.`;
+                  showToast(`🔔 ${msg}`, "success");
               }
           });
             channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
@@ -600,17 +615,26 @@ document.getElementById('btn-show-history').onclick = () => {
 
             // [보안] 상태값(status)에 esc 적용
             const status = o.status || '주문접수';
-            const isCanceled = (status === '주문취소' || status === '결제취소');
+            const payStatus = o.paymentStatus || ''; // 🚀 로컬 스토리지에 저장해둔 결제 상태 꺼내기
+            
+            // 🚀 결제 뱃지 태그 미리 만들기
+            let payBadgeHtml = `<b class="pay-status-label" style="display:none; font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid; margin-right:6px;"></b>`;
+            if (payStatus) {
+                const pColor = payStatus === '결제취소' ? '#ef4444' : '#2ea043';
+                payBadgeHtml = `<b class="pay-status-label" style="color:${pColor}; border:1px solid ${pColor}; font-size:10px; padding:2px 6px; border-radius:4px; margin-right:6px;">${esc(payStatus)}</b>`;
+            }
 
-          // store.html 내의 history-list 관련 return 부분
 return `
     <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:16px; border-radius:14px; border:1px solid #263241; margin-bottom:15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <div class="hstack" style="justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #263241; padding-bottom:8px;">
             <span class="small" style="color:#9ca3af;">${new Date(o.ts).toLocaleString()}</span>
             
-            <b class="status-label" style="color:${(status === '주문취소' || status === '결제취소') ? '#ef4444' : '#2ea043'}; font-size:12px;">
-                ${esc(status)}
-            </b>
+            <div>
+                ${payBadgeHtml}
+                <b class="status-label" style="color:${(status === '주문취소') ? '#ef4444' : '#2ea043'}; font-size:12px;">
+                    ${esc(status)}
+                </b>
+            </div>
         </div>
         <div class="vstack" style="gap:4px;">
             ${itemDetails}
