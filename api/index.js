@@ -461,7 +461,7 @@ export default async function handler(req, res) {
                     return json({ ok: false, message: '검증 중 오류 발생' }, 500); 
                 }
 
-                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                /*const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
                 if (type === 'store') {
                     await query(`INSERT INTO orders (store_id, order_no, status, table_no, amount, meta) VALUES ($1, $2, '주문접수', $3, $4, $5)`, [storeId, newOrderNo, table, finalAmount, JSON.stringify({ cart, ts: Date.now() })]);
                 } else {
@@ -483,7 +483,27 @@ export default async function handler(req, res) {
                             JSON.stringify(clientMeta)
                         ]
                     );
-                }
+                }*/
+                const newOrderNo = `${storeId}-${type === 'store' ? 'S' : 'R'}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        
+        // 🚀 [통합 1단계] 매장 주문과 예약 주문을 하나의 테이블(orders_v2)에 깔끔하게 넣습니다.
+        const initStatus = type === 'store' ? '주문접수' : '입금 미확인';
+        const cName = customer?.name || null;
+        const cPhone = customer?.phone || null;
+        const cAddr = customer?.fullAddr || null;
+        
+        // 기존 프론트엔드가 에러 나지 않도록 meta 데이터 형태 유지
+        const metaData = type === 'store' ? { ts: Date.now() } : (clientMeta || {});
+
+        await query(`
+            INSERT INTO orders_v2 (
+                store_id, order_no, order_type, status, total_amount, items,
+                table_no, customer_name, customer_phone, address, lookup_pw, meta
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `, [
+            storeId, newOrderNo, type, initStatus, finalAmount, JSON.stringify(cart),
+            table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
+        ]);
                 // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
                 try {
                     if (supabase) {
