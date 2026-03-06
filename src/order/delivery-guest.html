@@ -725,18 +725,35 @@
         if (!channel) return;
         // 🚀 [추가 시작] 관리자가 예약 상태를 바꿨을 때 화면의 글자를 즉시 고침
         channel.on('broadcast', { event: 'STATUS_CHANGED' }, (payload) => {
-            const { orderId, status } = payload.payload;
+            const { orderId, status, paymentStatus } = payload.payload; 
             
-            // 현재 내가 조회 중인 예약 번호와 관리자가 바꾼 번호가 일치할 때만 실행
             if (String(currentLookupOrderNo) === String(orderId)) {
-                // 조회 결과 창에서 상태를 나타내는 태그(색상 배경이 있는 b 태그)를 찾아 글자 변경
-                const badge = document.querySelector('#lookup-result-list b[style*="background"]');
-                if (badge) {
-                    badge.textContent = status;
-                    // 상태에 따라 배경색 변경 (주문취소는 빨간색, 나머지는 초록색)
-                    badge.style.background = (status === '주문취소') ? '#ef4444' : '#2ea043';
-                    showToast(`🔔 예약 상태가 [${status}]로 변경되었습니다.`, "info");
+                const resultBox = document.getElementById('lookup-result-list');
+                if (!resultBox) return;
+
+                // 1) 메인 예약 상태 업데이트
+                if (status) {
+                    const badge = resultBox.querySelector('b[style*="background"]'); // 상태 글자 태그 찾기
+                    if (badge) {
+                        badge.textContent = status;
+                        badge.style.background = (status === '주문취소') ? '#ef4444' : '#2ea043';
+                    }
                 }
+                
+                // 2) 🚀 결제 상태 뱃지 업데이트 (추가된 부분!)
+                if (paymentStatus) {
+                    let payLabel = resultBox.querySelector('.pay-status-label');
+                    if (payLabel) {
+                        const pColor = paymentStatus === '결제취소' ? '#ef4444' : '#2ea043';
+                        payLabel.textContent = paymentStatus;
+                        payLabel.style.color = pColor;
+                        payLabel.style.borderColor = pColor;
+                        payLabel.style.display = 'inline-block';
+                    }
+                }
+                
+                const msg = status ? `예약 상태가 [${status}]로 변경되었습니다.` : `결제가 [${paymentStatus}] 처리되었습니다.`;
+                showToast(`🔔 ${msg}`, "info");
             }
         });
         channel.on('broadcast', { event: 'RELOAD_SIGNAL' }, async (payload) => {
@@ -892,16 +909,30 @@
           const resTime = meta.reserve?.time || '-';
           const memo = meta.memo || '없음';
 
-          // ⚠️ 여기 백틱 내부의 HTML은 사용자님의 원본을 한 글자도 바꾸지 않았습니다.
-          // delivery-guest.html 내 조회 결과 생성 부분 수정
+          // 🚀 [추가] 결제 상태 확인 후 뱃지 HTML 만들기
+          const isPaid = meta?.payment?.paid;
+          const isCancelled = meta?.payment?.cancelled;
+          let payStatus = '';
+          if (isPaid) payStatus = '결제완료';
+          if (isCancelled) payStatus = '결제취소';
+
+          let payBadgeHtml = `<b class="pay-status-label" style="display:none; font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid; margin-right:6px;"></b>`;
+          if (payStatus) {
+              const pColor = payStatus === '결제취소' ? '#ef4444' : '#2ea043';
+              payBadgeHtml = `<b class="pay-status-label" style="color:${pColor}; border:1px solid ${pColor}; font-size:10px; padding:2px 6px; border-radius:4px; margin-right:6px;">${esc(payStatus)}</b>`;
+          }
+
           return `
               <div class="order-card" data-oid="${o.id}" style="background:#161b22; padding:15px; border-radius:12px; border:1px solid #2ea043; line-height:1.6; font-size:13px; margin-bottom:10px;">
                   <div class="hstack" style="justify-content:space-between; border-bottom:1px solid #263241; padding-bottom:8px; margin-bottom:10px;">
                       <b style="color:#2ea043; font-size:14px;">예약번호: ${esc(o.id.split('-').pop())}</b>
                       
-                      <b class="status-badge" style="background:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; padding:2px 8px; border-radius:4px; font-size:11px;">
-                          ${esc(o.status)}
-                      </b>
+                      <div>
+                          ${payBadgeHtml}
+                          <b class="status-badge" style="background:${o.status === '주문취소' ? '#ef4444' : '#2ea043'}; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px;">
+                              ${esc(o.status)}
+                          </b>
+                      </div>
                   </div>
                   
                   <div style="margin-bottom:8px;">
