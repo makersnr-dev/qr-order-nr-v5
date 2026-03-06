@@ -515,3 +515,8 @@ if (delivRefreshBtn) {
 }
 
 main();
+window.addEventListener('beforeunload', () => {
+    if (typeof supabaseMgr !== 'undefined') {
+        supabaseMgr.unsubscribeAll();
+    }
+});
