@@ -299,29 +299,80 @@ export default async function handler(req, res) {
             const auth = await getAuth();
             if (!auth && method !== 'POST') return json({ ok: false }, 401);
             if (method === 'GET') {
+                        /*const type = params.get('type');
+                        const orderNo = params.get('orderNo'); // 상세 조회를 위한 파라미터 추가
+            
+                        // 1. DB 쿼리 실행 (단일 조회와 목록 조회를 분기)
+                        let r;
+                        if (orderNo) {
+                            // [상세 조회용] 주문번호가 있을 때
+                            const tableName = (type === 'store') ? 'orders' : 'orderss';
+                            r = await query(`SELECT * FROM ${tableName} WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
+                        } else {
+                            // [목록 조회용] 최신 500개 제한
+                            r = (type === 'store') 
+                                ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId])
+                                : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId]);
+                        }
+            
+                        // 2. 데이터 가공 (기존 로직 100% 보존)
+                        const orders = r.rows.map(row => {
+                            const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
+                            
+                            const items = (type === 'store') 
+                                ? (meta.cart || []) 
+                                : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+            
+                            let displaySummary = '상품 없음';
+                            if (items.length > 0) {
+                                const first = items[0];
+                                let rawOpts = first.optionText || first.options || [];
+                                if (typeof rawOpts === 'string') try { rawOpts = JSON.parse(rawOpts); } catch(e) { rawOpts = []; }
+                                
+                                let optText = '';
+                                if (rawOpts.length > 0) {
+                                    const firstOpt = typeof rawOpts[0] === 'string' ? rawOpts[0].split(':').pop() : (rawOpts[0].label || rawOpts[0].name);
+                                    if (rawOpts.length > 1) optText = ` [${firstOpt} 외 ${rawOpts.length - 1}]`;
+                                    else optText = ` [${firstOpt}]`;
+                                }
+                                displaySummary = `${first.name} x ${first.qty}${optText}`;
+                                if (items.length > 1) displaySummary += ` 외 ${items.length - 1}건`;
+                            }
+            
+                            if (type === 'store') {
+                                return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
+                            } else {
+                                return { 
+                                    ...row, 
+                                    orderId: row.order_no, 
+                                    amount: row.total_amount, 
+                                    cart: items, 
+                                    displaySummary, 
+                                    customer: { name: row.customer_name, phone: row.customer_phone, addr: row.address }, 
+                                    reserve: meta.reserve || {}, 
+                                    requestMsg: meta.reserve?.note || meta.reserve?.message || meta.memo || '-', 
+                                    ts: new Date(row.created_at).getTime(), 
+                                    meta 
+                                };
+                            }
+                        });*/
                 const type = params.get('type');
-                const orderNo = params.get('orderNo'); // 상세 조회를 위한 파라미터 추가
+                const orderNo = params.get('orderNo'); 
     
-                // 1. DB 쿼리 실행 (단일 조회와 목록 조회를 분기)
+                // 🚀 [통합 2단계] 무조건 orders_v2 테이블 딱 하나만 조회합니다!
                 let r;
                 if (orderNo) {
-                    // [상세 조회용] 주문번호가 있을 때
-                    const tableName = (type === 'store') ? 'orders' : 'orderss';
-                    r = await query(`SELECT * FROM ${tableName} WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
+                    r = await query(`SELECT * FROM orders_v2 WHERE store_id = $1 AND order_no = $2`, [storeId, orderNo]);
                 } else {
-                    // [목록 조회용] 최신 500개 제한
-                    r = (type === 'store') 
-                        ? await query('SELECT * FROM orders WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId])
-                        : await query('SELECT * FROM orderss WHERE store_id = $1 ORDER BY created_at DESC LIMIT 500', [storeId]);
+                    r = await query(`SELECT * FROM orders_v2 WHERE store_id = $1 AND order_type = $2 ORDER BY created_at DESC LIMIT 500`, [storeId, type]);
                 }
     
-                // 2. 데이터 가공 (기존 로직 100% 보존)
+                // 2. 데이터 가공 (기존 프론트엔드가 놀라지 않게, 예전 모양 그대로 포장해서 줍니다)
                 const orders = r.rows.map(row => {
                     const meta = typeof row.meta === 'string' ? JSON.parse(row.meta || '{}') : (row.meta || {});
                     
-                    const items = (type === 'store') 
-                        ? (meta.cart || []) 
-                        : (typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []));
+                    // 이제 매장이든 예약이든 메뉴는 무조건 items 컬럼에 들어있습니다.
+                    const items = typeof row.items === 'string' ? JSON.parse(row.items || '[]') : (row.items || []);
     
                     let displaySummary = '상품 없음';
                     if (items.length > 0) {
@@ -340,7 +391,14 @@ export default async function handler(req, res) {
                     }
     
                     if (type === 'store') {
-                        return { ...row, orderId: row.order_no, cart: items, displaySummary, ts: new Date(row.created_at).getTime() };
+                        return { 
+                            ...row, 
+                            orderId: row.order_no, 
+                            amount: row.total_amount, // orders_v2의 통합된 금액 컬럼 사용
+                            cart: items, 
+                            displaySummary, 
+                            ts: new Date(row.created_at).getTime() 
+                        };
                     } else {
                         return { 
                             ...row, 
@@ -356,7 +414,6 @@ export default async function handler(req, res) {
                         };
                     }
                 });
-    
                 // 3. 응답 반환
                 if (orderNo) {
                     return json({ ok: true, order: orders[0] || null }); 
@@ -526,6 +583,41 @@ export default async function handler(req, res) {
             }
             if (method === 'PUT') {
                 const { orderId, type, status, meta, metaAppend } = safeBody;
+                
+                // 🚀 [통합 3단계] 무조건 orders_v2 테이블만 봅니다. 기준은 order_no로 통일!
+                const existing = await queryOne(`SELECT meta FROM orders_v2 WHERE order_no = $1`, [orderId]);
+                if (!existing) return json({ ok: false, error: 'ORDER_NOT_FOUND' }, 404);
+
+                let newMeta = { ...existing.meta, ...meta };
+                if (metaAppend?.history) {
+                    const history = existing.meta?.history || [];
+                    history.push(metaAppend.history);
+                    newMeta.history = history;
+                }
+
+                if (status) {
+                    await query(`UPDATE orders_v2 SET status = $1, meta = $2, updated_at = NOW() WHERE order_no = $3`, [status, JSON.stringify(newMeta), orderId]);
+                } else {
+                    await query(`UPDATE orders_v2 SET meta = $1, updated_at = NOW() WHERE order_no = $2`, [JSON.stringify(newMeta), orderId]);
+                }
+
+                try {
+                    if (supabase) {
+                        // 통합되었으므로 복잡한 ID 변환 없이 바로 orderId를 쏴줍니다.
+                        await supabase.channel(`qrnr_realtime_${storeId}`).send({ 
+                            type: 'broadcast', 
+                            event: 'STATUS_CHANGED', 
+                            payload: { orderId: orderId, status, type } 
+                        }); 
+                        console.log(`✅ 실시간 상태 변경 신호 전송: ${status} (ID: ${orderId})`);
+                    }
+                } catch (err) {
+                    console.error("❌ 실시간 신호 전송 실패:", err);
+                }
+                return json({ ok: true });
+            }
+            /*if (method === 'PUT') {
+                const { orderId, type, status, meta, metaAppend } = safeBody;
                 const tableName = type === 'store' ? 'orders' : 'orderss';
                 const idColumn = type === 'store' ? 'order_no' : 'order_id';
                 const existing = await queryOne(`SELECT meta FROM ${tableName} WHERE ${idColumn} = $1`, [orderId]);
@@ -560,7 +652,7 @@ export default async function handler(req, res) {
                     console.error("❌ 실시간 신호 전송 실패:", err);
                 }
                 return json({ ok: true });
-            }
+            }*/
             // 🚀 [추가 시작] 비회원 주문 조회를 위한 신규 경로
             /*if (pathname.includes('/api/orders/lookup')) {
                 if (method !== 'POST') return json({ ok: false, message: '지원하지 않는 방식입니다.' }, 405);
@@ -822,7 +914,7 @@ async function handleLookup(req, res, safeBody, params) {
     }
     
     try {
-        const r = await query(`
+        /*const r = await query(`
             SELECT 
                 order_no, status, total_amount as amount, items, 
                 customer_name, customer_phone, address, meta, created_at
@@ -831,8 +923,20 @@ async function handleLookup(req, res, safeBody, params) {
               -- 🚀 [수정] REPLACE 앞에 직접 비교를 추가하여 DB 인덱스 사용을 유도함
               AND (customer_phone = $3 OR REPLACE(customer_phone, '-', '') = $3)
             ORDER BY created_at DESC LIMIT 20 -- 속도 보완을 위해 갯수 제한 추가
+        `, [storeId, name, cleanPhone, pw]);*/
+    // 🚀 [통합 4단계] 비회원 조회도 orders_v2를 바라보도록 변경!
+        const r = await query(`
+            SELECT 
+                order_no, status, total_amount as amount, items, 
+                customer_name, customer_phone, address, meta, created_at
+            FROM orders_v2 
+            WHERE store_id = $1 
+              AND order_type = 'reserve'
+              AND customer_name = $2 
+              AND lookup_pw = $4
+              AND (customer_phone = $3 OR REPLACE(customer_phone, '-', '') = $3)
+            ORDER BY created_at DESC LIMIT 20
         `, [storeId, name, cleanPhone, pw]);
-
         const orders = r.rows.map(row => ({
             id: row.order_no,
             status: row.status,
