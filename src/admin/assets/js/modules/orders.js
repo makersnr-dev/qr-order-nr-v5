@@ -954,6 +954,7 @@ export function attachGlobalHandlers() {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          storeId: currentStoreId(),
           orderId: id,
           type: 'store',
           meta: { payment: { paid: true, paidAt: new Date().toISOString(), method: 'POS' } },
@@ -1040,6 +1041,7 @@ document.getElementById('cancel-reason-confirm')?.addEventListener('click', asyn
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        storeId: currentStoreId(),
         orderId: id,
         type,
         ...(isPaymentCancel ? {} : { status }),
