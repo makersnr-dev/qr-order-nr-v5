@@ -697,7 +697,7 @@ export async function renderDeliv(storeId, newOrder = null) {
   tbody.innerHTML = '';
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="small">배달/예약 주문이 없습니다.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="small">예약 주문이 없습니다.</td></tr>`;
     return;
   }
 
