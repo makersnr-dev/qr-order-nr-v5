@@ -197,7 +197,7 @@ function ensureMenuDetailModal() {
     modal.style.cssText = `position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px;`;
     
     modal.innerHTML = `
-        <div style="width:860px; max-width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; background:#0b1620; border-radius:16px; color:#e5e7eb; border:1px solid #1f2937;">
+        <div style="width:860px; max-width:100%; max-height:90vh; overflow:auto; background:#0b1620; border-radius:16px; padding:18px; color:#e5e7eb; border:1px solid #1f2937;">
             <h3 style="margin:0 0 14px; color:#fff">메뉴 상세 설정</h3>
             
             <div style="background:#111827; border:1px solid #1f2937; border-radius:12px; padding:14px; margin-bottom:12px; text-align:center;">
