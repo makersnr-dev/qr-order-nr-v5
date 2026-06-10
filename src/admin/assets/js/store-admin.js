@@ -842,7 +842,7 @@ function bindStoreUI() {
       const res = await fetch('/api/stores', {
         method,
         headers: superHeaders(),
-        body: JSON.stringify({ storeId, name, code }),
+        body: JSON.stringify({ adminKey: storeId, storeId, name, code }),
         credentials: 'include'
       });
 
