@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     const getAuth = async () => {
         const cookieHeader = headers.cookie || '';
         const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
-        const isSuperPath = pathname.startsWith('/api/super-') ;
+        const isSuperPath = pathname.startsWith('/api/super-')|| pathname.startsWith('/api/admin/') ;
         let token = isSuperPath ? cookies['super_token'] : (cookies['admin_token'] || cookies['super_token']);
         
         if (!token) return null;
