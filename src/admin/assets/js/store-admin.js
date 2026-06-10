@@ -166,7 +166,8 @@ async function renderMapTable() {
   tbody.innerHTML = '<tr><td colspan="4" class="small" style="text-align:center;padding:20px;color:#3b82f6">⏳ 불러오는 중...</td></tr>';
 
   try {
-    const res = await fetch(`/api/admin/list-mappings?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+
+    const res = await fetch(`/api/admin/list-mappings?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {credentials: 'include' });
 
     if (!res.ok) {
       throw new Error(`서버 오류 (${res.status})`);
@@ -265,8 +266,9 @@ async function renderStoreTable() {
 
   try {
     const res = await fetch(`/api/stores?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, {
-      headers: superHeaders()
-    });
+    headers: superHeaders(),
+    credentials: 'include' 
+  });
 
     if (!res.ok) {
       throw new Error(`서버 오류 (${res.status})`);
@@ -797,8 +799,15 @@ async function init() {
 
   logoutBtn.onclick = async () => {
     if (!confirm('로그아웃할까요?')) return;
-    await superLogout();
-    setSuperToken('');
+    
+    // 1. 서버에 super 쿠키 만료 요청
+    await superLogout(); 
+    
+    // 2. 로컬 스토리지에 박혀있던 super 토큰 강제 삭제
+    setSuperToken(''); 
+    localStorage.removeItem('qrnr.super.jwt'); 
+    
+    // 3. 새로고침해서 싹 비워버리기
     location.reload();
   };
 }
@@ -834,7 +843,7 @@ function bindStoreUI() {
 
     try {
       // Check if store exists
-      const checkRes = await fetch(`/api/stores?page=1&limit=1&search=${encodeURIComponent(storeId)}`);
+      const checkRes = await fetch(`/api/stores?page=1&limit=1&search=${encodeURIComponent(storeId)}`, {credentials: 'include'});
       const checkData = await checkRes.json();
       const exists = checkData.list && checkData.list.some(s => s.store_id === storeId);
 
