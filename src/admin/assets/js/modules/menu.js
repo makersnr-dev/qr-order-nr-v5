@@ -647,7 +647,7 @@ export function bindMenu(storeId) {
             window.currentMenuTab = id.charAt(0).toUpperCase();
             
             const success = await saveMenuToServer(storeId,{ 
-                id, name, price, active: false, soldOut: false, options: [] 
+                id, name, price,category, active: false, soldOut: false, options: [] 
             });
 
             if (success) {
