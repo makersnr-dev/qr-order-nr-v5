@@ -239,8 +239,8 @@ function openMenuModal(item, cartObj) {
 
     modal.innerHTML = `
         <div class="vstack" style="background:#0d1117; width:100%; max-width:400px; border-radius:20px; padding:20px; border:1px solid #263241; max-height:90vh; overflow-y:auto;">
-            <div style="width:100%; aspect-ratio:1.5/1; background:#1c2632; border-radius:12px; overflow:hidden; margin-bottom:15px;">
-                <img src="${item.img || ''}" style="width:100%; height:100%; object-fit:cover;">
+            <div style="width:100%; height:230px; background:#1c2632; border-radius:12px; overflow:hidden; margin-bottom:15px; flex-shrink:0;">
+                <img src="${item.img || ''}" style="width:100%; height:100%; object-fit:cover; display:block;">
             </div>
             <h2 style="margin:0;">${item.name}</h2>
             <p style="color:#9ca3af; font-size:14px; margin:8px 0 15px;">${item.desc || '맛있는 메뉴입니다.'}</p>
