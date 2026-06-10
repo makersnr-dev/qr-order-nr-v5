@@ -156,6 +156,10 @@ export default async function handler(req, res) {
             res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
             return json({ ok: true });
         }
+        if (pathname === '/api/logout-admin') {
+            res.setHeader('Set-Cookie', `admin_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+            return json({ ok: true });
+        }
         
 
         // --- 2. 매장/매핑 관리 (과거 코드 기능 100% 이식) ---
