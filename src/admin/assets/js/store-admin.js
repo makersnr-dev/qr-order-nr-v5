@@ -577,7 +577,8 @@ function bindMappingUI() {
       const dbRes = await fetch('/api/admin/add-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ adminId, storeId, note })
+        body: JSON.stringify({ adminId, storeId, note }),
+        credentials: 'include'
       });
       const dbData = await dbRes.json();
 
@@ -841,7 +842,8 @@ function bindStoreUI() {
       const res = await fetch('/api/stores', {
         method,
         headers: superHeaders(),
-        body: JSON.stringify({ storeId, name, code })
+        body: JSON.stringify({ storeId, name, code }),
+        credentials: 'include'
       });
 
       const data = await res.json();
