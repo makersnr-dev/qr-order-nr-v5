@@ -566,9 +566,28 @@ export default async function handler(req, res) {
             storeId, newOrderNo, type, initStatus, finalAmount, JSON.stringify(cart),
             table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
         ]);
-                // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
-                try {
-                    if (supabase) {
+
+        // 🚀 [여기에 ntfy 무료 푸시 알림 코드가 추가됩니다!]
+        try {
+            // ⚠️ 중요: 아까 1단계에서 ntfy 앱에 만든 '비밀방 이름'을 여기에 똑같이 적으세요!
+            const ntfyTopic = "nr-order-7788"; 
+            
+            fetch(`https://ntfy.sh/${ntfyTopic}`, {
+                method: 'POST',
+                headers: {
+                    'X-Title': `🔔 새 ${type === 'store' ? '매장' : '예약'} 주문 도착!`,
+                    'X-Message': `${table ? table + '번 테이블' : '비회원'} 주문이 접수되었습니다. 금액: ${finalAmount.toLocaleString()}원`,
+                    'X-Priority': '5', // 최상위 우선순위 (진동/소리 강하게 울림)
+                    'Content-Type': 'text/plain; charset=utf-8'
+                },
+                body: '주문 내용을 확인하려면 관리자 창을 열어주세요.'
+            }).catch(() => {}); // 푸시 에러가 나도 주문 처리는 멈추지 않게 방어
+        } catch(e) {}
+
+        // 🚀 [기존 Supabase 실시간 화면 새로고침 신호는 그대로 둡니다]
+        try {
+            if (supabase) {
+                        
                         await supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
