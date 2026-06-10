@@ -415,11 +415,28 @@ if (client) {
   //------------------------------------------------------------------
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
-    logoutBtn.onclick = () => {
+    // 🚀 서버 통신을 기다려야 하므로 async를 붙여줍니다.
+    logoutBtn.onclick = async () => { 
+      if (!confirm('로그아웃할까요?')) return;
+  
+      try {
+        // 1. 서버에 일반/슈퍼 관리자 쿠키를 지워달라고 강력하게 요청 (HttpOnly 쿠키 파괴)
+        await fetch('/api/logout-admin', { method: 'POST' }).catch(() => {});
+        await fetch('/api/super-logout', { method: 'POST' }).catch(() => {});
+      } catch (e) {
+        console.error('서버 로그아웃 요청 실패:', e);
+      }
+  
+      // 2. 브라우저 로컬 저장소 토큰 청소
       clearToken();
-      // super_token 도 제거
-      document.cookie =
-        "super_token=; Path=/; Max-Age=0; SameSite=Lax; Secure;";
+      localStorage.removeItem("qrnr.storeId");
+      localStorage.removeItem("qrnr.adminInfo");
+  
+      // 3. 자바스크립트로 한 번 더 수동 쿠키 제거 (사장님이 적으신 안전장치)
+      document.cookie = "super_token=; Path=/; Max-Age=0; SameSite=Lax; Secure;";
+      document.cookie = "admin_token=; Path=/; Max-Age=0; SameSite=Lax; Secure;";
+  
+      // 4. 로그인 페이지로 튕겨내기
       location.href = "/admin/login";
     };
   }
