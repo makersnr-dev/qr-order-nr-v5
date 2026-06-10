@@ -153,9 +153,10 @@ export default async function handler(req, res) {
             return auth?.realm === 'super' ? json({ ok: true, isSuper: true, superId: auth.uid }) : json({ ok: false }, 401);
         }
         if (pathname === '/api/super-logout') {
-            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly; Path=/`);
+            res.setHeader('Set-Cookie', `super_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`);
             return json({ ok: true });
         }
+        
 
         // --- 2. 매장/매핑 관리 (과거 코드 기능 100% 이식) ---
         if (pathname === '/api/stores' || pathname === '/api/admin-mappings') {
