@@ -567,24 +567,28 @@ export default async function handler(req, res) {
             table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
         ]);
 
-        // 🚀 [여기에 ntfy 무료 푸시 알림 코드가 추가됩니다!]
+        // 🚀 [플랫폼용 동적 ntfy 실시간 푸시 알림 - 한글 버그 완벽 수정본]
         try {
-            // ⚠️ 중요: 아까 1단계에서 ntfy 앱에 만든 '비밀방 이름'을 여기에 똑같이 적으세요!
-            const ntfyTopic = "nr-order-7788"; 
+            const platformName = "qrnr"; 
+            const dynamicTopic = `${platformName}-${storeId}`; // 예: qrnr-narae
             
-            fetch(`https://ntfy.sh/${ntfyTopic}`, {
+            // 💡 한글은 헤더가 아니라 'body' 영역에 실어 보내야 ntfy 서버가 거부하지 않고 폰으로 즉시 던져줍니다!
+            const alertMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문이 접수되었습니다.\n금액: ${finalAmount.toLocaleString()}원`;
+
+            fetch(`https://ntfy.sh/${dynamicTopic}`, {
                 method: 'POST',
                 headers: {
-                    'X-Title': `🔔 새 ${type === 'store' ? '매장' : '예약'} 주문 도착!`,
-                    'X-Message': `${table ? table + '번 테이블' : '비회원'} 주문이 접수되었습니다. 금액: ${finalAmount.toLocaleString()}원`,
-                    'X-Priority': '5', // 최상위 우선순위 (진동/소리 강하게 울림)
+                    // ⚠️ 영문 헤더명은 대소문자 구분을 확실히 해야 스마트폰 OS단에서 가로챕니다!
+                    'Title': 'New Order Received!', 
+                    'Priority': '5', // 5(Urgent): 화면 꺼짐을 깨우고 소리/진동 강제 발생
+                    'Tags': 'bell,package', // 스마트폰 상단바 알림에 이쁜 아이콘 띄우기
                     'Content-Type': 'text/plain; charset=utf-8'
                 },
-                body: '주문 내용을 확인하려면 관리자 창을 열어주세요.'
-            }).catch(() => {}); // 푸시 에러가 나도 주문 처리는 멈추지 않게 방어
+                body: alertMessage // 한글 주문 정보를 안전하게 본문에 주입!
+            }).catch((e) => console.error("ntfy 전송 오류:", e));
         } catch(e) {}
 
-        // 🚀 [기존 Supabase 실시간 화면 새로고침 신호는 그대로 둡니다]
+        // 기존 Supabase 방송 코드는 그대로 유지
         try {
             if (supabase) {
                         
