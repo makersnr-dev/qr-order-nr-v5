@@ -565,6 +565,7 @@ export default async function handler(req, res) {
         const metaData = type === 'store' ? { ts: Date.now() } : (clientMeta || {});
 
                 
+        // 1. 사장님 코드 내의 이 쿼리문을 찾으세요. (약 350~360번째 줄 부근)
         await query(`
             INSERT INTO orders_v2 (
                 store_id, order_no, order_type, status, total_amount, items,
@@ -574,12 +575,14 @@ export default async function handler(req, res) {
             storeId, newOrderNo, type, initStatus, finalAmount, JSON.stringify(cart),
             table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
         ]);
-        // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
+
+        // 🟢여기에 딱 이 두 줄만 새로 추가해 넣으시면 됩니다!
+        const ntfyMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문 접수.\n금액: ${finalAmount.toLocaleString()}원`;
+        fetch(`https://ntfy.sh/qrnr-${storeId}`, { method: 'POST', headers: { 'Title': 'New Order Received!', 'Priority': '5', 'Tags': 'bell', 'Content-Type': 'text/plain; charset=utf-8' }, body: ntfyMessage }).catch(() => {});
+
         try {
             if (supabase) {
-
-                
-                        await supabase.channel(`qrnr_realtime_${storeId}`).send({
+                await supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
                             orderNo: newOrderNo,
