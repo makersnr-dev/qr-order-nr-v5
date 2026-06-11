@@ -91,14 +91,21 @@ export default async function handler(req, res) {
 
     const getAuth = async () => {
         const cookieHeader = headers.cookie || '';
-        const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
-        const isSuperPath = pathname.startsWith('/api/super-') || pathname === '/api/stores';
+        // 🚀 [보완] 쿠키 문자열이 텅 비어있을 때 split에서 터지는 현상 방지
+        const cookies = cookieHeader ? Object.fromEntries(cookieHeader.split(';').map(c => {
+            const [k, ...v] = c.trim().split('=');
+            return [k, v.join('=')];
+        })) : {};
+        
+        // 🟢 [완벽 수정] 일반 사장님들이 사용하는 '/api/stores'를 SUPER 권한 체크에서 제외합니다!
+        // 최고관리자 전용 경로는 오직 '/api/super-'와 '/api/admin/'으로만 엄격하게 제한합니다.
+        const isSuperPath = pathname.startsWith('/api/super-') || pathname.startsWith('/api/admin/');
         let token = isSuperPath ? cookies['super_token'] : (cookies['admin_token'] || cookies['super_token']);
         
         if (!token) return null;
         
         try {
-            // 🚀 [수정] 슈퍼 관리자 경로라면 SUPER용 열쇠를 먼저 사용하도록 변경
+            // 🚀 슈퍼 관리자 경로라면 SUPER용 열쇠를 먼저 사용하도록 변경
             const secret = isSuperPath ? (process.env.SUPER_JWT_SECRET || process.env.JWT_SECRET) : process.env.JWT_SECRET;
             if (!secret) return null;
             return await verifyJWT(token, secret);
@@ -484,7 +491,7 @@ export default async function handler(req, res) {
                         const dConfig = settingsRes?.delivery_config || {};
                         
                         const clientFee = Number(clientMeta?.delivery_fee || 0);
-                        const orderType = clientMeta?.order_type; // 'delivery' 또는 'pickup'
+                        const orderType = clientMeta?.order_type || clientMeta?.meta?.order_type;
                     
                         if (orderType === 'delivery') {
                             // 🚀 [보완] 매장이 배달 기능을 껐는데 배달로 주문이 들어온 경우 차단
