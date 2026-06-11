@@ -578,8 +578,18 @@ export default async function handler(req, res) {
 
         // 🟢여기에 딱 이 두 줄만 새로 추가해 넣으시면 됩니다!
         const ntfyMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문 접수.\n금액: ${finalAmount.toLocaleString()}원`;
-        fetch(`https://ntfy.sh/qrnr-${storeId}`, { method: 'POST', headers: { 'Title': 'New Order Received!', 'Priority': '4', 'Tags': 'bell', 'Content-Type': 'text/plain; charset=utf-8' }, body: ntfyMessage }).catch(() => {});
-
+        fetch(`https://ntfy.sh/qrnr-${storeId}`, { 
+            method: 'POST', 
+            headers: { 
+                'Title': 'New Order Received!', 
+                'Priority': '4', 
+                'Tags': 'bell', 
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Click': `https://qr-order-nr-b.vercel.app/admin?store=${storeId}` // 👈 사장님 실제 관리자 도메인 주소 입력!
+            }, 
+            body: ntfyMessage 
+        }).catch(() => {});
+                
         try {
             if (supabase) {
                 await supabase.channel(`qrnr_realtime_${storeId}`).send({
