@@ -574,30 +574,7 @@ export default async function handler(req, res) {
             storeId, newOrderNo, type, initStatus, finalAmount, JSON.stringify(cart),
             table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
         ]);
-
-        // 🚀 [플랫폼용 동적 ntfy 실시간 푸시 알림 - 서버 튕김 방지 가드 적용]
-        try {
-            const platformName = "qrnr"; 
-            const dynamicTopic = `${platformName}-${storeId}`; // 예: qrnr-narae
-            
-            const alertMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문이 접수되었습니다.\n금액: ${finalAmount.toLocaleString()}원`;
-
-            // ⚠️ 핵심 보정: 백엔드가 ntfy 전송이 완료될 때까지 확실히 기다려주도록(await) 자물쇠를 채웁니다!
-            await fetch(`https://ntfy.sh/${dynamicTopic}`, {
-                method: 'POST',
-                headers: {
-                    'Title': 'New Order Received!', 
-                    'Priority': '5', 
-                    'Tags': 'bell,package', 
-                    'Content-Type': 'text/plain; charset=utf-8'
-                },
-                body: alertMessage 
-            }).catch((e) => console.error("ntfy fetch inner error:", e));
-        } catch(e) {
-            console.error("ntfy outer error:", e);
-        }
-
-        // 기존 Supabase 방송 코드는 그대로 유지
+        // 🚀 [수정] await를 삭제하여 알림 전송 대기 시간 없이 손님에게 즉시 응답 반환
         try {
             if (supabase) {
 
