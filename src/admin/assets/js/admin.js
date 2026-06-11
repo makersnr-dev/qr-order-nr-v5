@@ -181,25 +181,33 @@ export function showToast(msg, variant = 'info') {
 const adminChannel = new BroadcastChannel("qrnr-admin");
 // --- [추가] 실제 데스크탑 알림 팝업 함수 ---
 function showDesktopNotification(title, body) {
-  if (!("Notification" in window)) return;
-
-  if (Notification.permission === "granted") {
-    try {
-      // 팝업 생성
-      const n = new Notification(title, {
-        body: String(body), // 반드시 문자열 확인
-        icon: location.origin + '/favicon.ico', // 절대 경로로 보정
-        silent: true // 브라우저 자체 기본음은 끄고, 사장님의 mp3만 재생되도록 함
-      });
-
-      n.onclick = () => {
-        window.focus();
-        n.close();
-      };
-    } catch (e) {
-      console.error("데스크탑 알림 생성 실패:", e);
+    // 🔊 모바일/PC 통합 강제 진동 뿜기 (0.4초 진동 ➡️ 0.1초 쉬고 ➡️ 0.4초 진동)
+    if (navigator.vibrate) {
+        navigator.vibrate([400, 100, 400]);
     }
-  }
+
+    if (Notification.permission === 'granted') {
+        try {
+            // PC용 표준 팝업 시도
+            new Notification(title, { body: body, icon: '/favicon.ico' });
+        } catch (e) {
+            // 🚀 모바일 크롬 등에서 위 명령어가 거부당했을 때 터지는 우회 가드
+            // 서비스 워커(대리인)를 깨워 모바일 시스템 상단바 알림창으로 강제 우회 등록합니다.
+            navigator.serviceWorker.ready.then(function(registration) {
+                registration.showNotification(title, {
+                    body: body,
+                    icon: '/favicon.ico',
+                    vibrate: [400, 100, 400]
+                });
+            }).catch(() => {
+                // 모바일 웹앱 등록이 안 되어 있어도 브라우저 자체 경고창으로 띄워 흐름이 멈추는 걸 방어합니다.
+                alert(`${title}\n${body}`);
+            });
+        }
+    } else {
+        // 권한이 꼬여있을 때를 대비한 최후의 보루 팝업
+        alert(`${title}\n${body}`);
+    }
 }
 let lastAlarmTime = 0;
 let lastProcessedEventId= sessionStorage.getItem('qrnr.lastEventId');
