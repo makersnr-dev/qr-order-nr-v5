@@ -403,6 +403,12 @@ if (client) {
   await syncStoreFromServer();
   refreshStats(sid);
   initTabs();
+  // 🚀 [ntfy 순간이동 보정 가드] 링크 뒤에 tab=reserve 꼬리표가 붙어있으면 예약 탭을 즉시 자동 클릭합니다!
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('tab') === 'reserve') {
+      const reserveTabBtn = document.querySelector('[data-tab="delivery"]') || document.querySelector('.tab[data-tab="delivery"]');
+      if (reserveTabBtn) reserveTabBtn.click();
+  }
 
   //------------------------------------------------------------------
   // D. 탭 전환
