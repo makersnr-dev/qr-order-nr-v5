@@ -557,6 +557,7 @@ export default async function handler(req, res) {
         // 기존 프론트엔드가 에러 나지 않도록 meta 데이터 형태 유지
         const metaData = type === 'store' ? { ts: Date.now() } : (clientMeta || {});
 
+                
         await query(`
             INSERT INTO orders_v2 (
                 store_id, order_no, order_type, status, total_amount, items,
@@ -567,31 +568,33 @@ export default async function handler(req, res) {
             table || null, cName, cPhone, cAddr, lookupPw || null, JSON.stringify(metaData)
         ]);
 
-        // 🚀 [플랫폼용 동적 ntfy 실시간 푸시 알림 - 한글 버그 완벽 수정본]
+        // 🚀 [플랫폼용 동적 ntfy 실시간 푸시 알림 - 서버 튕김 방지 가드 적용]
         try {
             const platformName = "qrnr"; 
             const dynamicTopic = `${platformName}-${storeId}`; // 예: qrnr-narae
             
-            // 💡 한글은 헤더가 아니라 'body' 영역에 실어 보내야 ntfy 서버가 거부하지 않고 폰으로 즉시 던져줍니다!
             const alertMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문이 접수되었습니다.\n금액: ${finalAmount.toLocaleString()}원`;
 
-            fetch(`https://ntfy.sh/${dynamicTopic}`, {
+            // ⚠️ 핵심 보정: 백엔드가 ntfy 전송이 완료될 때까지 확실히 기다려주도록(await) 자물쇠를 채웁니다!
+            await fetch(`https://ntfy.sh/${dynamicTopic}`, {
                 method: 'POST',
                 headers: {
-                    // ⚠️ 영문 헤더명은 대소문자 구분을 확실히 해야 스마트폰 OS단에서 가로챕니다!
                     'Title': 'New Order Received!', 
-                    'Priority': '5', // 5(Urgent): 화면 꺼짐을 깨우고 소리/진동 강제 발생
-                    'Tags': 'bell,package', // 스마트폰 상단바 알림에 이쁜 아이콘 띄우기
+                    'Priority': '5', 
+                    'Tags': 'bell,package', 
                     'Content-Type': 'text/plain; charset=utf-8'
                 },
-                body: alertMessage // 한글 주문 정보를 안전하게 본문에 주입!
-            }).catch((e) => console.error("ntfy 전송 오류:", e));
-        } catch(e) {}
+                body: alertMessage 
+            }).catch((e) => console.error("ntfy fetch inner error:", e));
+        } catch(e) {
+            console.error("ntfy outer error:", e);
+        }
 
         // 기존 Supabase 방송 코드는 그대로 유지
         try {
             if (supabase) {
-                        
+
+                
                         await supabase.channel(`qrnr_realtime_${storeId}`).send({
                         type: 'broadcast', event: 'NEW_ORDER', 
                         payload: { 
