@@ -578,14 +578,16 @@ export default async function handler(req, res) {
 
         // 🟢여기에 딱 이 두 줄만 새로 추가해 넣으시면 됩니다!
         const ntfyMessage = `[${type === 'store' ? '매장' : '예약'} 주문 도착]\n${table ? table + '번 테이블' : '비회원'} 주문 접수.\n금액: ${finalAmount.toLocaleString()}원`;
+                const adminLink = `https://qr-order-nr-b.vercel.app/admin?store=${storeId}${type === 'store' ? '' : '&tab=reserve'}`;
+
         fetch(`https://ntfy.sh/qrnr-${storeId}`, { 
             method: 'POST', 
             headers: { 
                 'Title': 'New Order Received!', 
-                'Priority': '4', 
+                'Priority': '5', 
                 'Tags': 'bell', 
                 'Content-Type': 'text/plain; charset=utf-8',
-                'Click': `https://qr-order-nr-b.vercel.app/admin?store=${storeId}` // 👈 사장님 실제 관리자 도메인 주소 입력!
+                'Click': adminLink // 👈 이 주소가 실려서 날아갑니다.
             }, 
             body: ntfyMessage 
         }).catch(() => {});
