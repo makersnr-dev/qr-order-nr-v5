@@ -9,9 +9,26 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 깃허브에 스스로 커밋을 남기기 위해 필요한 권한
     steps:
+      # 1. Supabase에 데이터 요청 보내기 (작성하신 방식 유지)
       - name: Send Keep-alive Request
         run: |
           curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/menus?select=id&limit=1" \
           -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
+
+      # 2. 깃허브 저장소 코드 체크아웃
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 3. 깃허브 60일 비활성화 방지를 위한 자동 커밋 생성
+      - name: Keep GitHub Action Active
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          echo "Last ping: $(date)" > keep_alive.txt
+          git add keep_alive.txt
+          git commit -m "chore: keep alive ping [skip ci]" || echo "No changes to commit"
+          git push
