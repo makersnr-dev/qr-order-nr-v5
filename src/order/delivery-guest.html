@@ -771,6 +771,16 @@
     await renderMenu("menu-grid", cart);
     await loadBankInfo();
     initRealtimeSync();
+
+    // 🚀 [진짜 마법의 해결책] 첫 로딩 시 배달/픽업 모드라면 숙박 상품(S)을 즉시 원천 차단합니다!
+    setTimeout(() => {
+        if (currentOrderType !== 'stay') {
+            document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+                if (card.dataset.cat === 'S') card.style.display = 'none';
+            });
+        }
+    }, 150); // 렌더링이 완전히 마무리되는 주기를 안전하게 확보하기 위해 150ms 지연
+  }
   }
 
   function initRealtimeSync() {
@@ -1030,6 +1040,15 @@
       btn.textContent = "조회하기";
     }
   };
+
+  // 🚀 손님이 카테고리 탭(치킨, 피자 등)을 누를 때 숙박 상품(S)이 다시 튀어나오는 현상을 원천 차단
+  document.getElementById('menu-grid')?.addEventListener('click', () => {
+      if (currentOrderType !== 'stay') {
+          document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+              if (card.dataset.cat === 'S') card.style.display = 'none';
+          });
+      }
+  });
 
   document.addEventListener("DOMContentLoaded", initApp);
   window.addEventListener('beforeunload', () => {
