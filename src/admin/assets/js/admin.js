@@ -12,6 +12,7 @@ import { ensureStoreInitialized, setGlobalStoreId } from '/src/shared/store.js';
 import {
   renderStore,
   renderDeliv,
+  renderStay,
   bindFilters,
   exportOrders,
   attachGlobalHandlers,
@@ -237,7 +238,11 @@ async function initRealtimeAlarm(storeId) {
                 // 아까 만든 지름길로 1개만 쓱 던져줍니다. (모든 탭에서 무조건 실행되어 화면 갱신)
                 if (fetchType === 'store') {
                     if (typeof renderStore === 'function') renderStore(storeId, singleData.order); 
-                } else {
+                }
+                else if (fetchType === 'stay') { // 🚀 1. 단건 데이터가 숙박(stay)일 때 숙박 테이블만 고속 갱신
+                    if (typeof renderStay === 'function') renderStay(storeId, singleData.order);
+                }
+                else {
                     if (typeof renderDeliv === 'function') renderDeliv(storeId, singleData.order);
                 }
             } else {
@@ -247,7 +252,11 @@ async function initRealtimeAlarm(storeId) {
             console.error("단건 조회 실패, 안전하게 전체 새로고침 진행");
             if (data.orderType === 'store' || data.type === 'store') {
                 if (typeof renderStore === 'function') renderStore(storeId); 
-            } else {
+            }  
+            else if (data.orderType === 'stay' || data.type === 'stay') { // 🚀 2. 단건 조회 에러 복구 분기도 숙박 추가
+                if (typeof renderStay === 'function') renderStay(storeId);
+            }
+            else {
                 if (typeof renderDeliv === 'function') renderDeliv(storeId);
             }
         }
@@ -270,7 +279,7 @@ async function initRealtimeAlarm(storeId) {
         }
 
         // 알림 표시
-        const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : '예약';
+        const orderTitle = (data.orderType === 'store' || data.type === 'store') ? '매장' : ((data.orderType === 'stay' || data.type === 'stay') ? '숙박' : '예약');
         showToast(`📦 새 ${orderTitle} 주문 도착! (${data.customerName || '비회원'})`, "success");
         showDesktopNotification(`🚨 새 ${orderTitle} 주문`, `${data.customerName || '비회원'}님의 주문이 도착했습니다.`);
 
@@ -306,7 +315,11 @@ async function initRealtimeAlarm(storeId) {
         // 누군가 상태를 변경하면 내 화면도 즉시 새로고침하여 반영
         if (type === 'store') {
             if (typeof safeRenderStore === 'function') safeRenderStore(storeId);
-        } else {
+        } 
+        else if (type === 'stay') { // 🚀 4. 사장님이 숙박 주문 상태(접수/취소 등)를 바꾸면 숙박판만 리프레시
+            if (typeof renderStay === 'function') renderStay(storeId);
+        }
+        else {
             if (typeof safeRenderDeliv === 'function') safeRenderDeliv(storeId);
         }
     }); 
@@ -419,6 +432,7 @@ if (client) {
       switch(tab) {
         case "store": safeRenderStore(sid); break;
         case "delivery": safeRenderDeliv(sid); break;
+        case "stay-panel": renderStay(sid); break;
         case "notify-log": safeRenderNotifyLogs(sid); break;
       }
     });
@@ -461,6 +475,7 @@ if (client) {
   bindFilters();
   safeRenderStore(sid);
   safeRenderDeliv(sid);
+  renderStay(sid);
   attachGlobalHandlers();
 
   // -------------------------------------------------
@@ -482,6 +497,13 @@ if (delivRefreshBtn) {
   });
 }
 
+  const stayRefreshBtn = document.getElementById("stay-refresh");
+if (stayRefreshBtn) {
+  stayRefreshBtn.addEventListener("click", () => {
+    renderStay(sid); // orders.js에서 만든 숙박 단건/전체 렌더링 호출
+    refreshStats(sid);
+  });
+}
 
   const storeExportBtn = document.getElementById("store-export");
   if (storeExportBtn) storeExportBtn.onclick = () =>
