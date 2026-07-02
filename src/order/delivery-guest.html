@@ -578,7 +578,7 @@
     } catch (e) { console.error(e); }
   }
 
-  // --- 🚀 [여기서부터 복사] 배달/픽업 전환 및 거리 계산 로직 ---
+  // --- 🚀 배달/픽업/숙박 전환 및 카테고리/아이템 필터링 제어 로직 ---
   window.setOrderType = function(type) {
     currentOrderType = type;
     document.querySelectorAll('.btn-type').forEach(btn => btn.classList.remove('active'));
@@ -587,48 +587,63 @@
     const addrSection = document.getElementById('address-section');
 
     if (type === 'stay') {
-      // 🛏️ 숙박: 픽업처럼 주소창은 완전히 숨기고 배달비는 0원 처리
+      // 🛏️ 숙박: 주소창 숨김 및 배달비 0원
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
       
-      // 🚀 [초간단 수정] 상단 카테고리 탭 영역을 숨겨버리고, 메뉴 ID가 'S'로 시작하는 카드만 보여줍니다!
+      // 상단 카테고리 탭 영역을 가려버립니다.
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'none';
+      
+      // 🚀 오직 숙박('S') 카테고리 상품만 화면에 노출시킵니다.
       document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
           card.style.display = card.dataset.cat === 'S' ? 'flex' : 'none';
       });
     }
     else if (type === 'pickup') {
+      // 🛍️ 픽업: 주소창 숨김 및 배달비 0원
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
     
+      // 상단 카테고리 탭 바 노출
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
     
+      // 🚀 캐시 가드와 무관하게 무조건 'S' 상품은 숨기고 현재 활성화된 일반 음식 탭(기본 A)만 보여줍니다.
       window.currentOrderTab = 'A';
-      renderMenu("menu-grid", cart); // 1. 먼저 메뉴판을 그리라고 지시하고
-
-      // 🚀 2. [진짜 해결책] 0.1초 뒤에 메뉴판이 다 그려지면 그때 숙박(S) 카드를 확실히 찾아 숨깁니다!
+      renderMenu("menu-grid", cart);
+      
+      // 렌더링 주기가 끝난 직후 시점과 안전하게 맞물리도록 숙박 상품 최종 격리
       setTimeout(() => {
           document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-              if (card.dataset.cat === 'S') card.style.display = 'none';
+              if (card.dataset.cat === 'S') {
+                  card.style.display = 'none';
+              } else {
+                  card.style.display = card.dataset.cat === window.currentOrderTab ? 'flex' : 'none';
+              }
           });
-      }, 100);
+      }, 50);
     }
     else {
+      // 🛵 배달: 주소창 노출
       addrSection.style.display = 'flex';
     
+      // 상단 카테고리 탭 바 노출
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
     
+      // 🚀 캐시 가드와 무관하게 무조건 'S' 상품은 숨기고 현재 활성화된 일반 음식 탭(기본 A)만 보여줍니다.
       window.currentOrderTab = 'A';
-      renderMenu("menu-grid", cart); // 1. 먼저 메뉴판을 그리라고 지시하고
-
-      // 🚀 2. [진짜 해결책] 0.1초 뒤에 메뉴판이 다 그려지면 그때 숙박(S) 카드를 확실히 찾아 숨깁니다!
+      renderMenu("menu-grid", cart);
+      
       setTimeout(() => {
           document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-              if (card.dataset.cat === 'S') card.style.display = 'none';
+              if (card.dataset.cat === 'S') {
+                  card.style.display = 'none';
+              } else {
+                  card.style.display = card.dataset.cat === window.currentOrderTab ? 'flex' : 'none';
+              }
           });
-      }, 100);
+      }, 50);
     }
     
     // 합계 금액 갱신 (배달비 포함)
