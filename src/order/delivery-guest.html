@@ -607,6 +607,10 @@
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
       window.currentOrderTab = 'A';
       renderMenu("menu-grid", cart);
+
+      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+          if (card.dataset.cat === 'S') card.style.display = 'none';
+      });
     } else {
       // 🛵 배달: 주소창 노출
       addrSection.style.display = 'flex';
@@ -615,6 +619,10 @@
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
       window.currentOrderTab = 'A';
       renderMenu("menu-grid", cart);
+      // 🚀 [추가] 배달/픽업에는 숙박 상품이 섞여 보이지 않도록 'S' 카테고리 카드는 강제로 숨깁니다!
+      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+          if (card.dataset.cat === 'S') card.style.display = 'none';
+      });
     }
     
     // 합계 금액 갱신 (배달비 포함)
