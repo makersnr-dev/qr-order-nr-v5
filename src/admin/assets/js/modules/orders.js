@@ -43,10 +43,15 @@ async function safeRenderAll(type = 'all', storeId) {
       await renderStore(storeId);
     } else if (type === 'reserve') {
       await renderDeliv(storeId);
-    } else {
+    } 
+    else if (type === 'stay') { // 🚀 1. 숙박 단건 요청 시 숙박만 렌더링하도록 조건 추가
+      await renderStay(storeId);
+    }
+    else {
       // type이 'all'이거나 없을 경우 둘 다 실행
       await renderStore(storeId);
       await renderDeliv(storeId);
+      await renderStay(storeId);
     }
   } finally {
     __isRendering = false;
@@ -727,6 +732,86 @@ export async function renderDeliv(storeId, newOrder = null) {
           <div style="font-weight:600">${fmt(o.total_amount)}원</div>
           <div style="display:flex;align-items:center;gap:6px">
             <span class="badge-dot ${status === ORDER_STATUS.DONE ? 'badge-done' : status === ORDER_STATUS.PREPARING ? 'badge-cook' : 'badge-wait'}"></span>
+            <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_no}">
+              <option selected>${status}</option>
+              ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ===============================
+// 숙박 예약 렌더링 (DB 조회 및 stay 필터링)
+// ===============================
+export async function renderStay(storeId, newOrder = null) {
+  const tbody = $('#tbody-stay');
+  if (!tbody) return;
+
+  let rows = [];
+  
+  // 🚀 최근 알림으로 새 주문 1개가 바로 들어온 경우
+  if (newOrder) {
+    rows = window.lastStayOrders || [];
+    if (!rows.find(o => o.order_no === newOrder.order_no)) rows.push(newOrder);
+  } 
+  // 🚀 처음 로딩이거나 새로고침일 때 DB에서 예약 전체 목록을 가져옴
+  else {
+    try {
+      const r = await fetch(`/api/orders?type=reserve&storeId=${encodeURIComponent(storeId)}`, { cache: 'no-store' });
+      if (!r.ok) {
+        console.error('[renderStay] HTTP error:', r.status);
+        rows = [];
+      } else {
+        const d = await r.json().catch(() => ({ orders: [] }));
+        rows = d.orders || [];
+      }
+    } catch (e) {
+      console.error('renderStay err (server)', e);
+      rows = [];
+      showToast('숙박 예약을 불러오는 중 오류가 발생했습니다.', 'error');
+    }
+  }
+
+  // 🚀 [가장 중요] 그중에서 order_type이 정확히 'stay'인 숙박 데이터만 골라냅니다!
+  rows = rows.filter(o => o.meta?.order_type === 'stay');
+
+  window.lastStayOrders = rows;
+  rows = rows.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  tbody.innerHTML = '';
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="small">숙박 예약이 없습니다.</td></tr>`;
+    return;
+  }
+
+  // 🚀 사장님이 요청하신 컬럼 순서대로 한 줄씩 생성
+  rows.forEach(o => {
+    const time = fmtDateTimeFromOrder(o); // 일시
+    const reserveDateTime = o.meta?.reserve?.date && o.meta?.reserve?.time ? `${o.meta.reserve.date}\n${o.meta.reserve.time}` : '-'; // 예약일시
+    const req = truncateText(o.meta?.memo || '-', 15); // 요청사항
+    const items = o.displaySummary || '-'; // 구매내역
+    const displayName = truncateReserveName(o.customer_name, 3); // 주문자
+    const status = o.status || '대기'; // 상태
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-label="일시">${time}</td>
+      <td data-label="주문자">${displayName || '-'}</td>
+      <td data-label="연락처">${formatPhone(o.customer_phone)}</td>
+      <td data-label="예약일시" style="color:#f97316; font-weight:bold; white-space:pre-wrap;">${reserveDateTime}</td>
+      <td data-label="요청사항">${req}</td>
+      <td data-label="구매내역">
+        <span class="order-detail-link" data-action="order-detail-deliv" data-id="${o.order_no}" style="cursor:pointer;text-decoration:underline">${items}</span>
+      </td>
+      <td data-label="합계 / 상태">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-weight:600">${fmt(o.total_amount || o.amount)}원</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="badge-dot ${status === '주문완료' ? 'badge-done' : status === '준비중' ? 'badge-cook' : 'badge-wait'}"></span>
             <select class="input" style="min-width:120px" data-type="reserve" data-id="${o.order_no}">
               <option selected>${status}</option>
               ${(STATUS_FLOW.reserve[status] || []).map(s => `<option>${s}</option>`).join('')}
