@@ -602,26 +602,22 @@
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
-
-      // 🚀 숨겼던 카테고리 탭을 다시 보여주고 메뉴판을 초기화합니다.
+    
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
-      window.currentOrderTab = 'A';
-      renderMenu("menu-grid", cart);
-
+    
+      // 🚀 바로 숨김 처리: 숙박(S) 카드는 무조건 none, 나머지는 보이기(flex)
       document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-          if (card.dataset.cat === 'S') card.style.display = 'none';
+          card.style.style.display = card.dataset.cat === 'S' ? 'none' : 'flex';
       });
+    }
     } else {
-      // 🛵 배달: 주소창 노출
       addrSection.style.display = 'flex';
-
-       // 🚀 숨겼던 카테고리 탭을 다시 보여주고 메뉴판을 초기화합니다.
+    
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
-      window.currentOrderTab = 'A';
-      renderMenu("menu-grid", cart);
-      // 🚀 [추가] 배달/픽업에는 숙박 상품이 섞여 보이지 않도록 'S' 카테고리 카드는 강제로 숨깁니다!
+    
+      // 🚀 바로 숨김 처리: 숙박(S) 카드는 무조건 none, 나머지는 보이기(flex)
       document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-          if (card.dataset.cat === 'S') card.style.display = 'none';
+          card.style.style.display = card.dataset.cat === 'S' ? 'none' : 'flex';
       });
     }
     
