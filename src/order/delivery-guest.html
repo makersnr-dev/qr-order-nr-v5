@@ -605,20 +605,30 @@
     
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
     
-      // 🚀 바로 숨김 처리: 숙박(S) 카드는 무조건 none, 나머지는 보이기(flex)
-      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-          card.style.display = card.dataset.cat === 'S' ? 'none' : 'flex';
-      });
+      window.currentOrderTab = 'A';
+      renderMenu("menu-grid", cart); // 1. 먼저 메뉴판을 그리라고 지시하고
+
+      // 🚀 2. [진짜 해결책] 0.1초 뒤에 메뉴판이 다 그려지면 그때 숙박(S) 카드를 확실히 찾아 숨깁니다!
+      setTimeout(() => {
+          document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+              if (card.dataset.cat === 'S') card.style.display = 'none';
+          });
+      }, 100);
     }
-     else {
+    else {
       addrSection.style.display = 'flex';
     
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
     
-      // 🚀 바로 숨김 처리: 숙박(S) 카드는 무조건 none, 나머지는 보이기(flex)
-      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-          card.style.display = card.dataset.cat === 'S' ? 'none' : 'flex';
-      });
+      window.currentOrderTab = 'A';
+      renderMenu("menu-grid", cart); // 1. 먼저 메뉴판을 그리라고 지시하고
+
+      // 🚀 2. [진짜 해결책] 0.1초 뒤에 메뉴판이 다 그려지면 그때 숙박(S) 카드를 확실히 찾아 숨깁니다!
+      setTimeout(() => {
+          document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+              if (card.dataset.cat === 'S') card.style.display = 'none';
+          });
+      }, 100);
     }
     
     // 합계 금액 갱신 (배달비 포함)
