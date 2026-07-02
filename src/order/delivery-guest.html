@@ -217,6 +217,7 @@
       <div id="type-selector" class="hstack" style="gap:10px; margin-bottom:10px;">
           <button type="button" id="btn-type-delivery" class="btn-type active" onclick="setOrderType('delivery')">🛵 배달</button>
           <button type="button" id="btn-type-pickup" class="btn-type" onclick="setOrderType('pickup')">🛍️ 픽업</button>
+          <button type="button" id="btn-type-stay" class="btn-type" onclick="setOrderType('stay')">🛏️ 숙박</button> </div>
       </div>
       <style>
           .btn-type { flex:1; height:40px; border-radius:10px; border:1px solid #263241; background:#1c2632; color:#9ca3af; cursor:pointer; font-size:13px; transition: 0.2s; }
@@ -530,7 +531,7 @@
       type: 'reserve',
       amount: cart.total() + currentDeliveryFee,
       cart: cart.items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price, optionText: i.optionText || [] })),
-      customer: { name: cust, phone, fullAddr: currentOrderType === 'pickup' ? '[매장픽업]' : fullAddr, memo },
+      customer: { name: cust, phone, fullAddr: currentOrderType === 'stay' ? '[숙박예약]' : (currentOrderType === 'pickup' ? '[매장픽업]' : fullAddr), memo },
       meta: { 
         delivery_fee: currentDeliveryFee, 
         order_type: currentOrderType,
@@ -584,12 +585,31 @@
     document.getElementById(`btn-type-${type}`).classList.add('active');
 
     const addrSection = document.getElementById('address-section');
-    if (type === 'pickup') {
+
+    if (type === 'stay') {
+      // 🛏️ 숙박: 픽업처럼 주소창은 완전히 숨기고 배달비는 0원 처리
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
+      
+      // 🚀 [핵심] 메뉴판 카테고리를 '숙박(S)'으로 강제 고정 및 변경합니다.
+      window.currentOrderTab = 'S'; 
+      renderMenu("menu-grid", cart);
+    } else if (type === 'pickup') {
+      addrSection.style.display = 'none';
+      currentDeliveryFee = 0;
+      if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
+
+      // 기본 첫 번째 카테고리(A)로 복구
+      window.currentOrderTab = 'A';
+      renderMenu("menu-grid", cart);
     } else {
+      // 🛵 배달: 주소창 노출
       addrSection.style.display = 'flex';
+
+       // 기본 첫 번째 카테고리(A)로 복구
+      window.currentOrderTab = 'A';
+      renderMenu("menu-grid", cart);
     }
     
     // 합계 금액 갱신 (배달비 포함)
