@@ -592,22 +592,27 @@
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
       
-      // 🚀 [핵심] 메뉴판 카테고리를 '숙박(S)'으로 강제 고정 및 변경합니다.
-      window.currentOrderTab = 'S'; 
-      renderMenu("menu-grid", cart);
-    } else if (type === 'pickup') {
+      // 🚀 [초간단 수정] 상단 카테고리 탭 영역을 숨겨버리고, 메뉴 ID가 'S'로 시작하는 카드만 보여줍니다!
+      if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'none';
+      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
+          card.style.display = card.dataset.cat === 'S' ? 'flex' : 'none';
+      });
+    }
+    else if (type === 'pickup') {
       addrSection.style.display = 'none';
       currentDeliveryFee = 0;
       if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
 
-      // 기본 첫 번째 카테고리(A)로 복구
+      // 🚀 숨겼던 카테고리 탭을 다시 보여주고 메뉴판을 초기화합니다.
+      if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
       window.currentOrderTab = 'A';
       renderMenu("menu-grid", cart);
     } else {
       // 🛵 배달: 주소창 노출
       addrSection.style.display = 'flex';
 
-       // 기본 첫 번째 카테고리(A)로 복구
+       // 🚀 숨겼던 카테고리 탭을 다시 보여주고 메뉴판을 초기화합니다.
+      if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
       window.currentOrderTab = 'A';
       renderMenu("menu-grid", cart);
     }
