@@ -605,9 +605,8 @@ body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'none';
       
       // 오직 숙박('S') 카테고리 상품만 화면에 노출시킵니다.
-      document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-          card.style.display = card.dataset.cat === 'S' ? 'flex' : 'none';
-      });
+     window.currentOrderTab = 'S';
+      renderMenu("menu-grid", cart, true);
     }
     else {
       // 🛵 배달 또는 🛍️ 픽업
