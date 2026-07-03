@@ -144,7 +144,11 @@ window.currentOrderTab = window.currentOrderTab || 'A';
 
 export async function renderMenu(gridId, cartObj, forceRefresh = false) {
     //if (forceRefresh) clearMenuCache();
-    const allMenus = await loadMenu(forceRefresh);
+    let allMenus = await loadMenu(forceRefresh);
+    const orderType = document.body.getAttribute('data-order-type') || 'delivery';
+    if (orderType !== 'stay') {
+        allMenus = allMenus.filter(m => m.id.charAt(0).toUpperCase() !== 'S');
+    }
     const grid = document.getElementById(gridId);
     if (!grid) return;
     if (forceRefresh) {
