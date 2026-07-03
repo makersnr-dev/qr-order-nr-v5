@@ -514,9 +514,16 @@ export default async function handler(req, res) {
                             if (clientFee !== 0) {
                                 return json({ ok: false, message: '픽업은 배달비가 발생하지 않습니다.' }, 400);
                             }
-                        } else {
+                        } 
+                        else if (orderType === 'stay') {
+                            // 🚀 숙박 예약 유효성 통과 가드 추가
+                            if (clientFee !== 0) {
+                                return json({ ok: false, message: '숙박 예약은 배달비가 발생하지 않습니다.' }, 400);
+                            }
+                        }
+                        else {
                             // order_type이 아예 없거나 오타가 난 경우 (매우 중요)
-                            return json({ ok: false, message: '주문 유형(배달/픽업)을 선택해주세요.' }, 400);
+                            return json({ ok: false, message: '주문 유형(배달/픽업/숙박)을 선택해주세요.' }, 400);
                         }
                     }
                     // ────────────────────────────────────────────────────────────
