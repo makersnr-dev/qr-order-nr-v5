@@ -614,6 +614,11 @@ body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
       if (type === 'pickup') {
         currentDeliveryFee = 0;
         if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
+      } else if (type === 'delivery') {
+        // 배달 탭으로 전환 시 이전 주소와 배달비를 초기화하여 서버 검증 오류를 방지합니다.
+        currentDeliveryFee = 0; 
+        document.getElementById("addr").value = "";
+        if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "주소를 검색해 주세요.";
       }
     
       // 상단 카테고리 탭 바 노출
