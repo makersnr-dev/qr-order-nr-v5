@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <title>예약 (비회원)</title>
 
-  <link rel="stylesheet" href="/src/admin/assets/css/style.css"/>
+
   <link rel="stylesheet" href="/src/order/assets/css/order-common.css"/>
  <style>
     /* 1. 날짜 및 시간 영역 레이아웃 - 왼쪽 정렬 및 간격 고정 */
@@ -157,6 +157,11 @@
     flex-shrink: 0;
     background: #1c2632; /* 주변보다 약간 밝은 배경색으로 구분감 주기 */
     border: 1px solid #30363d;
+}
+   /* 🚀 배달(delivery) 또는 픽업(pickup) 모드일 때, 숙박(S) 메뉴 카드를 CSS로 원천 차단 */
+body[data-order-type="delivery"] #menu-grid .menu-card[data-cat="S"],
+body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
+    display: none !important;
 }
    
 </style>
@@ -578,9 +583,13 @@
     } catch (e) { console.error(e); }
   }
 
-  // --- 🚀 배달/픽업/숙박 전환 및 카테고리/아이템 필터링 제어 로직 ---
+ // --- 🚀 배달/픽업/숙박 전환 및 카테고리/아이템 필터링 제어 로직 ---
   window.setOrderType = function(type) {
     currentOrderType = type;
+    
+    // body 태그에 현재 주문 타입을 기록 (CSS 제어용)
+    document.body.setAttribute('data-order-type', type);
+    
     document.querySelectorAll('.btn-type').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-type-${type}`).classList.add('active');
 
@@ -595,55 +604,25 @@
       // 상단 카테고리 탭 영역을 가려버립니다.
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'none';
       
-      // 🚀 오직 숙박('S') 카테고리 상품만 화면에 노출시킵니다.
+      // 오직 숙박('S') 카테고리 상품만 화면에 노출시킵니다.
       document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
           card.style.display = card.dataset.cat === 'S' ? 'flex' : 'none';
       });
     }
-    else if (type === 'pickup') {
-      // 🛍️ 픽업: 주소창 숨김 및 배달비 0원
-      addrSection.style.display = 'none';
-      currentDeliveryFee = 0;
-      if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
-    
-      // 상단 카테고리 탭 바 노출
-      if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
-    
-      // 🚀 캐시 가드와 무관하게 무조건 'S' 상품은 숨기고 현재 활성화된 일반 음식 탭(기본 A)만 보여줍니다.
-      window.currentOrderTab = 'A';
-      renderMenu("menu-grid", cart);
-      
-      // 렌더링 주기가 끝난 직후 시점과 안전하게 맞물리도록 숙박 상품 최종 격리
-      setTimeout(() => {
-          document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-              if (card.dataset.cat === 'S') {
-                  card.style.display = 'none';
-              } else {
-                  card.style.display = card.dataset.cat === window.currentOrderTab ? 'flex' : 'none';
-              }
-          });
-      }, 50);
-    }
     else {
-      // 🛵 배달: 주소창 노출
-      addrSection.style.display = 'flex';
+      // 🛵 배달 또는 🛍️ 픽업
+      addrSection.style.display = type === 'delivery' ? 'flex' : 'none';
+      if (type === 'pickup') {
+        currentDeliveryFee = 0;
+        if(document.getElementById('delivery-msg')) document.getElementById('delivery-msg').textContent = "";
+      }
     
       // 상단 카테고리 탭 바 노출
       if(document.getElementById('order-cat-tabs')) document.getElementById('order-cat-tabs').style.display = 'flex';
     
-      // 🚀 캐시 가드와 무관하게 무조건 'S' 상품은 숨기고 현재 활성화된 일반 음식 탭(기본 A)만 보여줍니다.
+      // 현재 활성화된 일반 음식 탭(기본 A)을 보여줍니다.
       window.currentOrderTab = 'A';
       renderMenu("menu-grid", cart);
-      
-      setTimeout(() => {
-          document.querySelectorAll('#menu-grid .menu-card').forEach(card => {
-              if (card.dataset.cat === 'S') {
-                  card.style.display = 'none';
-              } else {
-                  card.style.display = card.dataset.cat === window.currentOrderTab ? 'flex' : 'none';
-              }
-          });
-      }, 50);
     }
     
     // 합계 금액 갱신 (배달비 포함)
