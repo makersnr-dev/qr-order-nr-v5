@@ -171,7 +171,7 @@ export async function renderMenu(gridId, cartObj, forceRefresh = false) {
 
     // 1️⃣ [추가] 이미 카드가 그려져 있다면, 새로 만들지 말고 '숨기기/보여주기'만 하고 끝낸다!
     const existingCards = grid.querySelectorAll('.menu-card');
-    if (existingCards.length > 0) {
+    if (existingCards.length > 0 && orderType !== 'stay') {
         existingCards.forEach(card => {
             // 카드의 데이터셋에 저장된 카테고리와 현재 탭을 비교
             card.style.display = (card.dataset.cat === window.currentOrderTab) ? 'flex' : 'none';
