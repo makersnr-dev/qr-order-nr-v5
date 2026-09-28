@@ -427,7 +427,7 @@ body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
 
 <script type="module">
   import { renderMenu, makeCart, clearMenuCache } from '/src/order/assets/js/modules/menu-cart.js';
-  import { get } from '/src/order/assets/js/modules/cust-store.js';
+  import { get, currentStoreId } from '/src/order/assets/js/modules/cust-store.js';
   import { fillTimeSelectors, getTimeValue, isDayOff, checkBusinessHours, isManuallyBlocked } from '/src/order/assets/js/modules/time.js';
   import { INITIAL_STATUS } from '/src/shared/constants/status.js';
   import { supabaseMgr } from '/src/shared/supabase-manager.js';
