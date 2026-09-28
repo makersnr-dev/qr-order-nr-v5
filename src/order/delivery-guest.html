@@ -530,9 +530,15 @@ body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
       fail("현재 시간보다 이후의 시간으로 예약해주세요.");
       return;
     }*/
+
+    const activeStoreId = currentStoreId() || window.qrnrStoreId || document.body.dataset.storeId;
+
+    if (!activeStoreId || activeStoreId === "undefined" || activeStoreId === "null") {
+        return fail("유효한 매장 정보를 찾을 수 없습니다. 페이지를 새로고침 해주세요.");
+    }
     
     const payload = {
-      storeId,
+      storeId: activeStoreId,
       type: 'reserve',
       amount: cart.total() + currentDeliveryFee,
       cart: cart.items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price, optionText: i.optionText || [] })),
@@ -548,7 +554,7 @@ body[data-order-type="pickup"] #menu-grid .menu-card[data-cat="S"] {
     };
 
     try {
-      const r = await fetch("/api/orders", {
+      const r = await fetch(`/api/orders?storeId=${encodeURIComponent(activeStoreId)}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload)
